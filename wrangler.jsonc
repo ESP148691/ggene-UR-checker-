@@ -1,0 +1,16 @@
+{
+  "name": "ggene-ur-checker-retry",
+  "compatibility_date": "2026-09-01",
+  "main": "worker.js",
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS",
+    "exclude": ["worker.js", "wrangler.jsonc"]
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true
+    }
+  }
+}
