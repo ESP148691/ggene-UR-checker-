@@ -66,13 +66,14 @@
   .gauge-label{font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;}
   .gauge-count{font-family:'Share Tech Mono',monospace;font-size:22px;color:var(--gold);margin-top:4px;}
   .gauge-count span{color:var(--muted);font-size:14px;}
+  .gauge-avg{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--cyan);margin-top:4px;}
   .gauge-bar-outer{height:6px;background:var(--panel-2);border:1px solid var(--line);margin-top:12px;overflow:hidden;}
   .gauge-bar-inner{height:100%;background:linear-gradient(90deg,var(--gold-dim),var(--gold));width:0%;transition:width .4s ease;}
 
   .substats{display:flex;gap:1px;background:var(--line);margin-bottom:18px;border:1px solid var(--line);}
-  .substat{flex:1;background:var(--panel);padding:10px 4px;text-align:center;}
-  .substat .v{font-family:'Share Tech Mono',monospace;font-size:15px;color:var(--cyan);}
-  .substat .l{font-size:9.5px;color:var(--muted);margin-top:3px;letter-spacing:.02em;}
+  .substat{flex:1;background:var(--panel);padding:12px 4px;text-align:center;}
+  .substat .v{font-family:'Share Tech Mono',monospace;font-size:19px;color:var(--cyan);font-weight:700;}
+  .substat .l{font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.02em;}
 
   .typetabs{display:flex;gap:6px;margin-bottom:12px;}
   .typetabs button{
@@ -211,6 +212,7 @@
       <div class="gauge-meta">
         <div class="gauge-label">所持率</div>
         <div class="gauge-count" id="countText">0 <span>/ 0機</span></div>
+        <div class="gauge-avg" id="avgText">平均凸Lv 0.0</div>
         <div class="gauge-bar-outer"><div class="gauge-bar-inner" id="barInner"></div></div>
       </div>
     </div>
@@ -262,7 +264,7 @@
 const CONFIG = {
   siteName: "Gジェネ攻略ラボ（仮）",
   xHandle: "@polarbear148691",
-  siteUrl: "https://startling-banoffee-ada998.netlify.app/",
+  siteUrl: "https://ggene-ur-checker-retry.polarbear14869.workers.dev/",
   hashtags: ["Gジェネエターナル", "UR所持率チェッカー"]
 };
 
@@ -359,6 +361,7 @@ function updateStats(){
   const s = computeStats();
   document.getElementById("gaugeNum").textContent = s.pct;
   document.getElementById("countText").innerHTML = `${s.count} <span>/ ${s.total}機</span>`;
+  document.getElementById("avgText").textContent = `平均凸Lv ${s.avg.toFixed(1)}`;
   document.getElementById("barInner").style.width = s.pct + "%";
   document.getElementById("gaugeArc").style.strokeDashoffset = CIRC - (CIRC * s.pct/100);
   document.getElementById("statMax").textContent = `${s.maxCount} / ${s.total}`;
@@ -411,7 +414,7 @@ async function generateShareImage(){
   const cell = 84;
   const gap = 8;
   const pad = 40;
-  const headerH = 300;
+  const headerH = 310;
   const gridW = cols * cell + (cols - 1) * gap;
   const gridH = rows * cell + (rows - 1) * gap;
   const W = gridW + pad * 2;
@@ -444,6 +447,17 @@ async function generateShareImage(){
   ctx.font = "bold 28px sans-serif";
   ctx.fillText("UR所持率チェッカー", pad, pad + 26);
 
+  // ロゴ（画面ヘッダーと同じ画像を右上に表示）
+  const logoEl = document.querySelector(".titlerow .logo");
+  if (logoEl && logoEl.src) {
+    const logoImg = await loadImage(logoEl.src);
+    if (logoImg) {
+      const logoH = 50;
+      const logoW = logoImg.width * (logoH / logoImg.height);
+      ctx.drawImage(logoImg, W - pad - logoW, pad, logoW, logoH);
+    }
+  }
+
   ctx.fillStyle = "#c9a227";
   ctx.font = "bold 74px monospace";
   ctx.fillText(String(s.pct), pad, pad + 74);
@@ -454,7 +468,7 @@ async function generateShareImage(){
 
   ctx.fillStyle = "#eef2f5";
   ctx.font = "16px monospace";
-  ctx.fillText(`所持 ${s.count} / ${s.total}機`, pad, pad + 158);
+  ctx.fillText(`所持 ${s.count} / ${s.total}機　平均凸Lv ${s.avg.toFixed(1)}`, pad, pad + 158);
 
   // サブ統計：完凸数／期間限定所持数／攻撃・支援・耐久の所持数（それぞれ総数も表示）
   const subStats = [
@@ -470,16 +484,16 @@ async function generateShareImage(){
     const x = pad + i * subW;
     const y = pad + 190;
     ctx.fillStyle = "#101720";
-    ctx.fillRect(x, y, subW - 2, 50);
+    ctx.fillRect(x, y, subW - 2, 56);
     ctx.strokeStyle = "#26323f";
-    ctx.strokeRect(x, y, subW - 2, 50);
+    ctx.strokeRect(x, y, subW - 2, 56);
     ctx.fillStyle = "#5ad1d1";
-    ctx.font = "bold 14px monospace";
+    ctx.font = "bold 23px monospace";
     ctx.textAlign = "center";
-    ctx.fillText(st.v, x + subW / 2, y + 10);
+    ctx.fillText(st.v, x + subW / 2, y + 15);
     ctx.fillStyle = "#7c8896";
-    ctx.font = "9px sans-serif";
-    ctx.fillText(st.l, x + subW / 2, y + 32);
+    ctx.font = "11px sans-serif";
+    ctx.fillText(st.l, x + subW / 2, y + 40);
     ctx.textAlign = "left";
   });
 
@@ -628,6 +642,34 @@ async function generateShareImage(){
   return canvas;
 }
 
+// 分析用ログ：実装順No（UNITSのid）:凸コード（1=無凸,2=1凸,3=2凸,4=完凸）のペアを
+// 所持している機体だけカンマ区切りで送信する（未所持は省略して文字数を圧縮）
+// 集計はCloudflare Workers側のログ（/api/log）で行う。利用者のブラウザには表示しない。
+function buildCompactOwnershipLog(){
+  return UNITS
+    .filter(u => state[u.id] !== undefined && state[u.id] !== null)
+    .map(u => `${u.id}:${state[u.id] + 1}`)
+    .join(",");
+}
+
+function sendOwnershipLog(){
+  try {
+    const s = computeStats();
+    const payload = {
+      count: s.count,
+      total: s.total,
+      maxCount: s.maxCount,
+      avg: Number(s.avg.toFixed(2)),
+      log: buildCompactOwnershipLog()
+    };
+    fetch("/api/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+  } catch (e) { /* 分析用送信の失敗は利用体験に影響させない */ }
+}
+
 document.getElementById("btnSave").addEventListener("click", async () => {
   const btn = document.getElementById("btnSave");
   const originalLabel = btn.textContent;
@@ -644,6 +686,8 @@ document.getElementById("btnSave").addEventListener("click", async () => {
     const downloadLink = document.getElementById("downloadLink");
     downloadLink.href = dataUrl;
     document.getElementById("previewModal").classList.add("show");
+
+    sendOwnershipLog();
 
   } catch (err) {
     console.error(err);
