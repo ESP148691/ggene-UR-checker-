@@ -19,7 +19,20 @@ export default {
       return new Response("ok", { status: 200 });
     }
 
-    // それ以外は静的アセット（index.html等）をそのまま配信
+    // 旧ルートURL（機体チェッカーが index.html だった頃のURL）を
+    // 新しい /unit へ301リダイレクト。Xで共有済みのリンクを維持するための措置。
+    if (url.pathname === "/" || url.pathname === "/index.html") {
+      const dest = new URL("/unit", url);
+      return Response.redirect(dest.toString(), 301);
+    }
+
+    // /unit を機体チェッカー本体（unit.html）にマッピング
+    if (url.pathname === "/unit") {
+      const assetUrl = new URL("/unit.html", url);
+      return env.ASSETS.fetch(new Request(assetUrl.toString(), request));
+    }
+
+    // それ以外は静的アセット（unit.html, supporter.html, images/等）をそのまま配信
     return env.ASSETS.fetch(request);
   }
 };

@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UR所持率チェッカー | Gジェネエターナル</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#0a0e14;
+    --panel:#121924;
+    --panel-2:#0e141d;
+    --line:#26323f;
+    --gold:#c9a227;
+    --gold-dim:#8a7128;
+    --cyan:#5ad1d1;
+    --text:#eef2f5;
+    --muted:#7c8896;
+    --unowned-bg:#191010;
+    --lv0-bg:#141c26; --lv0-line:#2d3d4d;
+    --lv1-bg:#16232a; --lv1-line:#2f6470;
+    --lv2-bg:#1b2c22; --lv2-line:#3c7a52;
+    --lv3-bg:#2a2311; --lv3-line:#c9a227;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:radial-gradient(1200px 600px at 50% -10%, #16202c 0%, var(--bg-deep) 60%);
+    color:var(--text);
+    font-family:'Noto Sans JP',sans-serif;
+    min-height:100vh;
+    padding-bottom:96px;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:20px 16px 8px;}
+
+  .eyebrow{
+    font-family:'Noto Sans JP',sans-serif;
+    font-weight:700;
+    letter-spacing:.08em;font-size:14px;color:var(--gold);
+    display:flex;align-items:center;gap:8px;margin-bottom:6px;
+  }
+  .eyebrow::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 6px var(--cyan);display:inline-block;}
+
+  .titlerow{display:flex;align-items:center;gap:14px;}
+  .titlerow .logo{height:44px;width:auto;flex:0 0 auto;filter:drop-shadow(0 0 6px rgba(90,209,209,.25));}
+  .titlerow h1{margin:0;}
+  h1{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:26px;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:12.5px;margin:0 0 20px;line-height:1.6;}
+
+  .hud{position:relative;background:var(--panel);border:1px solid var(--line);}
+  .hud::before,.hud::after,.hud .c2::before,.hud .c2::after{
+    content:"";position:absolute;width:14px;height:14px;border:2px solid var(--gold);opacity:.85;
+  }
+  .hud::before{top:-1px;left:-1px;border-right:none;border-bottom:none;}
+  .hud::after{top:-1px;right:-1px;border-left:none;border-bottom:none;}
+  .hud .c2::before{bottom:-1px;left:-1px;top:auto;border-right:none;border-top:none;}
+  .hud .c2::after{bottom:-1px;right:-1px;top:auto;border-left:none;border-top:none;}
+
+  .gauge-card{padding:26px 20px 20px;margin-bottom:18px;}
+  .gauge-row{display:flex;align-items:center;gap:20px;}
+  .gauge-svg{flex:0 0 auto;}
+  .gauge-num{font-family:'Share Tech Mono',monospace;font-size:40px;fill:var(--text);}
+  .gauge-unit{font-family:'Share Tech Mono',monospace;font-size:13px;fill:var(--muted);}
+  .gauge-meta{flex:1;min-width:0;}
+  .gauge-label{font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;}
+  .gauge-count{font-family:'Share Tech Mono',monospace;font-size:22px;color:var(--gold);margin-top:4px;}
+  .gauge-count span{color:var(--muted);font-size:14px;}
+  .gauge-avg{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--cyan);margin-top:4px;}
+  .gauge-bar-outer{height:6px;background:var(--panel-2);border:1px solid var(--line);margin-top:12px;overflow:hidden;}
+  .gauge-bar-inner{height:100%;background:linear-gradient(90deg,var(--gold-dim),var(--gold));width:0%;transition:width .4s ease;}
+
+  .substats{display:flex;gap:1px;background:var(--line);margin-bottom:18px;border:1px solid var(--line);}
+  .substat{flex:1;background:var(--panel);padding:12px 4px;text-align:center;}
+  .substat .v{font-family:'Share Tech Mono',monospace;font-size:19px;color:var(--cyan);font-weight:700;}
+  .substat .l{font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.02em;}
+
+  .typetabs{display:flex;gap:6px;margin-bottom:12px;}
+  .typetabs button{
+    flex:1;
+    font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13px;
+    background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    padding:9px 4px;cursor:pointer;
+  }
+  .typetabs button.active{background:var(--gold);color:#1b1503;border-color:var(--gold);font-weight:700;}
+
+  .toolbar{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+  .toolbar button{
+    flex:1 1 calc(25% - 5px);
+    font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:.02em;font-size:12.5px;
+    background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    padding:9px 4px;cursor:pointer;white-space:nowrap;
+  }
+  .toolbar button:hover{border-color:var(--gold-dim);color:var(--text);}
+
+  .list{display:flex;flex-direction:column;gap:6px;margin-bottom:20px;}
+  .unit{
+    background:var(--unowned-bg);border:1px solid var(--line);
+    padding:10px 12px;transition:background .2s, border-color .2s, box-shadow .2s;
+    position:relative;
+  }
+  .unit.lv0{background:var(--lv0-bg);border-color:var(--lv0-line);}
+  .unit.lv1{
+    background:linear-gradient(135deg,var(--lv1-bg),#182a30);
+    border-color:var(--lv1-line);
+    box-shadow:0 0 6px rgba(90,209,209,.12);
+  }
+  .unit.lv2{
+    background:linear-gradient(135deg,var(--lv2-bg),#1c3324);
+    border-color:var(--lv2-line);
+    box-shadow:0 0 10px rgba(60,122,82,.28);
+  }
+  .unit.lv3{
+    background:linear-gradient(135deg,#2a2311,#3a2f12);
+    border-color:var(--gold);
+    box-shadow:0 0 16px rgba(201,162,39,.45), inset 0 0 12px rgba(201,162,39,.12);
+  }
+  .unit.lv3::before{
+    content:"✦";
+    position:absolute;top:6px;right:8px;
+    color:var(--gold);font-size:12px;
+    text-shadow:0 0 6px rgba(201,162,39,.9);
+  }
+
+  .unit-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .unit .icon{
+    width:44px;height:44px;flex:0 0 44px;
+    background:var(--panel-2);border:1px solid var(--line);
+    object-fit:cover;filter:grayscale(1) brightness(.6);
+    transition:filter .2s, box-shadow .2s, border-color .2s;
+  }
+  .unit.lv0 .icon{filter:none;}
+  .unit.lv1 .icon{filter:saturate(1.1);border-color:var(--lv1-line);box-shadow:0 0 4px rgba(90,209,209,.35);}
+  .unit.lv2 .icon{filter:saturate(1.25) brightness(1.05);border-color:var(--lv2-line);box-shadow:0 0 7px rgba(60,122,82,.5);}
+  .unit.lv3 .icon{filter:saturate(1.4) brightness(1.1);border-color:var(--gold);box-shadow:0 0 10px rgba(201,162,39,.75);}
+  .unit .idx{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);width:24px;flex:0 0 24px;}
+  .unit.lv0 .idx, .unit.lv1 .idx, .unit.lv2 .idx, .unit.lv3 .idx{color:var(--cyan);}
+  .unit .name{flex:1;font-size:14px;line-height:1.3;}
+  .unit .badge{
+    font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--gold);
+    border:1px solid var(--gold-dim);padding:1px 5px;flex:0 0 auto;
+  }
+
+  .totsu-row{display:flex;gap:5px;}
+  .totsu-btn{
+    flex:1;
+    font-family:'Share Tech Mono',monospace;font-size:12px;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--muted);
+    padding:7px 0;text-align:center;cursor:pointer;user-select:none;
+    transition:background .2s, border-color .2s, box-shadow .2s, color .2s;
+  }
+  .totsu-btn.active.none{background:#3a2222;border-color:#6b3b3b;color:#d9a9a9;}
+  .totsu-btn.active.lv0{background:#22303d;border-color:var(--lv0-line);color:var(--text);}
+  .totsu-btn.active.lv1{background:linear-gradient(135deg,var(--lv1-line),#2f6470);border-color:var(--cyan);color:#fff;box-shadow:0 0 5px rgba(90,209,209,.5);}
+  .totsu-btn.active.lv2{background:linear-gradient(135deg,var(--lv2-line),#3c7a52);border-color:#5fd486;color:#fff;box-shadow:0 0 7px rgba(60,122,82,.6);font-weight:700;}
+  .totsu-btn.active.lv3{background:linear-gradient(135deg,var(--gold-dim),var(--gold));border-color:var(--gold);color:#1b1503;box-shadow:0 0 10px rgba(201,162,39,.85);font-weight:700;}
+
+  .actionbar{
+    position:fixed;left:0;right:0;bottom:0;
+    background:rgba(10,14,20,.92);backdrop-filter:blur(6px);
+    border-top:1px solid var(--line);
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    display:flex;gap:10px;max-width:520px;margin:0 auto;
+  }
+  .actionbar button{
+    flex:1;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.04em;
+    padding:12px 8px;cursor:pointer;border:1px solid var(--line);
+  }
+  .btn-save{background:var(--gold);color:#1b1503;border-color:var(--gold);}
+  .btn-share{background:transparent;color:var(--cyan);border-color:var(--cyan);}
+
+  /* ---- 保存プレビュー用モーダル（ここに生成画像を表示。長押し/右クリックで保存） ---- */
+  .previewModal{
+    position:fixed;inset:0;background:rgba(5,7,10,.94);
+    display:none;align-items:center;justify-content:center;
+    flex-direction:column;gap:14px;padding:24px 16px;z-index:100;
+  }
+  .previewModal.show{display:flex;}
+  .previewModal img{max-width:96%;max-height:85vh;border:1px solid var(--line);background:#000;}
+  .previewModal .msg{color:var(--muted);font-size:12.5px;text-align:center;line-height:1.7;max-width:420px;}
+  .previewModal .msg b{color:var(--cyan);}
+  .previewModal .row{display:flex;gap:10px;}
+  .previewModal button, .previewModal a{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;
+    background:var(--gold);color:#1b1503;border:1px solid var(--gold);
+    padding:10px 20px;cursor:pointer;text-decoration:none;display:inline-block;
+  }
+  .previewModal .btn-secondary{background:transparent;color:var(--muted);border-color:var(--line);}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="eyebrow">ジージェネレーション　エターナル</div>
+  <div class="titlerow">
+    <img class="logo" src="images/logo.png" alt="ESP logo">
+    <h1>UR所持率チェッカー</h1>
+  </div>
+  <p class="sub">各ユニットの限界突破（凸）段階をタップして記録してください。所持率が自動計算されます。（全<span id="totalRef">0</span>機収録）</p>
+
+  <div class="hud gauge-card">
+    <div class="c2"></div>
+    <div class="gauge-row">
+      <svg class="gauge-svg" width="112" height="112" viewBox="0 0 112 112">
+        <circle cx="56" cy="56" r="48" fill="none" stroke="#1c2530" stroke-width="8"/>
+        <circle id="gaugeArc" cx="56" cy="56" r="48" fill="none" stroke="#c9a227" stroke-width="8"
+                stroke-linecap="butt" stroke-dasharray="301.6" stroke-dashoffset="301.6"
+                transform="rotate(-90 56 56)"/>
+        <text x="56" y="60" text-anchor="middle" class="gauge-num" id="gaugeNum">0</text>
+        <text x="56" y="76" text-anchor="middle" class="gauge-unit">%</text>
+      </svg>
+      <div class="gauge-meta">
+        <div class="gauge-label">所持率</div>
+        <div class="gauge-count" id="countText">0 <span>/ 0機</span></div>
+        <div class="gauge-avg" id="avgText">平均凸Lv 0.0</div>
+        <div class="gauge-bar-outer"><div class="gauge-bar-inner" id="barInner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="substats">
+    <div class="substat"><div class="v" id="statMax">0 / 0</div><div class="l">完凸数</div></div>
+    <div class="substat"><div class="v" id="statLimited">0 / 0</div><div class="l">期間限定所持</div></div>
+    <div class="substat"><div class="v" id="statAtk">0 / 0</div><div class="l">攻撃所持</div></div>
+    <div class="substat"><div class="v" id="statSup">0 / 0</div><div class="l">支援所持</div></div>
+    <div class="substat"><div class="v" id="statDur">0 / 0</div><div class="l">耐久所持</div></div>
+  </div>
+
+  <div class="typetabs" id="typeTabs">
+    <button data-type="all" class="active">すべて</button>
+    <button data-type="攻撃">攻撃</button>
+    <button data-type="支援">支援</button>
+    <button data-type="耐久">耐久</button>
+  </div>
+
+  <div class="toolbar">
+    <button id="btnAllZero">表示中を全て無凸に</button>
+    <button id="btnAllMax">表示中を全て完凸に</button>
+    <button id="btnLimited">期間限定のみ無凸</button>
+    <button id="btnNone">全解除</button>
+  </div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<div class="actionbar">
+  <button class="btn-save" id="btnSave">画像で保存</button>
+  <button class="btn-share" id="btnShare">Xでシェア</button>
+</div>
+
+<div class="previewModal" id="previewModal">
+  <img id="previewImg" alt="所持率カード">
+  <div class="msg">自動ダウンロードが始まらない場合は、画像を<b>長押し（スマホ）</b>または<b>右クリック</b>して「画像を保存」を選んでください。</div>
+  <div class="row">
+    <a id="downloadLink" download="ur_possession_rate.png">ダウンロード</a>
+    <button class="btn-secondary" id="btnClosePreview">閉じる</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   設定：サイト名・URL・ハッシュタグはサイト稼働時に差し替える
+   ========================================================= */
+const CONFIG = {
+  siteName: "Gジェネ攻略ラボ（仮）",
+  xHandle: "@polarbear148691",
+  siteUrl: "https://ggene-ur-checker.polarbear14869.workers.dev/unit",
+  hashtags: ["Gジェネエターナル", "UR所持率チェッカー"]
+};
+
+/* =========================================================
+   データ：エクセルより抽出（ユニット名・限定フラグ・アイコン画像・実装順ソート済み）
+   ========================================================= */
+const UNITS = [{"id": 1, "name": "ガンダム", "limited": false, "type": "耐久", "imageUrl": "images/units/1.jpg"}, {"id": 2, "name": "ガンダムEz8", "limited": false, "type": "攻撃", "imageUrl": "images/units/2.jpg"}, {"id": 3, "name": "ストライカーカスタム", "limited": false, "type": "攻撃", "imageUrl": "images/units/3.jpg"}, {"id": 4, "name": "ル・シーニュ", "limited": false, "type": "支援", "imageUrl": "images/units/4.jpg"}, {"id": 5, "name": "νガンダム", "limited": false, "type": "支援", "imageUrl": "images/units/5.jpg"}, {"id": 6, "name": "サザビー", "limited": false, "type": "攻撃", "imageUrl": "images/units/6.jpg"}, {"id": 7, "name": "ユニコーンガンダム（デストロイモード）", "limited": false, "type": "攻撃", "imageUrl": "images/units/7.jpg"}, {"id": 8, "name": "ナラティブガンダムA装備", "limited": false, "type": "耐久", "imageUrl": "images/units/8.jpg"}, {"id": 9, "name": "クロスボーンガンダム", "limited": false, "type": "攻撃", "imageUrl": "images/units/9.jpg"}, {"id": 10, "name": "フリーダムガンダム", "limited": false, "type": "支援", "imageUrl": "images/units/10.jpg"}, {"id": 11, "name": "ガンダムエクシア", "limited": false, "type": "攻撃", "imageUrl": "images/units/11.jpg"}, {"id": 12, "name": "ガンダム・バルバトス（第6形態）", "limited": false, "type": "耐久", "imageUrl": "images/units/12.jpg"}, {"id": 13, "name": "ガンダム・エアリアル", "limited": false, "type": "支援", "imageUrl": "images/units/13.jpg"}, {"id": 14, "name": "フェニックスガンダム（能力解放）", "limited": false, "type": "支援", "imageUrl": "images/units/14.jpg"}, {"id": 15, "name": "ストライクフリーダムガンダム", "limited": true, "type": "攻撃", "imageUrl": "images/units/15.jpg"}, {"id": 16, "name": "ジャスティスガンダム", "limited": false, "type": "耐久", "imageUrl": "images/units/16.jpg"}, {"id": 17, "name": "Zガンダム", "limited": true, "type": "攻撃", "imageUrl": "images/units/17.jpg"}, {"id": 18, "name": "ジ・O", "limited": false, "type": "支援", "imageUrl": "images/units/18.jpg"}, {"id": 19, "name": "ガンダム試作2号機", "limited": true, "type": "支援", "imageUrl": "images/units/19.jpg"}, {"id": 20, "name": "シャア専用ザク", "limited": false, "type": "攻撃", "imageUrl": "images/units/20.jpg"}, {"id": 21, "name": "ガンダムデスサイズヘル(EW)", "limited": false, "type": "耐久", "imageUrl": "images/units/21.jpg"}, {"id": 22, "name": "ビルドストライクガンダム(フルパッケージ)", "limited": false, "type": "支援", "imageUrl": "images/units/22.jpg"}, {"id": 23, "name": "Hi-νガンダム", "limited": true, "type": "攻撃", "imageUrl": "images/units/23.jpg"}, {"id": 24, "name": "フォースインパルスガンダム", "limited": false, "type": "支援", "imageUrl": "images/units/24.jpg"}, {"id": 25, "name": "フルアーマー・ガンダム(サンダーボルト版)", "limited": false, "type": "耐久", "imageUrl": "images/units/25.jpg"}, {"id": 26, "name": "サイコ・ザク", "limited": false, "type": "支援", "imageUrl": "images/units/26.jpg"}, {"id": 27, "name": "バンシィ・ノルン（デストロイモード）", "limited": true, "type": "耐久", "imageUrl": "images/units/27.jpg"}, {"id": 28, "name": "マスターガンダム", "limited": false, "type": "攻撃", "imageUrl": "images/units/28.jpg"}, {"id": 29, "name": "モンスターブラックドラゴン", "limited": true, "type": "支援", "imageUrl": "images/units/29.jpg"}, {"id": 30, "name": "劉備ユニコーンガンダム", "limited": false, "type": "攻撃", "imageUrl": "images/units/30.jpg"}, {"id": 31, "name": "フルアーマーΖΖガンダム", "limited": false, "type": "耐久", "imageUrl": "images/units/31.jpg"}, {"id": 32, "name": "キュベレイ(ZZ版)", "limited": true, "type": "攻撃", "imageUrl": "images/units/32.jpg"}, {"id": 33, "name": "ジオング", "limited": false, "type": "攻撃", "imageUrl": "images/units/33.jpg"}, {"id": 34, "name": "ガンダム・アスタロトリナシメント", "limited": false, "type": "支援", "imageUrl": "images/units/34.jpg"}, {"id": 35, "name": "ユニコーンガンダム（デストロイモード/覚醒）", "limited": true, "type": "支援", "imageUrl": "images/units/35.jpg"}, {"id": 36, "name": "ゴッドガンダム", "limited": true, "type": "攻撃", "imageUrl": "images/units/36.jpg"}, {"id": 37, "name": "ガンダムF91", "limited": false, "type": "耐久", "imageUrl": "images/units/37.jpg"}, {"id": 38, "name": "ガンダム試作3号機", "limited": true, "type": "耐久", "imageUrl": "images/units/38.jpg"}, {"id": 39, "name": "ノイエ・ジール", "limited": false, "type": "攻撃", "imageUrl": "images/units/39.jpg"}, {"id": 40, "name": "ガンダム・バルバトスルプスレクス", "limited": true, "type": "攻撃", "imageUrl": "images/units/40.jpg"}, {"id": 41, "name": "ガンダム・エアリアル改修型", "limited": false, "type": "耐久", "imageUrl": "images/units/41.jpg"}, {"id": 42, "name": "ブルーディスティニー1号機", "limited": false, "type": "攻撃", "imageUrl": "images/units/42.jpg"}, {"id": 43, "name": "シナンジュ", "limited": false, "type": "支援", "imageUrl": "images/units/43.jpg"}, {"id": 44, "name": "Ξガンダム", "limited": true, "type": "攻撃", "imageUrl": "images/units/44.jpg"}, {"id": 45, "name": "ペーネロペー", "limited": false, "type": "耐久", "imageUrl": "images/units/45.jpg"}, {"id": 46, "name": "プロヴィデンスガンダム", "limited": false, "type": "支援", "imageUrl": "images/units/46.jpg"}, {"id": 47, "name": "ケンプファー", "limited": false, "type": "攻撃", "imageUrl": "images/units/47.jpg"}, {"id": 48, "name": "ガンダム・キャリバーン", "limited": true, "type": "攻撃", "imageUrl": "images/units/48.jpg"}, {"id": 49, "name": "デスティニーガンダム", "limited": true, "type": "攻撃", "imageUrl": "images/units/49.jpg"}, {"id": 50, "name": "ビグ・ラング", "limited": false, "type": "支援", "imageUrl": "images/units/50.jpg"}, {"id": 51, "name": "ガンダム・キマリスヴィダール", "limited": false, "type": "耐久", "imageUrl": "images/units/51.jpg"}, {"id": 52, "name": "ガンダムDX", "limited": true, "type": "攻撃", "imageUrl": "images/units/52.jpg"}, {"id": 53, "name": "ガンダムヴァサーゴチェストブレイク", "limited": false, "type": "支援", "imageUrl": "images/units/53.jpg"}, {"id": 54, "name": "ガンダムアストレイ レッドフレーム改", "limited": true, "type": "攻撃", "imageUrl": "images/units/54.jpg"}, {"id": 55, "name": "ガンダムアストレイ ゴールドフレーム天ミナ", "limited": false, "type": "耐久", "imageUrl": "images/units/55.jpg"}, {"id": 56, "name": "ガンダムAGE-2 ノーマル", "limited": true, "type": "支援", "imageUrl": "images/units/56.jpg"}, {"id": 57, "name": "ガンダムAGE-1", "limited": false, "type": "攻撃", "imageUrl": "images/units/57.jpg"}, {"id": 58, "name": "グフカスタム", "limited": false, "type": "耐久", "imageUrl": "images/units/58.jpg"}, {"id": 59, "name": "サイコ・ハロ", "limited": false, "type": "攻撃", "imageUrl": "images/units/59.jpg"}, {"id": 60, "name": "ウイングガンダムゼロ(EW)", "limited": true, "type": "攻撃", "imageUrl": "images/units/60.jpg"}, {"id": 61, "name": "ダブルオーライザー（最終決戦仕様）", "limited": true, "type": "耐久", "imageUrl": "images/units/61.jpg"}, {"id": 62, "name": "トールギスⅢ", "limited": false, "type": "支援", "imageUrl": "images/units/62.jpg"}, {"id": 63, "name": "Ex-Sガンダム", "limited": true, "type": "攻撃", "imageUrl": "images/units/63.jpg"}, {"id": 64, "name": "ガンダム・ファラクト(Season2仕様)", "limited": false, "type": "支援", "imageUrl": "images/units/64.jpg"}, {"id": 65, "name": "ユニコーンガンダム3号機フェネクス", "limited": true, "type": "攻撃", "imageUrl": "images/units/65.jpg"}, {"id": 66, "name": "ハルファスガンダム", "limited": false, "type": "支援", "imageUrl": "images/units/66.jpg"}, {"id": 67, "name": "アトラスガンダム", "limited": false, "type": "攻撃", "imageUrl": "images/units/67.jpg"}, {"id": 68, "name": "グレート・ジオング", "limited": false, "type": "支援", "imageUrl": "images/units/68.jpg"}, {"id": 69, "name": "ナイチンゲール", "limited": true, "type": "支援", "imageUrl": "images/units/69.jpg"}, {"id": 70, "name": "νガンダム（ダブル・フィン・ファンネル装備型）", "limited": false, "type": "耐久", "imageUrl": "images/units/70.jpg"}, {"id": 71, "name": "インフィニットジャスティスガンダム", "limited": false, "type": "攻撃", "imageUrl": "images/units/71.jpg"}, {"id": 72, "name": "ストライクノワールガンダム", "limited": false, "type": "支援", "imageUrl": "images/units/72.jpg"}, {"id": 73, "name": "ガンダムF91（ツイン・ヴェスバー装備）", "limited": true, "type": "攻撃", "imageUrl": "images/units/73.jpg"}, {"id": 74, "name": "ガンダムF90(A.D.S.混合装着時)", "limited": false, "type": "支援", "imageUrl": "images/units/74.jpg"}, {"id": 75, "name": "ダリルバルデ(Season2仕様)", "limited": false, "type": "攻撃", "imageUrl": "images/units/75.jpg"}, {"id": 76, "name": "ミカエリス(Season2仕様)", "limited": false, "type": "耐久", "imageUrl": "images/units/76.jpg"}, {"id": 77, "name": "アルトロンガンダム(EW)", "limited": true, "type": "支援", "imageUrl": "images/units/77.jpg"}, {"id": 78, "name": "ガンダムヘビーアームズ改(EW)", "limited": false, "type": "攻撃", "imageUrl": "images/units/78.jpg"}, {"id": 79, "name": "バーサル騎士ガンダム", "limited": true, "type": "攻撃", "imageUrl": "images/units/79.jpg"}, {"id": 80, "name": "三代目頑駄無大将軍", "limited": false, "type": "支援", "imageUrl": "images/units/80.jpg"}, {"id": 81, "name": "フルアーマー百式改", "limited": true, "type": "攻撃", "imageUrl": "images/units/81.jpg"}, {"id": 82, "name": "Dガンダム・サード", "limited": false, "type": "支援", "imageUrl": "images/units/82.jpg"}];
+
+/* 状態管理：id -> 凸レベル(0〜3)。未所持のidはstateに存在しない。 */
+const STORAGE_KEY = "urchecker_totsu_v1";
+let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+
+const listEl = document.getElementById("list");
+document.getElementById("totalRef").textContent = UNITS.length;
+
+function persist(){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) { console.warn(e); }
+}
+
+function setLevel(id, level){
+  if (level === null) delete state[id];
+  else state[id] = level;
+  persist(); render(); updateStats();
+}
+
+let currentType = "all";
+
+function visibleUnits(){
+  return currentType === "all" ? UNITS : UNITS.filter(u => u.type === currentType);
+}
+
+function render(){
+  listEl.innerHTML = "";
+  visibleUnits().forEach(u => {
+    const lv = state.hasOwnProperty(u.id) ? state[u.id] : null;
+    const row = document.createElement("div");
+    row.className = "unit" + (lv !== null ? " lv" + lv : "");
+    row.innerHTML = `
+      <div class="unit-top">
+        <img class="icon" src="${u.imageUrl || ''}" alt="${u.name}" loading="lazy">
+        <div class="idx">${String(u.id).padStart(2,"0")}</div>
+        <div class="name">${u.name}</div>
+        ${u.limited ? '<div class="badge">期間限定</div>' : ''}
+      </div>
+      <div class="totsu-row" data-id="${u.id}">
+        <div class="totsu-btn ${lv===null ? 'active none' : ''}" data-lv="none">未所持</div>
+        <div class="totsu-btn ${lv===0 ? 'active lv0' : ''}" data-lv="0">無凸</div>
+        <div class="totsu-btn ${lv===1 ? 'active lv1' : ''}" data-lv="1">1凸</div>
+        <div class="totsu-btn ${lv===2 ? 'active lv2' : ''}" data-lv="2">2凸</div>
+        <div class="totsu-btn ${lv===3 ? 'active lv3' : ''}" data-lv="3">完凸</div>
+      </div>
+    `;
+    listEl.appendChild(row);
+  });
+}
+
+listEl.addEventListener("click", (e) => {
+  const btn = e.target.closest(".totsu-btn");
+  if (!btn) return;
+  const id = Number(btn.closest(".totsu-row").dataset.id);
+  const lv = btn.dataset.lv === "none" ? null : Number(btn.dataset.lv);
+  setLevel(id, lv);
+});
+
+const CIRC = 2 * Math.PI * 48;
+function computeStats(){
+  const total = UNITS.length;
+  const ownedIds = Object.keys(state).map(Number);
+  const count = ownedIds.length;
+  const pct = total ? Math.round((count/total)*100) : 0;
+  const levels = ownedIds.map(id => state[id]);
+  const avg = count ? (levels.reduce((a,b)=>a+b,0) / count) : 0;
+  const maxCount = levels.filter(l => l === 3).length;
+  const zeroCount = levels.filter(l => l === 0).length;
+
+  const byId = {};
+  UNITS.forEach(u => { byId[u.id] = u; });
+
+  const limitedTotal = UNITS.filter(u => u.limited).length;
+  const limitedOwned = ownedIds.filter(id => byId[id] && byId[id].limited).length;
+
+  const typeTotals = { "攻撃": 0, "支援": 0, "耐久": 0 };
+  const typeOwned = { "攻撃": 0, "支援": 0, "耐久": 0 };
+  UNITS.forEach(u => { if (typeTotals.hasOwnProperty(u.type)) typeTotals[u.type]++; });
+  ownedIds.forEach(id => {
+    const u = byId[id];
+    if (u && typeOwned.hasOwnProperty(u.type)) typeOwned[u.type]++;
+  });
+
+  return { total, count, pct, avg, maxCount, zeroCount, limitedTotal, limitedOwned, typeTotals, typeOwned };
+}
+
+function updateStats(){
+  const s = computeStats();
+  document.getElementById("gaugeNum").textContent = s.pct;
+  document.getElementById("countText").innerHTML = `${s.count} <span>/ ${s.total}機</span>`;
+  document.getElementById("avgText").textContent = `平均凸Lv ${s.avg.toFixed(1)}`;
+  document.getElementById("barInner").style.width = s.pct + "%";
+  document.getElementById("gaugeArc").style.strokeDashoffset = CIRC - (CIRC * s.pct/100);
+  document.getElementById("statMax").textContent = `${s.maxCount} / ${s.total}`;
+  document.getElementById("statLimited").textContent = `${s.limitedOwned} / ${s.limitedTotal}`;
+  document.getElementById("statAtk").textContent = `${s.typeOwned["攻撃"]} / ${s.typeTotals["攻撃"]}`;
+  document.getElementById("statSup").textContent = `${s.typeOwned["支援"]} / ${s.typeTotals["支援"]}`;
+  document.getElementById("statDur").textContent = `${s.typeOwned["耐久"]} / ${s.typeTotals["耐久"]}`;
+}
+
+document.getElementById("typeTabs").addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  currentType = btn.dataset.type;
+  document.querySelectorAll("#typeTabs button").forEach(b => b.classList.toggle("active", b === btn));
+  render();
+});
+
+document.getElementById("btnAllZero").addEventListener("click", () => {
+  visibleUnits().forEach(u => state[u.id] = 0); persist(); render(); updateStats();
+});
+document.getElementById("btnAllMax").addEventListener("click", () => {
+  visibleUnits().forEach(u => state[u.id] = 3); persist(); render(); updateStats();
+});
+document.getElementById("btnLimited").addEventListener("click", () => {
+  state = {};
+  UNITS.filter(u => u.limited).forEach(u => state[u.id] = 0);
+  persist(); render(); updateStats();
+});
+document.getElementById("btnNone").addEventListener("click", () => {
+  state = {}; persist(); render(); updateStats();
+});
+
+/* =========================================================
+   画像生成：ネイティブCanvas APIで直接描画する
+   （html2canvasやDOMキャプチャに頼らないため、iOS等でも安定して動作する）
+   ========================================================= */
+function loadImage(src){
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+async function generateShareImage(){
+  const s = computeStats();
+  const cols = 8;
+  const rows = Math.ceil(UNITS.length / cols);
+  const cell = 84;
+  const gap = 8;
+  const pad = 40;
+  const headerH = 310;
+  const gridW = cols * cell + (cols - 1) * gap;
+  const gridH = rows * cell + (rows - 1) * gap;
+  const W = gridW + pad * 2;
+  const H = headerH + gridH + pad + 70;
+
+  const scale = 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = W * scale;
+  canvas.height = H * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+
+  // 背景
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, "#0e141d");
+  bgGrad.addColorStop(1, "#0a0e14");
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "#26323f";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+
+  // ヘッダーテキスト
+  ctx.fillStyle = "#c9a227";
+  ctx.font = "bold 15px sans-serif";
+  ctx.textBaseline = "top";
+  ctx.fillText("ジージェネレーション　エターナル", pad, pad);
+
+  ctx.fillStyle = "#eef2f5";
+  ctx.font = "bold 28px sans-serif";
+  ctx.fillText("UR所持率チェッカー", pad, pad + 26);
+
+  // ロゴ（画面ヘッダーと同じ画像を右上に表示）
+  const logoEl = document.querySelector(".titlerow .logo");
+  if (logoEl && logoEl.src) {
+    const logoImg = await loadImage(logoEl.src);
+    if (logoImg) {
+      const logoH = 50;
+      const logoW = logoImg.width * (logoH / logoImg.height);
+      ctx.drawImage(logoImg, W - pad - logoW, pad, logoW, logoH);
+    }
+  }
+
+  ctx.fillStyle = "#c9a227";
+  ctx.font = "bold 74px monospace";
+  ctx.fillText(String(s.pct), pad, pad + 74);
+  const pctWidth = ctx.measureText(String(s.pct)).width;
+  ctx.fillStyle = "#7c8896";
+  ctx.font = "bold 22px monospace";
+  ctx.fillText("%", pad + pctWidth + 6, pad + 100);
+
+  ctx.fillStyle = "#eef2f5";
+  ctx.font = "16px monospace";
+  ctx.fillText(`所持 ${s.count} / ${s.total}機　平均凸Lv ${s.avg.toFixed(1)}`, pad, pad + 158);
+
+  // サブ統計：完凸数／期間限定所持数／攻撃・支援・耐久の所持数（それぞれ総数も表示）
+  const subStats = [
+    { v: `${s.maxCount} / ${s.total}`, l: "完凸数" },
+    { v: `${s.limitedOwned} / ${s.limitedTotal}`, l: "期間限定所持" },
+    { v: `${s.typeOwned["攻撃"]} / ${s.typeTotals["攻撃"]}`, l: "攻撃所持" },
+    { v: `${s.typeOwned["支援"]} / ${s.typeTotals["支援"]}`, l: "支援所持" },
+    { v: `${s.typeOwned["耐久"]} / ${s.typeTotals["耐久"]}`, l: "耐久所持" }
+  ];
+  const subCount = subStats.length;
+  const subW = gridW / subCount;
+  subStats.forEach((st, i) => {
+    const x = pad + i * subW;
+    const y = pad + 190;
+    ctx.fillStyle = "#101720";
+    ctx.fillRect(x, y, subW - 2, 56);
+    ctx.strokeStyle = "#26323f";
+    ctx.strokeRect(x, y, subW - 2, 56);
+    ctx.fillStyle = "#5ad1d1";
+    ctx.font = "bold 23px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(st.v, x + subW / 2, y + 15);
+    ctx.fillStyle = "#7c8896";
+    ctx.font = "11px sans-serif";
+    ctx.fillText(st.l, x + subW / 2, y + 40);
+    ctx.textAlign = "left";
+  });
+
+  // ユニットグリッド（画像はすでにDOM上でロード済みなのでそのまま再利用）
+  const imgs = await Promise.all(UNITS.map(u => loadImage(u.imageUrl)));
+  const gridY = headerH;
+  UNITS.forEach((u, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = pad + col * (cell + gap);
+    const y = gridY + row * (cell + gap);
+    const lv = state.hasOwnProperty(u.id) ? state[u.id] : null;
+
+    let borderColor = lv === null ? "#26323f" : "#3c6b4f";
+
+    ctx.fillStyle = "#191010";
+    ctx.fillRect(x, y, cell, cell);
+
+    const im = imgs[i];
+    if (im) {
+      ctx.drawImage(im, x, y, cell, cell);
+      // ctx.filterはSafari等で反映されないことがあるため、ピクセル操作で直接処理する
+      // 注意: getImageData/putImageDataはctx.scale()の影響を受けないため、実ピクセル座標に変換する
+      const gx = Math.round(x * scale), gy = Math.round(y * scale);
+      const gw = Math.round(cell * scale), gh = Math.round(cell * scale);
+      if (lv === null) {
+        const imgData = ctx.getImageData(gx, gy, gw, gh);
+        const d = imgData.data;
+        for (let p = 0; p < d.length; p += 4) {
+          const gray = (d[p] * 0.3 + d[p+1] * 0.59 + d[p+2] * 0.11) * 0.4;
+          d[p] = d[p+1] = d[p+2] = gray;
+        }
+        ctx.putImageData(imgData, gx, gy);
+      } else if (lv === 3) {
+        const imgData = ctx.getImageData(gx, gy, gw, gh);
+        const d = imgData.data;
+        for (let p = 0; p < d.length; p += 4) {
+          const avg = (d[p] + d[p+1] + d[p+2]) / 3;
+          d[p]   = Math.min(255, (avg + (d[p]   - avg) * 1.3) * 1.08);
+          d[p+1] = Math.min(255, (avg + (d[p+1] - avg) * 1.3) * 1.08);
+          d[p+2] = Math.min(255, (avg + (d[p+2] - avg) * 1.3) * 1.08);
+        }
+        ctx.putImageData(imgData, gx, gy);
+      }
+    }
+
+    if (lv === 3) {
+      // 完凸機体は★と同じ虹色グラデーションで外枠を強調
+      const frameGrad = ctx.createLinearGradient(x, y, x + cell, y + cell);
+      frameGrad.addColorStop(0, "#ff5f6d");
+      frameGrad.addColorStop(0.25, "#ffc371");
+      frameGrad.addColorStop(0.5, "#9dff8a");
+      frameGrad.addColorStop(0.75, "#5b8def");
+      frameGrad.addColorStop(1, "#c471f5");
+      ctx.save();
+      ctx.strokeStyle = frameGrad;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = "rgba(255,255,255,0.6)";
+      ctx.shadowBlur = 4;
+      ctx.strokeRect(x + 1.25, y + 1.25, cell - 2.5, cell - 2.5);
+      ctx.restore();
+    } else {
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, cell - 1, cell - 1);
+    }
+
+    // 期間限定機体は、入力画面と同じ「期間限定」バッジ表現で明示
+    if (u.limited) {
+      const label = "期間限定";
+      ctx.font = "bold 8px 'Share Tech Mono', monospace";
+      const textW = ctx.measureText(label).width;
+      const boxW = textW + 6;
+      const boxH = 12;
+      const bx = x + 3, by = y + 3;
+
+      ctx.fillStyle = "rgba(10,14,20,0.8)";
+      ctx.fillRect(bx, by, boxW, boxH);
+      ctx.strokeStyle = "#8a7128";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx + 0.5, by + 0.5, boxW - 1, boxH - 1);
+
+      ctx.fillStyle = "#c9a227";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, bx + 3, by + boxH / 2 + 1);
+      ctx.textBaseline = "alphabetic";
+    }
+
+    // 凸レベルを★の数で表現（無凸=★0、完凸=★3・虹色発光）
+    if (lv !== null) {
+      const starBandH = 16;
+      ctx.fillStyle = "rgba(10,14,20,0.6)";
+      ctx.fillRect(x, y + cell - starBandH, cell, starBandH);
+
+      const starY = y + cell - starBandH / 2;
+      const spacing = 13;
+      const startX = x + cell / 2 - spacing;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "bold 11px sans-serif";
+
+      let filledStyle = "#c9a227";
+
+      for (let s = 0; s < 3; s++) {
+        const sx = startX + s * spacing;
+        if (s < lv) {
+          ctx.save();
+          if (lv === 3) {
+            const grad = ctx.createLinearGradient(sx - 6, starY - 6, sx + 6, starY + 6);
+            grad.addColorStop(0, "#ff5f6d");
+            grad.addColorStop(0.25, "#ffc371");
+            grad.addColorStop(0.5, "#9dff8a");
+            grad.addColorStop(0.75, "#5b8def");
+            grad.addColorStop(1, "#c471f5");
+            ctx.fillStyle = grad;
+            ctx.shadowColor = "rgba(255,255,255,0.9)";
+            ctx.shadowBlur = 5;
+          } else {
+            ctx.fillStyle = filledStyle;
+          }
+          ctx.fillText("★", sx, starY);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = "rgba(255,255,255,0.28)";
+          ctx.fillText("★", sx, starY);
+        }
+      }
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+    }
+  });
+
+  // フッター
+  const footY = gridY + gridH + 20;
+  ctx.strokeStyle = "#26323f";
+  ctx.beginPath();
+  ctx.moveTo(pad, footY);
+  ctx.lineTo(W - pad, footY);
+  ctx.stroke();
+
+  ctx.fillStyle = "#5ad1d1";
+  ctx.font = "13px monospace";
+  const handleWidth = ctx.measureText(CONFIG.xHandle).width;
+  ctx.fillText(CONFIG.xHandle, W - pad - handleWidth, footY + 14);
+
+  return canvas;
+}
+
+// 分析用ログ：実装順No（UNITSのid）:凸コード（1=無凸,2=1凸,3=2凸,4=完凸）のペアを
+// 所持している機体だけカンマ区切りで送信する（未所持は省略して文字数を圧縮）
+// 集計はCloudflare Workers側のログ（/api/log）で行う。利用者のブラウザには表示しない。
+function buildCompactOwnershipLog(){
+  return UNITS
+    .filter(u => state[u.id] !== undefined && state[u.id] !== null)
+    .map(u => `${u.id}:${state[u.id] + 1}`)
+    .join(",");
+}
+
+function sendOwnershipLog(){
+  try {
+    const s = computeStats();
+    const payload = {
+      count: s.count,
+      total: s.total,
+      maxCount: s.maxCount,
+      avg: Number(s.avg.toFixed(2)),
+      log: buildCompactOwnershipLog()
+    };
+    fetch("/api/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+  } catch (e) { /* 分析用送信の失敗は利用体験に影響させない */ }
+}
+
+document.getElementById("btnSave").addEventListener("click", async () => {
+  const btn = document.getElementById("btnSave");
+  const originalLabel = btn.textContent;
+  btn.textContent = "生成中...";
+  btn.disabled = true;
+  try {
+    const canvas = await generateShareImage();
+    // Blob/ObjectURLは環境によってはimgタグでの表示に失敗することがあるため、
+    // 互換性の高いdata URI方式に統一する
+    const dataUrl = canvas.toDataURL("image/png");
+
+    const previewImg = document.getElementById("previewImg");
+    previewImg.src = dataUrl;
+    const downloadLink = document.getElementById("downloadLink");
+    downloadLink.href = dataUrl;
+    document.getElementById("previewModal").classList.add("show");
+
+    sendOwnershipLog();
+
+  } catch (err) {
+    console.error(err);
+    alert("画像の生成に失敗しました。\n(エラー内容: " + err.message + ")");
+  } finally {
+    btn.textContent = originalLabel;
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("btnClosePreview").addEventListener("click", () => {
+  document.getElementById("previewModal").classList.remove("show");
+});
+
+document.getElementById("btnShare").addEventListener("click", () => {
+  const s = computeStats();
+  const tags = CONFIG.hashtags.map(t => "#" + t).join(" ");
+  const text = `【Gジェネエターナル】UR所持率 ${s.pct}%（${s.count}/${s.total}機）平均凸Lv ${s.avg.toFixed(1)}\n${tags}\n${CONFIG.siteUrl}`;
+  const intent = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
+  window.open(intent, "_blank");
+});
+
+render();
+updateStats();
+</script>
+</body>
+</html>
