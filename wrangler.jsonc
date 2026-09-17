@@ -5,12 +5,19 @@
   "assets": {
     "directory": "./",
     "binding": "ASSETS",
-    "exclude": ["worker.js", "wrangler.jsonc"]
+    "exclude": ["worker.js", "wrangler.jsonc", "migrations/*"]
   },
   "observability": {
     "enabled": true,
     "logs": {
       "enabled": true
     }
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ggene-ur-checker-db",
+      "database_id": "cedb4e09-5ae8-45e4-82f3-cf35d3da7388"
+    }
+  ]
 }

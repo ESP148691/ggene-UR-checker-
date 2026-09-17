@@ -1,0 +1,49 @@
+/* 認証UI（ログイン/新規登録）共通スタイル。unit.html / supporter.html 両方から読み込む。
+   既存チェッカーの :root カラー変数（--gold, --cyan, --line, --panel, --muted 等）を流用する。 */
+
+.authbar{
+  position:fixed; top:10px; right:12px; z-index:50;
+  font-family:'Rajdhani',sans-serif; font-weight:600; font-size:12.5px;
+  display:flex; align-items:center; gap:8px;
+}
+.authbar .authlink, .authbar button{
+  background:rgba(10,14,20,.72); border:1px solid var(--line); color:var(--muted);
+  padding:6px 10px; cursor:pointer; font-family:'Rajdhani',sans-serif; font-weight:600; font-size:12.5px;
+  letter-spacing:.02em; text-decoration:none; backdrop-filter:blur(4px);
+}
+.authbar .authlink:hover, .authbar button:hover{ border-color:var(--gold-dim); color:var(--text); }
+.authbar .authuser{ color:var(--cyan); font-size:12px; }
+
+.authModal{
+  position:fixed; inset:0; background:rgba(5,7,10,.94);
+  display:none; align-items:center; justify-content:center;
+  padding:24px 16px; z-index:200;
+}
+.authModal.show{ display:flex; }
+.authModal .box{
+  background:var(--panel); border:1px solid var(--line); padding:24px 20px;
+  max-width:340px; width:100%; display:flex; flex-direction:column; gap:10px;
+}
+.authModal h2{ margin:0 0 2px; font-family:'Rajdhani',sans-serif; font-size:18px; color:var(--text); }
+.authModal .tabs{ display:flex; gap:6px; margin-bottom:2px; }
+.authModal .tabs button{
+  flex:1; font-family:'Rajdhani',sans-serif; font-weight:600; font-size:13px;
+  background:var(--panel-2); border:1px solid var(--line); color:var(--muted);
+  padding:8px 4px; cursor:pointer;
+}
+.authModal .tabs button.active{ background:var(--gold); color:#1b1503; border-color:var(--gold); font-weight:700; }
+.authModal input{
+  background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+  padding:10px; font-family:'Noto Sans JP',sans-serif; font-size:14px; width:100%;
+}
+.authModal input:focus{ outline:none; border-color:var(--gold-dim); }
+.authModal .err{ color:#e0797d; font-size:12px; min-height:14px; }
+.authModal .hint{ color:var(--muted); font-size:11px; line-height:1.6; margin:0; }
+.authModal .row{ display:flex; gap:10px; margin-top:2px; }
+.authModal .row button{
+  flex:1; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px;
+  padding:10px 8px; cursor:pointer; border:1px solid var(--line);
+}
+.authModal .btn-submit{ background:var(--gold); color:#1b1503; border-color:var(--gold); }
+.authModal .btn-submit:disabled{ opacity:.6; cursor:default; }
+.authModal .btn-cancel{ background:transparent; color:var(--muted); }
