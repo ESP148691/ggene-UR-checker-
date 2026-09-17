@@ -14,16 +14,19 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 
 ## リポジトリ構成
 このリポジトリのルートには以下を配置する:
+- `top.html` — ログイン後トップページ（ルートURL `/`・`/index.html` で配信）。ログイン状態表示、機体版/サポート版への導線、今後のチェッカーのComing Soon表示
 - `unit.html` — UR機体所持率チェッカー（82機収録）
 - `supporter.html` — URサポート所持率チェッカー（48体収録）
-- `worker.js` — Cloudflare Workers。`/api/log`・`/api/log-supporter`へのPOSTを受けログ出力（将来D1保存に変更予定）、それ以外は静的配信。ルートアクセスは`/unit`へ301リダイレクト
-- `wrangler.jsonc` — プロジェクト名 `ggene-ur-checker`、assetsのdirectoryは`./`
+- `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`から読み込む
+- `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）と所持データログ収集API（`/api/log`・`/api/log-supporter`、将来D1保存に変更予定）を処理し、それ以外は静的配信。ルートアクセス（`/`・`/index.html`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止）
+- `wrangler.jsonc` — プロジェクト名 `ggene-ur-checker`、assetsのdirectoryは`./`、D1バインディング`DB`（`ggene-ur-checker-db`）設定済み
+- `migrations/0001_add_user_auth.sql` — `users`テーブルへの`username`/`password`カラム追加、`sessions`テーブル新設。Cloudflareダッシュボード（D1 > Console）で手動適用済み
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
 
 **インフラ**: GitHub → Cloudflare Workers 自動デプロイ（このリポジトリにpushすると自動ビルド・公開）。
 本番URL: `https://ggene-ur-checker.polarbear14869.workers.dev/`
-GitHub: `https://github.com/ESP148691/ggene-ur-checker`
+GitHub: `https://github.com/ESP148691/ggene-UR-checker-`
 Cloudflare: `https://dash.cloudflare.com/d78525314dd74181c2dc4fea74c8844a/workers/services/view/ggene-ur-checker/production`
 
 ## 実装済み機能（両チェッカー共通）
@@ -78,7 +81,23 @@ CREATE TABLE supporters_ownership (
   FOREIGN KEY (supporter_id) REFERENCES supporters_master(supporter_id)
 );
 ```
-※ユーザーマスターにはユーザー名・パスワード用カラムの追加が未実施（②のスコープ）。
+### 認証関連の追加スキーマ（②で追加・適用済み。`migrations/0001_add_user_auth.sql`）
+```sql
+ALTER TABLE users ADD COLUMN username TEXT;
+ALTER TABLE users ADD COLUMN password TEXT;
+CREATE UNIQUE INDEX idx_users_username ON users(username);
+
+CREATE TABLE sessions (
+  token TEXT PRIMARY KEY,
+  user_uid TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  FOREIGN KEY (user_uid) REFERENCES users(user_uid)
+);
+CREATE INDEX idx_sessions_user_uid ON sessions(user_uid);
+```
+カラム名は`password_hash`ではなく`password`とした（後述の通りハッシュ化せず平文で保存する方針のため、`_hash`という名前で平文を入れると将来の実装者を誤解させる）。
+
 ID体系: マスターのIDはチェッカー画面上の「No.」（機体1〜82、サポート1〜48）と一致。既存IDは変動しない前提。
 D1無料枠: 保存5GB（無期限）、1日500万行読み込み、1日10万行書き込み。
 
@@ -105,32 +124,30 @@ D1無料枠: 保存5GB（無期限）、1日500万行読み込み、1日10万行
 - Playwrightヘッドレステストで動作確認済み（カード枚数・画像読み込み・凸レベル変更・カード画像生成）
 
 ### ファイル命名・URL構成の統一（完了）
-- `index.html` → `unit.html`にリネーム。`worker.js`で`/`・`/index.html`は`/unit`へ301リダイレクト、`/unit`はクリーンURLとして配信
+- `index.html` → `unit.html`にリネーム。`worker.js`で`/`・`/index.html`は`/unit`へ301リダイレクト、`/unit`はクリーンURLとして配信（この301リダイレクトは後述③で廃止しトップページ直接配信に変更済み）
 - `wrangler.jsonc`の`name`を`ggene-ur-checker`に修正（旧`-retry`付きの誤ったproject名を修正）
 - `unit.html`内`CONFIG.siteUrl`を`https://ggene-ur-checker.polarbear14869.workers.dev/unit`に修正
 
-## 次にやること: ② ユーザー登録・ログイン機能
+### ② ユーザー登録・ログイン機能（完了）
+実装着手前にユーザーへ確認し、以下の方式で確定・実装した。
+- **パスワード**: ハッシュ化せず平文で保存する方針を採用（ユーザーが明示的に選択。handover.mdの当初方針を踏襲）。DBカラム名は`password`（`password_hash`という名前で平文を入れると誤解を招くため）
+- **セッション管理**: HttpOnly Cookie方式（`Secure; SameSite=Lax`）。有効期限は30日間。トークンはD1の`sessions`テーブルで管理し、ログアウト時に削除できる
+- D1に`migrations/0001_add_user_auth.sql`を適用（`users`への`username`/`password`カラム追加、`sessions`テーブル新設）。適用はCloudflareダッシュボードのD1 Consoleで手動実行（このリポジトリの開発環境にwrangler CLIがなく直接実行できないため）
+- `worker.js`に`POST /api/register`（重複チェック＋保存＋セッション発行）、`POST /api/login`（検証＋セッション発行）、`POST /api/logout`（セッション削除）、`GET /api/me`（ログイン状態確認）を追加
+- `auth.css`・`auth.js`を新設し、`unit.html`・`supporter.html`に2行ずつ（`<link>`と`<script defer>`）追加する形でログイン導線を実装。画面右上に「ログイン」リンク／ログイン中はユーザー名とログアウトボタンを表示
+- `/api/me`取得に失敗した場合は常にゲスト状態表示にフォールバックし、チェッカー本体の動作に影響しない設計
+- ついでに、supporter.htmlが送信していた`/api/log-supporter`の受け口が存在しなかった不具合（404で握りつぶされていた）も修正
+- ゲスト利用（未ログインでのチェッカー100%利用）への影響がないことを確認済み
 
-### 最重要方針: 既存の固定ポスト・ゲスト利用への影響ゼロで進めること
-現在Xに固定しているポストから流入するユーザーは、ログイン機能実装後も**引き続きログイン不要でチェッカーを利用できる状態を維持する**。
-- `/unit`・`/supporter.html`は未ログイン状態でも従来通り100%の機能が使えること。ログイン導線を追加する場合も既存のゲストフローを塞いだり必須化したりしない
-- 実装・検証の過程で、既存の固定ポストのリンク（ルートURL→`/unit`）からの導線を壊していないか、Playwright等でログイン機能追加前後のゲスト動作を必ず回帰確認してから引き渡す
-- ログインの価値は「自己紹介カードの作成・保存」「端末をまたいだデータ引き継ぎ」に限定し、チェッカー単体の利用体験には影響を与えない設計とする
+### ③ ログイン後トップページ（完了）
+- `top.html`を新設。ログイン状態表示（②のauth.js/auth.cssを再利用）、機体版/サポート版チェッカーへの導線カード、「エタロ攻略チェッカー」「称号獲得チェッカー」のComing Soon表示カードを配置
+- `worker.js`でルートURL（`/`・`/index.html`）を`/unit`への301リダイレクトから`top.html`の直接配信に変更
+- **注意（要フォロー）**: Xの固定ポストがルートURLをリンクしている場合、流入後の導線が「即チェッカー表示」から「トップページ経由（1タップ追加）」に変わる。従来通り0タップでチェッカーに到達させたい場合は、固定ポストのリンク先をルートURLから`/unit`に張り替える（X側の投稿編集のみで対応可、コード変更は不要）
 
-### 実装着手前に確認すべきこと
-1. **パスワードの扱い**: handover.mdでは「暗号化なし」と明記されているが、平文DB保存はセキュリティ上望ましくない。ハッシュ化（bcrypt等）を導入するか、方針通り平文運用にするか
-2. **セッション管理方式**: Cookie vs localStorageトークン、有効期限をどうするか
-3. **D1インスタンス情報**: 作成済みD1のdatabase_id・バインディング名（wrangler.jsoncへの追加に必要）
-
-### タスク分解
-- `users`テーブルへ`username`/`password_hash`カラム追加（マイグレーションSQL要作成）
-- `POST /api/register`（重複チェック＋ハッシュ化して保存）, `POST /api/login`（検証＋セッショントークン発行）を`worker.js`に追加
-- フロント側に登録・ログインフォームを追加（既存チェッカー画面には強制せず、任意導線として追加）
-- 実装後はPlaywrightでの動作確認・headless testを実施してから引き渡す。あわせて「ゲスト利用に影響がないこと」の回帰確認も実施
-
-### ③④（②実装後に着手、未着手）
-- ③ ログイン後トップページ: ログイン状態判定、機体版/サポート版への導線、今後のチェッカーをComing Soon表示、ゲスト利用維持。ルートURL（`/`）の301リダイレクトをトップページ表示に置き換える
-- ④ D1への所持データ保存: `/api/log`・`/api/log-supporter`をconsole.logからD1 INSERTに変更、`wrangler.jsonc`にD1バインディング追加、ログイン時は`user_uid`・ゲスト時は匿名UUID発行
+## 次にやること: ④ D1への所持データ保存
+- `/api/log`・`/api/log-supporter`をconsole.logからD1（`units_ownership`・`supporters_ownership`テーブル）へのINSERTに変更
+- ログイン時は②で発行した`user_uid`、ゲスト時は匿名UUIDを発行して記録する
+- 実装後はゲスト利用・ログイン利用の両方でデータが正しく記録されることを確認する
 
 ## 作業上の注意
 - ユーザーはシステム開発経験があるため、技術的な説明は詳しくして構わない
