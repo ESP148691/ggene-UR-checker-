@@ -164,11 +164,12 @@ export default {
       return new Response("ok", { status: 200 });
     }
 
-    // 旧ルートURL（機体チェッカーが index.html だった頃のURL）を
-    // 新しい /unit へ301リダイレクト。Xで共有済みのリンクを維持するための措置。
+    // ルートURL（旧index.html含む）はトップページ（top.html）を配信する。
+    // トップページ自体はログイン不要で機体版/サポート版チェッカーへ直接遷移できるため、
+    // Xの固定ポスト等からの流入でもゲスト利用の導線は塞がれない。
     if (url.pathname === "/" || url.pathname === "/index.html") {
-      const dest = new URL("/unit", url);
-      return Response.redirect(dest.toString(), 301);
+      const assetUrl = new URL("/top.html", url);
+      return env.ASSETS.fetch(new Request(assetUrl.toString(), request));
     }
 
     // /unit を機体チェッカー本体（unit.html）にマッピング

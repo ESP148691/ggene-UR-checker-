@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gジェネエターナル ファンツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+<style>
+  :root{
+    --bg-deep:#0a0e14;
+    --panel:#121924;
+    --panel-2:#0e141d;
+    --line:#26323f;
+    --gold:#c9a227;
+    --gold-dim:#8a7128;
+    --cyan:#5ad1d1;
+    --text:#eef2f5;
+    --muted:#7c8896;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:radial-gradient(1200px 600px at 50% -10%, #16202c 0%, var(--bg-deep) 60%);
+    color:var(--text);
+    font-family:'Noto Sans JP',sans-serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:20px 16px 40px;}
+
+  .eyebrow{
+    font-family:'Noto Sans JP',sans-serif;
+    font-weight:700;
+    letter-spacing:.08em;font-size:14px;color:var(--gold);
+    display:flex;align-items:center;gap:8px;margin-bottom:6px;
+  }
+  .eyebrow::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 6px var(--cyan);display:inline-block;}
+
+  .titlerow{display:flex;align-items:center;gap:14px;margin-bottom:8px;}
+  .titlerow .logo{height:44px;width:auto;flex:0 0 auto;filter:drop-shadow(0 0 6px rgba(90,209,209,.25));}
+  .titlerow h1{margin:0;}
+  h1{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:24px;margin:0;}
+  .sub{color:var(--muted);font-size:12.5px;margin:0 0 26px;line-height:1.7;}
+
+  .sectionLabel{
+    font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13px;color:var(--muted);
+    letter-spacing:.08em;text-transform:uppercase;margin:0 0 10px;
+  }
+
+  .navcard{
+    position:relative;display:flex;align-items:center;gap:14px;
+    background:var(--panel);border:1px solid var(--line);
+    padding:16px 16px;margin-bottom:10px;text-decoration:none;color:var(--text);
+    transition:border-color .2s, box-shadow .2s;
+  }
+  .navcard:hover{border-color:var(--gold-dim);box-shadow:0 0 12px rgba(201,162,39,.15);}
+  .navcard .icon{
+    flex:0 0 auto;width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+    background:var(--panel-2);border:1px solid var(--line);font-size:20px;
+  }
+  .navcard .body{flex:1;min-width:0;}
+  .navcard .name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;}
+  .navcard .desc{color:var(--muted);font-size:11.5px;margin-top:2px;}
+  .navcard .arrow{flex:0 0 auto;color:var(--cyan);font-size:18px;}
+
+  .navcard.soon{opacity:.5;cursor:default;}
+  .navcard.soon:hover{border-color:var(--line);box-shadow:none;}
+  .navcard .badge{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;letter-spacing:.05em;
+    background:var(--panel-2);color:var(--muted);border:1px solid var(--line);
+    padding:3px 8px;flex:0 0 auto;white-space:nowrap;
+  }
+
+  .section{margin-bottom:26px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="eyebrow">ジージェネレーション　エターナル</div>
+  <div class="titlerow">
+    <img class="logo" src="images/logo.png" alt="ESP logo">
+    <h1>ファンツール トップ</h1>
+  </div>
+  <p class="sub">Gジェネエターナルのファン向け非公式ツールです。ログインしなくても、各チェッカーはこれまで通りそのままお使いいただけます。</p>
+
+  <div class="section">
+    <p class="sectionLabel">チェッカー</p>
+    <a class="navcard" href="/unit">
+      <div class="icon">🤖</div>
+      <div class="body">
+        <div class="name">UR機体所持率チェッカー</div>
+        <div class="desc">全82機のUR機体所持状況を記録・可視化</div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
+    <a class="navcard" href="/supporter.html">
+      <div class="icon">🎖</div>
+      <div class="body">
+        <div class="name">URサポート所持率チェッカー</div>
+        <div class="desc">全48体のURサポート所持状況を記録・可視化</div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
+  </div>
+
+  <div class="section">
+    <p class="sectionLabel">今後追加予定</p>
+    <div class="navcard soon">
+      <div class="icon">🗺</div>
+      <div class="body">
+        <div class="name">エタロ攻略チェッカー</div>
+        <div class="desc">攻略進捗の記録機能（準備中）</div>
+      </div>
+      <div class="badge">Coming Soon</div>
+    </div>
+    <div class="navcard soon">
+      <div class="icon">🏅</div>
+      <div class="body">
+        <div class="name">称号獲得チェッカー</div>
+        <div class="desc">称号コンプ状況の記録機能（準備中）</div>
+      </div>
+      <div class="badge">Coming Soon</div>
+    </div>
+  </div>
+</div>
+
+<script src="auth.js" defer></script>
+</body>
+</html>
