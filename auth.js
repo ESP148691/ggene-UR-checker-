@@ -8,7 +8,13 @@
 
   const authbar = document.createElement("div");
   authbar.className = "authbar";
-  document.body.appendChild(authbar);
+  // ヘッダー（.wrap）の先頭に差し込み、スクロールに追従しない通常フローの要素として表示する
+  const headerAnchor = document.querySelector(".wrap");
+  if (headerAnchor) {
+    headerAnchor.insertBefore(authbar, headerAnchor.firstChild);
+  } else {
+    document.body.insertBefore(authbar, document.body.firstChild);
+  }
 
   const modal = document.createElement("div");
   modal.className = "authModal";

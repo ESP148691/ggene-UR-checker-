@@ -1,10 +1,11 @@
 /* 認証UI（ログイン/新規登録）共通スタイル。unit.html / supporter.html 両方から読み込む。
    既存チェッカーの :root カラー変数（--gold, --cyan, --line, --panel, --muted 等）を流用する。 */
 
+/* ページヘッダー内に配置する通常フローの要素（スクロールに追従して流れる。ビューポート固定はしない） */
 .authbar{
-  position:fixed; top:10px; right:12px; z-index:50;
+  display:flex; justify-content:flex-end; align-items:center; gap:8px;
+  margin-bottom:10px;
   font-family:'Rajdhani',sans-serif; font-weight:600; font-size:12.5px;
-  display:flex; align-items:center; gap:8px;
 }
 .authbar .authlink, .authbar button{
   background:rgba(10,14,20,.72); border:1px solid var(--line); color:var(--muted);
