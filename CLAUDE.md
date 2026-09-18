@@ -21,7 +21,7 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）と所持データログ収集API（`/api/log`・`/api/log-supporter`、D1保存済み）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
 - `wrangler.jsonc` — プロジェクト名 `ggene-ur-checker`、assetsのdirectoryは`./`、D1バインディング`DB`（`ggene-ur-checker-db`）設定済み
 - `migrations/0001_add_user_auth.sql` — `users`テーブルへの`username`/`password`カラム追加、`sessions`テーブル新設。Cloudflareダッシュボード（D1 > Console）で手動適用済み
-- `migrations/0002_populate_master_data.sql` — `units_master`/`supporters_master`への実データ投入（機体84件・サポート49件）。**未適用（要ユーザー対応）**
+- `migrations/0002_populate_master_data.sql` — `units_master`/`supporters_master`への実データ投入（機体84件・サポート49件）。Cloudflareダッシュボード（D1 > Console）で手動適用済み（2026-09-19）
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
 
@@ -100,7 +100,7 @@ CREATE INDEX idx_sessions_user_uid ON sessions(user_uid);
 カラム名は`password_hash`ではなく`password`とした（後述の通りハッシュ化せず平文で保存する方針のため、`_hash`という名前で平文を入れると将来の実装者を誤解させる）。
 
 ### マスターデータ投入（④で追加・要適用。`migrations/0002_populate_master_data.sql`）
-`units_master`・`supporters_master`は当初スキーマのみでデータが空だった。`unit.html`/`supporter.html`の`UNITS`配列と完全一致するINSERT文（機体84件・サポート49件）を`migrations/0002_populate_master_data.sql`として追加済み。0001と同様、Cloudflareダッシュボード（D1 > Console）での手動適用が必要（**2026-09-19時点で未適用**）。
+`units_master`・`supporters_master`は当初スキーマのみでデータが空だった。`unit.html`/`supporter.html`の`UNITS`配列と完全一致するINSERT文（機体84件・サポート49件）を`migrations/0002_populate_master_data.sql`として追加済み。0001と同様、Cloudflareダッシュボード（D1 > Console）での手動適用が必要だったが、**2026-09-19に適用済み**。
 
 ID体系: マスターのIDはチェッカー画面上の「No.」（機体1〜84、サポート1〜49）と一致。既存IDは変動しない前提（2026-09-18に機体83・84、サポート49を新規追加。追加時も既存IDは振り直していない）。
 D1無料枠: 保存5GB（無期限）、1日500万行読み込み、1日10万行書き込み。
@@ -180,7 +180,7 @@ D1無料枠: 保存5GB（無期限）、1日500万行読み込み、1日10万行
 - **保存方式**: 送信のたびに、その`user_uid`の既存所持行を全削除してから現在の所持状態を入れ直す「最新スナップショット方式」を採用（履歴は積み上げない）。`env.DB.batch()`でDELETE+INSERT群を1回のラウンドトリップにまとめている
 - **送信元・保存先の対応**: `unit.html`（`/api/log`）→`units_ownership`、`supporter.html`（`/api/log-supporter`）→`supporters_ownership`で完全に分離。`unit_id`/`supporter_id`の衝突は起きない
 - **既存不具合の発見と対応（重要）**: `units_master`・`supporters_master`テーブルは作成時にスキーマのみ定義され、実データが投入されていなかった。`units_ownership`/`supporters_ownership`の`unit_id`/`supporter_id`はこのマスターへのFOREIGN KEYを持つため、環境でFK制約が有効化されている場合、マスターが空のままだと所持データのINSERTが（クライアントには見えない形で）静かに失敗する状態だった。これを解消するため、`unit.html`/`supporter.html`の`UNITS`配列から生成した`migrations/0002_populate_master_data.sql`を新規追加し、機体84件・サポート49件のマスターデータを投入するようにした
-  - **要対応（ユーザー作業）**: `migrations/0002_populate_master_data.sql`は、`migrations/0001_add_user_auth.sql`のときと同様にCloudflareダッシュボード（D1 > Console）で手動実行が必要（このリポジトリの開発環境にwrangler CLIがなく直接適用できないため）。**未実行のままだとFK制約の有無によっては所持データがD1に保存されない可能性があるため、必ず適用すること**
+  - **対応済み**: `migrations/0002_populate_master_data.sql`は、`migrations/0001_add_user_auth.sql`のときと同様にCloudflareダッシュボード（D1 > Console）で手動実行が必要だった（このリポジトリの開発環境にwrangler CLIがなく直接適用できないため）。2026-09-19にユーザーが適用完了
 - **検証方法**: 実際のD1に接続する手段がないため、`node:sqlite`でD1の`prepare/bind/run/first/batch`相当のAPIを再現したモック（`env.DB`）を作り、Node上でworker.jsの`fetch`ハンドラを直接呼び出すテストハーネスを新規作成して検証した（wrangler CLIなしでの検証という既存の運用方針を踏襲）
   - 回帰確認: `/api/register`・`/api/login`・`/api/logout`・`/api/me`が今回の変更後も従来通り動作すること
   - 新機能: ログイン中ユーザーはセッションの`user_uid`で保存されること、ゲストは`guestUid`で保存され`users`にも行ができること、不正な`guestUid`や壊れたリクエストボディはエラーにならず200 okを返しつつD1保存だけスキップされること、再送信で古い所持データが置き換わり履歴が積み上がらないこと、機体版とサポート版が別テーブルに正しく分かれること、`log`文字列内の壊れた要素だけを読み飛ばせること
@@ -204,8 +204,14 @@ D1保存の設計についてユーザーから4点確認があり、以下の�
   - 「`/index.html`はもう特別扱いされず、そのままcatch-allに渡される（top.htmlへは書き換わらない）」（今回の変更が正しく効いていることの確認）
 - `unit.html`・`supporter.html`・`auth.js`・`auth.css`にも`index.html`への参照が残っていないことをgrepで確認済み（該当なし）
 
+### git commit・push、マスターデータmigration適用（完了・2026-09-19）
+④のD1保存実装（`worker.js`/`unit.html`/`supporter.html`の変更、`migrations/0002_populate_master_data.sql`の追加）は、実装した回のセッションでコードとしては完成していたが、git commit・pushをしないままセッションを終えていたため、リポジトリ・本番環境には未反映の状態が残っていた（Cowork側の`WEBサイト仕様書.md`に既知の制約として記録）。今回のセッションで以下を対応した。
+- 未コミットの差分（worker.js・unit.html・supporter.html・CLAUDE.md・migrations/0002）をコードレビューし、設計方針との整合を確認（このリポジトリの開発環境にNode.jsがなく、既存のD1モックテストハーネスは再実行できなかったため、差分の目視レビューで代替）
+- 無関係な未追跡ファイル（`ESP_sky_emerald1.png`。コードから参照されていないため対象外と判断）は含めずコミット
+- `git commit` → `git push origin main`（コミット`18a667d`）。Cloudflare Workersの自動デプロイにより本番環境へ反映済み
+- `migrations/0002_populate_master_data.sql`をユーザーがCloudflareダッシュボード（D1 > Console）で手動適用（2026-09-19）。これにより`units_master`/`supporters_master`に実データが投入され、FK制約有無に関わらず所持データ保存が正常に機能する状態になった
+
 ## 次にやること
-- 上記`migrations/0002_populate_master_data.sql`をD1 Consoleで適用する（ユーザー作業・未実施）
 - ④のD1保存は「最新スナップショットの保存」までが完了した状態。これを使った分析・集計（ロードマップ8. 所持率・クリア率の分析結果ページ）は未着手
 - 次にどのテーマ（③④以降のロードマップ: エタロ攻略/称号獲得チェッカー追加、自己紹介カード自動生成 等）に着手するかは、次回セッション冒頭でユーザーに確認すること
 
