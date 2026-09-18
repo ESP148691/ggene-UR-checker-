@@ -1,5 +1,20 @@
-/* 認証UI（ログイン/新規登録）共通スタイル。unit.html / supporter.html 両方から読み込む。
-   既存チェッカーの :root カラー変数（--gold, --cyan, --line, --panel, --muted 等）を流用する。 */
+/* 認証UI（ログイン/新規登録）共通スタイル。top.html / unit.html / supporter.html から読み込む。
+   トップページの銀河系デザインと統一感を持たせるため、ホストページの :root カラー変数には依存せず、
+   ここで銀河系パレットを独自定義する（unit.html/supporter.html は旧テーマの :root のままでも、
+   ログイン導線・モーダルだけは常に同じ見た目になる）。 */
+.authbar, .authModal{
+  --auth-void:rgba(5,7,10,.94);
+  --auth-panel:rgba(16,22,32,.78);
+  --auth-panel-2:rgba(10,14,20,.85);
+  --auth-line:rgba(107,224,224,.22);
+  --auth-line-soft:rgba(107,224,224,.12);
+  --auth-gold:#dab949;
+  --auth-gold-2:#b8933a;
+  --auth-cyan:#6be0e0;
+  --auth-text:#eef3f6;
+  --auth-muted:#93a3b3;
+  --auth-danger:#e0797d;
+}
 
 /* ページヘッダー内に配置する通常フローの要素（スクロールに追従して流れる。ビューポート固定はしない） */
 .authbar{
@@ -8,43 +23,81 @@
   font-family:'Rajdhani',sans-serif; font-weight:600; font-size:12.5px;
 }
 .authbar .authlink, .authbar button{
-  background:rgba(10,14,20,.72); border:1px solid var(--line); color:var(--muted);
-  padding:6px 10px; cursor:pointer; font-family:'Rajdhani',sans-serif; font-weight:600; font-size:12.5px;
-  letter-spacing:.02em; text-decoration:none; backdrop-filter:blur(4px);
+  background:var(--auth-panel);
+  backdrop-filter:blur(10px) saturate(140%); -webkit-backdrop-filter:blur(10px) saturate(140%);
+  border:1px solid var(--auth-line); color:var(--auth-muted); border-radius:3px;
+  padding:6px 12px; cursor:pointer; font-family:'Rajdhani',sans-serif; font-weight:600; font-size:12.5px;
+  letter-spacing:.03em; text-decoration:none;
+  transition:border-color .2s ease, box-shadow .2s ease, color .2s ease;
 }
-.authbar .authlink:hover, .authbar button:hover{ border-color:var(--gold-dim); color:var(--text); }
-.authbar .authuser{ color:var(--cyan); font-size:12px; }
+.authbar .authlink:hover, .authbar button:hover{
+  border-color:var(--auth-gold); color:var(--auth-text); box-shadow:0 0 14px rgba(218,185,73,.18);
+}
+.authbar .authuser{ color:var(--auth-cyan); font-size:12px; font-family:'Share Tech Mono',monospace; letter-spacing:.03em; }
 
 .authModal{
-  position:fixed; inset:0; background:rgba(5,7,10,.94);
+  position:fixed; inset:0; background:var(--auth-void);
   display:none; align-items:center; justify-content:center;
-  padding:24px 16px; z-index:200;
+  padding:24px 16px; z-index:200; backdrop-filter:blur(4px);
 }
 .authModal.show{ display:flex; }
 .authModal .box{
-  background:var(--panel); border:1px solid var(--line); padding:24px 20px;
-  max-width:340px; width:100%; display:flex; flex-direction:column; gap:10px;
+  position:relative; isolation:isolate; overflow:hidden;
+  background:var(--auth-panel);
+  backdrop-filter:blur(18px) saturate(140%); -webkit-backdrop-filter:blur(18px) saturate(140%);
+  border:1px solid var(--auth-line); border-radius:6px;
+  box-shadow:0 0 40px rgba(107,224,224,.10), inset 0 0 30px rgba(107,224,224,.04);
+  padding:26px 22px; max-width:340px; width:100%;
+  display:flex; flex-direction:column; gap:10px;
 }
-.authModal h2{ margin:0 0 2px; font-family:'Rajdhani',sans-serif; font-size:18px; color:var(--text); }
+.authModal .box::before{
+  content:""; position:absolute; top:0; left:0; right:0; height:2px; z-index:1;
+  background:linear-gradient(90deg, transparent, var(--auth-cyan), var(--auth-gold), var(--auth-cyan), transparent);
+  opacity:.6;
+}
+.authModal h2{
+  margin:0 0 2px; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:19px; letter-spacing:.02em;
+  background:linear-gradient(100deg, var(--auth-cyan), var(--auth-gold) 50%, var(--auth-cyan));
+  background-size:240% auto; -webkit-background-clip:text; background-clip:text; color:transparent;
+  animation:authShimmer 8s linear infinite;
+}
+@keyframes authShimmer{ to{ background-position:-240% center; } }
 .authModal .tabs{ display:flex; gap:6px; margin-bottom:2px; }
 .authModal .tabs button{
   flex:1; font-family:'Rajdhani',sans-serif; font-weight:600; font-size:13px;
-  background:var(--panel-2); border:1px solid var(--line); color:var(--muted);
-  padding:8px 4px; cursor:pointer;
+  background:var(--auth-panel-2); border:1px solid var(--auth-line); color:var(--auth-muted);
+  padding:8px 4px; cursor:pointer; border-radius:3px;
+  transition:border-color .2s ease, color .2s ease;
 }
-.authModal .tabs button.active{ background:var(--gold); color:#1b1503; border-color:var(--gold); font-weight:700; }
+.authModal .tabs button.active{
+  background:linear-gradient(135deg, var(--auth-gold), var(--auth-gold-2));
+  color:#1b1503; border-color:var(--auth-gold); font-weight:700;
+  box-shadow:0 0 12px rgba(218,185,73,.25);
+}
 .authModal input{
-  background:var(--panel-2); border:1px solid var(--line); color:var(--text);
-  padding:10px; font-family:'Noto Sans JP',sans-serif; font-size:14px; width:100%;
+  background:var(--auth-panel-2); border:1px solid var(--auth-line); color:var(--auth-text);
+  padding:10px 12px; font-family:'Noto Sans JP',sans-serif; font-size:14px; width:100%;
+  border-radius:3px;
 }
-.authModal input:focus{ outline:none; border-color:var(--gold-dim); }
-.authModal .err{ color:#e0797d; font-size:12px; min-height:14px; }
-.authModal .hint{ color:var(--muted); font-size:11px; line-height:1.6; margin:0; }
+.authModal input:focus{ outline:none; border-color:var(--auth-cyan); box-shadow:0 0 0 1px rgba(107,224,224,.25); }
+.authModal .err{ color:var(--auth-danger); font-size:12px; min-height:14px; }
+.authModal .hint{ color:var(--auth-muted); font-size:11px; line-height:1.6; margin:0; }
 .authModal .row{ display:flex; gap:10px; margin-top:2px; }
 .authModal .row button{
   flex:1; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px;
-  padding:10px 8px; cursor:pointer; border:1px solid var(--line);
+  padding:10px 8px; cursor:pointer; border:1px solid var(--auth-line); border-radius:3px;
+  transition:box-shadow .2s ease, border-color .2s ease, transform .15s ease;
 }
-.authModal .btn-submit{ background:var(--gold); color:#1b1503; border-color:var(--gold); }
+.authModal .btn-submit{
+  background:linear-gradient(135deg, var(--auth-gold), var(--auth-gold-2));
+  color:#1b1503; border-color:var(--auth-gold);
+}
+.authModal .btn-submit:hover:not(:disabled){ box-shadow:0 0 16px rgba(218,185,73,.3); transform:translateY(-1px); }
 .authModal .btn-submit:disabled{ opacity:.6; cursor:default; }
-.authModal .btn-cancel{ background:transparent; color:var(--muted); }
+.authModal .btn-cancel{ background:transparent; color:var(--auth-muted); }
+.authModal .btn-cancel:hover{ color:var(--auth-text); border-color:var(--auth-line-soft); }
+
+@media (prefers-reduced-motion: reduce){
+  .authModal h2{ animation:none; }
+  .authModal .row button:hover{ transform:none; }
+}

@@ -129,7 +129,8 @@
         return;
       }
       closeModal();
-      refreshAuthState();
+      // ログイン・新規登録どちらも成功後はトップページへ遷移する
+      window.location.href = "/";
     } catch (e) {
       errEl.textContent = "通信エラーが発生しました。時間をおいて再度お試しください";
     } finally {
