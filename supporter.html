@@ -654,6 +654,24 @@ function buildCompactOwnershipLog(){
     .join(",");
 }
 
+// ④ D1への所持データ保存用のゲスト識別子。
+// ログイン中はサーバー側でセッションのuser_uidが優先されるため未使用になるが、
+// 未ログイン時はこの端末固有のUUIDでsupporters_ownershipに記録する。
+// unit.html・supporter.htmlで同じキーを使うことで、同一端末なら両チェッカーで同じ識別子になる
+const GUEST_UID_KEY = "urchecker_guest_uid";
+function getOrCreateGuestUid(){
+  try {
+    let uid = localStorage.getItem(GUEST_UID_KEY);
+    if (!uid) {
+      uid = crypto.randomUUID();
+      localStorage.setItem(GUEST_UID_KEY, uid);
+    }
+    return uid;
+  } catch (e) {
+    return null; // localStorage不可の環境ではゲスト識別子なしで送信する（サーバー側はuser_uid欠落として扱い、D1保存をスキップする）
+  }
+}
+
 function sendOwnershipLog(){
   try {
     const s = computeStats();
@@ -662,7 +680,8 @@ function sendOwnershipLog(){
       total: s.total,
       maxCount: s.maxCount,
       avg: Number(s.avg.toFixed(2)),
-      log: buildCompactOwnershipLog()
+      log: buildCompactOwnershipLog(),
+      guestUid: getOrCreateGuestUid()
     };
     fetch("/api/log-supporter", {
       method: "POST",

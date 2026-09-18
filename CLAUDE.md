@@ -14,13 +14,14 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 
 ## リポジトリ構成
 このリポジトリのルートには以下を配置する:
-- `top.html` — ログイン後トップページ（ルートURL `/`・`/index.html` で配信）。ログイン状態表示、機体版/サポート版への導線、今後のチェッカーのComing Soon表示
-- `unit.html` — UR機体所持率チェッカー（82機収録）
-- `supporter.html` — URサポート所持率チェッカー（48体収録）
+- `top.html` — ログイン後トップページ（ルートURL `/` で配信）。ログイン状態表示、機体版/サポート版への導線、今後のチェッカーのComing Soon表示
+- `unit.html` — UR機体所持率チェッカー（84機収録）
+- `supporter.html` — URサポート所持率チェッカー（49体収録）
 - `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`から読み込む
-- `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）と所持データログ収集API（`/api/log`・`/api/log-supporter`、将来D1保存に変更予定）を処理し、それ以外は静的配信。ルートアクセス（`/`・`/index.html`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止）
+- `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）と所持データログ収集API（`/api/log`・`/api/log-supporter`、D1保存済み）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
 - `wrangler.jsonc` — プロジェクト名 `ggene-ur-checker`、assetsのdirectoryは`./`、D1バインディング`DB`（`ggene-ur-checker-db`）設定済み
 - `migrations/0001_add_user_auth.sql` — `users`テーブルへの`username`/`password`カラム追加、`sessions`テーブル新設。Cloudflareダッシュボード（D1 > Console）で手動適用済み
+- `migrations/0002_populate_master_data.sql` — `units_master`/`supporters_master`への実データ投入（機体84件・サポート49件）。**未適用（要ユーザー対応）**
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
 
@@ -98,7 +99,10 @@ CREATE INDEX idx_sessions_user_uid ON sessions(user_uid);
 ```
 カラム名は`password_hash`ではなく`password`とした（後述の通りハッシュ化せず平文で保存する方針のため、`_hash`という名前で平文を入れると将来の実装者を誤解させる）。
 
-ID体系: マスターのIDはチェッカー画面上の「No.」（機体1〜82、サポート1〜48）と一致。既存IDは変動しない前提。
+### マスターデータ投入（④で追加・要適用。`migrations/0002_populate_master_data.sql`）
+`units_master`・`supporters_master`は当初スキーマのみでデータが空だった。`unit.html`/`supporter.html`の`UNITS`配列と完全一致するINSERT文（機体84件・サポート49件）を`migrations/0002_populate_master_data.sql`として追加済み。0001と同様、Cloudflareダッシュボード（D1 > Console）での手動適用が必要（**2026-09-19時点で未適用**）。
+
+ID体系: マスターのIDはチェッカー画面上の「No.」（機体1〜84、サポート1〜49）と一致。既存IDは変動しない前提（2026-09-18に機体83・84、サポート49を新規追加。追加時も既存IDは振り直していない）。
 D1無料枠: 保存5GB（無期限）、1日500万行読み込み、1日10万行書き込み。
 
 ## 確定済みの設計方針（変更不可）
@@ -138,6 +142,7 @@ D1無料枠: 保存5GB（無期限）、1日500万行読み込み、1日10万行
 - `/api/me`取得に失敗した場合は常にゲスト状態表示にフォールバックし、チェッカー本体の動作に影響しない設計
 - ついでに、supporter.htmlが送信していた`/api/log-supporter`の受け口が存在しなかった不具合（404で握りつぶされていた）も修正
 - ゲスト利用（未ログインでのチェッカー100%利用）への影響がないことを確認済み
+- ログインボタンはその後、スクロール追従からヘッダー（`.wrap`）内の通常フロー要素（先頭固定配置・スクロールで流れる）に変更済み
 
 ### ③ ログイン後トップページ（完了）
 - `top.html`を新設。ログイン状態表示（②のauth.js/auth.cssを再利用）、機体版/サポート版チェッカーへの導線カード、「エタロ攻略チェッカー」「称号獲得チェッカー」のComing Soon表示カードを配置
@@ -148,16 +153,61 @@ D1無料枠: 保存5GB（無期限）、1日500万行読み込み、1日10万行
 - Cowork側で検討・承認済みのデザイン提案（`design-proposal/galaxy-design-proposal.md`）とプロトタイプ（`design-proposal/top-galaxy-prototype.html`）を`top.html`に本実装した
 - 背景：3層の星空パララックス（Canvas 2D）、手続き生成の渦巻銀河（エメラルドコア）、CSSネビュラ、流れ星、スキャンライン・ビネットを追加。外部ライブラリ（three.js等）は不使用
 - チェッカー導線カードのアイコンにエメラルドのオーロラ後光、タイトルにシアン⇄ゴールドのグラデーションシマーを適用。実装済みチェッカー（機体/サポート）を主役として拡大、Coming Soon（ROUTE 03/04）は脇役として縮小
-- アイコン画像は、プロトタイプのbase64埋め込み（各6枚）をやめ、`images/units/1.jpg`〜`82.jpg`／`images/supporters/1.jpg`〜`48.jpg`への相対パス参照＋全件からのランダム抽出に変更（5秒周期でフェード切替、タブ非アクティブ時停止、`prefers-reduced-motion`時は初期の1枚で固定）。サポート画像は`object-position:78% center`で右寄りトリミング
+- アイコン画像は、プロトタイプのbase64埋め込み（各6枚）をやめ、`images/units/1.jpg`〜`82.jpg`／`images/supporters/1.jpg`〜`48.jpg`への相対パス参照＋全件からのランダム抽出に変更（5秒周期でフェード切替、タブ非アクティブ時停止、`prefers-reduced-motion`時は初期の1枚で固定）。サポート画像は`object-position:78% center`で右寄りトリミング（※このプール件数は後述「新規UR3件の追加とトップページ反映」で84/49件に更新済み）
 - `auth.css`/`auth.js`によるログイン状態表示は変更せず、新しい配色（`--panel-2`を追加）に馴染むようにしたのみ。ログイン任意・ゲスト利用維持の方針への影響なし
 - 760px以上の広い画面では2カラム全幅レイアウト、760px未満は既存同様の1カラムを維持
 - 動作確認：Playwright（Python版、Chromium）でスマホ幅（320px/390px）・デスクトップ幅（1024px）・`prefers-reduced-motion: reduce`の3パターンをヘッドレステスト。表示崩れ・コンソールエラーなしを確認（ローカル静的サーバーのため`/api/me`が404になるのは想定内で、auth.js側のゲスト表示フォールバックが正常に機能することも確認済み）
 - 未対応（要相談）：`unit.html`/`supporter.html`への同じ背景演出の展開は本作業のスコープ外のまま
 
-## 次にやること: ④ D1への所持データ保存
-- `/api/log`・`/api/log-supporter`をconsole.logからD1（`units_ownership`・`supporters_ownership`テーブル）へのINSERTに変更
-- ログイン時は②で発行した`user_uid`、ゲスト時は匿名UUIDを発行して記録する
-- 実装後はゲスト利用・ログイン利用の両方でデータが正しく記録されることを確認する
+### 新規UR3件の追加とトップページ反映（完了・2026-09-18）
+※このセクションと次の「ログインモーダルのデザイン統一」は、実装後にCLAUDE.md・Cowork側ドキュメントのどちらにも記録しないままセッションを終えていたため、事後に追記したもの。
+
+- 機体2体（No.83 ガンダムアヴァランチアストレア タイプFダッシュ(EX) / No.84 スサノオ(EX)）、サポート1体（No.49 シェリリン・ハイド＆エウクレイデス）を`unit.html`・`supporter.html`のマスターデータ（`UNITS`/`SUPPORTERS`配列）に追加。画像は`images/units/83.jpg`・`84.jpg`、`images/supporters/49.jpg`として配置済み
+- 収録数は機体82→84、サポート48→49に更新（既存No.1〜82／1〜48のIDは振り直していない）
+- `top.html`のランダムアイコン抽出プール（`UNIT_IMAGES`／`SUPPORTER_IMAGES`）も84件／49件に更新済み。この追随修正を怠ると新規追加した2機体・1体だけがトップページの銀河系背景アイコン演出に登場しない状態になるため、今後UR追加時は`unit.html`/`supporter.html`本体だけでなく`top.html`側の配列件数も必ずセットで更新すること
+
+### ログインモーダルのデザイン統一（完了・2026-09-18）
+- 課題: `auth.css`のログイン・新規登録モーダルは旧テーマの`:root`カラー変数に依存していたため、③で銀河系デザインへ全面刷新した`top.html`と、旧テーマのままの`unit.html`/`supporter.html`とで、モーダルの見た目（配色）が食い違っていた
+- 対応: `auth.css`の`.authbar`/`.authModal`セレクタ内に、ホストページの`:root`に依存しない銀河系パレット（`--auth-void`/`--auth-panel`/`--auth-gold`/`--auth-cyan`等）を独自定義。これにより`top.html`・`unit.html`・`supporter.html`のどこからモーダルを開いても、同じガラス調パネル・シアン⇄ゴールドのシマー見出し・グラデーション枠線のデザインで統一表示されるようにした
+- あわせて`auth.js`を変更し、ログイン・新規登録のいずれが成功した場合も`"/"`（ログイン後トップページ`top.html`）へ遷移するようにした（変更前は各チェッカー画面にとどまる挙動だった）
+- `unit.html`/`supporter.html`本体の背景演出（銀河系パララックス等）まで展開したわけではない点に注意。これは引き続き未着手（上記「トップページ 銀河系デザイン 本実装」の「未対応（要相談）」のまま）
+
+### ④ D1への所持データ保存（完了・2026-09-19）
+- `worker.js`の`/api/log`・`/api/log-supporter`を、console.logのみだった実装からD1（`units_ownership`・`supporters_ownership`テーブル）へのINSERTに変更
+- **旧console.logログの削除（2026-09-19）**: 実装当初はCloudflare Workers Logs（console.log）への記録をD1保存と併用で残していたが、ユーザーに確認の上、D1保存への一本化に伴い`handleOwnershipLog()`内のconsole.log呼び出しを削除した。所持データの記録先はD1のみとなる。あわせてリクエストボディの読み取りも`request.text()`→`JSON.parse()`から`request.json()`に簡略化した
+- **識別子の決定方法**: ログイン中は`getSessionUser()`で取得したセッションの`user_uid`を優先。未ログイン時は、クライアント（`unit.html`/`supporter.html`）が`localStorage`（キー`urchecker_guest_uid`、両チェッカーで共通）に保持する匿名UUID（`crypto.randomUUID()`で発行、リクエストの`guestUid`として送信）を使う。どちらも取得できない場合はD1書き込みをスキップする（この場合、旧実装と異なりconsole.logへの記録も行われない＝記録は一切残らない）
+- **usersテーブルのupsert**: 所持データ保存の直前に、対象`user_uid`が`users`テーブルになければ`username`/`password`を`NULL`のまま新規作成し、あれば`last_seen`のみ更新する（`INSERT ... ON CONFLICT(user_uid) DO UPDATE SET last_seen = ...`）。この`users`テーブルはもともと`user_uid`/`first_seen`/`last_seen`のみの匿名UID台帳として設計されていたものを、そのままゲスト管理に転用している
+- **保存方式**: 送信のたびに、その`user_uid`の既存所持行を全削除してから現在の所持状態を入れ直す「最新スナップショット方式」を採用（履歴は積み上げない）。`env.DB.batch()`でDELETE+INSERT群を1回のラウンドトリップにまとめている
+- **送信元・保存先の対応**: `unit.html`（`/api/log`）→`units_ownership`、`supporter.html`（`/api/log-supporter`）→`supporters_ownership`で完全に分離。`unit_id`/`supporter_id`の衝突は起きない
+- **既存不具合の発見と対応（重要）**: `units_master`・`supporters_master`テーブルは作成時にスキーマのみ定義され、実データが投入されていなかった。`units_ownership`/`supporters_ownership`の`unit_id`/`supporter_id`はこのマスターへのFOREIGN KEYを持つため、環境でFK制約が有効化されている場合、マスターが空のままだと所持データのINSERTが（クライアントには見えない形で）静かに失敗する状態だった。これを解消するため、`unit.html`/`supporter.html`の`UNITS`配列から生成した`migrations/0002_populate_master_data.sql`を新規追加し、機体84件・サポート49件のマスターデータを投入するようにした
+  - **要対応（ユーザー作業）**: `migrations/0002_populate_master_data.sql`は、`migrations/0001_add_user_auth.sql`のときと同様にCloudflareダッシュボード（D1 > Console）で手動実行が必要（このリポジトリの開発環境にwrangler CLIがなく直接適用できないため）。**未実行のままだとFK制約の有無によっては所持データがD1に保存されない可能性があるため、必ず適用すること**
+- **検証方法**: 実際のD1に接続する手段がないため、`node:sqlite`でD1の`prepare/bind/run/first/batch`相当のAPIを再現したモック（`env.DB`）を作り、Node上でworker.jsの`fetch`ハンドラを直接呼び出すテストハーネスを新規作成して検証した（wrangler CLIなしでの検証という既存の運用方針を踏襲）
+  - 回帰確認: `/api/register`・`/api/login`・`/api/logout`・`/api/me`が今回の変更後も従来通り動作すること
+  - 新機能: ログイン中ユーザーはセッションの`user_uid`で保存されること、ゲストは`guestUid`で保存され`users`にも行ができること、不正な`guestUid`や壊れたリクエストボディはエラーにならず200 okを返しつつD1保存だけスキップされること、再送信で古い所持データが置き換わり履歴が積み上がらないこと、機体版とサポート版が別テーブルに正しく分かれること、`log`文字列内の壊れた要素だけを読み飛ばせること
+  - FK制約についての参考検証: FK制約を有効化した状態で`units_master`が空だと保存が失敗すること、`migrations/0002`適用後（マスターデータ投入後）は同じFK制約下でも保存に成功することの両方を確認済み
+- **意図的に対応していない点（ユーザー確認済み・対応不要）**: ゲスト状態で記録した所持データを、後から会員登録・ログインした際に既存アカウントへ引き継ぐ機能（ゲストUUID→アカウントuser_uidへのデータ移行）は実装していない。2026-09-19にユーザーへ確認し、「現状仕様のままでOK（対応不要）」と決定済み
+
+### ④の設計確認（ユーザーレビュー・2026-09-19）
+D1保存の設計についてユーザーから4点確認があり、以下の通り回答・対応した。
+1. **機体チェッカー押下時はunits_ownershipのみ、サポートチェッカー押下時はsupporters_ownershipのみに保存されるか** → 確認済み。`unit.html`は`/api/log`のみ、`supporter.html`は`/api/log-supporter`のみを呼び、`handleOwnershipLog()`内で`isSupporter`フラグにより書き込み先テーブル（`units_ownership`/`supporters_ownership`）とIDカラム（`unit_id`/`supporter_id`）が完全に分岐しているため、一方の送信でもう一方のテーブルに書き込まれることはない。テストハーネスで実際に確認済み
+2. **`users.first_seen`は不要では？** → ユーザーと相談し「残す（推奨案を採用）」で決定。現状どの機能からも参照していないが、実装コストが実質ゼロであることと、将来「登録からの継続日数」等の分析（ロードマップ8.）で使える可能性を優先し、スキーマ変更はしていない
+3. **新規登録時にusernameがNULLで作成されないようにしてほしい（ユーザー/ゲストを確実に区別したい）** → 実装済みで既に満たされていることを確認。`isValidUsername()`が英数字・アンダースコア3〜20文字のみを許可し、空・未指定・不正な値は`/api/register`が400エラーで弾くため、この経路でusersにusername=NULLの行が作られることはない。一方④のゲスト行は`upsertOwnershipUser()`がusername/passwordを一切指定せず作成するためNULLのまま。「`username IS NULL` ⟺ ゲスト／`username IS NOT NULL` ⟺ 登録済みアカウント」という不変条件を`worker.js`の`isValidUsername()`直前にコメントとして明記し、テストケースも追加した（空文字・未指定・null・3文字未満・英数字以外の5パターンで400になることとusersにNULL行が作られないことを検証）
+4. **FOREIGN KEY制約自体は無くてもよいが、どうするか** → ユーザーと相談し「宣言は残し、`worker.js`側でID範囲チェックを追加する」で決定。理由: SQLiteはALTER TABLEでFK制約だけを後から外せないためテーブル再作成が必要になり手間が大きい一方、D1側でFKが有効化されていてもいなくても矛盾なく動く安全策として、アプリ側の検証を追加する方が確実。`worker.js`に`MAX_UNIT_ID = 84`・`MAX_SUPPORTER_ID = 49`を定数として追加し、`parseCompactOwnershipLog()`がこの範囲外のIDを読み飛ばすように変更した。**この定数は、今後UR機体・サポートを追加した際、`top.html`のUNIT_IMAGES/SUPPORTER_IMAGES件数・`migrations/0002`の投入件数と必ずセットで更新すること**
+- 上記の追加テスト（機体/サポート分離、first_seen不変性、username NULL不可、ID範囲チェック）もテストハーネスに追加し、全17ケースが成功することを確認済み
+- ユーザー向けに公開したER図・DB設計リファレンス（Artifact）も、この確認内容に合わせて更新した
+
+### `/index.html`特別扱いの廃止（2026-09-19）
+`index.html`は以前`unit.html`へリネーム済みで、実ファイルとしては存在しない状態だったが、`worker.js`のルーティングには`if (url.pathname === "/" || url.pathname === "/index.html")`という条件が残っており、`/index.html`へのアクセスも`top.html`にすり替えて配信し続けていた。ユーザーから「index.htmlはすでに廃止済みなので、残っている条件は削除してよい」との指示を受け、以下の通り対応した。
+- `worker.js`のルート判定を`if (url.pathname === "/")`のみに変更。`/index.html`への直接アクセスは今後、通常の静的アセットのcatch-all処理に渡されるため、実ファイルが存在しない以上404になる（意図した挙動。Xの固定ポスト等の流入経路はすべて`/`または`top.html`/`unit.html`等の実在パスを指しており、`/index.html`への外部リンクは存在しないため実害なし）
+- テストハーネス（`harness.mjs`）に回帰テストを2件追加し、全19ケースが成功することを確認済み
+  - 「`/`はtop.htmlを配信する」（従来通りの挙動が壊れていないことの確認）
+  - 「`/index.html`はもう特別扱いされず、そのままcatch-allに渡される（top.htmlへは書き換わらない）」（今回の変更が正しく効いていることの確認）
+- `unit.html`・`supporter.html`・`auth.js`・`auth.css`にも`index.html`への参照が残っていないことをgrepで確認済み（該当なし）
+
+## 次にやること
+- 上記`migrations/0002_populate_master_data.sql`をD1 Consoleで適用する（ユーザー作業・未実施）
+- ④のD1保存は「最新スナップショットの保存」までが完了した状態。これを使った分析・集計（ロードマップ8. 所持率・クリア率の分析結果ページ）は未着手
+- 次にどのテーマ（③④以降のロードマップ: エタロ攻略/称号獲得チェッカー追加、自己紹介カード自動生成 等）に着手するかは、次回セッション冒頭でユーザーに確認すること
 
 ## 作業上の注意
 - ユーザーはシステム開発経験があるため、技術的な説明は詳しくして構わない
@@ -165,3 +215,4 @@ D1無料枠: 保存5GB（無期限）、1日500万行読み込み、1日10万行
 - ファイルを作ったら必ず動作確認（Playwrightでのヘッドレステスト）を行ってから渡すこと
 - 日本語で応答すること
 - ファイル削除時は必ず確認することを原則とする
+- **作業を閉じる前に、その回で実装・変更した内容を必ずこのCLAUDE.md（「完了済みの作業」セクション）に追記してからセッションを終えること。今回、新規UR3件追加とログインモーダルのデザイン統一の2件が未記載のままクローズされ、事後追記が必要になった**

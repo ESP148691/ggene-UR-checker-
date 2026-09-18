@@ -44,6 +44,13 @@ async function createSession(env, userUid) {
   return token;
 }
 
+// username・passwordが空文字/未指定/NULLだと弾く（3〜20文字の英数字・アンダースコアのみを要求）。
+// 【重要な不変条件】/api/register経由で作成されるusersの行は、この関数を必ず通るため
+// username・passwordが常に非NULLになる。一方、④のゲスト（所持ログ由来）の行は
+// upsertOwnershipUser()でusername・passwordを一切指定せずNULLのまま作成される。
+// この「username IS NULL ⟺ ゲスト／username IS NOT NULL ⟺ 登録済みアカウント」という区別を
+// アプリ全体で正としているため、この関数の検証を緩めたり、別経路でusersにINSERTする処理を
+// 追加したりする場合は、この不変条件を壊さないよう注意すること
 function isValidUsername(username) {
   return typeof username === "string" && /^[A-Za-z0-9_]{3,20}$/.test(username);
 }
@@ -128,6 +135,105 @@ async function handleMe(request, env) {
   return jsonResponse({ loggedIn: true, username: user.username }, 200);
 }
 
+// ④ D1への所持データ保存
+// ゲストUUIDの妥当性チェック（クライアントはcrypto.randomUUID()で発行する想定）
+function isValidGuestUid(uid) {
+  return typeof uid === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid);
+}
+
+// 想定される最大件数（機体84・サポート49）より十分大きい安全マージン。不正に巨大な入力は無視する
+const OWNERSHIP_LOG_MAX_ENTRIES = 300;
+
+// マスターに実在するID範囲（= unit.html/supporter.htmlのUNITS配列の件数と一致させる）。
+// units_ownership/supporters_ownershipのunit_id/supporter_idはunits_master/supporters_masterへの
+// FOREIGN KEYだが、D1側でFK制約が有効化されているとは限らないため、アプリ側でも範囲チェックする。
+// 新しいUR機体・サポートを追加した際は、この数値もtop.htmlのUNIT_IMAGES/SUPPORTER_IMAGESの件数・
+// migrations/0002_populate_master_data.sqlの投入件数と合わせて必ず更新すること
+const MAX_UNIT_ID = 84;
+const MAX_SUPPORTER_ID = 49;
+
+// "id:code,id:code,..." 形式のコンパクトログを { id, level } の配列にパースする。
+// code(1=無凸,2=1凸,3=2凸,4=完凸) → level(0〜3) に変換。壊れた要素・範囲外のidは読み飛ばす
+function parseCompactOwnershipLog(log, maxId) {
+  if (typeof log !== "string" || !log) return [];
+  const parts = log.split(",");
+  if (parts.length > OWNERSHIP_LOG_MAX_ENTRIES) return [];
+  const out = [];
+  for (const part of parts) {
+    const m = /^(\d+):([1-4])$/.exec(part.trim());
+    if (!m) continue;
+    const id = Number(m[1]);
+    if (!Number.isInteger(id) || id < 1 || id > maxId) continue;
+    out.push({ id, level: Number(m[2]) - 1 });
+  }
+  return out;
+}
+
+// users行をupsertする。ログイン中ユーザーは既に行があるためlast_seenのみ更新され、
+// ゲストは初回アクセス時にusername/passwordがNULLの行として新規作成される
+// （usersテーブルは元々このuser_uid/first_seen/last_seenだけの匿名UID台帳として設計されたもの）
+async function upsertOwnershipUser(env, userUid) {
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    `INSERT INTO users (user_uid, first_seen, last_seen) VALUES (?, ?, ?)
+     ON CONFLICT(user_uid) DO UPDATE SET last_seen = excluded.last_seen`
+  ).bind(userUid, now, now).run();
+}
+
+// 所持データは履歴を積み上げず「最新状態のスナップショット」として保持する。
+// 送信の都度、そのuser_uidの既存行を削除してから現在の所持状態を入れ直す
+// （バッチ処理のため、Workerからのラウンドトリップは1回で済む）
+async function replaceOwnership(env, table, idColumn, userUid, entries) {
+  const now = new Date().toISOString();
+  const statements = [
+    env.DB.prepare(`DELETE FROM ${table} WHERE user_uid = ?`).bind(userUid)
+  ];
+  for (const entry of entries) {
+    statements.push(
+      env.DB.prepare(
+        `INSERT INTO ${table} (registered_at, user_uid, ${idColumn}, level) VALUES (?, ?, ?, ?)`
+      ).bind(now, userUid, entry.id, entry.level)
+    );
+  }
+  await env.DB.batch(statements);
+}
+
+// 所持データのログ収集エンドポイント（機体版・サポート版共通）
+// ④のD1保存に一本化したため、旧実装がここで行っていたCloudflare Workers Logs（console.log）への
+// 出力は廃止した（D1が唯一の保存先。ユーザー確認の上で削除・2026-09-19）
+async function handleOwnershipLog(request, env, isSupporter) {
+  let body = null;
+  try {
+    body = await request.json();
+  } catch (e) {
+    body = null;
+  }
+
+  // D1への保存。ログイン中はセッションのuser_uidを優先し、未ログインはクライアントが送るゲストUUIDを使う。
+  // ここで例外が起きてもチェッカー本体（画像生成・プレビュー・シェア）は常に成功させる
+  try {
+    const sessionUser = await getSessionUser(request, env);
+    const guestUid = body && isValidGuestUid(body.guestUid) ? body.guestUid : null;
+    const userUid = sessionUser ? sessionUser.userUid : guestUid;
+
+    if (userUid && body) {
+      const entries = parseCompactOwnershipLog(body.log, isSupporter ? MAX_SUPPORTER_ID : MAX_UNIT_ID);
+      await upsertOwnershipUser(env, userUid);
+      await replaceOwnership(
+        env,
+        isSupporter ? "supporters_ownership" : "units_ownership",
+        isSupporter ? "supporter_id" : "unit_id",
+        userUid,
+        entries
+      );
+    }
+  } catch (e) {
+    console.error("ownership d1 write error", e);
+  }
+
+  return new Response("ok", { status: 200 });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -148,26 +254,16 @@ export default {
     }
 
     // 所持データのログ収集エンドポイント（機体版・サポート版共通）
-    // ここでの console.log は Cloudflare の Workers Logs（Observability）に記録され、
-    // ダッシュボード上で検索・閲覧できる（利用者のブラウザには一切表示されない）
+    // ④ ログイン時はuser_uid、ゲスト時は匿名UUIDでunits_ownership/supporters_ownershipに保存する
     if ((url.pathname === "/api/log" || url.pathname === "/api/log-supporter") && request.method === "POST") {
-      try {
-        const body = await request.text();
-        console.log(JSON.stringify({
-          type: url.pathname === "/api/log-supporter" ? "ur_supporter_ownership_log" : "ur_ownership_log",
-          ts: new Date().toISOString(),
-          body: body
-        }));
-      } catch (e) {
-        console.error("log parse error", e);
-      }
-      return new Response("ok", { status: 200 });
+      return handleOwnershipLog(request, env, url.pathname === "/api/log-supporter");
     }
 
-    // ルートURL（旧index.html含む）はトップページ（top.html）を配信する。
+    // ルートURLはトップページ（top.html）を配信する。index.htmlは廃止済み（unit.htmlへリネーム済み）のため、
+    // ルーティングとしても特別扱いしない（/index.htmlへのアクセスは以後、静的アセットとして404になる）。
     // トップページ自体はログイン不要で機体版/サポート版チェッカーへ直接遷移できるため、
     // Xの固定ポスト等からの流入でもゲスト利用の導線は塞がれない。
-    if (url.pathname === "/" || url.pathname === "/index.html") {
+    if (url.pathname === "/") {
       const assetUrl = new URL("/top.html", url);
       return env.ASSETS.fetch(new Request(assetUrl.toString(), request));
     }
