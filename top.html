@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gジェネエターナル ファンツール</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="auth.css">
 <style>
@@ -94,7 +95,7 @@
     text-shadow:0 1px 4px rgba(2,4,9,.9), 0 0 16px rgba(2,4,9,.6);
   }
   .sub{
-    color:#c7d2dc;font-size:14px;margin:14px 0 34px;line-height:1.85;max-width:46ch;
+    color:#c7d2dc;font-size:14px;margin:24px 0 34px;line-height:1.85;max-width:46ch;
     word-break:keep-all;overflow-wrap:break-word;
     text-shadow:0 1px 4px rgba(2,4,9,.9), 0 0 14px rgba(2,4,9,.55);
   }
@@ -194,6 +195,14 @@
   @keyframes pulseDot{0%,100%{opacity:.35;}50%{opacity:1;}}
   @keyframes shimmer{to{background-position:-240% center;}}
 
+  .pageFooter{
+    margin-top:44px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:10.5px;line-height:1.9;color:var(--muted);
+  }
+  .pageFooter p{margin:0 0 8px;}
+  .pageFooter a{color:var(--cyan);text-decoration:none;}
+  .pageFooter a:hover{text-decoration:underline;}
+
   /* スマホ幅はそのまま。760px以上の広い画面のみ横幅を活かすレイアウトに切り替える */
   @media (min-width: 760px){
     main.wrap{max-width:920px;}
@@ -233,15 +242,15 @@
     <a class="navcard" href="/unit">
       <div class="icon" data-pool="unit"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
-        <div class="name">UR機体所持率<wbr>チェッカー</div>
-        <div class="desc">全84機のUR機体所持状況を記録・可視化</div>
+        <div class="name">URユニット<wbr>所持率<wbr>チェッカー</div>
+        <div class="desc">全84機のURユニット所持状況を記録・可視化</div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
     <a class="navcard" href="/supporter.html">
       <div class="icon" data-pool="supporter"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
-        <div class="name">URサポート所持率<wbr>チェッカー</div>
+        <div class="name">URサポート<wbr>所持率<wbr>チェッカー</div>
         <div class="desc">全49体のURサポート所持状況を記録・可視化</div>
       </div>
       <div class="arrow">&rsaquo;</div>
@@ -261,6 +270,13 @@
       <div class="soonTitle">COMING SOON</div>
     </div>
   </div>
+
+  <footer class="pageFooter">
+    <p>本サイトはファンが個人で制作した「Gジェネレーション エターナル」の非公式ツールです。株式会社バンダイナムコエンターテインメント、株式会社サンライズなど同作品に関連する権利元・企業様とは一切関係ありません。</p>
+    <p>掲載しているゲーム内画像・キャラクター名・データ等の著作権および知的財産権は、それぞれの権利元に帰属します。掲載画像はすべて運営者自身が撮影したゲーム内スクリーンショットです。</p>
+    <p>掲載データの正確性を保証するものではなく、本サイトのご利用により生じたいかなる損害についても運営者は責任を負いかねます。</p>
+    <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+  </footer>
 </main>
 
 <script>

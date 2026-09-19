@@ -5,8 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UR所持率チェッカー | Gジェネエターナル</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="auth.css">
+<!-- ヘッダーの「トップに戻る」導線を押した際の体感速度向上のため、トップページをあらかじめプリフェッチしておく -->
+<link rel="prefetch" href="/">
+<link rel="prefetch" href="images/logo.png">
 <style>
   :root{
     --bg-deep:#0a0e14;
@@ -187,6 +191,14 @@
     padding:10px 20px;cursor:pointer;text-decoration:none;display:inline-block;
   }
   .previewModal .btn-secondary{background:transparent;color:var(--muted);border-color:var(--line);}
+
+  .pageFooter{
+    margin-top:28px;padding-top:16px;border-top:1px solid var(--line);
+    font-size:10.5px;line-height:1.9;color:var(--muted);
+  }
+  .pageFooter p{margin:0 0 8px;}
+  .pageFooter a{color:var(--cyan);text-decoration:none;}
+  .pageFooter a:hover{text-decoration:underline;}
 </style>
 </head>
 <body>
@@ -242,6 +254,13 @@
   </div>
 
   <div class="list" id="list"></div>
+
+  <footer class="pageFooter">
+    <p>本サイトはファンが個人で制作した「Gジェネレーション エターナル」の非公式ツールです。株式会社バンダイナムコエンターテインメント、株式会社サンライズなど同作品に関連する権利元・企業様とは一切関係ありません。</p>
+    <p>掲載しているゲーム内画像・キャラクター名・データ等の著作権および知的財産権は、それぞれの権利元に帰属します。掲載画像はすべて運営者自身が撮影したゲーム内スクリーンショットです。</p>
+    <p>掲載データの正確性を保証するものではなく、本サイトのご利用により生じたいかなる損害についても運営者は責任を負いかねます。</p>
+    <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+  </footer>
 </div>
 
 <div class="actionbar">
@@ -266,7 +285,7 @@ const CONFIG = {
   siteName: "Gジェネ攻略ラボ（仮）",
   xHandle: "@polarbear148691",
   siteUrl: "https://ggene-ur-checker.polarbear14869.workers.dev/unit",
-  hashtags: ["GGETユニット所持率チェッカー"]
+  hashtags: ["ジージェネエターナル", "GGETユニット所持率チェッカー"]
 };
 
 /* =========================================================
