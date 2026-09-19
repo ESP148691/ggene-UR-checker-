@@ -221,6 +221,18 @@ D1保存の設計についてユーザーから4点確認があり、以下の�
 
 検証はPythonのPlaywright（Chromium、ローカル`python -m http.server`での静的配信）で実施。3ページ（`top.html`/`unit.html`/`supporter.html`）でconsoleエラーが出ないことも確認済み。このリポジトリの開発環境にはNode.jsがないため、`worker.js`を使うD1モックテストハーネス（`harness.mjs`）は今回のスコープ外（`worker.js`自体は変更していない）。
 
+### 上記の追加修正（完了・2026-09-19）
+上記デプロイ後、ユーザーからの実機確認で4点の追加修正指示があった。
+
+1. **ログインモーダルの表示位置**：`auth.css`の`.authModal`を画面中央寄せ（`align-items:center`）から上寄せ（`align-items:flex-start` + 上部に`calc(48px + safe-area-inset-top)`のpadding）に変更し、`overflow-y:auto`も追加。スマホでソフトウェアキーボードが開いた際に入力欄がキーボードと重なって隠れる問題に対応。Playwrightでビューポート高さ400px（キーボード表示時を想定した縮小状態）でモーダルを開き、ユーザー名入力欄が画面内に収まっていることを確認済み
+2. **「トップに戻る」ボタンがtop.html自体にも表示される不具合の修正**：本番環境（`https://ggene-ur-checker.polarbear14869.workers.dev/`）に対しPlaywrightで実際にアクセスして調査した結果、原因が判明した。Cloudflareの静的アセット配信（`env.ASSETS.fetch`）が`/top.html`を拡張子なしの`/top`へ自動リダイレクトしており、遷移後の`location.pathname`は`/top.html`ではなく`/top`になる。`auth.js`の`isTopPage`判定が`"/"`と`"/top.html"`しか許容していなかったため、トップページ自身でも「トップに戻る」ボタンが表示されてしまっていた。`isTopPage`の条件に`"/top"`を追加して解消。本番相当の挙動（`location.pathname === "/top"`）を再現するPlaywrightテストで、ボタンが表示されなくなったことを確認済み
+   - **重要な学び**: このサイトでは`/xxx.html`へのアクセスがCloudflare側で`/xxx`へリダイレクトされる。`location.pathname`に依存するJSを書く際は、`.html`付き・なしの両方を考慮すること（`/unit`・`/unit.html`のような組み合わせも同様の可能性があるため、今後同種の判定を追加する場合は要注意）
+3. **チェッカーカードタイトルの改行不具合**：`top.html`のnavcard内「UR機体所持率チェッカー」「URサポート所持率チェッカー」が、スマホ幅で長音記号「ー」だけが次行に孤立する不自然な改行になっていた問題を、`.navcard .name`に`word-break:keep-all`を指定し、テキスト中の「所持率」と「チェッカー」の間に`<wbr>`を挿入することで解消（「UR機体所持率」/「チェッカー」で改行されるようになった）
+4. **見出しフォントの改善**：`h1`・`.navcard .name`・`.soonTitle`は`font-family:'Rajdhani',sans-serif`を指定していたが、Rajdhaniは日本語グリフを持たないため、これらの要素の文字（すべて日本語）は実際にはブラウザの汎用フォールバックフォントで描画されており、これが「フォントがチープ」に見える原因だった。Google Fontsに`Zen Kaku Gothic New`（weight 700/900）を追加し、`font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif`として日本語見出し用のフォントを明示的に指定するように変更（`h1`はfont-weightも700→900に強調）
+5. **ロゴマークとタイトルの間隔調整**：`.titlerow`の`gap`を18px→30pxに拡大。ロゴの装飾リング（`.logo-wrap .ring-2`が`inset:-20px`でロゴ本体の52px枠から20px外側にはみ出す装飾）を考慮すると、従来の18pxではリングとタイトル文字が視覚的にほぼ接触する状態だったため、実際の見た目上の余白を十分に確保できる値に調整した
+
+いずれもPythonのPlaywright（ローカル静的配信、および2の不具合調査は本番URLに対して直接）で確認済み。3ページ（`top.html`/`unit.html`/`supporter.html`）でconsoleエラーが出ないことも再確認済み。
+
 ## 次にやること
 - ④のD1保存は「最新スナップショットの保存」までが完了した状態。これを使った分析・集計（ロードマップ8. 所持率・クリア率の分析結果ページ）は未着手
 - 次にどのテーマ（③④以降のロードマップ: エタロ攻略/称号獲得チェッカー追加、自己紹介カード自動生成 等）に着手するかは、次回セッション冒頭でユーザーに確認すること

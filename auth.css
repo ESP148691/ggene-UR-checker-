@@ -37,8 +37,10 @@
 
 .authModal{
   position:fixed; inset:0; background:var(--auth-void);
-  display:none; align-items:center; justify-content:center;
-  padding:24px 16px; z-index:200; backdrop-filter:blur(4px);
+  display:none; align-items:flex-start; justify-content:center;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:calc(48px + env(safe-area-inset-top,0px)) 16px 24px;
+  z-index:200; backdrop-filter:blur(4px);
 }
 .authModal.show{ display:flex; }
 .authModal .box{

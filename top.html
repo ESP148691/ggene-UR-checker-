@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gジェネエターナル ファンツール</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="auth.css">
 <style>
   :root{
@@ -79,7 +79,7 @@
   .eyebrow::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);display:inline-block;border-radius:1px;}
   .eyebrow .jp{font-family:'Noto Sans JP',sans-serif;letter-spacing:.05em;color:#c7d2dc;font-size:12.5px;margin-left:2px;word-break:keep-all;overflow-wrap:break-word;}
 
-  .titlerow{display:flex;align-items:center;gap:18px;margin-bottom:14px;}
+  .titlerow{display:flex;align-items:center;gap:30px;margin-bottom:14px;}
   .logo-wrap{position:relative;width:52px;height:52px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
   .logo-wrap .ring{position:absolute;border-radius:50%;pointer-events:none;}
   .logo-wrap .ring-1{inset:-11px;border:1px dashed var(--cyan);opacity:.5;animation:spin 46s linear infinite;}
@@ -89,7 +89,7 @@
   @media (prefers-reduced-motion: reduce){.logo-wrap .ring{animation:none;}}
 
   h1{
-    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:26px;margin:0;letter-spacing:.01em;
+    font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:27px;margin:0;letter-spacing:.04em;
     word-break:keep-all;overflow-wrap:break-word;
     text-shadow:0 1px 4px rgba(2,4,9,.9), 0 0 16px rgba(2,4,9,.6);
   }
@@ -164,10 +164,11 @@
   .navcard .icon .icoImg.poolSupporter{object-position:78% center;}
   .navcard .body{flex:1;min-width:0;}
   .navcard .name{
-    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:19px;letter-spacing:.02em;
+    font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:18px;letter-spacing:.02em;
     background:linear-gradient(100deg, var(--cyan), var(--gold) 50%, var(--cyan));
     background-size:240% auto;-webkit-background-clip:text;background-clip:text;color:transparent;
     animation:shimmer 8s linear infinite;
+    word-break:keep-all;overflow-wrap:break-word;
   }
   .navcard .desc{color:var(--muted);font-size:12.5px;margin-top:4px;line-height:1.5;}
   .navcard .arrow{flex:0 0 auto;color:var(--cyan);font-size:19px;}
@@ -185,7 +186,7 @@
   }
   .routeTag .dot{width:4px;height:4px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold);animation:pulseDot 2.6s ease-in-out infinite;}
   .soonTitle{
-    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.08em;white-space:nowrap;
+    font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:14px;letter-spacing:.08em;white-space:nowrap;
     background:linear-gradient(100deg, var(--cyan), var(--gold) 50%, var(--cyan));
     background-size:240% auto;-webkit-background-clip:text;background-clip:text;color:transparent;
     animation:shimmer 7s linear infinite;
@@ -232,7 +233,7 @@
     <a class="navcard" href="/unit">
       <div class="icon" data-pool="unit"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
-        <div class="name">UR機体所持率チェッカー</div>
+        <div class="name">UR機体所持率<wbr>チェッカー</div>
         <div class="desc">全84機のUR機体所持状況を記録・可視化</div>
       </div>
       <div class="arrow">&rsaquo;</div>
@@ -240,7 +241,7 @@
     <a class="navcard" href="/supporter.html">
       <div class="icon" data-pool="supporter"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
-        <div class="name">URサポート所持率チェッカー</div>
+        <div class="name">URサポート所持率<wbr>チェッカー</div>
         <div class="desc">全49体のURサポート所持状況を記録・可視化</div>
       </div>
       <div class="arrow">&rsaquo;</div>

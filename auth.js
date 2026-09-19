@@ -83,7 +83,8 @@
 
   function renderLoggedIn(username) {
     // トップページ（top.html＝ルート"/"）自体には不要なので、各チェッカー画面でのみ表示する
-    const isTopPage = location.pathname === "/" || location.pathname === "/top.html";
+    // Cloudflareの静的アセット配信は/top.htmlを拡張子なしの/topへ自動リダイレクトするため、その形も許容する
+    const isTopPage = location.pathname === "/" || location.pathname === "/top" || location.pathname === "/top.html";
     const topLink = isTopPage ? "" : `<a href="/" class="authlink">トップに戻る</a>`;
     authbar.innerHTML = `${topLink}<span class="authuser">${escapeHtml(username)} さん</span><button type="button" id="authLogoutBtn">ログアウト</button>`;
     document.getElementById("authLogoutBtn").addEventListener("click", doLogout);
