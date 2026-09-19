@@ -196,7 +196,7 @@
     margin-top:28px;padding-top:16px;border-top:1px solid var(--line);
     font-size:10.5px;line-height:1.9;color:var(--muted);
   }
-  .pageFooter p{margin:0 0 8px;}
+  .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
   .pageFooter a{color:var(--cyan);text-decoration:none;}
   .pageFooter a:hover{text-decoration:underline;}
 </style>
@@ -256,10 +256,11 @@
   <div class="list" id="list"></div>
 
   <footer class="pageFooter">
-    <p>本サイトはファンが個人で制作した「Gジェネレーション エターナル」の非公式ツールです。株式会社バンダイナムコエンターテインメント、株式会社サンライズなど同作品に関連する権利元・企業様とは一切関係ありません。</p>
-    <p>掲載しているゲーム内画像・キャラクター名・データ等の著作権および知的財産権は、それぞれの権利元に帰属します。掲載画像はすべて運営者自身が撮影したゲーム内スクリーンショットです。</p>
-    <p>掲載データの正確性を保証するものではなく、本サイトのご利用により生じたいかなる損害についても運営者は責任を負いかねます。</p>
+    <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
+    <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
+    <p>掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
     <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+    <p>更新情報はXで発信しています。よろしければ<a href="https://x.com/intent/follow?screen_name=polarbear148691" target="_blank" rel="noopener">フォロー</a>していただけると励みになります。</p>
   </footer>
 </div>
 
@@ -285,7 +286,8 @@ const CONFIG = {
   siteName: "Gジェネ攻略ラボ（仮）",
   xHandle: "@polarbear148691",
   siteUrl: "https://ggene-ur-checker.polarbear14869.workers.dev/unit",
-  hashtags: ["ジージェネエターナル", "GGETユニット所持率チェッカー"]
+  hashtags: ["ジージェネエターナル", "GGETユニット所持率チェッカー"],
+  quotePostUrl: "https://x.com/polarbear148691/status/2099326904625135970?s=46" // ツール公開ポストのURL。設定するとXでシェア時にそのポストへの引用RTになる
 };
 
 /* =========================================================
@@ -745,7 +747,12 @@ document.getElementById("btnShare").addEventListener("click", () => {
   const s = computeStats();
   const tags = CONFIG.hashtags.map(t => "#" + t).join(" ");
   const text = `【Gジェネエターナル】UR所持率 ${s.pct}%（${s.count}/${s.total}機）平均凸Lv ${s.avg.toFixed(1)}\n${tags}\n${CONFIG.siteUrl}`;
-  const intent = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
+  const via = CONFIG.xHandle.replace(/^@/, "");
+  let intent = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text) + "&via=" + encodeURIComponent(via);
+  // CONFIG.quotePostUrl を設定すると、そのポストを引用する形でツイート作成画面が開く
+  if (CONFIG.quotePostUrl) {
+    intent += "&url=" + encodeURIComponent(CONFIG.quotePostUrl);
+  }
   window.open(intent, "_blank");
 });
 

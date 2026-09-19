@@ -83,8 +83,14 @@
   .titlerow{display:flex;align-items:center;gap:30px;margin-bottom:14px;}
   .logo-wrap{position:relative;width:52px;height:52px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
   .logo-wrap .ring{position:absolute;border-radius:50%;pointer-events:none;}
-  .logo-wrap .ring-1{inset:-11px;border:1px dashed var(--cyan);opacity:.5;animation:spin 46s linear infinite;}
-  .logo-wrap .ring-2{inset:-20px;border:1px solid var(--gold-dim);opacity:.3;animation:spin 78s linear infinite reverse;}
+  /* 完凸カード画像生成時と同じ虹色グラデーション（#ff5f6d〜#c471f5）でロゴ周りを縁取り、サイト全体の統一感を出す */
+  .logo-wrap .ring-rainbow{
+    inset:-16px;
+    background:conic-gradient(from 0deg, #ff5f6d, #ffc371, #9dff8a, #5b8def, #c471f5, #ff5f6d);
+    filter:blur(7px);opacity:.6;animation:spin 22s linear infinite;
+  }
+  .logo-wrap .ring-1{inset:-11px;border:1.5px dashed var(--cyan);opacity:.75;animation:spin 46s linear infinite;}
+  .logo-wrap .ring-2{inset:-20px;border:1px solid var(--gold);opacity:.45;animation:spin 78s linear infinite reverse;}
   .logo-wrap .blip{position:absolute;top:-2.5px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 7px var(--cyan);}
   .logo-wrap img{width:40px;height:40px;object-fit:contain;position:relative;z-index:1;filter:drop-shadow(0 0 8px rgba(107,224,224,.35));}
   @media (prefers-reduced-motion: reduce){.logo-wrap .ring{animation:none;}}
@@ -199,7 +205,7 @@
     margin-top:44px;padding-top:18px;border-top:1px solid var(--line);
     font-size:10.5px;line-height:1.9;color:var(--muted);
   }
-  .pageFooter p{margin:0 0 8px;}
+  .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
   .pageFooter a{color:var(--cyan);text-decoration:none;}
   .pageFooter a:hover{text-decoration:underline;}
 
@@ -229,6 +235,7 @@
 
   <div class="titlerow">
     <div class="logo-wrap">
+      <div class="ring ring-rainbow"></div>
       <div class="ring ring-1"><span class="blip"></span></div>
       <div class="ring ring-2"></div>
       <img src="images/logo.png" alt="ESP logo">
@@ -272,10 +279,11 @@
   </div>
 
   <footer class="pageFooter">
-    <p>本サイトはファンが個人で制作した「Gジェネレーション エターナル」の非公式ツールです。株式会社バンダイナムコエンターテインメント、株式会社サンライズなど同作品に関連する権利元・企業様とは一切関係ありません。</p>
-    <p>掲載しているゲーム内画像・キャラクター名・データ等の著作権および知的財産権は、それぞれの権利元に帰属します。掲載画像はすべて運営者自身が撮影したゲーム内スクリーンショットです。</p>
-    <p>掲載データの正確性を保証するものではなく、本サイトのご利用により生じたいかなる損害についても運営者は責任を負いかねます。</p>
+    <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
+    <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
+    <p>掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
     <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+    <p>更新情報はXで発信しています。よろしければ<a href="https://x.com/intent/follow?screen_name=polarbear148691" target="_blank" rel="noopener">フォロー</a>していただけると励みになります。</p>
   </footer>
 </main>
 
