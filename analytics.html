@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>みんなの所持率ランキング | Gジェネエターナル ファンツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+<link rel="prefetch" href="/">
+<style>
+  :root{
+    --void:#05070d;
+    --panel:rgba(16,22,32,.68);
+    --panel-2:#0e141d;
+    --panel-solid:#121924;
+    --line:rgba(107,224,224,.16);
+    --line-strong:rgba(140,160,180,.28);
+    --gold:#dab949;
+    --gold-dim:#8a7128;
+    --cyan:#6be0e0;
+    --cyan-dim:#3f8f8f;
+    --text:#eef3f6;
+    --muted:#93a3b3;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;background:var(--void);color:var(--text);
+    font-family:'Noto Sans JP',sans-serif;min-height:100%;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* 軽量な静止ネビュラ背景（top.htmlのCanvas演出は情報量の多いこのページでは使わず、統一感だけ踏襲） */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 60vmax 60vmax at 10% -10%, rgba(122,95,207,.28), transparent 60%),
+      radial-gradient(ellipse 55vmax 55vmax at 110% 10%, rgba(52,224,177,.16), transparent 60%),
+      radial-gradient(ellipse 70vmax 70vmax at 50% 120%, rgba(44,63,122,.35), transparent 60%);
+  }
+  ::selection{background:rgba(107,224,224,.3);color:#fff;}
+
+  main.wrap{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 18px calc(48px + env(safe-area-inset-bottom,0px));}
+
+  .eyebrow{
+    font-family:'Share Tech Mono',monospace;font-weight:400;letter-spacing:.16em;font-size:11px;
+    color:var(--cyan);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin:0 0 14px;opacity:.9;
+    text-shadow:0 1px 3px rgba(2,4,9,.85), 0 0 10px rgba(2,4,9,.6);
+  }
+  .eyebrow::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);display:inline-block;border-radius:1px;}
+
+  h1{
+    font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:23px;margin:0 0 12px;
+    word-break:keep-all;overflow-wrap:break-word;
+    text-shadow:0 1px 4px rgba(2,4,9,.9), 0 0 16px rgba(2,4,9,.6);
+  }
+  .sub{
+    color:#c7d2dc;font-size:13.5px;margin:0 0 26px;line-height:1.85;max-width:46ch;
+    word-break:keep-all;overflow-wrap:break-word;
+  }
+
+  /* ---- ログイン必須ガード ---- */
+  .guardCard{
+    background:var(--panel);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);
+    border:1px solid var(--line);border-radius:6px;padding:28px 22px;text-align:center;
+  }
+  .guardCard p{color:var(--muted);font-size:13px;line-height:1.8;margin:0 0 18px;}
+  .guardCard button{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.03em;
+    background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;
+    border:1px solid var(--gold);border-radius:3px;padding:10px 26px;cursor:pointer;
+  }
+
+  /* ---- 集計対象の明記 ---- */
+  .sampleNote{
+    display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);
+    background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;
+    padding:9px 12px;margin:0 0 18px;
+  }
+  .sampleNote strong{color:var(--cyan);font-family:'Share Tech Mono',monospace;font-weight:400;}
+
+  /* ---- タブ ---- */
+  .tabs{display:flex;gap:8px;margin:0 0 16px;}
+  .tabs button{
+    flex:1;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.03em;
+    background:var(--panel-2);border:1px solid var(--line-strong);color:var(--muted);
+    padding:10px 8px;cursor:pointer;border-radius:4px;transition:border-color .2s ease,color .2s ease;
+  }
+  .tabs button.active{
+    background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold);
+  }
+
+  .rankList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+  .rankRow{
+    display:flex;align-items:center;gap:10px;
+    background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:9px 12px;
+  }
+  .rankRow .rank{
+    flex:0 0 22px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted);text-align:right;
+  }
+  .rankRow .icon{
+    flex:0 0 34px;width:34px;height:34px;border-radius:4px;object-fit:cover;
+    border:1px solid var(--line-strong);background:var(--panel-solid);
+  }
+  .rankRow .body{flex:1;min-width:0;}
+  .rankRow .nameRow{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-bottom:5px;}
+  .rankRow .name{font-size:13px;font-weight:600;}
+  .rankRow .attr{font-family:'Share Tech Mono',monospace;font-size:9.5px;color:var(--cyan);opacity:.85;}
+  .rankRow .limitedBadge{
+    font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--gold);
+    border:1px solid var(--gold-dim);padding:0 4px;line-height:1.5;
+  }
+  .rankRow .barRow{display:flex;align-items:center;gap:8px;}
+  .rankRow .barTrack{flex:1;height:6px;border-radius:3px;background:var(--panel-2);border:1px solid var(--line-strong);overflow:hidden;}
+  .rankRow .barFill{height:100%;border-radius:0 3px 3px 0;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));}
+  .rankRow .pct{
+    flex:0 0 auto;font-family:'Share Tech Mono',monospace;font-size:11.5px;color:var(--text);
+    font-variant-numeric:tabular-nums;min-width:38px;text-align:right;
+  }
+  .rankRow .count{flex:0 0 auto;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;}
+
+  .stateMsg{color:var(--muted);font-size:12.5px;text-align:center;padding:28px 0;}
+
+  .pageFooter{
+    margin-top:36px;padding-top:16px;border-top:1px solid var(--line);
+    font-size:10.5px;line-height:1.9;color:var(--muted);
+  }
+  .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
+  .pageFooter a{color:var(--cyan);text-decoration:none;}
+  .pageFooter a:hover{text-decoration:underline;}
+
+  [hidden]{display:none !important;}
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <p class="eyebrow">ANALYTICS</p>
+  <h1>みんなの所持率ランキング</h1>
+  <p class="sub">登録ユーザーの所持データをもとに、UR機体・URサポートの全体所持率をランキング形式で見られます（ログインユーザー限定機能）。</p>
+
+  <div id="guardView" class="guardCard" hidden>
+    <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、みんなの所持率ランキングが見られるようになります。</p>
+    <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
+  </div>
+
+  <div id="loadingView" class="stateMsg">読み込み中...</div>
+
+  <div id="contentView" hidden>
+    <div class="sampleNote">集計対象：登録ユーザー <strong id="totalUsersText">-</strong> 人のデータ</div>
+
+    <div class="tabs">
+      <button type="button" data-tab="units" class="active">UR機体</button>
+      <button type="button" data-tab="supporters">URサポート</button>
+    </div>
+
+    <ul class="rankList" id="rankListUnits"></ul>
+    <ul class="rankList" id="rankListSupporters" hidden></ul>
+  </div>
+
+  <div id="errorView" class="stateMsg" hidden>データの取得に失敗しました。時間をおいて再度お試しください。</div>
+
+  <footer class="pageFooter">
+    <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
+    <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
+    <p>掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
+    <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+  </footer>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  const guardView = document.getElementById("guardView");
+  const loadingView = document.getElementById("loadingView");
+  const contentView = document.getElementById("contentView");
+  const errorView = document.getElementById("errorView");
+  const totalUsersText = document.getElementById("totalUsersText");
+  const listUnits = document.getElementById("rankListUnits");
+  const listSupporters = document.getElementById("rankListSupporters");
+  const tabs = document.querySelectorAll(".tabs button");
+
+  document.getElementById("guardLoginBtn").addEventListener("click", () => {
+    // auth.jsが生成する非表示のログインリンクを経由して、共通のログインモーダルを開く
+    const link = document.getElementById("authOpenLink");
+    if (link) link.click();
+  });
+
+  tabs.forEach(btn => {
+    btn.addEventListener("click", () => {
+      tabs.forEach(b => b.classList.toggle("active", b === btn));
+      const isSupporter = btn.dataset.tab === "supporters";
+      listUnits.hidden = isSupporter;
+      listSupporters.hidden = !isSupporter;
+    });
+  });
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  }
+
+  function renderRanking(listEl, ranking, isSupporter){
+    listEl.innerHTML = ranking.map((r, i) => {
+      const id = isSupporter ? r.supporterId : r.unitId;
+      const attr = isSupporter ? r.skill : r.type;
+      const imgDir = isSupporter ? "supporters" : "units";
+      const pct = (r.ownedRate * 100);
+      const pctText = pct >= 10 ? pct.toFixed(0) : pct.toFixed(1);
+      return `
+        <li class="rankRow">
+          <div class="rank">${i + 1}</div>
+          <img class="icon" src="images/${imgDir}/${id}.jpg" alt="" loading="lazy">
+          <div class="body">
+            <div class="nameRow">
+              <span class="name">${escapeHtml(r.name)}</span>
+              <span class="attr">${escapeHtml(attr)}</span>
+              ${r.limited ? '<span class="limitedBadge">期間限定</span>' : ''}
+            </div>
+            <div class="barRow">
+              <div class="barTrack"><div class="barFill" style="width:${Math.min(100, pct).toFixed(1)}%"></div></div>
+              <div class="pct">${pctText}%</div>
+            </div>
+            <div class="count">${r.ownedCount} / ${(window.__analyticsTotalUsers || 0)}人が所持</div>
+          </div>
+        </li>`;
+    }).join("");
+  }
+
+  async function loadAnalytics(){
+    try {
+      const [unitsRes, supportersRes] = await Promise.all([
+        fetch("/api/analytics/units", { credentials: "same-origin" }),
+        fetch("/api/analytics/supporters", { credentials: "same-origin" })
+      ]);
+
+      if (unitsRes.status === 401 || supportersRes.status === 401) {
+        loadingView.hidden = true;
+        guardView.hidden = false;
+        return;
+      }
+      if (!unitsRes.ok || !supportersRes.ok) throw new Error("analytics fetch failed");
+
+      const unitsData = await unitsRes.json();
+      const supportersData = await supportersRes.json();
+
+      window.__analyticsTotalUsers = unitsData.totalUsers || 0;
+      totalUsersText.textContent = String(unitsData.totalUsers || 0);
+      renderRanking(listUnits, unitsData.ranking || [], false);
+      renderRanking(listSupporters, supportersData.ranking || [], true);
+
+      loadingView.hidden = true;
+      contentView.hidden = false;
+    } catch (e) {
+      loadingView.hidden = true;
+      errorView.hidden = false;
+    }
+  }
+
+  // /api/meで未ログインを検知した場合はAPIを叩かずログイン案内のみ表示する
+  // （②で確立した「/api/me失敗時は常にゲスト表示にフォールバック」と同様、失敗時は保守的にガード表示側に倒す）
+  fetch("/api/me", { credentials: "same-origin" })
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.loggedIn) {
+        loadAnalytics();
+      } else {
+        loadingView.hidden = true;
+        guardView.hidden = false;
+      }
+    })
+    .catch(() => {
+      loadingView.hidden = true;
+      guardView.hidden = false;
+    });
+})();
+</script>
+<script src="auth.js" defer></script>
+</body>
+</html>

@@ -144,6 +144,11 @@
     flex:0 0 auto;width:68px;height:68px;display:flex;align-items:center;justify-content:center;
     border-radius:5px;
   }
+  /* 分析ページ導線用：キャラクター画像のオーロラ演出は使わず、シンプルなアイコン枠にする */
+  .navcard .analyticsIcon{
+    font-size:28px;background:linear-gradient(135deg, rgba(107,224,224,.18), rgba(218,185,73,.18));
+    border:1px solid var(--line-strong);
+  }
   /* 外側:ゆっくり明滅して広がる、オーロラの後光 */
   .navcard .icon::after{
     content:"";position:absolute;inset:-30px;z-index:-1;border-radius:50%;
@@ -259,6 +264,18 @@
       <div class="body">
         <div class="name">URサポート<wbr>所持率<wbr>チェッカー</div>
         <div class="desc">全49体のURサポート所持状況を記録・可視化</div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
+  </div>
+
+  <div class="section" id="analyticsSection" hidden>
+    <p class="sectionLabel">ログイン会員限定</p>
+    <a class="navcard" href="/analytics.html">
+      <div class="icon analyticsIcon" aria-hidden="true">📊</div>
+      <div class="body">
+        <div class="name">みんなの所持率<wbr>ランキング</div>
+        <div class="desc">登録ユーザーの所持データを集計した全体ランキング</div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
@@ -519,6 +536,18 @@
         setImage(s.img, s.pool[next]);
       });
     }, 5000);
+  })();
+
+  /* ---------------- ログイン中のみ「みんなの所持率ランキング」導線を表示 ---------------- */
+  (function toggleAnalyticsNav(){
+    var section = document.getElementById('analyticsSection');
+    if (!section) return;
+    fetch('/api/me', { credentials: 'same-origin' })
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        if (data && data.loggedIn) section.hidden = false;
+      })
+      .catch(function(){ /* 失敗時は非表示のまま（ゲスト表示にフォールバック） */ });
   })();
 })();
 </script>

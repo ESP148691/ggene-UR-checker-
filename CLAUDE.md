@@ -14,14 +14,17 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 
 ## リポジトリ構成
 このリポジトリのルートには以下を配置する:
-- `top.html` — ログイン後トップページ（ルートURL `/` で配信）。ログイン状態表示、機体版/サポート版への導線、今後のチェッカーのComing Soon表示
+- `top.html` — ログイン後トップページ（ルートURL `/` で配信）。ログイン状態表示、機体版/サポート版への導線、今後のチェッカーのComing Soon表示、ログイン中のみ表示される分析ページ導線
 - `unit.html` — UR機体所持率チェッカー（84機収録）
 - `supporter.html` — URサポート所持率チェッカー（49体収録）
-- `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`から読み込む
-- `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）と所持データログ収集API（`/api/log`・`/api/log-supporter`、D1保存済み）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
+- `analytics.html` — みんなの所持率ランキング（分析ページ。ログインユーザー限定・2026-09-19新設）
+- `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`・`analytics.html`から読み込む
+- `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）、所持データログ収集API（`/api/log`・`/api/log-supporter`。**ログイン済みユーザーのみD1保存、ゲストは匿名カウンタのみ加算＝2026-09-19〜**）、分析API（`/api/analytics/units`・`/api/analytics/supporters`、ログイン必須。2026-09-19新設）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
 - `wrangler.jsonc` — プロジェクト名 `ggene-ur-checker`、assetsのdirectoryは`./`、D1バインディング`DB`（`ggene-ur-checker-db`）設定済み
 - `migrations/0001_add_user_auth.sql` — `users`テーブルへの`username`/`password`カラム追加、`sessions`テーブル新設。Cloudflareダッシュボード（D1 > Console）で手動適用済み
 - `migrations/0002_populate_master_data.sql` — `units_master`/`supporters_master`への実データ投入（機体84件・サポート49件）。Cloudflareダッシュボード（D1 > Console）で手動適用済み（2026-09-19）
+- `migrations/0003_purge_guest_data.sql` — 既存のゲスト所持データ・ゲストuser行の一括削除。**未適用（要Cloudflareダッシュボードでの手動適用）**
+- `migrations/0004_usage_counters.sql` — ゲスト利用回数カウンタ`usage_counters`テーブル新設。**未適用（要Cloudflareダッシュボードでの手動適用）**
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
 
@@ -105,9 +108,23 @@ CREATE INDEX idx_sessions_user_uid ON sessions(user_uid);
 ID体系: マスターのIDはチェッカー画面上の「No.」（機体1〜84、サポート1〜49）と一致。既存IDは変動しない前提（2026-09-18に機体83・84、サポート49を新規追加。追加時も既存IDは振り直していない）。
 D1無料枠: 保存5GB（無期限）、1日500万行読み込み、1日10万行書き込み。
 
+### ゲストデータ廃止・利用回数カウンタ新設（④で追加・要適用。`migrations/0003_purge_guest_data.sql`・`migrations/0004_usage_counters.sql`）
+```sql
+-- 0004で新設
+CREATE TABLE usage_counters (
+  counter_key TEXT PRIMARY KEY,   -- 'unit_guest' / 'supporter_guest'
+  count INTEGER NOT NULL DEFAULT 0
+);
+```
+2026-09-19、分析ページ（所持率ランキング）実装にあたり、ゲスト（未ログイン）の所持データ保存を廃止した。理由・詳細は`docs/④分析ページ設計_ゲストデータ廃止.md`（Cowork側資料）を参照。`worker.js`は既にこの新仕様でデプロイ済みだが、以下2件のマイグレーションはまだCloudflareダッシュボードでの手動適用が済んでいない（**要対応**）。
+- `migrations/0003_purge_guest_data.sql`: 既存のゲスト所持データ（`units_ownership`/`supporters_ownership`のゲスト分）・ゲストuser行（`users.username IS NULL`）を一括削除
+- `migrations/0004_usage_counters.sql`: 上記`usage_counters`テーブルの新設
+
+この2件が未適用の間、ゲストの`/api/log`・`/api/log-supporter`送信時に`usage_counters`への書き込みがテーブル不在でエラーになる可能性があるが、`handleOwnershipLog()`はtry/catchで囲まれているためチェッカー本体（画像生成・プレビュー・シェア）の動作には影響しない（利用回数カウンタが記録されないだけ）。
+
 ## 確定済みの設計方針（変更不可）
 - **ログインは任意**。ログインなしでもチェッカーは従来通り使える（ゲスト利用を維持）。理由: Xからの流入で「すぐ使える」ことが拡散の原動力になっているため、入口に関門を作らない
-- ログインの価値は「自己紹介カードの作成・保存」「端末をまたいだデータ引き継ぎ」に限定
+- ログインの価値は「自己紹介カードの作成・保存」「端末をまたいだデータ引き継ぎ」「みんなの所持率ランキング（分析ページ）の閲覧」（④で追加・2026-09-19）
 - 認証はユーザー名＋パスワードのみ（メールアドレス不要、個人情報は保存しない）
 - コスト方針: 完全無料運用を維持（Cloudflareは上限到達時に自動課金されず停止するため管理しやすい）
 
@@ -266,10 +283,25 @@ Playwrightで320px/390px幅のスクリーンショットを撮り、ロゴの�
 
 Playwrightでシェアボタン押下時に実際に生成されるインテントURLをデコードし、`via`パラメータおよび`url`パラメータ（指定ポストのURL）が意図通り付加されることを確認済み。3ページのconsoleエラーなしも確認済み。
 
+### ④ 所持データ分析ページ・ゲストデータ廃止（コード実装完了・D1マイグレーション適用待ち・2026-09-19）
+Cowork側の設計資料`docs/④分析ページ設計_ゲストデータ廃止.md`に基づき実装した。背景・設計判断の詳細は同資料および本ファイル「データベース」章の該当セクションを参照。
+
+1. **ゲストの所持データ保存を廃止**：`worker.js`の`handleOwnershipLog()`を変更し、`getSessionUser()`が取れない（未ログイン）場合は`units_ownership`/`supporters_ownership`への書き込みを一切行わないようにした。旧仕様の`isValidGuestUid()`・クライアント側の`guestUid`発行ロジック（`unit.html`/`supporter.html`の`GUEST_UID_KEY`/`getOrCreateGuestUid()`）は削除済み
+2. **匿名利用回数カウンタを新設**：ゲストからの`/api/log`・`/api/log-supporter`送信時は、代わりに`usage_counters`テーブルの該当キー（`unit_guest`/`supporter_guest`）を+1する（`incrementUsageCounter()`）。個人とは紐付かない
+3. **既存ゲストデータの削除マイグレーション**：`migrations/0003_purge_guest_data.sql`を新規作成（**Cloudflareダッシュボードでの手動適用が必要。未適用**）
+4. **分析API新設**：`GET /api/analytics/units`・`GET /api/analytics/supporters`（`handleAnalytics()`）。ログイン必須（未ログインは401）。`units_master`/`supporters_master`を軸に`units_ownership`/`supporters_ownership`を`LEFT JOIN`し、所持数降順のランキングと母数（`totalUsers`=`users`の全件数）をJSONで返す
+5. **分析ページ新設**：`analytics.html`を新規作成。未ログイン時はログイン案内のみ表示しAPIは叩かない（`unit.html`等と同じ「`/api/me`失敗時はゲスト表示にフォールバック」方針を踏襲）。ログイン中は機体/サポート2タブでランキング（アイコン・名称・タイプ/スキル・期間限定バッジ・バー・所持率%・所持人数）を表示し、冒頭に「集計対象：登録ユーザー n人のデータ」を明記。デザインは`top.html`と同じ銀河系パレット・フォントを踏襲（背景の動くCanvas演出のみ、データ量の多いページのため軽量な静止ネビュラに変更）。バー表現は`dataviz`スキルの指針（単一系列＝1色の単色バー、4px丸め角のdata-end、値はバー外側に配置等）に沿って実装
+6. **top.htmlへのログイン限定導線**：`top.html`に`/api/me`を個別に呼び出し、ログイン中のみ「みんなの所持率ランキング」カード（`#analyticsSection`）を表示する`toggleAnalyticsNav()`を追加
+
+**検証**：このリポジトリの開発環境にはNode.jsが無く、既存のNode/`node:sqlite`ベースのテストハーネスは今回使えなかったため、CDN経由でsql.js（WebAssembly版SQLite）をPlaywrightのChromiumページ上に読み込み、D1の`prepare/bind/run/first/all/batch`相当のAPIを再現したモックと`worker.js`本体をESモジュールとしてブラウザ内で直接importして`fetch`ハンドラを呼び出す新方式のテストハーネスを構築した（`migrations/0003`・`0004`も実ファイルを`fetch()`して実行し内容を検証）。全30ケース成功（認証まわりの回帰、ゲスト/ログイン済みでの所持ログ保存の分岐、分析APIのログインガード・ランキング内容・母数、マイグレーションの削除範囲）。あわせてPlaywrightでUIレベルの検証（`analytics.html`のガード表示・ランキング描画・タブ切替、`top.html`の導線表示切替、`unit.html`のゲスト送信payloadに`guestUid`が含まれないこと・チェッカー本体が引き続き動くこと）も実施し、4ページ全てでconsoleエラーが出ないことを確認済み。テストハーネス自体は検証用の一時ファイルでリポジトリには含めていない（検証後削除）。
+
+**Cowork側資料の同期**：`docs/WEBサイト仕様書.md`も今回の変更内容に合わせて更新済み（ファイル構成・API一覧・DB設計・テストケース一覧・既知の制約の各章）。ただし外部Artifact「[UR所持データDB設計（ER図）](https://claude.ai/artifact/CckCfCzdc3cvmdYbptvrDa)」は`usage_counters`新設・ゲストデータ廃止を反映できておらず要更新（Cowork側での対応が必要）。
+
 ## 次にやること
-- ④のD1保存は「最新スナップショットの保存」までが完了した状態。これを使った分析・集計（ロードマップ8. 所持率・クリア率の分析結果ページ）は未着手
-- **Xの引用RT機能**：ユーザーから「ツール公開ポスト」のURLを受け取り、`unit.html`・`supporter.html`の`CONFIG.quotePostUrl`に設定する（上記セクション参照）
-- 次にどのテーマ（③④以降のロードマップ: エタロ攻略/称号獲得チェッカー追加、自己紹介カード自動生成 等）に着手するかは、次回セッション冒頭でユーザーに確認すること
+- **④のマイグレーション適用（優先度高）**：`migrations/0003_purge_guest_data.sql`・`migrations/0004_usage_counters.sql`をCloudflareダッシュボード（D1 > Console）で手動適用する。適用しないと既存ゲストデータが残ったまま（分析ページの母数には影響しない＝ゲストは`users.username IS NULL`なので`totalUsers`の対象外だが、汚れたデータが残り続ける）で、かつゲストの利用回数カウンタも記録されない
+- **UR所持データDB設計のArtifact（ER図）の更新**：`usage_counters`新設・ゲストデータ廃止を反映する（Cowork側对応）
+- ④の分析ページは初回版（全体所持率ランキングのみ）。自分の所持状況との比較、凸レベル別内訳、期間限定/通常別の絞り込みは次期拡張候補
+- 次にどのテーマ（エタロ攻略/称号獲得チェッカー追加、自己紹介カード自動生成、「クリア率」分析 等）に着手するかは、次回セッション冒頭でユーザーに確認すること
 
 ## 作業上の注意
 - ユーザーはシステム開発経験があるため、技術的な説明は詳しくして構わない

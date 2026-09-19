@@ -45,12 +45,11 @@ async function createSession(env, userUid) {
 }
 
 // username・passwordが空文字/未指定/NULLだと弾く（3〜20文字の英数字・アンダースコアのみを要求）。
-// 【重要な不変条件】/api/register経由で作成されるusersの行は、この関数を必ず通るため
-// username・passwordが常に非NULLになる。一方、④のゲスト（所持ログ由来）の行は
-// upsertOwnershipUser()でusername・passwordを一切指定せずNULLのまま作成される。
-// この「username IS NULL ⟺ ゲスト／username IS NOT NULL ⟺ 登録済みアカウント」という区別を
-// アプリ全体で正としているため、この関数の検証を緩めたり、別経路でusersにINSERTする処理を
-// 追加したりする場合は、この不変条件を壊さないよう注意すること
+// 【重要な不変条件】usersへの行のINSERTはhandleRegister()経由（この関数を必ず通る）でのみ行われるため、
+// username・passwordは常に非NULLになる。
+// （旧仕様では④のゲスト所持ログ経由でusername IS NULLの行が作られていたが、2026-09-19の
+// 「ゲストデータ廃止」対応でその経路自体を削除し、0003/0004マイグレーションで過去分も削除済み。
+// usersテーブルは現在「登録済みアカウントのみ」を前提としている）
 function isValidUsername(username) {
   return typeof username === "string" && /^[A-Za-z0-9_]{3,20}$/.test(username);
 }
@@ -135,12 +134,7 @@ async function handleMe(request, env) {
   return jsonResponse({ loggedIn: true, username: user.username }, 200);
 }
 
-// ④ D1への所持データ保存
-// ゲストUUIDの妥当性チェック（クライアントはcrypto.randomUUID()で発行する想定）
-function isValidGuestUid(uid) {
-  return typeof uid === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid);
-}
-
+// ④ D1への所持データ保存（ログイン済みユーザーのみ。ゲスト保存は廃止・2026-09-19）
 // 想定される最大件数（機体84・サポート49）より十分大きい安全マージン。不正に巨大な入力は無視する
 const OWNERSHIP_LOG_MAX_ENTRIES = 300;
 
@@ -169,15 +163,20 @@ function parseCompactOwnershipLog(log, maxId) {
   return out;
 }
 
-// users行をupsertする。ログイン中ユーザーは既に行があるためlast_seenのみ更新され、
-// ゲストは初回アクセス時にusername/passwordがNULLの行として新規作成される
-// （usersテーブルは元々このuser_uid/first_seen/last_seenだけの匿名UID台帳として設計されたもの）
-async function upsertOwnershipUser(env, userUid) {
+// ログイン中ユーザーのlast_seenを更新する。sessionUserは必ずusersテーブルの既存行（handleRegister()で
+// 作成済み）から取得されるため、ここで対象行が存在しないケースはない
+async function touchUserLastSeen(env, userUid) {
   const now = new Date().toISOString();
+  await env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(now, userUid).run();
+}
+
+// ④ ゲスト（未ログイン）からの利用回数カウンタ。個人と紐付かない匿名の集計値として、
+// チェッカーが何回使われたか程度の規模感を残す（真の利用者数ではない）
+async function incrementUsageCounter(env, counterKey) {
   await env.DB.prepare(
-    `INSERT INTO users (user_uid, first_seen, last_seen) VALUES (?, ?, ?)
-     ON CONFLICT(user_uid) DO UPDATE SET last_seen = excluded.last_seen`
-  ).bind(userUid, now, now).run();
+    `INSERT INTO usage_counters (counter_key, count) VALUES (?, 1)
+     ON CONFLICT(counter_key) DO UPDATE SET count = count + 1`
+  ).bind(counterKey).run();
 }
 
 // 所持データは履歴を積み上げず「最新状態のスナップショット」として保持する。
@@ -199,8 +198,9 @@ async function replaceOwnership(env, table, idColumn, userUid, entries) {
 }
 
 // 所持データのログ収集エンドポイント（機体版・サポート版共通）
-// ④のD1保存に一本化したため、旧実装がここで行っていたCloudflare Workers Logs（console.log）への
-// 出力は廃止した（D1が唯一の保存先。ユーザー確認の上で削除・2026-09-19）
+// ④ 所持データの保存対象はログイン済みユーザーのみとする（ゲストデータは保存しない・2026-09-19）。
+// 理由：ゲストの識別子はlocalStorage単位でしか発行できず「人」と一致しないため、分析ページの母数・
+// 所持率を歪める。ゲストの利用実績は個人と紐付かない匿名カウンタ（usage_counters）にのみ残す
 async function handleOwnershipLog(request, env, isSupporter) {
   let body = null;
   try {
@@ -209,29 +209,66 @@ async function handleOwnershipLog(request, env, isSupporter) {
     body = null;
   }
 
-  // D1への保存。ログイン中はセッションのuser_uidを優先し、未ログインはクライアントが送るゲストUUIDを使う。
   // ここで例外が起きてもチェッカー本体（画像生成・プレビュー・シェア）は常に成功させる
   try {
     const sessionUser = await getSessionUser(request, env);
-    const guestUid = body && isValidGuestUid(body.guestUid) ? body.guestUid : null;
-    const userUid = sessionUser ? sessionUser.userUid : guestUid;
-
-    if (userUid && body) {
+    if (sessionUser && body) {
       const entries = parseCompactOwnershipLog(body.log, isSupporter ? MAX_SUPPORTER_ID : MAX_UNIT_ID);
-      await upsertOwnershipUser(env, userUid);
+      await touchUserLastSeen(env, sessionUser.userUid);
       await replaceOwnership(
         env,
         isSupporter ? "supporters_ownership" : "units_ownership",
         isSupporter ? "supporter_id" : "unit_id",
-        userUid,
+        sessionUser.userUid,
         entries
       );
+    } else if (!sessionUser) {
+      await incrementUsageCounter(env, isSupporter ? "supporter_guest" : "unit_guest");
     }
   } catch (e) {
     console.error("ownership d1 write error", e);
   }
 
   return new Response("ok", { status: 200 });
+}
+
+// ④ 所持データの分析（全体所持率ランキング）API。ログイン済みユーザーのみ利用可能。
+// 母数（totalUsers）はusersテーブルの全件数。0003/0004マイグレーション適用後はusers＝登録済み
+// アカウントのみになる前提（ゲスト行は残らない）ため、username IS NOT NULL等の絞り込みは不要
+async function handleAnalytics(request, env, isSupporter) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) {
+    return jsonResponse({ error: "not_logged_in", message: "ログインが必要です" }, 401);
+  }
+
+  const masterTable = isSupporter ? "supporters_master" : "units_master";
+  const ownershipTable = isSupporter ? "supporters_ownership" : "units_ownership";
+  const idColumn = isSupporter ? "supporter_id" : "unit_id";
+  const attrColumn = isSupporter ? "skill" : "type";
+
+  const { results } = await env.DB.prepare(
+    `SELECT m.${idColumn} AS id, m.name AS name, m.${attrColumn} AS attr, m.limited AS limited,
+            COUNT(o.id) AS owned_count
+     FROM ${masterTable} m
+     LEFT JOIN ${ownershipTable} o ON o.${idColumn} = m.${idColumn}
+     GROUP BY m.${idColumn}
+     ORDER BY owned_count DESC, m.${idColumn} ASC`
+  ).all();
+
+  const totalRow = await env.DB.prepare("SELECT COUNT(*) AS c FROM users").first();
+  const totalUsers = totalRow ? totalRow.c : 0;
+  const idKey = isSupporter ? "supporterId" : "unitId";
+
+  const ranking = results.map(r => ({
+    [idKey]: r.id,
+    name: r.name,
+    [attrColumn]: r.attr,
+    limited: !!r.limited,
+    ownedCount: r.owned_count,
+    ownedRate: totalUsers > 0 ? r.owned_count / totalUsers : 0
+  }));
+
+  return jsonResponse({ totalUsers, ranking }, 200);
 }
 
 export default {
@@ -254,9 +291,14 @@ export default {
     }
 
     // 所持データのログ収集エンドポイント（機体版・サポート版共通）
-    // ④ ログイン時はuser_uid、ゲスト時は匿名UUIDでunits_ownership/supporters_ownershipに保存する
+    // ④ ログイン済みユーザーのみunits_ownership/supporters_ownershipに保存。ゲストは匿名カウンタのみ加算
     if ((url.pathname === "/api/log" || url.pathname === "/api/log-supporter") && request.method === "POST") {
       return handleOwnershipLog(request, env, url.pathname === "/api/log-supporter");
+    }
+
+    // ④ 所持データ分析（全体所持率ランキング）API。ログイン済みユーザーのみ利用可能
+    if ((url.pathname === "/api/analytics/units" || url.pathname === "/api/analytics/supporters") && request.method === "GET") {
+      return handleAnalytics(request, env, url.pathname === "/api/analytics/supporters");
     }
 
     // ルートURLはトップページ（top.html）を配信する。index.htmlは廃止済み（unit.htmlへリネーム済み）のため、
