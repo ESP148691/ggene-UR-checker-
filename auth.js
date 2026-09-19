@@ -82,7 +82,10 @@
   }
 
   function renderLoggedIn(username) {
-    authbar.innerHTML = `<span class="authuser">${escapeHtml(username)} さん</span><button type="button" id="authLogoutBtn">ログアウト</button>`;
+    // トップページ（top.html＝ルート"/"）自体には不要なので、各チェッカー画面でのみ表示する
+    const isTopPage = location.pathname === "/" || location.pathname === "/top.html";
+    const topLink = isTopPage ? "" : `<a href="/" class="authlink">トップに戻る</a>`;
+    authbar.innerHTML = `${topLink}<span class="authuser">${escapeHtml(username)} さん</span><button type="button" id="authLogoutBtn">ログアウト</button>`;
     document.getElementById("authLogoutBtn").addEventListener("click", doLogout);
   }
 
