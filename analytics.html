@@ -42,6 +42,8 @@
   ::selection{background:rgba(107,224,224,.3);color:#fff;}
 
   main.wrap{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 18px calc(48px + env(safe-area-inset-bottom,0px));}
+  main.wrap.wide{max-width:880px;}
+  .headArea{max-width:640px;margin:0 auto;}
 
   .eyebrow{
     font-family:'Share Tech Mono',monospace;font-weight:400;letter-spacing:.16em;font-size:11px;
@@ -91,40 +93,92 @@
     background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold);
   }
 
-  .rankList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
-  .rankRow{
-    display:flex;align-items:center;gap:10px;
-    background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:9px 12px;
+  /* ---- 凡例・絞り込み ---- */
+  .legend{font-size:11px;color:var(--muted);margin:0 0 10px;display:flex;gap:14px;flex-wrap:wrap;}
+  .filterRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 4px;}
+  .chipGroup{display:flex;gap:6px;flex-wrap:wrap;}
+  .chip{
+    font-family:'Rajdhani',sans-serif;font-weight:600;font-size:12px;
+    background:var(--panel-2);border:1px solid var(--line-strong);color:var(--muted);
+    padding:5px 11px;border-radius:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;
   }
-  .rankRow .rank{
-    flex:0 0 22px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted);text-align:right;
+  .chip.active{background:linear-gradient(135deg,var(--cyan),var(--cyan-dim));color:#04262b;border-color:var(--cyan);font-weight:700;}
+  .matchCount{font-size:11px;color:var(--muted);margin-left:auto;white-space:nowrap;}
+  .mineToggleRow{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);margin:10px 0 16px;}
+  .mineToggleRow input{accent-color:var(--cyan);width:15px;height:15px;}
+  .mineToggleRow label{cursor:pointer;}
+
+  .syncNote{
+    font-size:11.5px;color:var(--muted);background:var(--panel-2);border:1px solid var(--line-strong);
+    border-radius:4px;padding:10px 12px;margin:0 0 16px;line-height:1.75;
   }
-  .rankRow .icon{
-    flex:0 0 34px;width:34px;height:34px;border-radius:4px;object-fit:cover;
-    border:1px solid var(--line-strong);background:var(--panel-solid);
+
+  /* ---- ティアリスト ---- */
+  .tierGroup{margin:0 0 22px;}
+  .tierGroup:last-child{margin-bottom:0;}
+  .tierHead{
+    display:flex;align-items:baseline;gap:7px;border-left:3px solid var(--tier-color);
+    padding-left:9px;margin:0 0 10px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13.5px;color:var(--text);
   }
-  .rankRow .body{flex:1;min-width:0;}
-  .rankRow .nameRow{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-bottom:5px;}
-  .rankRow .name{font-size:13px;font-weight:600;}
-  .rankRow .attr{font-family:'Share Tech Mono',monospace;font-size:9.5px;color:var(--cyan);opacity:.85;}
-  .rankRow .limitedBadge{
-    font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--gold);
-    border:1px solid var(--gold-dim);padding:0 4px;line-height:1.5;
+  .tierHead .tierCount{font-size:11px;color:var(--muted);font-weight:500;}
+  .tierGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:9px 8px;}
+  @media (min-width:481px){ .tierGrid{grid-template-columns:repeat(8,1fr);} }
+  @media (min-width:880px){ .tierGrid{grid-template-columns:repeat(12,1fr);} }
+
+  .tile{
+    position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;
+    background:none;border:none;padding:0;cursor:pointer;font-family:inherit;
+    -webkit-tap-highlight-color:transparent;touch-action:manipulation;
   }
-  .rankRow .barRow{display:flex;align-items:center;gap:8px;}
-  .rankRow .barTrack{flex:1;height:6px;border-radius:3px;background:var(--panel-2);border:1px solid var(--line-strong);overflow:hidden;}
-  .rankRow .barFill{height:100%;border-radius:0 3px 3px 0;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));}
-  .rankRow .pct{
-    flex:0 0 auto;font-family:'Share Tech Mono',monospace;font-size:11.5px;color:var(--text);
-    font-variant-numeric:tabular-nums;min-width:38px;text-align:right;
+  .tile .tileIconWrap{
+    position:relative;width:100%;aspect-ratio:1/1;border-radius:6px;overflow:hidden;
+    border:1px solid var(--tier-color);background:var(--panel-solid);transition:transform .12s ease;
   }
-  .rankRow .count{flex:0 0 auto;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .tile:active .tileIconWrap{transform:scale(.92);}
+  .tile img{width:100%;height:100%;object-fit:cover;display:block;}
+  .tile.dim{opacity:.25;}
+  .tileBadgeLimited{
+    position:absolute;top:2px;left:2px;background:var(--gold);color:#1b1503;
+    font-size:8px;font-weight:700;line-height:1;padding:2px 3px;border-radius:2px;
+    font-family:'Share Tech Mono',monospace;
+  }
+  .tileBadgeMine{
+    position:absolute;bottom:2px;right:2px;background:var(--cyan);color:#04262b;
+    font-size:9px;font-weight:700;line-height:1;width:14px;height:14px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px var(--panel-solid);
+  }
+  .tilePct{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text);font-variant-numeric:tabular-nums;}
+
+  /* ---- 詳細表示（ボトムシート） ---- */
+  .detailBackdrop{position:fixed;inset:0;background:rgba(3,5,9,.72);z-index:40;}
+  .detailSheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:41;margin:0 auto;max-width:460px;
+    background:var(--panel-solid);border:1px solid var(--line-strong);border-bottom:none;
+    border-radius:14px 14px 0 0;padding:22px 22px calc(26px + env(safe-area-inset-bottom,0px));
+    max-height:82vh;overflow-y:auto;box-shadow:0 -8px 30px rgba(0,0,0,.55);
+  }
+  .detailSheet .closeBtn{
+    position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);
+    font-size:20px;line-height:1;cursor:pointer;padding:4px;
+  }
+  .detailHead{display:flex;gap:14px;align-items:center;margin:0 0 16px;}
+  .detailHead img{width:72px;height:72px;border-radius:8px;object-fit:cover;border:1px solid var(--line-strong);background:var(--panel-2);flex:0 0 auto;}
+  .detailHead .name{font-size:15px;font-weight:700;margin:0 0 4px;}
+  .detailHead .rank{font-family:'Share Tech Mono',monospace;font-size:11.5px;color:var(--cyan);}
+  .detailRows{display:flex;flex-direction:column;gap:9px;}
+  .detailRow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;border-bottom:1px solid var(--line);padding-bottom:9px;}
+  .detailRow:last-child{border-bottom:none;padding-bottom:0;}
+  .detailRow .k{color:var(--muted);}
+  .detailRow .v{color:var(--text);font-variant-numeric:tabular-nums;text-align:right;}
+  .detailRow .v.mine-owned{color:var(--cyan);}
+  .detailRow .v.limited{color:var(--gold);}
 
   .stateMsg{color:var(--muted);font-size:12.5px;text-align:center;padding:28px 0;}
 
   .pageFooter{
     margin-top:36px;padding-top:16px;border-top:1px solid var(--line);
     font-size:10.5px;line-height:1.9;color:var(--muted);
+    max-width:640px;margin-left:auto;margin-right:auto;
   }
   .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
   .pageFooter a{color:var(--cyan);text-decoration:none;}
@@ -135,31 +189,66 @@
 </head>
 <body>
 
-<main class="wrap">
-  <p class="eyebrow">ANALYTICS</p>
-  <h1>みんなの所持率ランキング</h1>
-  <p class="sub">登録ユーザーの所持データをもとに、UR機体・URサポートの全体所持率をランキング形式で見られます（ログインユーザー限定機能）。</p>
+<main class="wrap" id="mainWrap">
+  <div class="headArea">
+    <p class="eyebrow">ANALYTICS</p>
+    <h1>みんなの所持率ランキング</h1>
+    <p class="sub">登録ユーザーの所持データをもとに、UR機体・URサポートの全体所持率をランキング形式で見られます（ログインユーザー限定機能）。</p>
 
-  <div id="guardView" class="guardCard" hidden>
-    <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、みんなの所持率ランキングが見られるようになります。</p>
-    <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
-  </div>
-
-  <div id="loadingView" class="stateMsg">読み込み中...</div>
-
-  <div id="contentView" hidden>
-    <div class="sampleNote">集計対象：登録ユーザー <strong id="totalUsersText">-</strong> 人のデータ</div>
-
-    <div class="tabs">
-      <button type="button" data-tab="units" class="active">UR機体</button>
-      <button type="button" data-tab="supporters">URサポート</button>
+    <div id="guardView" class="guardCard" hidden>
+      <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、みんなの所持率ランキングが見られるようになります。</p>
+      <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
     </div>
 
-    <ul class="rankList" id="rankListUnits"></ul>
-    <ul class="rankList" id="rankListSupporters" hidden></ul>
+    <div id="loadingView" class="stateMsg">読み込み中...</div>
   </div>
 
-  <div id="errorView" class="stateMsg" hidden>データの取得に失敗しました。時間をおいて再度お試しください。</div>
+  <div id="contentView" hidden>
+    <div class="headArea">
+      <div class="sampleNote">集計対象：登録ユーザー <strong id="totalUsersText">-</strong> 人のデータ</div>
+
+      <div class="tabs">
+        <button type="button" data-tab="units" class="active">UR機体</button>
+        <button type="button" data-tab="supporters">URサポート</button>
+      </div>
+    </div>
+
+    <div id="noUsersMsg" class="stateMsg" hidden>集計対象のユーザーがまだいません</div>
+
+    <div id="rankAreaUnits">
+      <div class="headArea">
+        <div class="legend">凡例： <span>限＝期間限定</span><span>✓＝自分が所持</span></div>
+        <div class="filterRow">
+          <div class="chipGroup" id="chipsUnits"></div>
+          <span class="matchCount" id="matchCountUnits"></span>
+        </div>
+        <div class="mineToggleRow">
+          <input type="checkbox" id="mineToggleUnits" checked>
+          <label for="mineToggleUnits">自分の所持を表示</label>
+        </div>
+        <div class="syncNote" id="syncNoteUnits" hidden>所持データがまだ同期されていません。チェッカーで「画像で保存」を押すと、ここに反映されます</div>
+      </div>
+      <div id="tierListUnits"></div>
+    </div>
+
+    <div id="rankAreaSupporters" hidden>
+      <div class="headArea">
+        <div class="legend">凡例： <span>限＝期間限定</span><span>✓＝自分が所持</span></div>
+        <div class="filterRow">
+          <div class="chipGroup" id="chipsSupporters"></div>
+          <span class="matchCount" id="matchCountSupporters"></span>
+        </div>
+        <div class="mineToggleRow">
+          <input type="checkbox" id="mineToggleSupporters" checked>
+          <label for="mineToggleSupporters">自分の所持を表示</label>
+        </div>
+        <div class="syncNote" id="syncNoteSupporters" hidden>所持データがまだ同期されていません。チェッカーで「画像で保存」を押すと、ここに反映されます</div>
+      </div>
+      <div id="tierListSupporters"></div>
+    </div>
+  </div>
+
+  <div id="errorView" class="stateMsg headArea" hidden>データの取得に失敗しました。時間をおいて再度お試しください。</div>
 
   <footer class="pageFooter">
     <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
@@ -169,18 +258,61 @@
   </footer>
 </main>
 
+<div id="detailBackdrop" class="detailBackdrop" hidden></div>
+<div id="detailSheet" class="detailSheet" hidden role="dialog" aria-modal="true" aria-labelledby="detailName">
+  <button type="button" class="closeBtn" id="detailCloseBtn" aria-label="閉じる">&times;</button>
+  <div class="detailHead">
+    <img id="detailIcon" src="" alt="">
+    <div>
+      <p class="name" id="detailName"></p>
+      <p class="rank" id="detailRank"></p>
+    </div>
+  </div>
+  <div class="detailRows">
+    <div class="detailRow"><span class="k">所持率</span><span class="v" id="detailRate"></span></div>
+    <div class="detailRow"><span class="k" id="detailAttrLabel">タイプ</span><span class="v" id="detailAttr"></span></div>
+    <div class="detailRow"><span class="k">期間限定</span><span class="v" id="detailLimited"></span></div>
+    <div class="detailRow"><span class="k">自分の所持</span><span class="v" id="detailMine"></span></div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
+
+  // ---- 帯（ティア）の定義。固定閾値。後から調整しやすいよう1か所にまとめる ----
+  const TIERS = [
+    { min: 80, label: "80%以上", color: "#6be0e0" },
+    { min: 60, label: "60〜79%", color: "#4fbcbf" },
+    { min: 40, label: "40〜59%", color: "#3b9599" },
+    { min: 20, label: "20〜39%", color: "#2e6f75" },
+    { min: 0,  label: "20%未満", color: "#24515a" }
+  ];
+  const OWN_LEVEL_LABELS = ["無凸", "1凸", "2凸", "完凸"];
+  const UNIT_TYPES = ["すべて", "攻撃", "支援", "耐久"];
+  const SUPPORTER_TYPES = ["すべて", "HP回復", "EN回復", "複合"];
+
+  function tierFor(pct){
+    for (const t of TIERS) { if (pct >= t.min) return t; }
+    return TIERS[TIERS.length - 1];
+  }
 
   const guardView = document.getElementById("guardView");
   const loadingView = document.getElementById("loadingView");
   const contentView = document.getElementById("contentView");
   const errorView = document.getElementById("errorView");
+  const noUsersMsg = document.getElementById("noUsersMsg");
   const totalUsersText = document.getElementById("totalUsersText");
-  const listUnits = document.getElementById("rankListUnits");
-  const listSupporters = document.getElementById("rankListSupporters");
   const tabs = document.querySelectorAll(".tabs button");
+  const mainWrap = document.getElementById("mainWrap");
+
+  // タブごとに独立して持つ状態（絞り込みチップ）。自分の所持を表示チェックボックスもタブごとに用意
+  const state = {
+    units: { filter: "すべて" },
+    supporters: { filter: "すべて" }
+  };
+  let dataCache = { units: null, supporters: null };
+  let currentTab = "units";
 
   document.getElementById("guardLoginBtn").addEventListener("click", () => {
     // auth.jsが生成する非表示のログインリンクを経由して、共通のログインモーダルを開く
@@ -192,8 +324,9 @@
     btn.addEventListener("click", () => {
       tabs.forEach(b => b.classList.toggle("active", b === btn));
       const isSupporter = btn.dataset.tab === "supporters";
-      listUnits.hidden = isSupporter;
-      listSupporters.hidden = !isSupporter;
+      currentTab = isSupporter ? "supporters" : "units";
+      document.getElementById("rankAreaUnits").hidden = isSupporter;
+      document.getElementById("rankAreaSupporters").hidden = !isSupporter;
     });
   });
 
@@ -201,32 +334,169 @@
     return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
   }
 
-  function renderRanking(listEl, ranking, isSupporter){
-    listEl.innerHTML = ranking.map((r, i) => {
-      const id = isSupporter ? r.supporterId : r.unitId;
-      const attr = isSupporter ? r.skill : r.type;
-      const imgDir = isSupporter ? "supporters" : "units";
-      const pct = (r.ownedRate * 100);
-      const pctText = pct >= 10 ? pct.toFixed(0) : pct.toFixed(1);
+  function pctText(pct){
+    return pct >= 10 ? pct.toFixed(0) : pct.toFixed(1);
+  }
+
+  // 同率同順位（競技順位方式 1,2,2,4…）で順位を付与する。rankingは既にownedCount降順・id昇順
+  function computeRanks(ranking){
+    let lastCount = null, lastRank = 0;
+    return ranking.map((r, i) => {
+      if (r.ownedCount !== lastCount) {
+        lastRank = i + 1;
+        lastCount = r.ownedCount;
+      }
+      return Object.assign({}, r, { rank: lastRank });
+    });
+  }
+
+  function groupByTier(ranked){
+    const groups = TIERS.map(t => ({ label: t.label, color: t.color, min: t.min, items: [] }));
+    ranked.forEach(r => {
+      const pct = r.ownedRate * 100;
+      const g = groups.find(g => pct >= g.min) || groups[groups.length - 1];
+      g.items.push(r);
+    });
+    return groups.filter(g => g.items.length > 0);
+  }
+
+  function renderChips(tabKey){
+    const isSupporter = tabKey === "supporters";
+    const types = isSupporter ? SUPPORTER_TYPES : UNIT_TYPES;
+    const container = document.getElementById(isSupporter ? "chipsSupporters" : "chipsUnits");
+    container.innerHTML = types.map(t =>
+      `<button type="button" class="chip${t === state[tabKey].filter ? ' active' : ''}" data-type="${escapeHtml(t)}">${escapeHtml(t)}</button>`
+    ).join("");
+    container.querySelectorAll(".chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        state[tabKey].filter = chip.dataset.type;
+        renderTab(tabKey);
+      });
+    });
+  }
+
+  function tileHtml(r, tabKey, tierColor){
+    const isSupporter = tabKey === "supporters";
+    const id = isSupporter ? r.supporterId : r.unitId;
+    const attr = isSupporter ? r.skill : r.type;
+    const imgDir = isSupporter ? "supporters" : "units";
+    const filter = state[tabKey].filter;
+    const dim = filter !== "すべて" && attr !== filter;
+    const mineMap = dataCache[tabKey].mine;
+    const showMine = document.getElementById(isSupporter ? "mineToggleSupporters" : "mineToggleUnits").checked;
+    const owned = Object.prototype.hasOwnProperty.call(mineMap, String(id));
+    const pct = r.ownedRate * 100;
+    const pt = pctText(pct);
+    const ariaLabel = `${r.rank}位 ${r.name} 所持率${pt}% 自分は${owned ? "所持" : "未所持"}`;
+    return `
+      <button type="button" class="tile${dim ? ' dim' : ''}" style="--tier-color:${tierColor}"
+        data-tab="${tabKey}" data-id="${id}" aria-label="${escapeHtml(ariaLabel)}">
+        <span class="tileIconWrap">
+          <img src="images/${imgDir}/${id}.jpg" width="54" height="54" loading="lazy" alt="">
+          ${r.limited ? '<span class="tileBadgeLimited">限</span>' : ''}
+          ${(owned && showMine) ? '<span class="tileBadgeMine">✓</span>' : ''}
+        </span>
+        <span class="tilePct">${pt}%</span>
+      </button>`;
+  }
+
+  function renderTierList(tabKey){
+    const isSupporter = tabKey === "supporters";
+    const listEl = document.getElementById(isSupporter ? "tierListSupporters" : "tierListUnits");
+    const ranking = dataCache[tabKey].ranked;
+    const groups = groupByTier(ranking);
+    const unitWord = isSupporter ? "体" : "機";
+    listEl.innerHTML = groups.map(g => {
+      const tiles = g.items.map(r => tileHtml(r, tabKey, g.color)).join("");
       return `
-        <li class="rankRow">
-          <div class="rank">${i + 1}</div>
-          <img class="icon" src="images/${imgDir}/${id}.jpg" alt="" loading="lazy">
-          <div class="body">
-            <div class="nameRow">
-              <span class="name">${escapeHtml(r.name)}</span>
-              <span class="attr">${escapeHtml(attr)}</span>
-              ${r.limited ? '<span class="limitedBadge">期間限定</span>' : ''}
-            </div>
-            <div class="barRow">
-              <div class="barTrack"><div class="barFill" style="width:${Math.min(100, pct).toFixed(1)}%"></div></div>
-              <div class="pct">${pctText}%</div>
-            </div>
-            <div class="count">${r.ownedCount} / ${(window.__analyticsTotalUsers || 0)}人が所持</div>
+        <div class="tierGroup">
+          <div class="tierHead" style="--tier-color:${g.color}">
+            <span>${g.label}</span><span class="tierCount">（${g.items.length}${unitWord}）</span>
           </div>
-        </li>`;
+          <div class="tierGrid">${tiles}</div>
+        </div>`;
     }).join("");
   }
+
+  function renderMatchCount(tabKey){
+    const isSupporter = tabKey === "supporters";
+    const unitWord = isSupporter ? "体" : "機";
+    const filter = state[tabKey].filter;
+    const ranking = dataCache[tabKey].ranked;
+    const n = filter === "すべて" ? ranking.length : ranking.filter(r => (isSupporter ? r.skill : r.type) === filter).length;
+    document.getElementById(isSupporter ? "matchCountSupporters" : "matchCountUnits").textContent = `該当${n}${unitWord}`;
+  }
+
+  function renderSyncNote(tabKey){
+    const isSupporter = tabKey === "supporters";
+    const note = document.getElementById(isSupporter ? "syncNoteSupporters" : "syncNoteUnits");
+    const mine = dataCache[tabKey].mine;
+    note.hidden = Object.keys(mine).length > 0;
+  }
+
+  function renderTab(tabKey){
+    if (!dataCache[tabKey]) return;
+    renderChips(tabKey);
+    renderMatchCount(tabKey);
+    renderSyncNote(tabKey);
+    renderTierList(tabKey);
+  }
+
+  // ---- 詳細表示（ボトムシート） ----
+  const detailBackdrop = document.getElementById("detailBackdrop");
+  const detailSheet = document.getElementById("detailSheet");
+
+  function openDetail(tabKey, id){
+    const isSupporter = tabKey === "supporters";
+    const ranking = dataCache[tabKey].ranked;
+    const r = ranking.find(x => String(isSupporter ? x.supporterId : x.unitId) === String(id));
+    if (!r) return;
+    const imgDir = isSupporter ? "supporters" : "units";
+    const attr = isSupporter ? r.skill : r.type;
+    const pct = r.ownedRate * 100;
+    const totalUsers = dataCache[tabKey].totalUsers;
+    const mineLevel = dataCache[tabKey].mine[String(id)];
+    const owned = mineLevel !== undefined;
+
+    document.getElementById("detailIcon").src = `images/${imgDir}/${id}.jpg`;
+    document.getElementById("detailName").textContent = r.name;
+    document.getElementById("detailRank").textContent = `${r.rank}位 / ${ranking.length}${isSupporter ? "体" : "機"}中`;
+    document.getElementById("detailRate").textContent = `${pctText(pct)}%（${r.ownedCount} / ${totalUsers}人）`;
+    document.getElementById("detailAttrLabel").textContent = isSupporter ? "スキル" : "タイプ";
+    document.getElementById("detailAttr").textContent = attr;
+    const limitedEl = document.getElementById("detailLimited");
+    limitedEl.textContent = r.limited ? "あり" : "なし";
+    limitedEl.className = "v" + (r.limited ? " limited" : "");
+    const mineEl = document.getElementById("detailMine");
+    mineEl.textContent = owned ? OWN_LEVEL_LABELS[mineLevel] : "未所持";
+    mineEl.className = "v" + (owned ? " mine-owned" : "");
+
+    detailBackdrop.hidden = false;
+    detailSheet.hidden = false;
+  }
+
+  function closeDetail(){
+    detailBackdrop.hidden = true;
+    detailSheet.hidden = true;
+  }
+
+  detailBackdrop.addEventListener("click", closeDetail);
+  document.getElementById("detailCloseBtn").addEventListener("click", closeDetail);
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && !detailSheet.hidden) closeDetail();
+  });
+
+  document.getElementById("tierListUnits").addEventListener("click", e => {
+    const tile = e.target.closest(".tile");
+    if (tile) openDetail(tile.dataset.tab, tile.dataset.id);
+  });
+  document.getElementById("tierListSupporters").addEventListener("click", e => {
+    const tile = e.target.closest(".tile");
+    if (tile) openDetail(tile.dataset.tab, tile.dataset.id);
+  });
+
+  document.getElementById("mineToggleUnits").addEventListener("change", () => renderTab("units"));
+  document.getElementById("mineToggleSupporters").addEventListener("change", () => renderTab("supporters"));
 
   async function loadAnalytics(){
     try {
@@ -245,13 +515,35 @@
       const unitsData = await unitsRes.json();
       const supportersData = await supportersRes.json();
 
-      window.__analyticsTotalUsers = unitsData.totalUsers || 0;
-      totalUsersText.textContent = String(unitsData.totalUsers || 0);
-      renderRanking(listUnits, unitsData.ranking || [], false);
-      renderRanking(listSupporters, supportersData.ranking || [], true);
+      dataCache.units = {
+        ranked: computeRanks(unitsData.ranking || []),
+        mine: unitsData.mine || {},
+        totalUsers: unitsData.totalUsers || 0
+      };
+      dataCache.supporters = {
+        ranked: computeRanks(supportersData.ranking || []),
+        mine: supportersData.mine || {},
+        totalUsers: supportersData.totalUsers || 0
+      };
+
+      const totalUsers = dataCache.units.totalUsers;
+      totalUsersText.textContent = String(totalUsers);
+
+      if (totalUsers === 0) {
+        noUsersMsg.hidden = false;
+        document.getElementById("rankAreaUnits").hidden = true;
+        document.getElementById("rankAreaSupporters").hidden = true;
+      } else {
+        noUsersMsg.hidden = true;
+        document.getElementById("rankAreaUnits").hidden = currentTab !== "units";
+        document.getElementById("rankAreaSupporters").hidden = currentTab !== "supporters";
+        renderTab("units");
+        renderTab("supporters");
+      }
 
       loadingView.hidden = true;
       contentView.hidden = false;
+      mainWrap.classList.add("wide");
     } catch (e) {
       loadingView.hidden = true;
       errorView.hidden = false;

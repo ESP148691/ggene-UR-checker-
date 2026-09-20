@@ -235,6 +235,7 @@ async function handleOwnershipLog(request, env, isSupporter) {
 // ④ 所持データの分析（全体所持率ランキング）API。ログイン済みユーザーのみ利用可能。
 // 母数（totalUsers）はusersテーブルの全件数。0003/0004マイグレーション適用後はusers＝登録済み
 // アカウントのみになる前提（ゲスト行は残らない）ため、username IS NOT NULL等の絞り込みは不要
+// ⑦ ティアリスト化にあたり、ログイン中ユーザー自身の所持状況`mine`（id→凸レベル）も併せて返す
 async function handleAnalytics(request, env, isSupporter) {
   const sessionUser = await getSessionUser(request, env);
   if (!sessionUser) {
@@ -268,7 +269,15 @@ async function handleAnalytics(request, env, isSupporter) {
     ownedRate: totalUsers > 0 ? r.owned_count / totalUsers : 0
   }));
 
-  return jsonResponse({ totalUsers, ranking }, 200);
+  const { results: mineRows } = await env.DB.prepare(
+    `SELECT ${idColumn} AS id, level FROM ${ownershipTable} WHERE user_uid = ?`
+  ).bind(sessionUser.userUid).all();
+  const mine = {};
+  for (const row of mineRows) {
+    mine[String(row.id)] = row.level;
+  }
+
+  return jsonResponse({ totalUsers, ranking, mine }, 200);
 }
 
 export default {
