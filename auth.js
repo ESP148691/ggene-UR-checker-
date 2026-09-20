@@ -85,7 +85,7 @@
     // トップページ（top.html＝ルート"/"）自体には不要なので、各チェッカー画面でのみ表示する
     // Cloudflareの静的アセット配信は/top.htmlを拡張子なしの/topへ自動リダイレクトするため、その形も許容する
     const isTopPage = location.pathname === "/" || location.pathname === "/top" || location.pathname === "/top.html";
-    const topLink = isTopPage ? "" : `<a href="/" class="authlink">トップに戻る</a>`;
+    const topLink = isTopPage ? "" : `<a href="/top" class="authlink">トップに戻る</a>`;
     authbar.innerHTML = `${topLink}<span class="authuser">${escapeHtml(username)} さん</span><button type="button" id="authLogoutBtn">ログアウト</button>`;
     document.getElementById("authLogoutBtn").addEventListener("click", doLogout);
   }
@@ -134,7 +134,9 @@
       }
       closeModal();
       // ログイン・新規登録どちらも成功後はトップページへ遷移する
-      window.location.href = "/";
+      // "/"ではなく"/top"へ遷移させる。過去に"/"を/unitへ301リダイレクトしていた時期があり、
+      // その301をブラウザ（特にXアプリ内ブラウザ）がキャッシュしていると"/"がチェッカー画面に化けるため（⑧）
+      window.location.href = "/top";
     } catch (e) {
       errEl.textContent = "通信エラーが発生しました。時間をおいて再度お試しください";
     } finally {

@@ -9,7 +9,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="auth.css">
 <!-- ヘッダーの「トップに戻る」導線を押した際の体感速度向上のため、トップページをあらかじめプリフェッチしておく -->
-<link rel="prefetch" href="/">
+<!-- "/"ではなく"/top"を対象にする。過去の"/"→/unit 301キャッシュを引き当てても意味がないため（⑧） -->
+<link rel="prefetch" href="/top">
 <link rel="prefetch" href="images/logo.png">
 <style>
   :root{
