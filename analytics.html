@@ -96,7 +96,8 @@
 
   /* ---- 凡例・絞り込み ---- */
   .legend{font-size:11px;color:var(--muted);margin:0 0 10px;display:flex;gap:14px;flex-wrap:wrap;}
-  .filterRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 4px;}
+  .filterRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;}
+  .filterLabel{font-size:11.5px;color:var(--muted);flex:0 0 auto;}
   .chipGroup{display:flex;gap:6px;flex-wrap:wrap;}
   .chip{
     font-family:'Rajdhani',sans-serif;font-weight:600;font-size:12px;
@@ -105,9 +106,10 @@
   }
   .chip.active{background:linear-gradient(135deg,var(--cyan),var(--cyan-dim));color:#04262b;border-color:var(--cyan);font-weight:700;}
   .matchCount{font-size:11px;color:var(--muted);margin-left:auto;white-space:nowrap;}
-  .mineToggleRow{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);margin:10px 0 16px;}
-  .mineToggleRow input{accent-color:var(--cyan);width:15px;height:15px;}
-  .mineToggleRow label{cursor:pointer;}
+  .toggleRow{display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:10px 0 16px;}
+  .toggleItem{display:flex;align-items:center;gap:7px;}
+  .toggleItem input{accent-color:var(--cyan);width:15px;height:15px;}
+  .toggleItem label{cursor:pointer;}
 
   .syncNote{
     font-size:11.5px;color:var(--muted);background:var(--panel-2);border:1px solid var(--line-strong);
@@ -137,6 +139,7 @@
   }
   .tile:active .tileIconWrap{transform:scale(.92);}
   .tile img{width:100%;height:100%;object-fit:cover;display:block;}
+  .tile img.supIcon{object-position:right center;}
   .tile.dim{opacity:.25;}
   .tileBadgeLimited{
     position:absolute;top:2px;left:2px;background:var(--gold);color:#1b1503;
@@ -164,6 +167,7 @@
   }
   .detailHead{display:flex;gap:14px;align-items:center;margin:0 0 16px;}
   .detailHead img{width:72px;height:72px;border-radius:8px;object-fit:cover;border:1px solid var(--line-strong);background:var(--panel-2);flex:0 0 auto;}
+  .detailHead img.supIcon{object-position:right center;}
   .detailHead .name{font-size:15px;font-weight:700;margin:0 0 4px;}
   .detailHead .rank{font-family:'Share Tech Mono',monospace;font-size:11.5px;color:var(--cyan);}
   .detailRows{display:flex;flex-direction:column;gap:9px;}
@@ -194,7 +198,7 @@
   <div class="headArea">
     <p class="eyebrow">ANALYTICS</p>
     <h1>みんなの所持率ランキング</h1>
-    <p class="sub">登録ユーザーの所持データをもとに、UR機体・URサポートの全体所持率をランキング形式で見られます（ログインユーザー限定機能）。</p>
+    <p class="sub">登録ユーザーの所持データをもとに、URユニット・URサポートの全体所持率をランキング形式で見られます（ログインユーザー限定機能）。</p>
 
     <div id="guardView" class="guardCard" hidden>
       <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、みんなの所持率ランキングが見られるようになります。</p>
@@ -209,7 +213,7 @@
       <div class="sampleNote">集計対象：登録ユーザー <strong id="totalUsersText">-</strong> 人のデータ</div>
 
       <div class="tabs">
-        <button type="button" data-tab="units" class="active">UR機体</button>
+        <button type="button" data-tab="units" class="active">URユニット</button>
         <button type="button" data-tab="supporters">URサポート</button>
       </div>
     </div>
@@ -220,15 +224,21 @@
       <div class="headArea">
         <div class="legend">凡例： <span>限＝期間限定</span><span>✓＝自分が所持</span></div>
         <div class="filterRow">
+          <span class="filterLabel">タイプ</span>
           <div class="chipGroup" id="chipsUnits"></div>
-          <span class="matchCount" id="matchCountUnits"></span>
         </div>
-        <div class="mineToggleRow">
-          <input type="checkbox" id="mineToggleUnits" checked>
-          <label for="mineToggleUnits">自分の所持を表示</label>
+        <div class="filterRow">
+          <span class="filterLabel">区分</span>
+          <div class="chipGroup" id="chipsLimitedUnits"></div>
+          <span class="matchCount" id="matchCountUnits" aria-live="polite" hidden></span>
+        </div>
+        <div class="toggleRow">
+          <div class="toggleItem"><input type="checkbox" id="mineToggleUnits" checked><label for="mineToggleUnits">自分の所持を表示</label></div>
+          <div class="toggleItem"><input type="checkbox" id="hideOthersUnits"><label for="hideOthersUnits">対象外を非表示</label></div>
         </div>
         <div class="syncNote" id="syncNoteUnits" hidden>所持データがまだ同期されていません。チェッカーで「画像で保存」を押すと、ここに反映されます</div>
       </div>
+      <div id="noMatchUnits" class="stateMsg" hidden>条件に一致するユニットがありません</div>
       <div id="tierListUnits"></div>
     </div>
 
@@ -236,15 +246,21 @@
       <div class="headArea">
         <div class="legend">凡例： <span>限＝期間限定</span><span>✓＝自分が所持</span></div>
         <div class="filterRow">
+          <span class="filterLabel">タイプ</span>
           <div class="chipGroup" id="chipsSupporters"></div>
-          <span class="matchCount" id="matchCountSupporters"></span>
         </div>
-        <div class="mineToggleRow">
-          <input type="checkbox" id="mineToggleSupporters" checked>
-          <label for="mineToggleSupporters">自分の所持を表示</label>
+        <div class="filterRow">
+          <span class="filterLabel">区分</span>
+          <div class="chipGroup" id="chipsLimitedSupporters"></div>
+          <span class="matchCount" id="matchCountSupporters" aria-live="polite" hidden></span>
+        </div>
+        <div class="toggleRow">
+          <div class="toggleItem"><input type="checkbox" id="mineToggleSupporters" checked><label for="mineToggleSupporters">自分の所持を表示</label></div>
+          <div class="toggleItem"><input type="checkbox" id="hideOthersSupporters"><label for="hideOthersSupporters">対象外を非表示</label></div>
         </div>
         <div class="syncNote" id="syncNoteSupporters" hidden>所持データがまだ同期されていません。チェッカーで「画像で保存」を押すと、ここに反映されます</div>
       </div>
+      <div id="noMatchSupporters" class="stateMsg" hidden>条件に一致するサポートがありません</div>
       <div id="tierListSupporters"></div>
     </div>
   </div>
@@ -281,21 +297,35 @@
 (function(){
   "use strict";
 
-  // ---- 帯（ティア）の定義。固定閾値。後から調整しやすいよう1か所にまとめる ----
+  // ---- 帯（ティア）の定義。10%刻み・固定閾値。後から調整しやすいよう1か所にまとめる ----
+  // 判定は実数の切り捨て整数（pctInt）で行い、表示にも同じ値を使うため、帯名と表示数字が矛盾しない
   const TIERS = [
-    { min: 80, label: "80%以上", color: "#6be0e0" },
-    { min: 60, label: "60〜79%", color: "#4fbcbf" },
-    { min: 40, label: "40〜59%", color: "#3b9599" },
-    { min: 20, label: "20〜39%", color: "#2e6f75" },
-    { min: 0,  label: "20%未満", color: "#24515a" }
+    { min: 90, label: "90%以上", color: "#6be0e0" },
+    { min: 80, label: "80%台",   color: "#6be0e0" },
+    { min: 70, label: "70%台",   color: "#4fbcbf" },
+    { min: 60, label: "60%台",   color: "#4fbcbf" },
+    { min: 50, label: "50%台",   color: "#3b9599" },
+    { min: 40, label: "40%台",   color: "#3b9599" },
+    { min: 30, label: "30%台",   color: "#2e6f75" },
+    { min: 20, label: "20%台",   color: "#2e6f75" },
+    { min: 10, label: "10%台",   color: "#24515a" },
+    { min: 0,  label: "10%未満", color: "#24515a" }
   ];
   const OWN_LEVEL_LABELS = ["無凸", "1凸", "2凸", "完凸"];
   const UNIT_TYPES = ["すべて", "攻撃", "支援", "耐久"];
   const SUPPORTER_TYPES = ["すべて", "HP回復", "EN回復", "複合"];
+  const LIMITED_TYPES = ["すべて", "期間限定", "通常"];
 
-  function tierFor(pct){
-    for (const t of TIERS) { if (pct >= t.min) return t; }
-    return TIERS[TIERS.length - 1];
+  function tierIndexFor(pctInt){
+    for (let i = 0; i < TIERS.length; i++) { if (pctInt >= TIERS[i].min) return i; }
+    return TIERS.length - 1;
+  }
+
+  // 所持人数・母数から切り捨てのパーセントを求める（浮動小数点誤差を避けるため整数演算を使う）
+  function floorPct(ownedCount, totalUsers, decimals){
+    if (totalUsers <= 0) return 0;
+    const factor = Math.pow(10, decimals);
+    return Math.floor(ownedCount * 100 * factor / totalUsers) / factor;
   }
 
   const guardView = document.getElementById("guardView");
@@ -307,10 +337,10 @@
   const tabs = document.querySelectorAll(".tabs button");
   const mainWrap = document.getElementById("mainWrap");
 
-  // タブごとに独立して持つ状態（絞り込みチップ）。自分の所持を表示チェックボックスもタブごとに用意
+  // タブごとに独立して持つ状態（絞り込みチップ）。自分の所持を表示／対象外を非表示のチェックボックスもタブごとに用意
   const state = {
-    units: { filter: "すべて" },
-    supporters: { filter: "すべて" }
+    units: { type: "すべて", limited: "すべて" },
+    supporters: { type: "すべて", limited: "すべて" }
   };
   let dataCache = { units: null, supporters: null };
   let currentTab = "units";
@@ -335,11 +365,8 @@
     return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
   }
 
-  function pctText(pct){
-    return pct >= 10 ? pct.toFixed(0) : pct.toFixed(1);
-  }
-
-  // 同率同順位（競技順位方式 1,2,2,4…）で順位を付与する。rankingは既にownedCount降順・id昇順
+  // 同率同順位（競技順位方式 1,2,2,4…）で順位を付与する。rankingは既にownedCount降順・id昇順。
+  // 順位は所持人数（全ユニット共通の分母）で決まるため、絞り込みの影響を受けない全体順位のまま
   function computeRanks(ranking){
     let lastCount = null, lastRank = 0;
     return ranking.map((r, i) => {
@@ -351,12 +378,28 @@
     });
   }
 
-  function groupByTier(ranked){
-    const groups = TIERS.map(t => ({ label: t.label, color: t.color, min: t.min, items: [] }));
+  function matchesFilter(r, tabKey){
+    const isSupporter = tabKey === "supporters";
+    const attr = isSupporter ? r.skill : r.type;
+    const typeFilter = state[tabKey].type;
+    const limitedFilter = state[tabKey].limited;
+    const matchesType = typeFilter === "すべて" || attr === typeFilter;
+    const matchesLimited = limitedFilter === "すべて" || (limitedFilter === "期間限定" ? r.limited : !r.limited);
+    return matchesType && matchesLimited;
+  }
+
+  function isFilterActive(tabKey){
+    return state[tabKey].type !== "すべて" || state[tabKey].limited !== "すべて";
+  }
+
+  // hideOthersがONのときは対象外を除外して詰める（空になった帯はgroups自体に含めない）
+  function groupByTier(ranked, tabKey, hideOthers){
+    const groups = TIERS.map(t => ({ label: t.label, color: t.color, items: [] }));
     ranked.forEach(r => {
-      const pct = r.ownedRate * 100;
-      const g = groups.find(g => pct >= g.min) || groups[groups.length - 1];
-      g.items.push(r);
+      const matches = matchesFilter(r, tabKey);
+      if (hideOthers && !matches) return;
+      const idx = tierIndexFor(r.pctInt);
+      groups[idx].items.push(Object.assign({}, r, { _matches: matches }));
     });
     return groups.filter(g => g.items.length > 0);
   }
@@ -364,13 +407,24 @@
   function renderChips(tabKey){
     const isSupporter = tabKey === "supporters";
     const types = isSupporter ? SUPPORTER_TYPES : UNIT_TYPES;
-    const container = document.getElementById(isSupporter ? "chipsSupporters" : "chipsUnits");
-    container.innerHTML = types.map(t =>
-      `<button type="button" class="chip${t === state[tabKey].filter ? ' active' : ''}" data-type="${escapeHtml(t)}">${escapeHtml(t)}</button>`
+    const typeContainer = document.getElementById(isSupporter ? "chipsSupporters" : "chipsUnits");
+    typeContainer.innerHTML = types.map(t =>
+      `<button type="button" class="chip${t === state[tabKey].type ? ' active' : ''}" data-type="${escapeHtml(t)}">${escapeHtml(t)}</button>`
     ).join("");
-    container.querySelectorAll(".chip").forEach(chip => {
+    typeContainer.querySelectorAll(".chip").forEach(chip => {
       chip.addEventListener("click", () => {
-        state[tabKey].filter = chip.dataset.type;
+        state[tabKey].type = chip.dataset.type;
+        renderTab(tabKey);
+      });
+    });
+
+    const limitedContainer = document.getElementById(isSupporter ? "chipsLimitedSupporters" : "chipsLimitedUnits");
+    limitedContainer.innerHTML = LIMITED_TYPES.map(t =>
+      `<button type="button" class="chip${t === state[tabKey].limited ? ' active' : ''}" data-limited="${escapeHtml(t)}">${escapeHtml(t)}</button>`
+    ).join("");
+    limitedContainer.querySelectorAll(".chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        state[tabKey].limited = chip.dataset.limited;
         renderTab(tabKey);
       });
     });
@@ -379,34 +433,40 @@
   function tileHtml(r, tabKey, tierColor){
     const isSupporter = tabKey === "supporters";
     const id = isSupporter ? r.supporterId : r.unitId;
-    const attr = isSupporter ? r.skill : r.type;
     const imgDir = isSupporter ? "supporters" : "units";
-    const filter = state[tabKey].filter;
-    const dim = filter !== "すべて" && attr !== filter;
+    const dim = !r._matches;
     const mineMap = dataCache[tabKey].mine;
     const showMine = document.getElementById(isSupporter ? "mineToggleSupporters" : "mineToggleUnits").checked;
     const owned = Object.prototype.hasOwnProperty.call(mineMap, String(id));
-    const pct = r.ownedRate * 100;
-    const pt = pctText(pct);
-    const ariaLabel = `${r.rank}位 ${r.name} 所持率${pt}% 自分は${owned ? "所持" : "未所持"}`;
+    const ariaLabel = `${r.rank}位 ${r.name} 所持率${r.pctInt}% 自分は${owned ? "所持" : "未所持"}`;
     return `
       <button type="button" class="tile${dim ? ' dim' : ''}" style="--tier-color:${tierColor}"
         data-tab="${tabKey}" data-id="${id}" aria-label="${escapeHtml(ariaLabel)}">
         <span class="tileIconWrap">
-          <img src="images/${imgDir}/${id}.jpg" width="54" height="54" loading="lazy" alt="">
+          <img src="images/${imgDir}/${id}.jpg" width="54" height="54" loading="lazy" alt="" class="${isSupporter ? 'supIcon' : ''}">
           ${r.limited ? '<span class="tileBadgeLimited">限</span>' : ''}
           ${(owned && showMine) ? '<span class="tileBadgeMine">✓</span>' : ''}
         </span>
-        <span class="tilePct">${pt}%</span>
+        <span class="tilePct">${r.pctInt}%</span>
       </button>`;
   }
 
   function renderTierList(tabKey){
     const isSupporter = tabKey === "supporters";
     const listEl = document.getElementById(isSupporter ? "tierListSupporters" : "tierListUnits");
+    const noMatchEl = document.getElementById(isSupporter ? "noMatchSupporters" : "noMatchUnits");
+    const hideOthers = document.getElementById(isSupporter ? "hideOthersSupporters" : "hideOthersUnits").checked;
     const ranking = dataCache[tabKey].ranked;
-    const groups = groupByTier(ranking);
+    const groups = groupByTier(ranking, tabKey, hideOthers);
     const unitWord = isSupporter ? "体" : "機";
+
+    if (hideOthers && groups.length === 0) {
+      listEl.innerHTML = "";
+      noMatchEl.hidden = false;
+      return;
+    }
+    noMatchEl.hidden = true;
+
     listEl.innerHTML = groups.map(g => {
       const tiles = g.items.map(r => tileHtml(r, tabKey, g.color)).join("");
       return `
@@ -422,10 +482,13 @@
   function renderMatchCount(tabKey){
     const isSupporter = tabKey === "supporters";
     const unitWord = isSupporter ? "体" : "機";
-    const filter = state[tabKey].filter;
     const ranking = dataCache[tabKey].ranked;
-    const n = filter === "すべて" ? ranking.length : ranking.filter(r => (isSupporter ? r.skill : r.type) === filter).length;
-    document.getElementById(isSupporter ? "matchCountSupporters" : "matchCountUnits").textContent = `該当${n}${unitWord}`;
+    const el = document.getElementById(isSupporter ? "matchCountSupporters" : "matchCountUnits");
+    const active = isFilterActive(tabKey);
+    el.hidden = !active;
+    if (!active) return;
+    const n = ranking.filter(r => matchesFilter(r, tabKey)).length;
+    el.textContent = `該当 ${n} / ${ranking.length}${unitWord}`;
   }
 
   function renderSyncNote(tabKey){
@@ -454,15 +517,18 @@
     if (!r) return;
     const imgDir = isSupporter ? "supporters" : "units";
     const attr = isSupporter ? r.skill : r.type;
-    const pct = r.ownedRate * 100;
     const totalUsers = dataCache[tabKey].totalUsers;
+    const decimals = totalUsers > 1000 ? 2 : 1;
+    const pct = floorPct(r.ownedCount, totalUsers, decimals);
     const mineLevel = dataCache[tabKey].mine[String(id)];
     const owned = mineLevel !== undefined;
 
-    document.getElementById("detailIcon").src = `images/${imgDir}/${id}.jpg`;
+    const iconEl = document.getElementById("detailIcon");
+    iconEl.src = `images/${imgDir}/${id}.jpg`;
+    iconEl.className = isSupporter ? "supIcon" : "";
     document.getElementById("detailName").textContent = r.name;
-    document.getElementById("detailRank").textContent = `${r.rank}位 / ${ranking.length}${isSupporter ? "体" : "機"}中`;
-    document.getElementById("detailRate").textContent = `${pctText(pct)}%（${r.ownedCount} / ${totalUsers}人）`;
+    document.getElementById("detailRank").textContent = `全体${r.rank}位 / ${ranking.length}${isSupporter ? "体" : "機"}中`;
+    document.getElementById("detailRate").textContent = `${pct.toFixed(decimals)}%（${r.ownedCount} / ${totalUsers}人）`;
     document.getElementById("detailAttrLabel").textContent = isSupporter ? "スキル" : "タイプ";
     document.getElementById("detailAttr").textContent = attr;
     const limitedEl = document.getElementById("detailLimited");
@@ -498,6 +564,8 @@
 
   document.getElementById("mineToggleUnits").addEventListener("change", () => renderTab("units"));
   document.getElementById("mineToggleSupporters").addEventListener("change", () => renderTab("supporters"));
+  document.getElementById("hideOthersUnits").addEventListener("change", () => renderTab("units"));
+  document.getElementById("hideOthersSupporters").addEventListener("change", () => renderTab("supporters"));
 
   async function loadAnalytics(){
     try {
@@ -516,15 +584,23 @@
       const unitsData = await unitsRes.json();
       const supportersData = await supportersRes.json();
 
+      // 帯判定・タイル表示ともに同じ切り捨て整数（pctInt）を使うため、読み込み時に1回だけ計算しておく
+      function withPctInt(ranking, totalUsers){
+        return computeRanks(ranking).map(r => Object.assign({}, r, { pctInt: floorPct(r.ownedCount, totalUsers, 0) }));
+      }
+
+      const unitsTotalUsers = unitsData.totalUsers || 0;
+      const supportersTotalUsers = supportersData.totalUsers || 0;
+
       dataCache.units = {
-        ranked: computeRanks(unitsData.ranking || []),
+        ranked: withPctInt(unitsData.ranking || [], unitsTotalUsers),
         mine: unitsData.mine || {},
-        totalUsers: unitsData.totalUsers || 0
+        totalUsers: unitsTotalUsers
       };
       dataCache.supporters = {
-        ranked: computeRanks(supportersData.ranking || []),
+        ranked: withPctInt(supportersData.ranking || [], supportersTotalUsers),
         mine: supportersData.mine || {},
-        totalUsers: supportersData.totalUsers || 0
+        totalUsers: supportersTotalUsers
       };
 
       const totalUsers = dataCache.units.totalUsers;
