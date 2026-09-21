@@ -23,8 +23,8 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `wrangler.jsonc` — プロジェクト名 `ggene-ur-checker`、assetsのdirectoryは`./`、D1バインディング`DB`（`ggene-ur-checker-db`）設定済み
 - `migrations/0001_add_user_auth.sql` — `users`テーブルへの`username`/`password`カラム追加、`sessions`テーブル新設。Cloudflareダッシュボード（D1 > Console）で手動適用済み
 - `migrations/0002_populate_master_data.sql` — `units_master`/`supporters_master`への実データ投入（機体84件・サポート49件）。Cloudflareダッシュボード（D1 > Console）で手動適用済み（2026-09-19）
-- `migrations/0003_purge_guest_data.sql` — 既存のゲスト所持データ・ゲストuser行の一括削除。**未適用（要Cloudflareダッシュボードでの手動適用）**
-- `migrations/0004_usage_counters.sql` — ゲスト利用回数カウンタ`usage_counters`テーブル新設。**未適用（要Cloudflareダッシュボードでの手動適用）**
+- `migrations/0003_purge_guest_data.sql` — 既存のゲスト所持データ・ゲストuser行の一括削除。**適用済み（2026-09-20、Cloudflareダッシュボードで手動適用）**
+- `migrations/0004_usage_counters.sql` — ゲスト利用回数カウンタ`usage_counters`テーブル新設。**適用済み（2026-09-20、Cloudflareダッシュボードで手動適用）**
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
 
@@ -117,11 +117,11 @@ CREATE TABLE usage_counters (
   count INTEGER NOT NULL DEFAULT 0
 );
 ```
-2026-09-19、分析ページ（所持率ランキング）実装にあたり、ゲスト（未ログイン）の所持データ保存を廃止した。理由・詳細は`docs/④分析ページ設計_ゲストデータ廃止.md`（Cowork側資料）を参照。`worker.js`は既にこの新仕様でデプロイ済みだが、以下2件のマイグレーションはまだCloudflareダッシュボードでの手動適用が済んでいない（**要対応**）。
+2026-09-19、分析ページ（所持率ランキング）実装にあたり、ゲスト（未ログイン）の所持データ保存を廃止した。理由・詳細は`docs/④分析ページ設計_ゲストデータ廃止.md`（Cowork側資料）を参照。`worker.js`は既にこの新仕様でデプロイ済みだが、以下2件のマイグレーションは、Cloudflareダッシュボードでの手動適用が2026-09-20に完了した（適用前の状況の記録として下記を残す）。
 - `migrations/0003_purge_guest_data.sql`: 既存のゲスト所持データ（`units_ownership`/`supporters_ownership`のゲスト分）・ゲストuser行（`users.username IS NULL`）を一括削除
 - `migrations/0004_usage_counters.sql`: 上記`usage_counters`テーブルの新設
 
-この2件が未適用の間、ゲストの`/api/log`・`/api/log-supporter`送信時に`usage_counters`への書き込みがテーブル不在でエラーになる可能性があるが、`handleOwnershipLog()`はtry/catchで囲まれているためチェッカー本体（画像生成・プレビュー・シェア）の動作には影響しない（利用回数カウンタが記録されないだけ）。
+この2件の適用前は、ゲストの`/api/log`・`/api/log-supporter`送信時に`usage_counters`への書き込みがテーブル不在でエラーになる可能性があるが、`handleOwnershipLog()`はtry/catchで囲まれているためチェッカー本体（画像生成・プレビュー・シェア）の動作には影響しない（利用回数カウンタが記録されないだけ）。適用済みの現在は、カウンタも正常に記録される。
 
 ## 確定済みの設計方針（変更不可）
 - **ログインは任意**。ログインなしでもチェッカーは従来通り使える（ゲスト利用を維持）。理由: Xからの流入で「すぐ使える」ことが拡散の原動力になっているため、入口に関門を作らない
@@ -284,12 +284,12 @@ Playwrightで320px/390px幅のスクリーンショットを撮り、ロゴの�
 
 Playwrightでシェアボタン押下時に実際に生成されるインテントURLをデコードし、`via`パラメータおよび`url`パラメータ（指定ポストのURL）が意図通り付加されることを確認済み。3ページのconsoleエラーなしも確認済み。
 
-### ④ 所持データ分析ページ・ゲストデータ廃止（コード実装完了・D1マイグレーション適用待ち・2026-09-19）
+### ④ 所持データ分析ページ・ゲストデータ廃止（コード実装完了・2026-09-19。D1マイグレーションは2026-09-20に適用済み）
 Cowork側の設計資料`docs/④分析ページ設計_ゲストデータ廃止.md`に基づき実装した。背景・設計判断の詳細は同資料および本ファイル「データベース」章の該当セクションを参照。
 
 1. **ゲストの所持データ保存を廃止**：`worker.js`の`handleOwnershipLog()`を変更し、`getSessionUser()`が取れない（未ログイン）場合は`units_ownership`/`supporters_ownership`への書き込みを一切行わないようにした。旧仕様の`isValidGuestUid()`・クライアント側の`guestUid`発行ロジック（`unit.html`/`supporter.html`の`GUEST_UID_KEY`/`getOrCreateGuestUid()`）は削除済み
 2. **匿名利用回数カウンタを新設**：ゲストからの`/api/log`・`/api/log-supporter`送信時は、代わりに`usage_counters`テーブルの該当キー（`unit_guest`/`supporter_guest`）を+1する（`incrementUsageCounter()`）。個人とは紐付かない
-3. **既存ゲストデータの削除マイグレーション**：`migrations/0003_purge_guest_data.sql`を新規作成（**Cloudflareダッシュボードでの手動適用が必要。未適用**）
+3. **既存ゲストデータの削除マイグレーション**：`migrations/0003_purge_guest_data.sql`を新規作成（Cloudflareダッシュボードでの手動適用が必要だったが、**2026-09-20に適用済み**）
 4. **分析API新設**：`GET /api/analytics/units`・`GET /api/analytics/supporters`（`handleAnalytics()`）。ログイン必須（未ログインは401）。`units_master`/`supporters_master`を軸に`units_ownership`/`supporters_ownership`を`LEFT JOIN`し、所持数降順のランキングと母数（`totalUsers`=`users`の全件数）をJSONで返す
 5. **分析ページ新設**：`analytics.html`を新規作成。未ログイン時はログイン案内のみ表示しAPIは叩かない（`unit.html`等と同じ「`/api/me`失敗時はゲスト表示にフォールバック」方針を踏襲）。ログイン中は機体/サポート2タブでランキング（アイコン・名称・タイプ/スキル・期間限定バッジ・バー・所持率%・所持人数）を表示し、冒頭に「集計対象：登録ユーザー n人のデータ」を明記。デザインは`top.html`と同じ銀河系パレット・フォントを踏襲（背景の動くCanvas演出のみ、データ量の多いページのため軽量な静止ネビュラに変更）。バー表現は`dataviz`スキルの指針（単一系列＝1色の単色バー、4px丸め角のdata-end、値はバー外側に配置等）に沿って実装
 6. **top.htmlへのログイン限定導線**：`top.html`に`/api/me`を個別に呼び出し、ログイン中のみ「みんなの所持率ランキング」カード（`#analyticsSection`）を表示する`toggleAnalyticsNav()`を追加
@@ -298,7 +298,7 @@ Cowork側の設計資料`docs/④分析ページ設計_ゲストデータ廃止.
 
 **Cowork側資料の同期**：`docs/WEBサイト仕様書.md`も今回の変更内容に合わせて更新済み（ファイル構成・API一覧・DB設計・テストケース一覧・既知の制約の各章）。ただし外部Artifact「[UR所持データDB設計（ER図）](https://claude.ai/artifact/CckCfCzdc3cvmdYbptvrDa)」は`usage_counters`新設・ゲストデータ廃止を反映できておらず要更新（Cowork側での対応が必要）。
 
-### ⑦ 所持率ランキング表示の改良（ティアリスト化）（コード実装・検証完了・2026-09-20。**git commit・push未実施**）
+### ⑦ 所持率ランキング表示の改良（ティアリスト化）（コード実装・検証完了・2026-09-20。git commit・push・本番反映も完了＝下記「⑦のgit commit・push」参照）
 Cowork側の設計資料`docs/⑦ランキング表示改良_ティアリスト設計.md`に基づき実装した。ユーザーが離席前提で「判断に悩む箇所は一旦コード側で判断して進めてよい」と指示したため、以下は設計資料の範囲内でコード側が判断した実装詳細である。
 
 1. **`analytics.html`の全面刷新**：従来の1行カード縦並び（`.rankList`/`.rankRow`）を廃止し、所持率の固定閾値（80%以上／60〜79%／40〜59%／20〜39%／20%未満、`TIERS`定数1箇所にまとめて調整しやすくした）で帯分けしたティアリスト型グリッド表示に置き換えた。該当0件の帯は帯ごと非表示。同率は機体No.昇順、順位は競技順位方式（1,2,2,4…）で算出
