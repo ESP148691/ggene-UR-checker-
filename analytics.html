@@ -314,7 +314,7 @@
   const OWN_LEVEL_LABELS = ["無凸", "1凸", "2凸", "完凸"];
   const UNIT_TYPES = ["すべて", "攻撃", "支援", "耐久"];
   const SUPPORTER_TYPES = ["すべて", "HP回復", "EN回復", "複合"];
-  const LIMITED_TYPES = ["すべて", "期間限定", "通常"];
+  const LIMITED_TYPES = ["すべて", "期間限定", "恒常"];
 
   function tierIndexFor(pctInt){
     for (let i = 0; i < TIERS.length; i++) { if (pctInt >= TIERS[i].min) return i; }
