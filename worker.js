@@ -199,6 +199,15 @@ async function incrementUsageCounter(env, counterKey) {
 // 所持データは履歴を積み上げず「最新状態のスナップショット」として保持する。
 // 送信の都度、そのuser_uidの既存行を削除してから現在の所持状態を入れ直す
 // （バッチ処理のため、Workerからのラウンドトリップは1回で済む）
+//
+// ⑬ 補足（2026-09-22）：稀に複数端末・複数タブからの送信が競合すると、DELETE→DELETE→INSERT→INSERTの
+// 順で処理され同一(user_uid, idColumn)の重複行が残ることがある不具合が判明した（詳細は
+// docs/⑬所持率100%超え不具合_調査と改善設計.md）。再発防止として、この関数をON CONFLICT(user_uid,
+// idColumn)によるUPSERT方式に変更する改善案があるが、それには(user_uid, idColumn)への一意インデックス
+// （migrations/0007で追加）が本番D1に適用済みであることが前提になる。インデックスが無い状態でON
+// CONFLICTを使うSQLは全件エラーになり、データ保存自体が機能しなくなるため、**migrations/0007の本番適用
+// が確認できるまでは、この関数の変更を意図的に見送っている**（handleAnalytics()側の集計修正＝①は
+// このリスクとは無関係のため先行して適用済み）。0007適用後にUPSERT化を追加実装すること
 async function replaceOwnership(env, table, idColumn, userUid, entries) {
   const now = toJstIsoString(new Date()); // ⑪ 表示用のregistered_atはJST表記で保存する
   const statements = [
@@ -270,9 +279,13 @@ async function handleAnalytics(request, env, isSupporter) {
   const attrColumn = isSupporter ? "skill" : "type";
   const registeredColumn = isSupporter ? "supporters_first_registered_at" : "units_first_registered_at";
 
+  // ⑬ COUNT(o.id)（行数）ではなくCOUNT(DISTINCT o.user_uid)（ユニークユーザー数）を使う。
+  // (user_uid, idColumn)に一意制約がなかった旧仕様では、複数端末からの競合書き込みで重複行が
+  // 生まれることがあり、行数ベースの集計だと分母（totalUsers＝ユニークユーザー数）とズレて
+  // 所持率が100%を超えて表示される不具合があった（migrations/0007で一意インデックスも追加済み）
   const { results } = await env.DB.prepare(
     `SELECT m.${idColumn} AS id, m.name AS name, m.${attrColumn} AS attr, m.limited AS limited,
-            COUNT(o.id) AS owned_count
+            COUNT(DISTINCT o.user_uid) AS owned_count
      FROM ${masterTable} m
      LEFT JOIN ${ownershipTable} o ON o.${idColumn} = m.${idColumn}
      GROUP BY m.${idColumn}

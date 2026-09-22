@@ -27,6 +27,7 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `migrations/0004_usage_counters.sql` — ゲスト利用回数カウンタ`usage_counters`テーブル新設。**適用済み（2026-09-20、Cloudflareダッシュボードで手動適用）**
 - `migrations/0005_fix_registered_at_to_jst.sql` — 既存の`units_ownership`/`supporters_ownership`の`registered_at`（UTC）をJST（`+09:00`）表記へ一括変換。スキーマ変更なし・冪等。**未適用（要Cloudflareダッシュボードでの手動適用）**
 - `migrations/0006_add_first_registered_flag.sql` — `users`に`units_first_registered_at`/`supporters_first_registered_at`カラムを追加し、既存ownershipデータからバックフィル。冪等。**適用済み（2026-09-22、ユーザーが事前にCloudflareダッシュボードで手動適用）**
+- `migrations/0007_dedupe_ownership.sql` — `units_ownership`/`supporters_ownership`の`(user_uid, unit_id)`重複行を削除し、同カラムへの一意インデックスを追加。DELETE→CREATE UNIQUE INDEXの順。**未適用（要Cloudflareダッシュボードでの手動適用）**
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
 
@@ -391,7 +392,25 @@ Cowork側の設計資料`docs/⑫初回データ登録フラグ_設計.md`に基
 
 git commit → `git push origin main`。Cloudflare Workersの自動デプロイにより本番環境へ反映される見込み（ユーザーの承認を得てcommit・push済み）。
 
+### ⑬ 所持率100%超え不具合の原因調査と改善（コード実装（①のみ）・検証・git commit・push完了・2026-09-22。③bは意図的に見送り）
+Cowork側の設計資料`docs/⑬所持率100%超え不具合_調査と改善設計.md`に基づき対応した。⑫デプロイ後、ランキングページで一部の機体の所持率が100%を超えて表示される不具合が報告された。
+
+1. **原因**：`handleAnalytics()`の所持数集計が`COUNT(o.id)`（**行数**）になっており、`units_ownership`/`supporters_ownership`には`(user_uid, unit_id)`の一意制約が存在しない。同一ユーザー・同一機体の重複行がDBにあると、その分だけ`owned_count`（分子）が水増しされる一方、`totalUsers`（分母）はユニークユーザー数のままだったため、非対称な計算になっていた。この潜在バグは⑫以前から存在したが、⑫で母数を「データ登録済みユーザーのみ」に絞ったことで初めて100%超えという形で顕在化した
+2. **重複行が生じうる経路**：`replaceOwnership()`は「そのユーザーの既存行を全削除→現在の所持状態を入れ直す」方式のため、同一ユーザーからの2つの独立したリクエストがほぼ同時に届く（複数端末・複数タブでの利用等）と、DELETE→DELETE→INSERT→INSERTの順に処理され重複行が残ることがある
+3. **①即時修正（実装・デプロイ済み）**：`handleAnalytics()`の集計を`COUNT(o.id)`から`COUNT(DISTINCT o.user_uid)`に変更。DBに重複行が残っていても`ownedRate`が数学的に100%を超えなくなる。**単独で本番の表示不具合を解消できる、リスクのない変更**として最優先で適用した
+4. **②データクレンジング＋③a一意インデックス（設計通りマイグレーション化）**：`migrations/0007_dedupe_ownership.sql`を新規追加。同一`(user_uid, unit_id)`の重複行のうち`MAX(id)`（最後に書き込まれた行）だけを残して削除した後、`(user_uid, unit_id)`への一意インデックスを作成する（DELETE→CREATE UNIQUE INDEXの順を厳守）。**Cloudflareダッシュボードでの手動適用が必要・未適用**
+5. **③b `replaceOwnership()`のUPSERT化は意図的に見送った（重要な判断）**：設計資料は`replaceOwnership()`を`INSERT ... ON CONFLICT(user_uid, idColumn) DO UPDATE`によるUPSERT方式に変更する再発防止案を提示しており、当初はこれも実装したが、**レビューの結果、本番デプロイ前に重大なリスクがあると判断し実装を取り下げた**。理由：`ON CONFLICT(user_uid, idColumn)`は対象カラムへの一意インデックス（`migrations/0007`で追加）が本番D1に存在することが前提であり、インデックスが無い状態でこのSQLを実行すると「ON CONFLICT clause does not match any PRIMARY KEY or UNIQUE constraint」で**全件エラーになる**（`handleOwnershipLog()`のtry/catchで握りつぶされクライアントには200が返るため、症状としては「データ登録してもDBに何も保存されない」が無言で発生する）。このセッションでは`migrations/0007`が本番適用済みである確認が取れなかった（⑫と異なり、ユーザーから「SQL適用済み」の申告はなかった）ため、pushしたコードが本番D1に反映された瞬間から全ユーザーのデータ保存が機能しなくなるリスクを避けるため、`replaceOwnership()`は**変更前の「全削除→全挿入」のまま維持**した（①の集計修正はこの関数と無関係のため、このリスクとは独立して安全に適用できる）。`worker.js`にはこの経緯と「`migrations/0007`適用後にUPSERT化を追加実装すること」をコメントで明記した
+6. **設計資料との差分**：設計資料の「変更対象ファイルと影響範囲」表は`replaceOwnership()`の変更も含んでいたが、上記の理由により今回はこの部分のみ未実装。②③a（`migrations/0007`）はファイルとして追加済みだが、Cloudflareダッシュボードでの手動適用はまだ
+
+**検証**：この開発環境にはNode.jsが無いため、CDN経由のsql.js（WebAssembly版SQLite）をPlaywrightのChromiumページ上に読み込むブラウザ内テストハーネスで検証。①の集計修正は、意図的に重複行を仕込んだDB状態に対し`handleAnalytics()`を呼び、`owned_count`が重複を含まないユニークユーザー数になり`ownedRate`が100%を超えないことを確認（一意インデックスが無い、現在の本番相当のスキーマ状態で検証）。`migrations/0007`のSQL自体も、重複行を用意したDBに対して直接実行し、`MAX(id)`の行だけが残ること・一意インデックスが作成されることを確認済み。`replaceOwnership()`（変更なし）についても、一意インデックスが無い状態で単発の送信・再送信が正しく動作し、JST化（⑪）・登録済みフラグ（⑫）に回帰がないことを確認済み（全8件成功。テストハーネスはリポジトリには含めず検証後削除）。
+`docs/WEBサイト仕様書.md`もDB設計（一意インデックス予定の記載）・API仕様（`ownedRate`計算式の説明）・既知の制約（③bの見送りとその理由）を更新済み。
+
+**未実施（要対応・重要）**：
+- `migrations/0007_dedupe_ownership.sql`のCloudflareダッシュボードでの手動適用（適用前に`docs/⑬診断用SQL_所持率不整合の原因確認.sql`で重複行の実在を確認しておくことを推奨）
+- `migrations/0007`の適用が確認できたら、`replaceOwnership()`のUPSERT化（設計資料の③b。本ファイルの`replaceOwnership()`直上のコメントに実装案を残してある）を追加実装し、重複行の再発を根本的に防止すること
+
 ## 次にやること
+- ⑬の未実施項目（上記参照）：`migrations/0007`のD1適用、適用確認後の`replaceOwnership()`UPSERT化
 - ⑪の未実施項目：`migrations/0005`のD1適用、本番実機確認（PC/スマホ通常ブラウザ/スマホXアプリ内蔵ブラウザ × 画像保存/Xシェア/データ登録）
 - ⑫のデプロイ後確認：本番の所持率表示が母数フィルタ適用後に上昇していること（急な低下があれば`registeredColumn`の指定誤りを疑う）。数値変化のX等での告知要否はユーザー判断
 - ⑦・⑨から継続：凸レベル別内訳（完凸率等）、期間限定/恒常別の切り替え集計、PCでのポップオーバー化、タイル長押し比較、絞り込み条件の複数選択（例：攻撃と支援を同時に）、絞り込み状態の保存（`localStorage`）、所持率の並べ替え切り替え（No.順・名前順）
