@@ -356,7 +356,7 @@ Cowork側の設計資料`docs/⑨ランキングページ改良第2弾_設計.md
 - **検証**：Python版Playwrightで、ローカル静的配信（`http.server`）上の`unit.html`/`supporter.html`を開き、`window.open`をモックした上で「Xでシェア」ボタンをクリックし、それぞれ`/api/log`・`/api/log-supporter`へのリクエストが実際に発生することをネットワークイベントの監視で確認した。`worker.js`は変更していないためD1モックテストハーネスでの回帰確認は不要と判断
 - `git commit`→`git push origin main`。Cloudflare Workersの自動デプロイにより本番環境へ反映済み
 
-### ⑪ DB登録機能 不具合修正・機能追加（コード実装・検証完了・2026-09-22。**git commit・push、D1マイグレーション適用は未実施**）
+### ⑪ DB登録機能 不具合修正・機能追加（コード実装・検証完了・2026-09-22。git commit・push・本番デプロイ完了。**D1マイグレーション適用は未実施**）
 Cowork側の設計資料`docs/⑪DB登録機能_実装設計.md`に基づき実装した。元になった調査は`docs/⑪DB登録機能_不具合調査と機能追加設計.md`（ユーザー指摘6項目のうち⑥所持状況参照画面は対象外、残り5項目が対象）。
 
 1. **①`registered_at`のJST化**：`worker.js`に`toJstIsoString(date)`ヘルパーを追加し、`replaceOwnership()`内の`registered_at`生成に適用（`units_ownership`・`supporters_ownership`のみ対象。`users`/`sessions`の他タイムスタンプはセッション有効期限判定等の内部比較に使われるためUTCのまま変更していない）。既存データの一括補正用に`migrations/0005_fix_registered_at_to_jst.sql`を新規追加（`registered_at LIKE '%Z'`の行のみが対象のため冪等。**Cloudflareダッシュボードでの手動適用が必要・未適用**）
@@ -368,13 +368,14 @@ Cowork側の設計資料`docs/⑪DB登録機能_実装設計.md`に基づき実�
 **検証**：この開発環境にはNode.jsが無いため、`worker.js`の変更はCDN経由のsql.js（WebAssembly版SQLite）をPlaywrightのChromiumページ上に読み込むブラウザ内テストハーネスで検証した。当初、ブラウザの`fetch`APIが`Request`オブジェクトへの`Cookie`ヘッダー設定を禁止ヘッダーとして無視する（`new Headers().set("Cookie",...)`が`Request`に渡すと消える）ためテストが正しく動かない問題があり、`url`/`method`/`headers.get`/`json`のみを持つ疑似Requestオブジェクトに差し替えて解決した（worker.js自体の不具合ではない。本番のCloudflare Workersではこの制限は存在しない）。全16件のアサーションが成功。`migrations/0005`のSQLも同様にsql.js上で直接実行し、通常ケース・日付をまたぐケース（UTC 15:59→JST翌日0:59）の変換正しさ・冪等性を確認済み（全5件成功）。`unit.html`/`supporter.html`はPlaywright UIテストで、ページ読み込み時のDB復元・`userEditedSinceLoad`ガード（DB取得を遅延させたモックで検証）・データ登録ボタンの3パターン（成功/未ログイン/通信エラー）のトースト表示・320px幅での3ボタンレイアウト崩れなしを、両チェッカーで確認済み（全26件成功。テストハーネス自体はリポジトリには含めず検証後削除）。ローカル静的配信固有の`/top`プリフェッチ404（未変更の`top.html`でも同様に発生することを確認済み）は既知のノイズとして除外している。
 `docs/WEBサイト仕様書.md`も1.2節（ファイル構成）・2.1節（チェッカー機能）・2.4節（サーバーサイド処理）・3章（API一覧）・5.-1節（新規テストケース）・6章（既知の制約）・7章（関連資料）を更新済み。
 
+git commit（コミット`331868a`）→ `git push origin main`実行済み。Cloudflare Workersの自動デプロイにより本番環境へ反映される見込み。
+
 **未実施（要対応）**：
-- git commit・push（このセッションでは未実施。次回セッション冒頭で確認の上、実施すること）
-- `migrations/0005_fix_registered_at_to_jst.sql`のCloudflareダッシュボードでの手動適用
+- `migrations/0005_fix_registered_at_to_jst.sql`のCloudflareダッシュボードでの手動適用（0001〜0004と同じ手順。D1 > Console）
 - 本番デプロイ後の実機確認（PC/スマホ通常ブラウザ/スマホXアプリ内蔵ブラウザ × 画像保存/Xシェア/データ登録。特にXアプリ内蔵ブラウザでの`keepalive`の効果を重点確認）
 
 ## 次にやること
-- ⑪の未実施項目（上記参照）：git commit・push、`migrations/0005`のD1適用、本番実機確認
+- ⑪の未実施項目（上記参照）：`migrations/0005`のD1適用、本番実機確認
 - ⑦・⑨から継続：凸レベル別内訳（完凸率等）、期間限定/恒常別の切り替え集計、PCでのポップオーバー化、タイル長押し比較、絞り込み条件の複数選択（例：攻撃と支援を同時に）、絞り込み状態の保存（`localStorage`）、所持率の並べ替え切り替え（No.順・名前順）
 - ⑩エタロ攻略チェッカー（設計完了・実装待ち。`docs/⑩エタロ攻略チェッカー_エキスパート詳細設計.md`）
 - 次にどのテーマ（エタロ攻略/称号獲得チェッカー追加、自己紹介カード自動生成、「クリア率」分析 等）に着手するかは、次回セッション冒頭でユーザーに確認すること
