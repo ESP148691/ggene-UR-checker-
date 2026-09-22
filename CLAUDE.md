@@ -18,6 +18,7 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `unit.html` — UR機体所持率チェッカー（84機収録）
 - `supporter.html` — URサポート所持率チェッカー（49体収録）
 - `analytics.html` — みんなの所持率ランキング（分析ページ。ログインユーザー限定・2026-09-19新設）
+- `eternal-road.html` — エタロ攻略チェッカー（エターナルロード エキスパート難易度。全29ステージ・69ミッション。2026-09-23新設・⑩⑭）
 - `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`・`analytics.html`から読み込む
 - `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）、所持データログ収集API（`/api/log`・`/api/log-supporter`。**ログイン済みユーザーのみD1保存、ゲストは匿名カウンタのみ加算＝2026-09-19〜**）、分析API（`/api/analytics/units`・`/api/analytics/supporters`、ログイン必須。2026-09-19新設）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
 - `wrangler.jsonc` — プロジェクト名 `ggene-ur-checker`、assetsのdirectoryは`./`、D1バインディング`DB`（`ggene-ur-checker-db`）設定済み
@@ -27,7 +28,9 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `migrations/0004_usage_counters.sql` — ゲスト利用回数カウンタ`usage_counters`テーブル新設。**適用済み（2026-09-20、Cloudflareダッシュボードで手動適用）**
 - `migrations/0005_fix_registered_at_to_jst.sql` — 既存の`units_ownership`/`supporters_ownership`の`registered_at`（UTC）をJST（`+09:00`）表記へ一括変換。スキーマ変更なし・冪等。**未適用（要Cloudflareダッシュボードでの手動適用）**
 - `migrations/0006_add_first_registered_flag.sql` — `users`に`units_first_registered_at`/`supporters_first_registered_at`カラムを追加し、既存ownershipデータからバックフィル。冪等。**適用済み（2026-09-22、ユーザーが事前にCloudflareダッシュボードで手動適用）**
-- `migrations/0007_dedupe_ownership.sql` — `units_ownership`/`supporters_ownership`の`(user_uid, unit_id)`重複行を削除し、同カラムへの一意インデックスを追加。DELETE→CREATE UNIQUE INDEXの順。**未適用（要Cloudflareダッシュボードでの手動適用）**
+- `migrations/0007_dedupe_ownership.sql` — 当初は`units_ownership`/`supporters_ownership`の`(user_uid, unit_id)`重複行削除＋一意インデックス追加を想定していたが、**2026-09-23、本番D1で確認した結果、前提（重複行の存在）が誤りだったと判明。適用しない（経緯の記録として残す）**。詳細は下記「⑬」節の訂正を参照
+- `migrations/0008_eternal_road_missions.sql` — ⑩エタロ攻略チェッカー（エキスパート難易度）のテーブル定義（`eternal_road_missions`・`eternal_road_mission_clears`）。**未適用（要Cloudflareダッシュボードでの手動適用）**
+- `migrations/0009_populate_eternal_road_missions.sql` — エキスパート全29ステージ・69ミッションのマスターデータ投入。**未適用（要Cloudflareダッシュボードでの手動適用）**
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
 
@@ -135,7 +138,7 @@ CREATE TABLE usage_counters (
 ## 将来の全体像（ゴールイメージ）
 1. ユーザー登録・ログイン機能
 2. ログイン後トップページから各チェッカーへ
-3. エタロ攻略チェッカー、称号獲得チェッカーを追加（今後）
+3. エタロ攻略チェッカー（エキスパート難易度・2026-09-23実装済み＝⑩⑭。称号獲得チェッカーは引き続き今後）
 4. 4種のチェッカー結果から自己紹介カードを自動生成
 5. 推し作品を最大5つ選択（宇宙世紀／オルタナ別のシート、作品内時系列で表示）＋フリースペース入力
 6. Xの #ジージェネエターナル タイムライン表示（おまけ扱い。X仕様変更で使えなくなっても全体に影響しない作りにする）
@@ -405,12 +408,29 @@ Cowork側の設計資料`docs/⑬所持率100%超え不具合_調査と改善設
 **検証**：この開発環境にはNode.jsが無いため、CDN経由のsql.js（WebAssembly版SQLite）をPlaywrightのChromiumページ上に読み込むブラウザ内テストハーネスで検証。①の集計修正は、意図的に重複行を仕込んだDB状態に対し`handleAnalytics()`を呼び、`owned_count`が重複を含まないユニークユーザー数になり`ownedRate`が100%を超えないことを確認（一意インデックスが無い、現在の本番相当のスキーマ状態で検証）。`migrations/0007`のSQL自体も、重複行を用意したDBに対して直接実行し、`MAX(id)`の行だけが残ること・一意インデックスが作成されることを確認済み。`replaceOwnership()`（変更なし）についても、一意インデックスが無い状態で単発の送信・再送信が正しく動作し、JST化（⑪）・登録済みフラグ（⑫）に回帰がないことを確認済み（全8件成功。テストハーネスはリポジトリには含めず検証後削除）。
 `docs/WEBサイト仕様書.md`もDB設計（一意インデックス予定の記載）・API仕様（`ownedRate`計算式の説明）・既知の制約（③bの見送りとその理由）を更新済み。
 
-**未実施（要対応・重要）**：
-- `migrations/0007_dedupe_ownership.sql`のCloudflareダッシュボードでの手動適用（適用前に`docs/⑬診断用SQL_所持率不整合の原因確認.sql`で重複行の実在を確認しておくことを推奨）
-- `migrations/0007`の適用が確認できたら、`replaceOwnership()`のUPSERT化（設計資料の③b。本ファイルの`replaceOwnership()`直上のコメントに実装案を残してある）を追加実装し、重複行の再発を根本的に防止すること
+**訂正（2026-09-23・解決済み）**：ユーザーが本番D1で診断SQLを実行した結果、**上記の「重複行が原因」という診断は誤りだったと判明した**。実際の原因は`migrations/0006`のバックフィルSQL適用時点と対応する`worker.js`デプロイ時点の間の「デプロイギャップ」で、その間にデータ登録した一部ユーザーが初期登録フラグを取得できないまま残っていたこと（フラグの付け方・計算式ロジックいずれにも誤りはなかった）。ユーザーが同じ冪等なバックフィルUPDATEを本番D1で再実行してフラグを付与し直し、対象3機体（ル・シーニュ／νガンダム／エアリアル）とも100%超えの解消を確認済み。**`worker.jsのコード修正は不要`**。`migrations/0007_dedupe_ownership.sql`（重複行削除・一意インデックス追加案）は前提が誤りだったため**適用しない**（ファイル自体は経緯の記録として残し、ヘッダーコメントに訂正を追記済み）。`replaceOwnership()`のUPSERT化（③b）も同様に不要と判断し実装しない。再発防止として、バックフィルを伴う今後の機能追加では「バックフィルSQL適用とコードデプロイを同時に行う／間が空く場合は冪等なSQLを再実行する」運用ルールと、「バックフィルSQLは必ず冪等に設計する」ルールを推奨（Cowork側`docs/⑬所持率100%超え不具合_調査と改善設計.md`末尾の訂正・`docs/COWORK.md`の記録より）。`handleAnalytics()`の`COUNT(DISTINCT o.user_uid)`への変更自体は無害（重複が無くても結果は`COUNT(o.id)`と一致する）なため、安全側の措置としてそのまま維持している。
+
+### ⑩⑭ エタロ攻略チェッカー（エキスパート難易度）新設（コード実装・検証・git commit・push完了・2026-09-23。D1マイグレーション未適用）
+Cowork側の設計資料`docs/⑩エタロ攻略チェッカー_エキスパート詳細設計.md`（設計本体）・`docs/⑭エタロ攻略チェッカー_要確認事項_実機確認結果.md`（⑩9章の要確認33項目の実機確認結果。称号名10件・No.6・No.24・2ミッション構成17ステージの網羅性が全件解消）に基づき実装した。エターナルロード エキスパート難易度の全29ステージ・69ミッション（うち称号ミッション11件）をチェックリスト形式で記録できる新規チェッカーページ。
+
+1. **マイグレーション番号の繰り下げ**：設計書は`migrations/0005_eternal_road_missions.sql`・`migrations/0006_populate_eternal_road_missions.sql`という番号を想定していたが、その番号は実装時点で既に⑪・⑫が使用済みだったため、`migrations/0008_eternal_road_missions.sql`（テーブル定義）・`migrations/0009_populate_eternal_road_missions.sql`（マスターデータ投入）に繰り下げて実装した
+2. **DB設計**：`eternal_road_missions`（ミッションマスター。`mission_id`は`stage_id*10+slot`）・`eternal_road_mission_clears`（クリア状況。`units_ownership`等と同じ最新スナップショット方式）の2テーブル。設計⑤時点の「ステージ＝1つの勝利条件」ではなく「1ステージに最大3ミッション」という⑩の設計をそのまま実装
+3. **マスターデータのインポート元**：⑭の指示通り、⑩付属の元CSV（`エタロエキスパート_ミッションマスター案.csv`）ではなく、実機確認済みの`docs/エタロエキスパート_ミッションマスター案_確定版.csv`（称号名10件＋No.24の3件が確定反映済み）から69行のINSERT文を生成した。CSVの手動転記による誤りを避けるため、Pythonで直接パースしてSQL文を生成する方式を採った。`evidence`・`ingame_check_needed`列はCowork側の調査記録用のためテーブルスキーマには含めず、インポート対象から除外した
+4. **`worker.js`**：`GET /api/eternal-road/missions`（マスターデータ取得。認証不要）・`POST /api/log-eternal-road-missions`（クリア状況のD1同期。ログイン必須。未ログイン時は`{ok:true, loggedIn:false}`を返すのみでD1書き込みは行わない）を追加。`mission_id`はunit/supporterの`MAX_UNIT_ID`方式（連番の範囲チェック）が使えない（`stage_id*10+slot`で飛び飛びの値になるため）ため、69件の正規IDを`Set`で持つ方式でバリデーションした
+5. **`eternal-road.html`新設**：⑩7章の画面設計通り、アイコン画像は使わずテキストベースのチェックリスト。難易度タブは「エキスパート」のみ活性、「ノーマル」「ハード」は無効化＋「準備中」表示。上部に「ミッション達成数：n/69」「称号ミッション達成数：n/11」のサマリー、「称号ミッションのみ表示」「未達成のみ表示」の絞り込み（該当しない行・0件になったステージカードは非表示）。称号報酬は`is_title`の行のみ`称号「${title_name}」`という表示に組み立て、⑭で全称号名が確定済みのため「(確認中)」注記は実装しなかった（⑭3章の指示通り）
+6. **同期方式（他チェッカーとの違い）**：他チェッカーは「画像で保存」等のボタン押下時にD1同期するが、エタロ攻略チェッカーは画像生成を伴わないチェックリストのため、⑩8章の判断通り専用の「保存」ボタンを新設し、押下時に`localStorage`の状態をそのまま`/api/log-eternal-road-missions`へ送信する方式にした。**DBからの復元（他チェッカーの⑪で実装した自動復元とは異なり）は行わない**：⑩7章の設計に明示的な復元エンドポイントの記載がなく、状態は常に`localStorage`が正（「保存」は一方向のアップロードのみ）という設計のまま実装した。将来、端末をまたいだ復元が必要になった場合は別途設計が必要
+7. **`top.html`のROUTE 03を実装済み導線に差し替え**：⑭で全ての要確認事項が解消されたため、Coming Soonカードだった「ROUTE 03」を、`.route`（チェッカー）セクション内の実カード（`/eternal-road.html`への導線）に差し替えた。`.soonGroup`にはROUTE 04（称号獲得チェッカー）のみが残るため、2カラムグリッド指定を外し単一の横長カードに調整した
+
+**検証**：この開発環境にはNode.jsが無いため、`worker.js`の新規エンドポイントはCDN経由のsql.js（WebAssembly版SQLite）をPlaywrightのChromiumページ上に読み込むブラウザ内テストハーネスで検証（`migrations/0008`・`0009`の実ファイルを`fetch()`して実行し内容も検証）。マイグレーションのデータ整合性（69件・称号11件・29ステージ）、マスターAPI（並び順・確定済み称号名3件のピンポイント確認）、クリア状況同期API（正常系・範囲外ID破棄・重複排除・ゲストの書き込みスキップ・空配列送信での全削除）を含む全17件が成功。`eternal-road.html`はPlaywright UIテストで、レンダリング・サマリー更新・称号報酬表示・localStorage永続化・2種類の絞り込み・保存ボタンの3パターン（成功/ゲスト/通信エラー）・難易度タブの無効化・console エラーなしを確認済み（全15件成功。テストハーネスはリポジトリには含めず検証後削除）。`top.html`は320/390/1024px幅でスクリーンショット確認し、3カード化後のレイアウト崩れがないことを目視確認済み。
+`docs/WEBサイト仕様書.md`も1.2節（ファイル構成）・2章（処理一覧に新規チェッカーの節を追加）・3章（API一覧）・4章（DB設計）・5章（新規テストケース節）・6章（既知の制約）・7章（関連資料）を更新済み。
+
+**未実施（要対応）**：
+- `migrations/0008_eternal_road_missions.sql`・`migrations/0009_populate_eternal_road_missions.sql`のCloudflareダッシュボードでの手動適用（この2件は順序厳守：0008でテーブル作成→0009でデータ投入）
+- 適用・本番デプロイ後の実機確認（マスターデータの表示・チェック操作・保存ボタンの3パターン）
 
 ## 次にやること
-- ⑬の未実施項目（上記参照）：`migrations/0007`のD1適用、適用確認後の`replaceOwnership()`UPSERT化
+- ⑩の未実施項目（上記参照）：`migrations/0008`・`0009`のD1適用、本番実機確認
+- ⑬は解決済み（上記訂正参照）。追加対応は不要
 - ⑪の未実施項目：`migrations/0005`のD1適用、本番実機確認（PC/スマホ通常ブラウザ/スマホXアプリ内蔵ブラウザ × 画像保存/Xシェア/データ登録）
 - ⑫のデプロイ後確認：本番の所持率表示が母数フィルタ適用後に上昇していること（急な低下があれば`registeredColumn`の指定誤りを疑う）。数値変化のX等での告知要否はユーザー判断
 - ⑦・⑨から継続：凸レベル別内訳（完凸率等）、期間限定/恒常別の切り替え集計、PCでのポップオーバー化、タイル長押し比較、絞り込み条件の複数選択（例：攻撃と支援を同時に）、絞り込み状態の保存（`localStorage`）、所持率の並べ替え切り替え（No.順・名前順）

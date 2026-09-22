@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>エタロ攻略チェッカー | Gジェネエターナル ファンツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+<!-- "/"ではなく"/top"を対象にする。過去の"/"→/unit 301キャッシュを引き当てても意味がないため（⑧） -->
+<link rel="prefetch" href="/top">
+<style>
+  :root{
+    --void:#05070d;
+    --panel:rgba(16,22,32,.68);
+    --panel-2:#0e141d;
+    --panel-solid:#121924;
+    --line:rgba(107,224,224,.16);
+    --line-strong:rgba(140,160,180,.28);
+    --gold:#dab949;
+    --gold-dim:#8a7128;
+    --cyan:#6be0e0;
+    --cyan-dim:#3f8f8f;
+    --title-color:#e0a8f5;
+    --text:#eef3f6;
+    --muted:#93a3b3;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;background:var(--void);color:var(--text);
+    font-family:'Noto Sans JP',sans-serif;min-height:100%;
+    -webkit-font-smoothing:antialiased;padding-bottom:96px;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 60vmax 60vmax at 10% -10%, rgba(122,95,207,.28), transparent 60%),
+      radial-gradient(ellipse 55vmax 55vmax at 110% 10%, rgba(52,224,177,.16), transparent 60%),
+      radial-gradient(ellipse 70vmax 70vmax at 50% 120%, rgba(44,63,122,.35), transparent 60%);
+  }
+  ::selection{background:rgba(107,224,224,.3);color:#fff;}
+
+  main.wrap{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 18px calc(28px + env(safe-area-inset-bottom,0px));}
+
+  .eyebrow{
+    font-family:'Share Tech Mono',monospace;font-weight:400;letter-spacing:.16em;font-size:11px;
+    color:var(--cyan);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin:0 0 14px;opacity:.9;
+    text-shadow:0 1px 3px rgba(2,4,9,.85), 0 0 10px rgba(2,4,9,.6);
+  }
+  .eyebrow::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);display:inline-block;border-radius:1px;}
+
+  h1{
+    font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:23px;margin:0 0 12px;
+    word-break:keep-all;overflow-wrap:break-word;
+    text-shadow:0 1px 4px rgba(2,4,9,.9), 0 0 16px rgba(2,4,9,.6);
+  }
+  .sub{
+    color:#c7d2dc;font-size:13.5px;margin:0 0 22px;line-height:1.85;
+    word-break:keep-all;overflow-wrap:break-word;
+  }
+
+  /* ---- 難易度タブ ---- */
+  .diffTabs{display:flex;gap:8px;margin:0 0 20px;}
+  .diffTabs button{
+    flex:1;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;letter-spacing:.03em;
+    background:var(--panel-2);border:1px solid var(--line-strong);color:var(--muted);
+    padding:10px 6px;cursor:pointer;border-radius:4px;transition:border-color .2s ease,color .2s ease;
+  }
+  .diffTabs button.active{
+    background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold);
+  }
+  .diffTabs button.soonTab{cursor:default;opacity:.55;}
+  .diffTabs button.soonTab .soonBadge{display:block;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.08em;margin-top:2px;}
+
+  /* ---- サマリー ---- */
+  .summaryRow{display:flex;gap:1px;background:var(--line-strong);margin:0 0 20px;border:1px solid var(--line-strong);border-radius:4px;overflow:hidden;}
+  .summaryItem{flex:1;background:var(--panel-solid);padding:12px 10px;text-align:center;}
+  .summaryItem .v{font-family:'Share Tech Mono',monospace;font-size:19px;color:var(--cyan);font-weight:700;}
+  .summaryItem .l{font-size:11px;color:var(--muted);margin-top:4px;}
+
+  /* ---- 絞り込み ---- */
+  .toggleRow{display:flex;align-items:center;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:0 0 20px;}
+  .toggleItem{display:flex;align-items:center;gap:7px;}
+  .toggleItem input{accent-color:var(--cyan);width:15px;height:15px;}
+  .toggleItem label{cursor:pointer;}
+
+  /* ---- ステージカード ---- */
+  .stageCard{
+    background:var(--panel);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);
+    border:1px solid var(--line-strong);border-radius:6px;padding:14px 14px 8px;margin:0 0 12px;
+  }
+  .stageCard.hiddenCard{display:none;}
+  .stageHead{display:flex;align-items:baseline;gap:8px;margin:0 0 10px;}
+  .stageHead .stageNo{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--gold);}
+  .stageHead .stageName{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:var(--text);}
+
+  .missionRow{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid var(--line);}
+  .missionRow:first-of-type{border-top:none;}
+  .missionRow.hiddenRow{display:none;}
+  .missionRow input{accent-color:var(--cyan);width:17px;height:17px;flex:0 0 auto;margin-top:2px;cursor:pointer;}
+  .missionRow label{flex:1;font-size:13px;line-height:1.6;cursor:pointer;}
+  .missionRow .reward{display:block;font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .missionRow.title .reward{color:var(--title-color);}
+  .missionRow.title label{color:var(--text);}
+  .missionRow.cleared label{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line-strong);}
+
+  /* ---- 保存アクションバー ---- */
+  .actionbar{
+    position:fixed;left:0;right:0;bottom:0;
+    background:rgba(10,14,20,.92);backdrop-filter:blur(6px);
+    border-top:1px solid var(--line-strong);
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    display:flex;max-width:640px;margin:0 auto;z-index:50;
+  }
+  .actionbar button{
+    flex:1;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.04em;
+    padding:12px 8px;cursor:pointer;border:1px solid var(--gold);
+    background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-radius:3px;
+  }
+  .actionbar button:disabled{opacity:.6;cursor:default;}
+
+  .saveToast{
+    position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom));
+    transform:translate(-50%,8px);
+    background:rgba(10,14,20,.95);border:1px solid var(--cyan);color:var(--text);
+    font-size:13px;padding:10px 18px;max-width:88%;text-align:center;border-radius:4px;
+    z-index:110;opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+  }
+  .saveToast.show{opacity:1;transform:translate(-50%,0);}
+
+  .pageFooter{
+    margin-top:28px;padding-top:16px;border-top:1px solid var(--line-strong);
+    font-size:10.5px;line-height:1.9;color:var(--muted);
+  }
+  .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
+  .pageFooter a{color:var(--cyan);text-decoration:none;}
+  .pageFooter a:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <p class="eyebrow">GJENERATION ETERNAL <span class="jp">ジージェネレーション エターナル</span></p>
+  <h1>エタロ攻略チェッカー</h1>
+  <p class="sub">エターナルロード エキスパート全29ステージ・69ミッションの達成状況を記録できます。ログイン中は「保存」を押すとデータを引き継げます（未ログインでもお使いいただけます）。</p>
+
+  <div class="diffTabs">
+    <button type="button" data-diff="expert" class="active">エキスパート</button>
+    <button type="button" class="soonTab" disabled>ノーマル<span class="soonBadge">準備中</span></button>
+    <button type="button" class="soonTab" disabled>ハード<span class="soonBadge">準備中</span></button>
+  </div>
+
+  <div class="summaryRow">
+    <div class="summaryItem"><div class="v" id="sumMissions">0 / 69</div><div class="l">ミッション達成数</div></div>
+    <div class="summaryItem"><div class="v" id="sumTitles">0 / 11</div><div class="l">称号ミッション達成数</div></div>
+  </div>
+
+  <div class="toggleRow">
+    <div class="toggleItem"><input type="checkbox" id="filterTitleOnly"><label for="filterTitleOnly">称号ミッションのみ表示</label></div>
+    <div class="toggleItem"><input type="checkbox" id="filterUnclearedOnly"><label for="filterUnclearedOnly">未達成のみ表示</label></div>
+  </div>
+
+  <div id="stageList"></div>
+
+  <footer class="pageFooter">
+    <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
+    <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
+    <p>掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
+    <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+    <p>更新情報はXで発信しています。よろしければ<a href="https://x.com/intent/follow?screen_name=polarbear148691" target="_blank" rel="noopener">フォロー</a>していただけると励みになります。</p>
+  </footer>
+</main>
+
+<div class="actionbar">
+  <button type="button" id="btnSave">保存</button>
+</div>
+<div class="saveToast" id="saveToast"></div>
+
+<script>
+/* =========================================================
+   状態管理：clearedはmission_idのSet。localStorageに保存。
+   DBからの復元は行わない（設計⑩7章の通り、保存ボタン押下時にlocalStorage→D1への一方向同期のみ）
+   ========================================================= */
+const STORAGE_KEY = "eternalroad_expert_clears_v1";
+let cleared = new Set();
+try {
+  cleared = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
+} catch (e) { cleared = new Set(); }
+
+let missions = [];
+const TOTAL_TITLE_MISSIONS = 11;
+
+function persist(){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...cleared])); } catch (e) { console.warn(e); }
+}
+
+function updateSummary(){
+  document.getElementById("sumMissions").textContent = `${cleared.size} / ${missions.length}`;
+  const titleClearedCount = missions.filter(m => m.is_title && cleared.has(m.mission_id)).length;
+  document.getElementById("sumTitles").textContent = `${titleClearedCount} / ${TOTAL_TITLE_MISSIONS}`;
+}
+
+function missionRewardText(m){
+  return m.is_title ? `称号「${m.title_name}」` : m.reward;
+}
+
+function render(){
+  const listEl = document.getElementById("stageList");
+  listEl.innerHTML = "";
+
+  const stages = [];
+  const byStage = new Map();
+  for (const m of missions) {
+    if (!byStage.has(m.stage_id)) {
+      const stage = { stage_id: m.stage_id, stage_name: m.stage_name, missions: [] };
+      byStage.set(m.stage_id, stage);
+      stages.push(stage);
+    }
+    byStage.get(m.stage_id).missions.push(m);
+  }
+
+  const titleOnly = document.getElementById("filterTitleOnly").checked;
+  const unclearedOnly = document.getElementById("filterUnclearedOnly").checked;
+
+  for (const stage of stages) {
+    const card = document.createElement("div");
+    card.className = "stageCard";
+
+    const head = document.createElement("div");
+    head.className = "stageHead";
+    head.innerHTML = `<span class="stageNo">No.${stage.stage_id}</span><span class="stageName">${escapeHtml(stage.stage_name)}</span>`;
+    card.appendChild(head);
+
+    let visibleCount = 0;
+    for (const m of stage.missions) {
+      const isCleared = cleared.has(m.mission_id);
+      if (titleOnly && !m.is_title) continue;
+      if (unclearedOnly && isCleared) continue;
+      visibleCount++;
+
+      const row = document.createElement("div");
+      row.className = "missionRow" + (m.is_title ? " title" : "") + (isCleared ? " cleared" : "");
+      const cbId = "mission_" + m.mission_id;
+      row.innerHTML = `
+        <input type="checkbox" id="${cbId}" ${isCleared ? "checked" : ""}>
+        <label for="${cbId}">${escapeHtml(m.mission_text)}<span class="reward">${escapeHtml(missionRewardText(m))}</span></label>
+      `;
+      row.querySelector("input").addEventListener("change", () => {
+        if (cleared.has(m.mission_id)) cleared.delete(m.mission_id);
+        else cleared.add(m.mission_id);
+        persist();
+        updateSummary();
+        render();
+      });
+      card.appendChild(row);
+    }
+
+    if (visibleCount === 0) card.classList.add("hiddenCard");
+    listEl.appendChild(card);
+  }
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+document.getElementById("filterTitleOnly").addEventListener("change", render);
+document.getElementById("filterUnclearedOnly").addEventListener("change", render);
+
+let saveToastTimer = null;
+function showSaveToast(message){
+  const el = document.getElementById("saveToast");
+  el.textContent = message;
+  el.classList.add("show");
+  clearTimeout(saveToastTimer);
+  saveToastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+}
+
+document.getElementById("btnSave").addEventListener("click", async () => {
+  const btn = document.getElementById("btnSave");
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "保存中...";
+  try {
+    const res = await fetch("/api/log-eternal-road-missions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ clearedIds: [...cleared].join(",") })
+    });
+    const data = await res.json().catch(() => null);
+    if (data && data.loggedIn) {
+      showSaveToast("データを保存しました");
+    } else {
+      showSaveToast("この端末には保存されています。ログインすると端末をまたいで引き継げます");
+    }
+  } catch (e) {
+    showSaveToast("通信エラーが発生しました。時間をおいて再度お試しください");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+});
+
+(async function init(){
+  try {
+    const res = await fetch("/api/eternal-road/missions");
+    const data = await res.json();
+    missions = (data && data.missions) || [];
+  } catch (e) {
+    missions = [];
+  }
+  updateSummary();
+  render();
+})();
+</script>
+<script src="auth.js" defer></script>
+</body>
+</html>

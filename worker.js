@@ -200,14 +200,13 @@ async function incrementUsageCounter(env, counterKey) {
 // 送信の都度、そのuser_uidの既存行を削除してから現在の所持状態を入れ直す
 // （バッチ処理のため、Workerからのラウンドトリップは1回で済む）
 //
-// ⑬ 補足（2026-09-22）：稀に複数端末・複数タブからの送信が競合すると、DELETE→DELETE→INSERT→INSERTの
-// 順で処理され同一(user_uid, idColumn)の重複行が残ることがある不具合が判明した（詳細は
-// docs/⑬所持率100%超え不具合_調査と改善設計.md）。再発防止として、この関数をON CONFLICT(user_uid,
-// idColumn)によるUPSERT方式に変更する改善案があるが、それには(user_uid, idColumn)への一意インデックス
-// （migrations/0007で追加）が本番D1に適用済みであることが前提になる。インデックスが無い状態でON
-// CONFLICTを使うSQLは全件エラーになり、データ保存自体が機能しなくなるため、**migrations/0007の本番適用
-// が確認できるまでは、この関数の変更を意図的に見送っている**（handleAnalytics()側の集計修正＝①は
-// このリスクとは無関係のため先行して適用済み）。0007適用後にUPSERT化を追加実装すること
+// ⑬ 補足（2026-09-22時点で懸念、2026-09-23訂正）：所持率100%超え不具合の調査当初、複数端末・
+// 複数タブからの送信競合で同一(user_uid, idColumn)の重複行が残る可能性を懸念し、この関数をON
+// CONFLICTによるUPSERT方式に変更する改善案を検討したが、本番D1で実際に確認した結果、重複行は
+// 存在しなかった。真の原因はmigrations/0006のバックフィル適用とworker.jsデプロイの間の「デプロイ
+// ギャップ」で、これは冪等なバックフィルSQLの再実行のみで解消済み（詳細はdocs/⑬所持率100%超え
+// 不具合_調査と改善設計.md末尾の訂正）。そのため、この関数のUPSERT化・migrations/0007
+// （一意インデックス追加案）は前提が誤りだったとして見送りのまま据え置く（適用しない）
 async function replaceOwnership(env, table, idColumn, userUid, entries) {
   const now = toJstIsoString(new Date()); // ⑪ 表示用のregistered_atはJST表記で保存する
   const statements = [
@@ -280,9 +279,10 @@ async function handleAnalytics(request, env, isSupporter) {
   const registeredColumn = isSupporter ? "supporters_first_registered_at" : "units_first_registered_at";
 
   // ⑬ COUNT(o.id)（行数）ではなくCOUNT(DISTINCT o.user_uid)（ユニークユーザー数）を使う。
-  // (user_uid, idColumn)に一意制約がなかった旧仕様では、複数端末からの競合書き込みで重複行が
-  // 生まれることがあり、行数ベースの集計だと分母（totalUsers＝ユニークユーザー数）とズレて
-  // 所持率が100%を超えて表示される不具合があった（migrations/0007で一意インデックスも追加済み）
+  // 100%超え不具合の調査当初、重複行による分子の水増しを疑ってこの変更を先行適用したが、
+  // 本番D1で確認した結果、重複行自体は存在しなかった（真の原因はmigrations/0006のバックフィルと
+  // デプロイの間の「デプロイギャップ」。詳細はdocs/⑬所持率100%超え不具合_調査と改善設計.md末尾）。
+  // この変更自体は無害（重複が無ければCOUNT(o.id)と結果は一致する）なため、安全側の措置として維持
   const { results } = await env.DB.prepare(
     `SELECT m.${idColumn} AS id, m.name AS name, m.${attrColumn} AS attr, m.limited AS limited,
             COUNT(DISTINCT o.user_uid) AS owned_count
@@ -351,6 +351,76 @@ async function handleMyOwnership(request, env, isSupporter) {
   }, 200);
 }
 
+// ⑩ エタロ攻略チェッカー（エキスパート難易度）。
+// マスターに実在するmission_id（stage_id*10+slotのため1〜N連番ではなく飛び飛び）の正規集合。
+// units_ownership等のMAX_UNIT_ID方式（範囲チェック）が使えないため、代わりに集合の包含チェックを行う。
+// migrations/0009でこのマスターデータを追加・変更した場合は、この集合も必ず更新すること
+const ETERNAL_ROAD_MISSION_IDS = new Set([
+  11, 12, 13, 21, 22, 23, 31, 32, 33, 41, 42, 51, 52, 61, 62, 71, 72, 81, 82, 91, 92,
+  101, 102, 111, 112, 121, 122, 131, 132, 133, 141, 142, 143, 151, 152, 161, 162,
+  171, 172, 173, 181, 182, 183, 191, 192, 201, 202, 211, 212, 221, 222, 223,
+  231, 232, 233, 241, 242, 243, 251, 252, 253, 261, 262, 271, 272, 281, 282, 291, 292
+]);
+const ETERNAL_ROAD_CLEAR_MAX_ENTRIES = 100; // 想定最大69件より十分大きい安全マージン
+
+// ⑩ エタロ攻略チェッカーのマスターデータ（ステージ・ミッション一覧）取得。
+// unit.html/supporter.htmlのUNITS配列に相当する静的参照データのため認証不要
+async function handleEternalRoadMissions(request, env) {
+  const { results } = await env.DB.prepare(
+    `SELECT mission_id, stage_id, stage_name, mission_slot, mission_type, mission_text, reward,
+            is_title, tag, title_name, confidence, sort_order
+     FROM eternal_road_missions
+     ORDER BY sort_order ASC`
+  ).all();
+  return jsonResponse({ missions: results }, 200);
+}
+
+// 所持データ（units_ownership等）と同じ「最新スナップショット方式」。
+// 送信の都度、そのuser_uidの既存クリア行を全削除してから現在のクリア状態を入れ直す
+async function replaceEternalRoadClears(env, userUid, missionIds) {
+  const now = toJstIsoString(new Date());
+  const statements = [
+    env.DB.prepare("DELETE FROM eternal_road_mission_clears WHERE user_uid = ?").bind(userUid)
+  ];
+  for (const missionId of missionIds) {
+    statements.push(
+      env.DB.prepare(
+        "INSERT INTO eternal_road_mission_clears (user_uid, mission_id, cleared_at) VALUES (?, ?, ?)"
+      ).bind(userUid, missionId, now)
+    );
+  }
+  await env.DB.batch(statements);
+}
+
+// ⑩ エタロ攻略チェッカーの「保存」ボタン押下時の同期エンドポイント。ログイン必須（設計7章）。
+// 未ログイン時はD1への保存を行わない（ゲストはlocalStorageのみで完結する）
+async function handleLogEternalRoadMissions(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) return jsonResponse({ ok: true, loggedIn: false }, 200);
+
+  let body = null;
+  try {
+    body = await request.json();
+  } catch (e) {
+    body = null;
+  }
+
+  try {
+    const raw = (body && typeof body.clearedIds === "string") ? body.clearedIds : "";
+    const parts = raw.split(",").map(s => s.trim()).filter(Boolean);
+    if (parts.length <= ETERNAL_ROAD_CLEAR_MAX_ENTRIES) {
+      const missionIds = [...new Set(parts.map(Number))].filter(
+        id => Number.isInteger(id) && ETERNAL_ROAD_MISSION_IDS.has(id)
+      );
+      await replaceEternalRoadClears(env, sessionUser.userUid, missionIds);
+    }
+  } catch (e) {
+    console.error("eternal road clears write error", e);
+  }
+
+  return jsonResponse({ ok: true, loggedIn: true }, 200);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -384,6 +454,14 @@ export default {
     // ⑪ チェッカー起動時に、ログイン中ユーザー自身の所持状況を復元するための読み出し専用API
     if ((url.pathname === "/api/my-ownership" || url.pathname === "/api/my-ownership-supporter") && request.method === "GET") {
       return handleMyOwnership(request, env, url.pathname === "/api/my-ownership-supporter");
+    }
+
+    // ⑩ エタロ攻略チェッカー（エキスパート難易度）
+    if (url.pathname === "/api/eternal-road/missions" && request.method === "GET") {
+      return handleEternalRoadMissions(request, env);
+    }
+    if (url.pathname === "/api/log-eternal-road-missions" && request.method === "POST") {
+      return handleLogEternalRoadMissions(request, env);
     }
 
     // ルートURLはトップページ（top.html）を配信する。index.htmlは廃止済み（unit.htmlへリネーム済み）のため、
