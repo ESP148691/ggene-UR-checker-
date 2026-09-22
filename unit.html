@@ -174,6 +174,16 @@
   }
   .btn-save{background:var(--gold);color:#1b1503;border-color:var(--gold);}
   .btn-share{background:transparent;color:var(--cyan);border-color:var(--cyan);}
+  .btn-register{background:transparent;color:#7fd9a0;border-color:#7fd9a0;}
+
+  .registerToast{
+    position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));
+    transform:translate(-50%,8px);
+    background:rgba(10,14,20,.95);border:1px solid #7fd9a0;color:var(--text);
+    font-size:13px;padding:10px 18px;max-width:88%;text-align:center;
+    z-index:110;opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+  }
+  .registerToast.show{opacity:1;transform:translate(-50%,0);}
 
   /* ---- 保存プレビュー用モーダル（ここに生成画像を表示。長押し/右クリックで保存） ---- */
   .previewModal{
@@ -266,9 +276,12 @@
 </div>
 
 <div class="actionbar">
+  <button class="btn-register" id="btnRegister">データ登録</button>
   <button class="btn-save" id="btnSave">画像で保存</button>
   <button class="btn-share" id="btnShare">Xでシェア</button>
 </div>
+
+<div class="registerToast" id="registerToast"></div>
 
 <div class="previewModal" id="previewModal">
   <img id="previewImg" alt="所持率カード">
@@ -299,6 +312,9 @@ const UNITS = [{"id": 1, "name": "ガンダム", "limited": false, "type": "耐�
 /* 状態管理：id -> 凸レベル(0〜3)。未所持のidはstateに存在しない。 */
 const STORAGE_KEY = "urchecker_totsu_v1";
 let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+// ⑪ チェッカー起動時のDB復元が完了する前にユーザーが凸レベルを変更した場合、
+// DBによる上書きをスキップして直近の編集を優先するためのフラグ
+let userEditedSinceLoad = false;
 
 const listEl = document.getElementById("list");
 document.getElementById("totalRef").textContent = UNITS.length;
@@ -308,6 +324,7 @@ function persist(){
 }
 
 function setLevel(id, level){
+  userEditedSinceLoad = true;
   if (level === null) delete state[id];
   else state[id] = level;
   persist(); render(); updateStats();
@@ -678,6 +695,8 @@ function buildCompactOwnershipLog(){
 // ④ 所持データ保存はログイン済みユーザーのみ対象（ゲストデータは保存しない・2026-09-19）。
 // 未ログイン時はサーバー側で個人と紐付かない匿名利用カウンタが加算されるのみで、
 // クライアント側でゲスト識別子を発行・送信する必要はなくなった
+// ⑪ 「データ登録」ボタンが結果を判定できるようPromiseを返す形に変更（btnSave/btnShareは戻り値を使わないため後方互換）。
+// keepalive:trueはXシェア時のwindow.open()直後の送信がページ遷移で打ち切られるのを防ぐため
 function sendOwnershipLog(){
   try {
     const s = computeStats();
@@ -688,13 +707,61 @@ function sendOwnershipLog(){
       avg: Number(s.avg.toFixed(2)),
       log: buildCompactOwnershipLog()
     };
-    fetch("/api/log", {
+    return fetch("/api/log", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      keepalive: true,
       body: JSON.stringify(payload)
-    }).catch(() => {});
-  } catch (e) { /* 分析用送信の失敗は利用体験に影響させない */ }
+    });
+  } catch (e) {
+    /* 分析用送信の失敗は利用体験に影響させない */
+    return Promise.reject(e);
+  }
 }
+
+let registerToastTimer = null;
+function showRegisterToast(message){
+  const el = document.getElementById("registerToast");
+  el.textContent = message;
+  el.classList.add("show");
+  clearTimeout(registerToastTimer);
+  registerToastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+}
+
+// ⑪ チェッカー起動のたびに、ログイン中であればDBの所持状況を取得して反映する
+// （ログインという操作自体はトリガーにしない）。失敗してもチェッカー本体には影響させない
+(async function restoreOwnershipFromServer(){
+  try {
+    const res = await fetch("/api/my-ownership", { credentials: "same-origin" });
+    const data = await res.json();
+    if (data && data.loggedIn && data.ownership && !userEditedSinceLoad) {
+      state = {};
+      for (const [id, level] of Object.entries(data.ownership)) state[id] = level;
+      persist(); render(); updateStats();
+    }
+  } catch (e) { /* 失敗時は既存のlocalStorage状態のまま */ }
+})();
+
+document.getElementById("btnRegister").addEventListener("click", async () => {
+  const btn = document.getElementById("btnRegister");
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "登録中...";
+  try {
+    const res = await sendOwnershipLog();
+    const data = await res.json().catch(() => null);
+    if (data && data.loggedIn) {
+      showRegisterToast("データを登録しました");
+    } else {
+      showRegisterToast("登録にはログインが必要です。右上の「ログイン」からどうぞ");
+    }
+  } catch (e) {
+    showRegisterToast("通信エラーが発生しました。時間をおいて再度お試しください");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+});
 
 document.getElementById("btnSave").addEventListener("click", async () => {
   const btn = document.getElementById("btnSave");
@@ -713,7 +780,7 @@ document.getElementById("btnSave").addEventListener("click", async () => {
     downloadLink.href = dataUrl;
     document.getElementById("previewModal").classList.add("show");
 
-    sendOwnershipLog();
+    sendOwnershipLog().catch(() => {});
 
   } catch (err) {
     console.error(err);
@@ -740,7 +807,7 @@ document.getElementById("btnShare").addEventListener("click", () => {
   }
   window.open(intent, "_blank");
 
-  sendOwnershipLog();
+  sendOwnershipLog().catch(() => {});
 });
 
 render();

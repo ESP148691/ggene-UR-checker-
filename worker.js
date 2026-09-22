@@ -34,6 +34,16 @@ async function getSessionUser(request, env) {
   return { userUid: row.user_uid, username: row.username, token };
 }
 
+// Date（UTC内部値）を、JST（UTC+9）のウォールクロック時刻を数値として持つISO8601文字列に変換する。
+// 実装: 内部時刻に9時間を加算してからtoISOString()し、末尾のZを+09:00に置き換える
+// （加算後のtoISOString()の各桁はJSTの時刻と一致するため、オフセット表記だけ付け替えれば正しいJST表現になる）
+// 適用対象はunits_ownership/supporters_ownershipのregistered_atのみ（⑪）。
+// users/sessionsの他タイムスタンプはセッション有効期限判定等の内部比較に使われるためUTCのまま変更しない
+function toJstIsoString(date) {
+  const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  return jst.toISOString().replace("Z", "+09:00");
+}
+
 async function createSession(env, userUid) {
   const token = crypto.randomUUID() + crypto.randomUUID();
   const now = new Date();
@@ -183,7 +193,7 @@ async function incrementUsageCounter(env, counterKey) {
 // 送信の都度、そのuser_uidの既存行を削除してから現在の所持状態を入れ直す
 // （バッチ処理のため、Workerからのラウンドトリップは1回で済む）
 async function replaceOwnership(env, table, idColumn, userUid, entries) {
-  const now = new Date().toISOString();
+  const now = toJstIsoString(new Date()); // ⑪ 表示用のregistered_atはJST表記で保存する
   const statements = [
     env.DB.prepare(`DELETE FROM ${table} WHERE user_uid = ?`).bind(userUid)
   ];
@@ -210,8 +220,9 @@ async function handleOwnershipLog(request, env, isSupporter) {
   }
 
   // ここで例外が起きてもチェッカー本体（画像生成・プレビュー・シェア）は常に成功させる
+  let sessionUser = null;
   try {
-    const sessionUser = await getSessionUser(request, env);
+    sessionUser = await getSessionUser(request, env);
     if (sessionUser && body) {
       const entries = parseCompactOwnershipLog(body.log, isSupporter ? MAX_SUPPORTER_ID : MAX_UNIT_ID);
       await touchUserLastSeen(env, sessionUser.userUid);
@@ -229,7 +240,9 @@ async function handleOwnershipLog(request, env, isSupporter) {
     console.error("ownership d1 write error", e);
   }
 
-  return new Response("ok", { status: 200 });
+  // ⑪「データ登録」ボタンが結果をユーザーに明示できるよう、ログイン状態をJSONで返す
+  // （btnSave/btnShareは従来通りレスポンス本文を読まないため影響なし）
+  return jsonResponse({ ok: true, loggedIn: !!sessionUser }, 200);
 }
 
 // ④ 所持データの分析（全体所持率ランキング）API。ログイン済みユーザーのみ利用可能。
@@ -280,6 +293,23 @@ async function handleAnalytics(request, env, isSupporter) {
   return jsonResponse({ totalUsers, ranking, mine }, 200);
 }
 
+// ⑪ チェッカー起動時（ページ読み込み時）に、ログイン中ユーザー自身の所持データだけを軽量に返す。
+// handleAnalytics()のmine取得ロジックと同等だが、ランキング集計を伴わない専用エンドポイントとして切り出す
+async function handleMyOwnership(request, env, isSupporter) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) return jsonResponse({ loggedIn: false }, 200);
+
+  const table = isSupporter ? "supporters_ownership" : "units_ownership";
+  const idColumn = isSupporter ? "supporter_id" : "unit_id";
+  const { results } = await env.DB.prepare(
+    `SELECT ${idColumn} AS id, level FROM ${table} WHERE user_uid = ?`
+  ).bind(sessionUser.userUid).all();
+
+  const ownership = {};
+  for (const row of results) ownership[String(row.id)] = row.level;
+  return jsonResponse({ loggedIn: true, ownership }, 200);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -308,6 +338,11 @@ export default {
     // ④ 所持データ分析（全体所持率ランキング）API。ログイン済みユーザーのみ利用可能
     if ((url.pathname === "/api/analytics/units" || url.pathname === "/api/analytics/supporters") && request.method === "GET") {
       return handleAnalytics(request, env, url.pathname === "/api/analytics/supporters");
+    }
+
+    // ⑪ チェッカー起動時に、ログイン中ユーザー自身の所持状況を復元するための読み出し専用API
+    if ((url.pathname === "/api/my-ownership" || url.pathname === "/api/my-ownership-supporter") && request.method === "GET") {
+      return handleMyOwnership(request, env, url.pathname === "/api/my-ownership-supporter");
     }
 
     // ルートURLはトップページ（top.html）を配信する。index.htmlは廃止済み（unit.htmlへリネーム済み）のため、
