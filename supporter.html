@@ -740,6 +740,8 @@ document.getElementById("btnShare").addEventListener("click", () => {
     intent += "&url=" + encodeURIComponent(CONFIG.quotePostUrl);
   }
   window.open(intent, "_blank");
+
+  sendOwnershipLog();
 });
 
 render();
