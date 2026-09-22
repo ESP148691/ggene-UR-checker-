@@ -491,11 +491,13 @@
     el.textContent = `該当 ${n} / ${ranking.length}${unitWord}`;
   }
 
+  // ⑫ 「まだ同期されていません」の表示条件は、所持データの件数（mine）ではなく
+  // 「そのチェッカーで一度でもデータ登録したか（registered）」で判定する。
+  // mineの件数だけで判定すると、登録済みだが所持0件のユーザーにも誤って案内が出続けてしまうため
   function renderSyncNote(tabKey){
     const isSupporter = tabKey === "supporters";
     const note = document.getElementById(isSupporter ? "syncNoteSupporters" : "syncNoteUnits");
-    const mine = dataCache[tabKey].mine;
-    note.hidden = Object.keys(mine).length > 0;
+    note.hidden = dataCache[tabKey].registered;
   }
 
   function renderTab(tabKey){
@@ -595,12 +597,14 @@
       dataCache.units = {
         ranked: withPctInt(unitsData.ranking || [], unitsTotalUsers),
         mine: unitsData.mine || {},
-        totalUsers: unitsTotalUsers
+        totalUsers: unitsTotalUsers,
+        registered: !!unitsData.registered
       };
       dataCache.supporters = {
         ranked: withPctInt(supportersData.ranking || [], supportersTotalUsers),
         mine: supportersData.mine || {},
-        totalUsers: supportersTotalUsers
+        totalUsers: supportersTotalUsers,
+        registered: !!supportersData.registered
       };
 
       const totalUsers = dataCache.units.totalUsers;

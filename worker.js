@@ -173,11 +173,18 @@ function parseCompactOwnershipLog(log, maxId) {
   return out;
 }
 
-// ログイン中ユーザーのlast_seenを更新する。sessionUserは必ずusersテーブルの既存行（handleRegister()で
-// 作成済み）から取得されるため、ここで対象行が存在しないケースはない
-async function touchUserLastSeen(env, userUid) {
-  const now = new Date().toISOString();
-  await env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(now, userUid).run();
+// ログイン中ユーザーのlast_seenを更新し、あわせて該当種別（ユニット/サポート）の初回データ登録日時を
+// セットする。sessionUserは必ずusersテーブルの既存行（handleRegister()で作成済み）から取得されるため、
+// ここで対象行が存在しないケースはない。
+// ⑫ 初回登録日時はCOALESCEで一度だけセットする（2回目以降の登録では値が変化しない）。所持0件の登録でも
+// この関数はentriesの件数に関わらず必ず呼ばれるため、「登録済みだが所持0」も正しくフラグが立つ
+async function touchUserLastSeenAndMarkRegistered(env, userUid, isSupporter) {
+  const now = new Date().toISOString(); // last_seenは⑪の対象外のままUTCを維持（既存方針を踏襲）
+  const nowJst = toJstIsoString(new Date()); // 初回登録日時は⑪で導入したJST表記に統一
+  const column = isSupporter ? "supporters_first_registered_at" : "units_first_registered_at";
+  await env.DB.prepare(
+    `UPDATE users SET last_seen = ?, ${column} = COALESCE(${column}, ?) WHERE user_uid = ?`
+  ).bind(now, nowJst, userUid).run();
 }
 
 // ④ ゲスト（未ログイン）からの利用回数カウンタ。個人と紐付かない匿名の集計値として、
@@ -225,7 +232,7 @@ async function handleOwnershipLog(request, env, isSupporter) {
     sessionUser = await getSessionUser(request, env);
     if (sessionUser && body) {
       const entries = parseCompactOwnershipLog(body.log, isSupporter ? MAX_SUPPORTER_ID : MAX_UNIT_ID);
-      await touchUserLastSeen(env, sessionUser.userUid);
+      await touchUserLastSeenAndMarkRegistered(env, sessionUser.userUid, isSupporter);
       await replaceOwnership(
         env,
         isSupporter ? "supporters_ownership" : "units_ownership",
@@ -246,8 +253,10 @@ async function handleOwnershipLog(request, env, isSupporter) {
 }
 
 // ④ 所持データの分析（全体所持率ランキング）API。ログイン済みユーザーのみ利用可能。
-// 母数（totalUsers）はusersテーブルの全件数。0003/0004マイグレーション適用後はusers＝登録済み
-// アカウントのみになる前提（ゲスト行は残らない）ため、username IS NOT NULL等の絞り込みは不要
+// ⑫ 母数（totalUsers）は「該当種別（ユニット/サポート）でデータ登録済みのユーザー」に限定する
+// （usersテーブル全件だと、一度もチェッカーで登録していないアカウントまで母数に含まれ所持率が
+// 実態より低く出てしまうため）。分子（owned_count）は元々ownershipテーブルの行数＝登録済み
+// ユーザーの中の所持者数だったため、この変更でownedRateの定義が一貫する
 // ⑦ ティアリスト化にあたり、ログイン中ユーザー自身の所持状況`mine`（id→凸レベル）も併せて返す
 async function handleAnalytics(request, env, isSupporter) {
   const sessionUser = await getSessionUser(request, env);
@@ -259,6 +268,7 @@ async function handleAnalytics(request, env, isSupporter) {
   const ownershipTable = isSupporter ? "supporters_ownership" : "units_ownership";
   const idColumn = isSupporter ? "supporter_id" : "unit_id";
   const attrColumn = isSupporter ? "skill" : "type";
+  const registeredColumn = isSupporter ? "supporters_first_registered_at" : "units_first_registered_at";
 
   const { results } = await env.DB.prepare(
     `SELECT m.${idColumn} AS id, m.name AS name, m.${attrColumn} AS attr, m.limited AS limited,
@@ -269,7 +279,9 @@ async function handleAnalytics(request, env, isSupporter) {
      ORDER BY owned_count DESC, m.${idColumn} ASC`
   ).all();
 
-  const totalRow = await env.DB.prepare("SELECT COUNT(*) AS c FROM users").first();
+  const totalRow = await env.DB.prepare(
+    `SELECT COUNT(*) AS c FROM users WHERE ${registeredColumn} IS NOT NULL`
+  ).first();
   const totalUsers = totalRow ? totalRow.c : 0;
   const idKey = isSupporter ? "supporterId" : "unitId";
 
@@ -290,24 +302,40 @@ async function handleAnalytics(request, env, isSupporter) {
     mine[String(row.id)] = row.level;
   }
 
-  return jsonResponse({ totalUsers, ranking, mine }, 200);
+  // ⑫ ログイン中ユーザー自身の初回データ登録フラグ（analytics.htmlのsyncNote判定に使用）
+  const userRow = await env.DB.prepare(
+    `SELECT ${registeredColumn} AS registeredAt FROM users WHERE user_uid = ?`
+  ).bind(sessionUser.userUid).first();
+
+  return jsonResponse({ totalUsers, ranking, mine, registered: !!(userRow && userRow.registeredAt) }, 200);
 }
 
 // ⑪ チェッカー起動時（ページ読み込み時）に、ログイン中ユーザー自身の所持データだけを軽量に返す。
 // handleAnalytics()のmine取得ロジックと同等だが、ランキング集計を伴わない専用エンドポイントとして切り出す
+// ⑫ 「登録済みだが所持0件」と「未登録」を区別できるよう、初回データ登録フラグ`registered`も返す
 async function handleMyOwnership(request, env, isSupporter) {
   const sessionUser = await getSessionUser(request, env);
   if (!sessionUser) return jsonResponse({ loggedIn: false }, 200);
 
   const table = isSupporter ? "supporters_ownership" : "units_ownership";
   const idColumn = isSupporter ? "supporter_id" : "unit_id";
+  const registeredColumn = isSupporter ? "supporters_first_registered_at" : "units_first_registered_at";
+
+  const userRow = await env.DB.prepare(
+    `SELECT ${registeredColumn} AS registeredAt FROM users WHERE user_uid = ?`
+  ).bind(sessionUser.userUid).first();
+
   const { results } = await env.DB.prepare(
     `SELECT ${idColumn} AS id, level FROM ${table} WHERE user_uid = ?`
   ).bind(sessionUser.userUid).all();
 
   const ownership = {};
   for (const row of results) ownership[String(row.id)] = row.level;
-  return jsonResponse({ loggedIn: true, ownership }, 200);
+  return jsonResponse({
+    loggedIn: true,
+    registered: !!(userRow && userRow.registeredAt),
+    ownership
+  }, 200);
 }
 
 export default {

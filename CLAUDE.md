@@ -26,6 +26,7 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `migrations/0003_purge_guest_data.sql` — 既存のゲスト所持データ・ゲストuser行の一括削除。**適用済み（2026-09-20、Cloudflareダッシュボードで手動適用）**
 - `migrations/0004_usage_counters.sql` — ゲスト利用回数カウンタ`usage_counters`テーブル新設。**適用済み（2026-09-20、Cloudflareダッシュボードで手動適用）**
 - `migrations/0005_fix_registered_at_to_jst.sql` — 既存の`units_ownership`/`supporters_ownership`の`registered_at`（UTC）をJST（`+09:00`）表記へ一括変換。スキーマ変更なし・冪等。**未適用（要Cloudflareダッシュボードでの手動適用）**
+- `migrations/0006_add_first_registered_flag.sql` — `users`に`units_first_registered_at`/`supporters_first_registered_at`カラムを追加し、既存ownershipデータからバックフィル。冪等。**適用済み（2026-09-22、ユーザーが事前にCloudflareダッシュボードで手動適用）**
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
 
@@ -374,8 +375,25 @@ git commit（コミット`331868a`）→ `git push origin main`実行済み。Cl
 - `migrations/0005_fix_registered_at_to_jst.sql`のCloudflareダッシュボードでの手動適用（0001〜0004と同じ手順。D1 > Console）
 - 本番デプロイ後の実機確認（PC/スマホ通常ブラウザ/スマホXアプリ内蔵ブラウザ × 画像保存/Xシェア/データ登録。特にXアプリ内蔵ブラウザでの`keepalive`の効果を重点確認）
 
+### ⑫ 初回データ登録フラグ（コード実装・検証・git commit・push完了・2026-09-22。D1マイグレーションは事前にユーザーが適用済み）
+Cowork側の設計資料`docs/⑫初回データ登録フラグ_設計.md`に基づき実装した。⑪完了後、ユーザーから「URを1件も所持していないユーザがデータ登録したケース」と「そもそもデータ登録していないユーザのケース」を区別したい、との追加要望があった。**このセッション開始時点で、必要な`migrations/0006_add_first_registered_flag.sql`はユーザーが既にCloudflareダッシュボードで本番D1に適用済みだった**（コード側はリポジトリへのファイル追加のみ）。
+
+1. **背景**：`units_ownership`等は「その時点の所持状況のスナップショット」のみを保持するため、所持0件で登録した場合はDBに行が一切残らず、「未登録」と区別できなかった。この結果、`analytics.html`の同期案内（`syncNote`）が、登録済み・所持0のユーザーにも「まだ同期されていません」と誤表示し続けていた
+2. **`users`テーブルへのカラム追加**：`units_first_registered_at`／`supporters_first_registered_at`（TEXT・JST）を追加。**ユニット／サポートで別カラムに分けた**（④の設計確認で「機体チェッカー押下時はunits_ownershipのみに保存」を重視した past decisionと同じ考え方で、片方のチェッカーしか使わないユーザーの状態を正しく表現するため）。真偽値ではなく日時にしたのは、`toJstIsoString()`との表記統一と、`users.first_seen`を残した過去判断と同じ理由（将来の分析転用の可能性）
+3. **`worker.js`の変更**：`touchUserLastSeen()`を`touchUserLastSeenAndMarkRegistered(env, userUid, isSupporter)`に置き換え、`UPDATE users SET last_seen = ?, ${column} = COALESCE(${column}, ?) WHERE user_uid = ?`で初回登録日時を一度だけセットする。`handleOwnershipLog()`はentriesの件数に関わらずこの関数を必ず呼ぶ既存の作り（コード変更不要）だったため、所持0件の登録でも確実にフラグが立つ。`handleMyOwnership()`・`handleAnalytics()`のレスポンスに`registered`フィールドを追加した
+4. **所持率の母数フィルタ（追加スコープ）**：設計提示後、ユーザーから「未登録ユーザーは所持率分析の対象外とすべきでは」との確認があり、調査の結果、当初案では`handleAnalytics()`の`totalUsers`（母数）が`users`全件数のままだったことが判明。分子（`owned_count`）は元々「データ登録済みユーザーの中の所持者数」だったため、分母もこれに揃えるべきと合意し、`totalUsers`のクエリを`WHERE ${registeredColumn} IS NOT NULL`に変更した。**この変更により、デプロイ後は各ユニット・サポートの表示所持率が一段階上昇する**（母数縮小のため。意図した挙動）
+5. **`analytics.html`の変更**：`dataCache`に`registered`を追加してキャッシュし、`syncNote`の表示条件を`Object.keys(mine).length > 0`（所持データの件数）から`dataCache[tabKey].registered`（登録済みフラグ）に変更。これが今回のユーザー実害（登録済み・所持0でも同期案内が出続ける）の直接修正
+6. **`unit.html`／`supporter.html`は変更不要**：`/api/my-ownership`系のレスポンスに`registered`が増えるが、現状のクライアント側は`ownership`のみ参照しており動作に影響しない（将来の⑥所持状況参照画面で活用予定）
+7. **既存データのバックフィル（`migrations/0006`）**：「現在ownershipテーブルに行が残っているユーザーのみ」を登録済みとみなす（過去に所持0件で登録した可能性のあるユーザーは区別できないため、保守的に「未登録」のまま扱う。実害は少ない側に倒す判断）。バックフィルする初回登録日時は、当初案「現存する行のregistered_at（近似値）」から**ユーザー指示によりマイグレーション適用日（JST・一律）に変更**した
+
+**検証**：この開発環境にはNode.jsが無いため、`worker.js`の変更はCDN経由のsql.js（WebAssembly版SQLite）をPlaywrightのChromiumページ上に読み込むブラウザ内テストハーネスで検証（全13件成功：所持0件登録でのフラグ立て、`COALESCE`による再登録時の非上書き、`handleMyOwnership()`/`handleAnalytics()`の`registered`、ユニット/サポートの独立性、`totalUsers`の母数フィルタ、既存回帰）。`migrations/0006`のバックフィルSQLも同様にsql.js上で直接実行し、ユニット/サポート独立の判定・JST形式・冪等性を確認済み（全7件成功）。`analytics.html`はPlaywright UIテストで、`registered:false`／`registered:true`+所持0件（実害の直接確認）／`registered:true`+所持あり（回帰）の3パターンをユニット・サポート両タブで確認済み（全6件成功）。ローカル静的配信固有の`/top`プリフェッチ404は既知のノイズとして除外している（テストハーネスはリポジトリには含めず検証後削除）。
+`docs/WEBサイト仕様書.md`も1.2節（マイグレーション一覧）・2.5節（分析ページ機能）・3章（API一覧）・4章（DB設計）・5.-2節（新規テストケース）・6章（既知の制約）・7章（関連資料）を更新済み。
+
+git commit → `git push origin main`。Cloudflare Workersの自動デプロイにより本番環境へ反映される見込み（ユーザーの承認を得てcommit・push済み）。
+
 ## 次にやること
-- ⑪の未実施項目（上記参照）：`migrations/0005`のD1適用、本番実機確認
+- ⑪の未実施項目：`migrations/0005`のD1適用、本番実機確認（PC/スマホ通常ブラウザ/スマホXアプリ内蔵ブラウザ × 画像保存/Xシェア/データ登録）
+- ⑫のデプロイ後確認：本番の所持率表示が母数フィルタ適用後に上昇していること（急な低下があれば`registeredColumn`の指定誤りを疑う）。数値変化のX等での告知要否はユーザー判断
 - ⑦・⑨から継続：凸レベル別内訳（完凸率等）、期間限定/恒常別の切り替え集計、PCでのポップオーバー化、タイル長押し比較、絞り込み条件の複数選択（例：攻撃と支援を同時に）、絞り込み状態の保存（`localStorage`）、所持率の並べ替え切り替え（No.順・名前順）
 - ⑩エタロ攻略チェッカー（設計完了・実装待ち。`docs/⑩エタロ攻略チェッカー_エキスパート詳細設計.md`）
 - 次にどのテーマ（エタロ攻略/称号獲得チェッカー追加、自己紹介カード自動生成、「クリア率」分析 等）に着手するかは、次回セッション冒頭でユーザーに確認すること
