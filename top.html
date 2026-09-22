@@ -220,8 +220,7 @@
     .route{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
     .route .navcard{margin-bottom:0;}
     .route::before{display:none;} /* 縦一列の航路線は2カラムでは意味をなさないため非表示 */
-    /* ⑩実装によりROUTE 03がsoonGroupから.routeへ移動し、soonGroupはROUTE 04単体になったため
-       2カラム化はせず、幅を活かした単一の横長カードとして表示する */
+    .soonGroup{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
     .soonGroup .navcard{margin-bottom:0;}
   }
 </style>
@@ -268,14 +267,6 @@
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
-    <a class="navcard" href="/eternal-road.html">
-      <div class="icon analyticsIcon" aria-hidden="true">🚩</div>
-      <div class="body">
-        <div class="name">エタロ攻略<wbr>チェッカー</div>
-        <div class="desc">エターナルロード エキスパート全29ステージ・69ミッションの達成状況を記録</div>
-      </div>
-      <div class="arrow">&rsaquo;</div>
-    </a>
   </div>
 
   <div class="section" id="analyticsSection" hidden>
@@ -292,6 +283,13 @@
 
   <div class="section soonGroup">
     <p class="sectionLabel">今後追加予定</p>
+    <!-- エタロ攻略チェッカーはコード上は実装済み（/eternal-road.html）。
+         ユーザーによるテスト運用が完了しトップページ解放の指示があるまでは、
+         このComing Soonカードのまま導線を出さない -->
+    <div class="navcard soon">
+      <div class="routeTag"><span class="dot"></span>ROUTE 03</div>
+      <div class="soonTitle">COMING SOON</div>
+    </div>
     <!-- 確定時: ROUTE 04 → 「称号獲得チェッカー」のnavcard（route内と同じ構造）に差し替え -->
     <div class="navcard soon">
       <div class="routeTag"><span class="dot"></span>ROUTE 04</div>

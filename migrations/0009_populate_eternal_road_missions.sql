@@ -1,12 +1,3 @@
--- migrations/0009_populate_eternal_road_missions.sql
--- ⑩⑭ エタロ攻略チェッカー（エキスパート難易度）のマスターデータ投入。
--- エキスパート全29ステージ・69ミッション（うち称号ミッション11件）。
--- インポート元: docs/エタロエキスパート_ミッションマスター案_確定版.csv
---（⑩付属の元CSVではなく、⑭で全33件の実機確認を反映した確定版を使用。
---  称号名10件〈No.1/2/3/13/14/17/18/22/23/25〉＋No.24の3件が確定済み）
--- evidence・ingame_check_needed列はCowork側の調査過程の記録用のため、
--- eternal_road_missionsテーブルのスキーマには含めていない（インポート対象外）。
-
 INSERT INTO eternal_road_missions
   (mission_id, stage_id, stage_name, mission_slot, mission_type, mission_text, reward, is_title, tag, title_name, confidence, sort_order)
 VALUES
