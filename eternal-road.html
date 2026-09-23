@@ -129,6 +129,15 @@
   .toggleItem label{cursor:pointer;}
   .emptyMsg{color:var(--muted);font-size:13px;text-align:center;padding:24px 0;}
 
+  /* ---- 一括操作 ---- */
+  .bulkRow{margin:0 0 14px;}
+  .bulkRow button{
+    width:100%;font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:12.5px;
+    background:var(--panel-2);border:1px solid var(--line-strong);color:var(--text);
+    padding:9px 8px;cursor:pointer;border-radius:4px;
+  }
+  .bulkRow button:hover{border-color:var(--gold-dim);}
+
   /* ---- ステージカード ---- */
   .stageCard{
     background:var(--panel);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);
@@ -266,6 +275,10 @@
       <div class="summaryItem"><div class="v" id="sumPerfect">0 / 29</div><div class="l">全ミッション達成</div></div>
       <div class="summaryItem"><div class="v" id="sumMissions">0 / 69</div><div class="l">ミッション達成</div></div>
       <div class="summaryItem"><div class="v" id="sumTitles">0 / 11</div><div class="l">称号獲得</div></div>
+    </div>
+
+    <div class="bulkRow">
+      <button type="button" id="btnAllComplete">全ステージ・全ミッションを達成にする</button>
     </div>
 
     <div class="statusTabs" id="statusTabs">
@@ -576,6 +589,17 @@ function toggleMission(stage, m, checked){
   persist();
   refresh();
 }
+
+// 1件ずつチェックする手間を省くための一括操作。全69件を上書きするため確認を挟む
+document.getElementById("btnAllComplete").addEventListener("click", () => {
+  if (!confirm("全29ステージ・全ミッションを達成済みにします。よろしいですか？")) return;
+  userEditedSinceLoad = true;
+  clearedStages = new Set(stages.map(s => s.stage_id));
+  clearedMissions = new Set(missions.map(m => m.mission_id));
+  persist();
+  refresh();
+  showRegisterToast("全ミッションを達成にしました。DBへの反映は「データ登録」から");
+});
 
 document.getElementById("statusTabs").addEventListener("click", (e) => {
   const btn = e.target.closest("button");
