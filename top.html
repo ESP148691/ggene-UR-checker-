@@ -184,6 +184,20 @@
   }
   .navcard .desc{color:var(--muted);font-size:12.5px;margin-top:4px;line-height:1.5;}
   .navcard .arrow{flex:0 0 auto;color:var(--cyan);font-size:19px;}
+  /* ログイン中のみ：各チェッカーのデータ登録状況（/api/my-ownership系から取得） */
+  .navcard .regBadge{
+    display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin-top:9px;
+    font-size:11.5px;line-height:1.5;padding:4px 9px;border-radius:3px;
+    background:rgba(5,7,13,.45);border:1px solid var(--line-strong);color:var(--text);
+  }
+  .navcard .regBadge[hidden]{display:none;}
+  .navcard .regBadge .st{font-weight:700;white-space:nowrap;}
+  .navcard .regBadge.ok{border-color:rgba(127,217,160,.55);}
+  .navcard .regBadge.ok .st{color:#7fd9a0;}
+  .navcard .regBadge.todo{border-color:rgba(218,185,73,.55);}
+  .navcard .regBadge.todo .st{color:var(--gold);}
+  .navcard .regBadge .rate{font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;}
+  .navcard .regBadge .cnt{color:var(--muted);white-space:nowrap;}
 
   .navcard.soon{
     cursor:default;flex-direction:row;align-items:center;justify-content:space-between;text-align:left;
@@ -256,6 +270,7 @@
       <div class="body">
         <div class="name">URユニット<wbr>所持率<wbr>チェッカー</div>
         <div class="desc">全84機のURユニット所持状況を記録・可視化</div>
+        <div class="regBadge" data-reg="unit" hidden></div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
@@ -264,6 +279,7 @@
       <div class="body">
         <div class="name">URサポート<wbr>所持率<wbr>チェッカー</div>
         <div class="desc">全49体のURサポート所持状況を記録・可視化</div>
+        <div class="regBadge" data-reg="supporter" hidden></div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
@@ -547,10 +563,42 @@
     fetch('/api/me', { credentials: 'same-origin' })
       .then(function(res){ return res.json(); })
       .then(function(data){
-        if (data && data.loggedIn) section.hidden = false;
+        if (data && data.loggedIn) {
+          section.hidden = false;
+          showRegStatus();
+        }
       })
       .catch(function(){ /* 失敗時は非表示のまま（ゲスト表示にフォールバック） */ });
   })();
+
+  /* ---------------- ログイン中のみ、各チェッカーのデータ登録状況を導線カードに表示 ----------------
+     登録済みならDBに登録されている所持率、未登録ならデータ登録を促す。取得失敗時は何も表示しない */
+  function showRegStatus(){
+    var targets = [
+      { key: 'unit', api: '/api/my-ownership', total: UNIT_IMAGES.length, word: '機' },
+      { key: 'supporter', api: '/api/my-ownership-supporter', total: SUPPORTER_IMAGES.length, word: '体' }
+    ];
+    targets.forEach(function(t){
+      var el = document.querySelector('.regBadge[data-reg="' + t.key + '"]');
+      if (!el) return;
+      fetch(t.api, { credentials: 'same-origin' })
+        .then(function(res){ return res.json(); })
+        .then(function(data){
+          if (!data || !data.loggedIn) return;
+          if (data.registered) {
+            var count = Object.keys(data.ownership || {}).filter(function(id){ var n = Number(id); return n >= 1 && n <= t.total; }).length;
+            var pct = t.total ? Math.round(count / t.total * 100) : 0;
+            el.className = 'regBadge ok';
+            el.innerHTML = '<span class="st">✓ データ登録済み</span><span>所持率 <span class="rate">' + pct + '%</span> <span class="cnt">(' + count + ' / ' + t.total + t.word + ')</span></span>';
+          } else {
+            el.className = 'regBadge todo';
+            el.innerHTML = '<span class="st">未登録</span><span>開いて「データ登録」を押してください</span>';
+          }
+          el.hidden = false;
+        })
+        .catch(function(){ /* 失敗時は表示しない */ });
+    });
+  }
 })();
 </script>
 <script src="auth.js" defer></script>
