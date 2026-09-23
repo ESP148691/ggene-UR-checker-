@@ -77,7 +77,7 @@
 
   /* ---- 集計対象の明記 ---- */
   .sampleNote{
-    display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);
+    display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:11.5px;color:var(--muted);
     background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;
     padding:9px 12px;margin:0 0 18px;
   }
@@ -210,7 +210,7 @@
 
   <div id="contentView" hidden>
     <div class="headArea">
-      <div class="sampleNote">集計対象：登録ユーザー <strong id="totalUsersText">-</strong> 人のデータ</div>
+      <div class="sampleNote"><span>集計対象（データ登録済みユーザー）：</span><span>URユニット <strong id="totalUsersUnits">-</strong> 人</span><span>／ URサポート <strong id="totalUsersSupporters">-</strong> 人</span></div>
 
       <div class="tabs">
         <button type="button" data-tab="units" class="active">URユニット</button>
@@ -333,7 +333,6 @@
   const contentView = document.getElementById("contentView");
   const errorView = document.getElementById("errorView");
   const noUsersMsg = document.getElementById("noUsersMsg");
-  const totalUsersText = document.getElementById("totalUsersText");
   const tabs = document.querySelectorAll(".tabs button");
   const mainWrap = document.getElementById("mainWrap");
 
@@ -608,7 +607,9 @@
       };
 
       const totalUsers = dataCache.units.totalUsers;
-      totalUsersText.textContent = String(totalUsers);
+      // ユニット・サポートで集計対象（データ登録済みユーザー数）が異なるため両方を表示する
+      document.getElementById("totalUsersUnits").textContent = String(dataCache.units.totalUsers);
+      document.getElementById("totalUsersSupporters").textContent = String(dataCache.supporters.totalUsers);
 
       if (totalUsers === 0) {
         noUsersMsg.hidden = false;

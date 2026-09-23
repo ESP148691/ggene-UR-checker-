@@ -176,6 +176,19 @@
   .btn-share{background:transparent;color:var(--cyan);border-color:var(--cyan);}
   .btn-register{background:transparent;color:#7fd9a0;border-color:#7fd9a0;}
 
+  /* ---- データ登録状況（ログイン中のみ表示） ---- */
+  .regStatus{
+    background:var(--panel);border:1px solid var(--line);border-left-width:3px;
+    padding:10px 12px;margin-bottom:14px;font-size:12.5px;line-height:1.7;color:var(--text);
+  }
+  .regStatus.ok{border-left-color:#7fd9a0;}
+  .regStatus.todo{border-left-color:var(--gold);}
+  .regStatus .head{font-weight:700;}
+  .regStatus.ok .head{color:#7fd9a0;}
+  .regStatus.todo .head{color:var(--gold);}
+  .regStatus .rate{font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:15px;}
+  .regStatus .note{display:block;color:var(--muted);font-size:11.5px;margin-top:2px;}
+
   .registerToast{
     position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));
     transform:translate(-50%,8px);
@@ -221,6 +234,8 @@
     <h1>UR所持率チェッカー</h1>
   </div>
   <p class="sub">各ユニットの限界突破（凸）段階をタップして記録してください。所持率が自動計算されます。（全<span id="totalRef">0</span>機収録）</p>
+
+  <div class="regStatus" id="regStatus" hidden></div>
 
   <div class="hud gauge-card">
     <div class="c2"></div>
@@ -408,6 +423,7 @@ function updateStats(){
   document.getElementById("statLimited").textContent = `${s.limitedOwned} / ${s.limitedTotal}`;
   document.getElementById("statAtk").textContent = `${s.typeOwned["攻撃"]} / ${s.typeTotals["攻撃"]}`;
   document.getElementById("statSup").textContent = `${s.typeOwned["支援"]} / ${s.typeTotals["支援"]}`;
+  updateRegStatus();
   document.getElementById("statDur").textContent = `${s.typeOwned["耐久"]} / ${s.typeTotals["耐久"]}`;
 }
 
@@ -728,17 +744,63 @@ function showRegisterToast(message){
   registerToastTimer = setTimeout(() => el.classList.remove("show"), 3200);
 }
 
+// ログイン中ユーザーのデータ登録状況。registeredOwnershipはDBに登録済みの所持状況（id→凸レベル）、
+// 未登録ならnull。loggedInForRegがfalse（未ログイン・確認前）の間は表示しない
+let loggedInForReg = false;
+let registeredOwnership = null;
+
+function ownershipKey(obj){
+  return JSON.stringify(Object.keys(obj).map(Number).sort((a, b) => a - b).map(id => [id, obj[id]]));
+}
+
+function updateRegStatus(){
+  const el = document.getElementById("regStatus");
+  if (!loggedInForReg) { el.hidden = true; return; }
+  el.hidden = false;
+  if (registeredOwnership) {
+    const total = UNITS.length;
+    const count = Object.keys(registeredOwnership).filter(id => UNITS.some(u => u.id === Number(id))).length;
+    const pct = total ? Math.round((count / total) * 100) : 0;
+    const dirty = ownershipKey(registeredOwnership) !== ownershipKey(state);
+    el.className = "regStatus ok";
+    el.innerHTML = `<span class="head">✓ データ登録済み</span>　登録中の所持率 <span class="rate">${pct}%</span>（${count} / ${total}機）` +
+      (dirty ? `<span class="note">※登録後に変更した内容があります。「データ登録」を押すと反映されます</span>` : "");
+  } else {
+    el.className = "regStatus todo";
+    el.innerHTML = `<span class="head">まだデータ登録されていません</span><span class="note">下の「データ登録」を押すと所持状況が保存され、みんなの所持率ランキングにも反映されます</span>`;
+  }
+}
+
+// 送信時点の所持状況を控えておき、ログイン中として保存できたら「登録済み」の表示を更新する
+function sendOwnershipLogAndTrack(){
+  const snapshot = Object.assign({}, state);
+  const p = sendOwnershipLog();
+  return p.then(res => res.clone().json().catch(() => null).then(data => {
+    if (data && data.loggedIn) {
+      loggedInForReg = true;
+      registeredOwnership = snapshot;
+      updateRegStatus();
+    }
+    return res;
+  }));
+}
+
 // ⑪ チェッカー起動のたびに、ログイン中であればDBの所持状況を取得して反映する
 // （ログインという操作自体はトリガーにしない）。失敗してもチェッカー本体には影響させない
 (async function restoreOwnershipFromServer(){
   try {
     const res = await fetch("/api/my-ownership", { credentials: "same-origin" });
     const data = await res.json();
+    if (data && data.loggedIn) {
+      loggedInForReg = true;
+      registeredOwnership = data.registered ? Object.assign({}, data.ownership || {}) : null;
+    }
     if (data && data.loggedIn && data.ownership && !userEditedSinceLoad) {
       state = {};
       for (const [id, level] of Object.entries(data.ownership)) state[id] = level;
       persist(); render(); updateStats();
     }
+    updateRegStatus();
   } catch (e) { /* 失敗時は既存のlocalStorage状態のまま */ }
 })();
 
@@ -748,7 +810,7 @@ document.getElementById("btnRegister").addEventListener("click", async () => {
   btn.disabled = true;
   btn.textContent = "登録中...";
   try {
-    const res = await sendOwnershipLog();
+    const res = await sendOwnershipLogAndTrack();
     const data = await res.json().catch(() => null);
     if (data && data.loggedIn) {
       showRegisterToast("データを登録しました");
@@ -780,7 +842,7 @@ document.getElementById("btnSave").addEventListener("click", async () => {
     downloadLink.href = dataUrl;
     document.getElementById("previewModal").classList.add("show");
 
-    sendOwnershipLog().catch(() => {});
+    sendOwnershipLogAndTrack().catch(() => {});
 
   } catch (err) {
     console.error(err);
@@ -807,7 +869,7 @@ document.getElementById("btnShare").addEventListener("click", () => {
   }
   window.open(intent, "_blank");
 
-  sendOwnershipLog().catch(() => {});
+  sendOwnershipLogAndTrack().catch(() => {});
 });
 
 render();
