@@ -594,7 +594,7 @@
             el.innerHTML = '<span class="st">✓ データ登録済み</span><span>所持率 <span class="rate">' + pct + '%</span> <span class="cnt">(' + count + ' / ' + t.total + t.word + ')</span></span>';
           } else {
             el.className = 'regBadge todo';
-            el.innerHTML = '<span class="st">未登録</span><span>開いて「データ登録」を押してください</span>';
+            el.innerHTML = '<span class="st">データ未登録</span><span><span style="white-space:nowrap">所持データを</span><span style="white-space:nowrap">登録ください。</span></span>';
           }
           el.hidden = false;
         })

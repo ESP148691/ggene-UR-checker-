@@ -768,7 +768,7 @@ function updateRegStatus(){
       (dirty ? `<span class="note">※登録後に変更した内容があります。「データ登録」を押すと反映されます</span>` : "");
   } else {
     el.className = "regStatus todo";
-    el.innerHTML = `<span class="head">まだデータ登録されていません</span><span class="note">下の「データ登録」を押すと所持状況が保存され、みんなの所持率ランキングにも反映されます</span>`;
+    el.innerHTML = `<span class="head">データ未登録</span><span class="note">所持状況をチェックしてから、下の「データ登録」で所持データを登録ください。みんなの所持率ランキングにも反映されます</span>`;
   }
 }
 
