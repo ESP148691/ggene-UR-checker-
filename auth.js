@@ -136,7 +136,13 @@
       // ログイン・新規登録どちらも成功後はトップページへ遷移する
       // "/"ではなく"/top"へ遷移させる。過去に"/"を/unitへ301リダイレクトしていた時期があり、
       // その301をブラウザ（特にXアプリ内ブラウザ）がキャッシュしていると"/"がチェッカー画面に化けるため（⑧）
-      window.location.href = "/top";
+      // ⑮ ただし<body data-auth-stay>を指定したページ（トップからの導線が未公開のeternal-road.html）は、
+      // トップへ遷移すると戻る手段が無いため、その場でリロードしてログイン状態で再描画する
+      if (document.body.hasAttribute("data-auth-stay")) {
+        window.location.reload();
+      } else {
+        window.location.href = "/top";
+      }
     } catch (e) {
       errEl.textContent = "通信エラーが発生しました。時間をおいて再度お試しください";
     } finally {

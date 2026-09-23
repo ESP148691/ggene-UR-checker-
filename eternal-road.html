@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="auth.css">
 <!-- "/"ではなく"/top"を対象にする。過去の"/"→/unit 301キャッシュを引き当てても意味がないため（⑧） -->
 <link rel="prefetch" href="/top">
+<link rel="prefetch" href="images/logo.png">
 <style>
   :root{
     --void:#05070d;
@@ -25,8 +26,11 @@
     --title-color:#e0a8f5;
     --text:#eef3f6;
     --muted:#93a3b3;
+    --register:#7fd9a0;
+    --rainbow:linear-gradient(135deg,#ff5f6d 0%,#ffc371 25%,#9dff8a 50%,#5b8def 75%,#c471f5 100%);
   }
   *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
   html,body{height:100%;}
   body{
     margin:0;background:var(--void);color:var(--text);
@@ -51,17 +55,24 @@
   }
   .eyebrow::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);display:inline-block;border-radius:1px;}
 
+  .titlerow{display:flex;align-items:center;gap:12px;margin:0 0 12px;flex-wrap:wrap;}
+  .titlerow .logo{height:40px;width:auto;flex:0 0 auto;filter:drop-shadow(0 0 6px rgba(107,224,224,.25));}
   h1{
-    font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:23px;margin:0 0 12px;
+    font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:23px;margin:0;
     word-break:keep-all;overflow-wrap:break-word;
     text-shadow:0 1px 4px rgba(2,4,9,.9), 0 0 16px rgba(2,4,9,.6);
+  }
+  .diffLabel{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;letter-spacing:.12em;
+    color:#1b1503;background:linear-gradient(135deg,var(--gold),var(--gold-dim));
+    border-radius:3px;padding:2px 9px;
   }
   .sub{
     color:#c7d2dc;font-size:13.5px;margin:0 0 22px;line-height:1.85;
     word-break:keep-all;overflow-wrap:break-word;
   }
 
-  /* ---- 難易度タブ ---- */
+  /* ---- 難易度タブ（⑮ ノーマル・ハード実装まで非表示。将来戻せるようCSS・マークアップはコメントアウトで残す） ----
   .diffTabs{display:flex;gap:8px;margin:0 0 20px;}
   .diffTabs button{
     flex:1;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;letter-spacing:.03em;
@@ -73,62 +84,141 @@
   }
   .diffTabs button.soonTab{cursor:default;opacity:.55;}
   .diffTabs button.soonTab .soonBadge{display:block;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.08em;margin-top:2px;}
+  */
+
+  /* ---- ログイン必須ガード（analytics.htmlと同じ） ---- */
+  .guardCard{
+    background:var(--panel);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);
+    border:1px solid var(--line);border-radius:6px;padding:28px 22px;text-align:center;
+  }
+  .guardCard p{color:var(--muted);font-size:13px;line-height:1.8;margin:0 0 18px;}
+  .guardCard button{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.03em;
+    background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;
+    border:1px solid var(--gold);border-radius:3px;padding:10px 26px;cursor:pointer;
+  }
+  .stateMsg{color:var(--muted);font-size:13px;text-align:center;padding:30px 0;}
 
   /* ---- サマリー ---- */
-  .summaryRow{display:flex;gap:1px;background:var(--line-strong);margin:0 0 20px;border:1px solid var(--line-strong);border-radius:4px;overflow:hidden;}
-  .summaryItem{flex:1;background:var(--panel-solid);padding:12px 10px;text-align:center;}
-  .summaryItem .v{font-family:'Share Tech Mono',monospace;font-size:19px;color:var(--cyan);font-weight:700;}
-  .summaryItem .l{font-size:11px;color:var(--muted);margin-top:4px;}
+  .summaryHero{
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+    background:var(--panel-solid);border:1px solid var(--line-strong);border-bottom:none;border-radius:4px 4px 0 0;
+    padding:14px 14px 10px;
+  }
+  .summaryHero .v{font-family:'Share Tech Mono',monospace;font-size:30px;color:var(--gold);line-height:1;}
+  .summaryHero .v small{font-size:16px;color:var(--muted);}
+  .summaryHero .l{font-size:12px;color:var(--muted);}
+  .summaryHero .rate{margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:15px;color:var(--cyan);}
+  .summaryRow{display:flex;gap:1px;background:var(--line-strong);margin:0 0 18px;border:1px solid var(--line-strong);border-radius:0 0 4px 4px;overflow:hidden;}
+  .summaryItem{flex:1;background:var(--panel-solid);padding:10px 4px;text-align:center;min-width:0;}
+  .summaryItem .v{font-family:'Share Tech Mono',monospace;font-size:17px;color:var(--cyan);font-weight:700;white-space:nowrap;}
+  .summaryItem .l{font-size:10.5px;color:var(--muted);margin-top:4px;}
 
-  /* ---- 絞り込み ---- */
-  .toggleRow{display:flex;align-items:center;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:0 0 20px;}
-  .toggleItem{display:flex;align-items:center;gap:7px;}
-  .toggleItem input{accent-color:var(--cyan);width:15px;height:15px;}
+  /* ---- フィルタ ---- */
+  .statusTabs{display:flex;gap:6px;margin:0 0 10px;}
+  .statusTabs button{
+    flex:1;min-width:0;font-family:'Noto Sans JP',sans-serif;font-weight:500;font-size:12px;
+    background:var(--panel-2);border:1px solid var(--line-strong);color:var(--muted);
+    padding:8px 2px;cursor:pointer;border-radius:4px;line-height:1.3;
+  }
+  .statusTabs button .cnt{display:block;font-family:'Share Tech Mono',monospace;font-size:12px;margin-top:1px;}
+  .statusTabs button.active{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold);font-weight:700;}
+  .toggleRow{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:0 0 18px;}
+  .toggleItem{display:flex;align-items:center;gap:6px;}
+  .toggleItem input{accent-color:var(--cyan);width:15px;height:15px;margin:0;}
   .toggleItem label{cursor:pointer;}
+  .emptyMsg{color:var(--muted);font-size:13px;text-align:center;padding:24px 0;}
 
   /* ---- ステージカード ---- */
   .stageCard{
     background:var(--panel);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);
-    border:1px solid var(--line-strong);border-radius:6px;padding:14px 14px 8px;margin:0 0 12px;
+    border:1px solid var(--line-strong);border-radius:6px;padding:10px 12px 6px;margin:0 0 12px;
   }
-  .stageCard.hiddenCard{display:none;}
-  .stageHead{display:flex;align-items:baseline;gap:8px;margin:0 0 10px;}
-  .stageHead .stageNo{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--gold);}
-  .stageHead .stageName{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:var(--text);}
+  /* バナー：枠色で状態を表す（未クリア=細枠／通常クリア=金枠／全ミッション達成=虹枠）。
+     枠は背景色＋paddingで描く（虹色グラデーションもborder-imageより角丸と相性が良いため） */
+  .banner{
+    display:block;width:100%;padding:1px;margin:0;border:none;border-radius:5px;cursor:pointer;
+    background:var(--line-strong);transition:box-shadow .2s ease, background .2s ease;
+  }
+  .banner img, .banner .bannerFallback{
+    display:block;width:100%;aspect-ratio:640 / 234;border-radius:4px;object-fit:cover;
+    filter:grayscale(1) brightness(.55);transition:filter .2s ease;
+  }
+  .banner .bannerFallback{
+    display:flex;flex-direction:column;justify-content:center;gap:4px;padding:0 16px;text-align:left;
+    background:linear-gradient(135deg,#14203a,#0c1424);color:var(--text);
+  }
+  .banner .bannerFallback .no{font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--gold);}
+  .banner .bannerFallback .nm{font-size:13px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .banner.stage-clear{padding:2px;background:var(--gold);box-shadow:0 0 8px rgba(218,185,73,.45);}
+  .banner.stage-perfect{padding:2px;background:var(--rainbow);box-shadow:0 0 10px rgba(255,255,255,.35), 0 0 16px rgba(196,113,245,.3);}
+  .banner.stage-clear img, .banner.stage-clear .bannerFallback{filter:none;}
+  .banner.stage-perfect img, .banner.stage-perfect .bannerFallback{filter:saturate(1.3) brightness(1.08);}
+
+  .stageMeta{display:flex;align-items:center;gap:10px;margin:8px 0 4px;}
+  .stageMeta .progress{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted);flex:1;}
+  .clearToggle{
+    font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:12px;
+    background:var(--panel-2);border:1px solid var(--line-strong);color:var(--muted);
+    padding:6px 12px;cursor:pointer;border-radius:3px;white-space:nowrap;
+  }
+  .clearToggle.on{background:linear-gradient(135deg,var(--gold),var(--gold-dim));border-color:var(--gold);color:#1b1503;}
+  .clearToggle.perfect{
+    background:var(--rainbow);border-color:transparent;color:#1b1503;
+    box-shadow:0 0 8px rgba(255,255,255,.35);
+  }
 
   .missionRow{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid var(--line);}
-  .missionRow:first-of-type{border-top:none;}
   .missionRow.hiddenRow{display:none;}
   .missionRow input{accent-color:var(--cyan);width:17px;height:17px;flex:0 0 auto;margin-top:2px;cursor:pointer;}
   .missionRow label{flex:1;font-size:13px;line-height:1.6;cursor:pointer;}
   .missionRow .reward{display:block;font-size:11.5px;color:var(--muted);margin-top:2px;}
   .missionRow.title .reward{color:var(--title-color);}
-  .missionRow.title label{color:var(--text);}
   .missionRow.cleared label{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line-strong);}
 
-  /* ---- 保存アクションバー ---- */
+  /* ---- アクションバー（unit.htmlと同じ3ボタン構成） ---- */
   .actionbar{
     position:fixed;left:0;right:0;bottom:0;
     background:rgba(10,14,20,.92);backdrop-filter:blur(6px);
     border-top:1px solid var(--line-strong);
     padding:12px 16px calc(12px + env(safe-area-inset-bottom));
-    display:flex;max-width:640px;margin:0 auto;z-index:50;
+    display:flex;gap:10px;max-width:640px;margin:0 auto;z-index:50;
   }
   .actionbar button{
     flex:1;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.04em;
-    padding:12px 8px;cursor:pointer;border:1px solid var(--gold);
-    background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-radius:3px;
+    padding:12px 4px;cursor:pointer;border:1px solid var(--line-strong);border-radius:3px;white-space:nowrap;
   }
   .actionbar button:disabled{opacity:.6;cursor:default;}
+  .btn-save{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold) !important;}
+  .btn-share{background:transparent;color:var(--cyan);border-color:var(--cyan) !important;}
+  .btn-register{background:transparent;color:var(--register);border-color:var(--register) !important;}
 
-  .saveToast{
-    position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom));
+  .registerToast{
+    position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));
     transform:translate(-50%,8px);
-    background:rgba(10,14,20,.95);border:1px solid var(--cyan);color:var(--text);
+    background:rgba(10,14,20,.95);border:1px solid var(--register);color:var(--text);
     font-size:13px;padding:10px 18px;max-width:88%;text-align:center;border-radius:4px;
     z-index:110;opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
   }
-  .saveToast.show{opacity:1;transform:translate(-50%,0);}
+  .registerToast.show{opacity:1;transform:translate(-50%,0);}
+
+  /* ---- 保存プレビュー用モーダル（unit.htmlと同じ。長押し/右クリックで保存） ---- */
+  .previewModal{
+    position:fixed;inset:0;background:rgba(5,7,10,.94);
+    display:none;align-items:center;justify-content:center;
+    flex-direction:column;gap:14px;padding:24px 16px;z-index:100;
+  }
+  .previewModal.show{display:flex;}
+  .previewModal img{max-width:96%;max-height:80vh;border:1px solid var(--line-strong);background:#000;}
+  .previewModal .msg{color:var(--muted);font-size:12.5px;text-align:center;line-height:1.7;max-width:420px;}
+  .previewModal .msg b{color:var(--cyan);}
+  .previewModal .row{display:flex;gap:10px;}
+  .previewModal button, .previewModal a{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;
+    background:var(--gold);color:#1b1503;border:1px solid var(--gold);
+    padding:10px 20px;cursor:pointer;text-decoration:none;display:inline-block;
+  }
+  .previewModal .btn-secondary{background:transparent;color:var(--muted);border-color:var(--line-strong);}
 
   .pageFooter{
     margin-top:28px;padding-top:16px;border-top:1px solid var(--line-strong);
@@ -139,30 +229,60 @@
   .pageFooter a:hover{text-decoration:underline;}
 </style>
 </head>
-<body>
+<!-- data-auth-stay: ログイン成功後にトップへ遷移せずこのページをリロードする（auth.js。トップからの導線が未公開のため） -->
+<body data-auth-stay>
 
 <main class="wrap">
   <p class="eyebrow">GJENERATION ETERNAL <span class="jp">ジージェネレーション エターナル</span></p>
-  <h1>エタロ攻略チェッカー</h1>
-  <p class="sub">エターナルロード エキスパート全29ステージ・69ミッションの達成状況を記録できます。ログイン中は「保存」を押すとデータを引き継げます（未ログインでもお使いいただけます）。</p>
+  <div class="titlerow">
+    <img class="logo" src="images/logo.png" alt="ESP logo">
+    <h1>エタロ攻略チェッカー</h1>
+    <span class="diffLabel">EXPERT</span>
+  </div>
+  <p class="sub">エターナルロード エキスパート全29ステージ・69ミッションのクリア状況を記録できます（ログインユーザー限定機能）。バナーをタップするとステージクリア、ミッションにチェックすると達成済みになります。</p>
 
+  <!-- ⑮ ノーマル・ハード実装まで難易度タブは非表示（将来戻せるようマークアップを残す）
   <div class="diffTabs">
     <button type="button" data-diff="expert" class="active">エキスパート</button>
     <button type="button" class="soonTab" disabled>ノーマル<span class="soonBadge">準備中</span></button>
     <button type="button" class="soonTab" disabled>ハード<span class="soonBadge">準備中</span></button>
   </div>
+  -->
 
-  <div class="summaryRow">
-    <div class="summaryItem"><div class="v" id="sumMissions">0 / 69</div><div class="l">ミッション達成数</div></div>
-    <div class="summaryItem"><div class="v" id="sumTitles">0 / 11</div><div class="l">称号ミッション達成数</div></div>
+  <div id="guardView" class="guardCard" hidden>
+    <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、エタロのクリア状況を記録・保存できるようになります。</p>
+    <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
   </div>
+  <div id="loadingView" class="stateMsg">読み込み中...</div>
+  <div id="errorView" class="stateMsg" hidden>データの読み込みに失敗しました。時間をおいて再度お試しください。</div>
 
-  <div class="toggleRow">
-    <div class="toggleItem"><input type="checkbox" id="filterTitleOnly"><label for="filterTitleOnly">称号ミッションのみ表示</label></div>
-    <div class="toggleItem"><input type="checkbox" id="filterUnclearedOnly"><label for="filterUnclearedOnly">未達成のみ表示</label></div>
+  <div id="contentView" hidden>
+    <div class="summaryHero">
+      <span class="v" id="sumStages">0<small> / 29</small></span>
+      <span class="l">ステージクリア</span>
+      <span class="rate" id="sumRate">クリア率 0%</span>
+    </div>
+    <div class="summaryRow">
+      <div class="summaryItem"><div class="v" id="sumPerfect">0 / 29</div><div class="l">全ミッション達成</div></div>
+      <div class="summaryItem"><div class="v" id="sumMissions">0 / 69</div><div class="l">ミッション達成</div></div>
+      <div class="summaryItem"><div class="v" id="sumTitles">0 / 11</div><div class="l">称号獲得</div></div>
+    </div>
+
+    <div class="statusTabs" id="statusTabs">
+      <button type="button" data-status="all">すべて<span class="cnt" data-cnt="all">0</span></button>
+      <button type="button" data-status="uncleared">未クリア<span class="cnt" data-cnt="uncleared">0</span></button>
+      <button type="button" data-status="remaining">ミッション残あり<span class="cnt" data-cnt="remaining">0</span></button>
+      <button type="button" data-status="perfect">全達成<span class="cnt" data-cnt="perfect">0</span></button>
+    </div>
+    <div class="toggleRow">
+      <div class="toggleItem"><input type="checkbox" id="filterTitleStage"><label for="filterTitleStage">称号ステージのみ</label></div>
+      <div class="toggleItem"><input type="checkbox" id="filterTitleUnearned"><label for="filterTitleUnearned">称号未獲得のみ</label></div>
+      <div class="toggleItem"><input type="checkbox" id="filterUnclearedMissions"><label for="filterUnclearedMissions">未達成ミッションのみ</label></div>
+    </div>
+
+    <div id="stageList"></div>
+    <div id="emptyMsg" class="emptyMsg" hidden>条件に一致するステージはありません</div>
   </div>
-
-  <div id="stageList"></div>
 
   <footer class="pageFooter">
     <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
@@ -173,148 +293,708 @@
   </footer>
 </main>
 
-<div class="actionbar">
-  <button type="button" id="btnSave">保存</button>
+<div class="actionbar" id="actionbar" hidden>
+  <button type="button" class="btn-register" id="btnRegister">データ登録</button>
+  <button type="button" class="btn-save" id="btnSave">画像で保存</button>
+  <button type="button" class="btn-share" id="btnShare">Xでシェア</button>
 </div>
-<div class="saveToast" id="saveToast"></div>
+<div class="registerToast" id="registerToast"></div>
+
+<div class="previewModal" id="previewModal">
+  <img id="previewImg" alt="エタロ攻略カード">
+  <div class="msg">自動ダウンロードが始まらない場合は、画像を<b>長押し（スマホ）</b>または<b>右クリック</b>して「画像を保存」を選んでください。</div>
+  <div class="row">
+    <a id="downloadLink" download="eternal_road_expert.png">ダウンロード</a>
+    <button type="button" class="btn-secondary" id="btnClosePreview">閉じる</button>
+  </div>
+</div>
 
 <script>
+const CONFIG = {
+  xHandle: "@polarbear148691",
+  siteUrl: "https://ggene-ur-checker.polarbear14869.workers.dev/eternal-road.html",
+  hashtags: ["ジージェネエターナル", "GGETエタロ攻略チェッカー"],
+  quotePostUrl: null // 公開告知ポスト作成後に設定すると、Xでシェア時にそのポストへの引用RTになる
+};
+
 /* =========================================================
-   状態管理：clearedはmission_idのSet。localStorageに保存。
-   DBからの復元は行わない（設計⑩7章の通り、保存ボタン押下時にlocalStorage→D1への一方向同期のみ）
+   状態管理（⑮）：clearedStages＝通常クリアしたstage_id、clearedMissions＝達成したmission_id。
+   正はDB（ページ読み込み時に/api/my-eternal-roadから復元）。localStorageは作業中データ・通信失敗時の保険
+   整合ルール：ミッション達成があるステージは必ずクリア扱い（チェック時に自動ON、クリアOFF時はミッションも全解除）
    ========================================================= */
-const STORAGE_KEY = "eternalroad_expert_clears_v1";
-let cleared = new Set();
-try {
-  cleared = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
-} catch (e) { cleared = new Set(); }
+const STORAGE_KEY = "eternalroad_expert_v2";
+const LEGACY_STORAGE_KEY = "eternalroad_expert_clears_v1"; // ⑩時点のmission_id配列
+const FILTER_STORAGE_KEY = "eternalroad_filter_v1";
+
+let clearedStages = new Set();
+let clearedMissions = new Set();
+let userEditedSinceLoad = false; // DB復元がユーザー操作を上書きしないためのフラグ（unit.htmlと同じ考え方）
 
 let missions = [];
-const TOTAL_TITLE_MISSIONS = 11;
+let stages = [];            // [{ stage_id, stage_name, missions:[...], hasTitle }]
+let stageById = new Map();
+let validMissionIds = new Set();
+
+function loadLocalState(){
+  try {
+    const v2 = localStorage.getItem(STORAGE_KEY);
+    if (v2) {
+      const data = JSON.parse(v2) || {};
+      return { stages: data.stages || [], missions: data.missions || [] };
+    }
+    // ⑩→⑮移行：旧キーのmission_id配列からステージクリアを導出する（旧キーは削除せず放置）
+    const v1 = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "[]");
+    if (Array.isArray(v1) && v1.length) {
+      return { stages: [...new Set(v1.map(id => Math.floor(id / 10)))], missions: v1 };
+    }
+  } catch (e) { /* 壊れたデータは無視 */ }
+  return { stages: [], missions: [] };
+}
+
+// マスターに存在しないIDを除外し、「ミッション達成があるステージはクリア扱い」に正規化して状態へ反映する
+function applyState(stageIds, missionIds){
+  clearedMissions = new Set(missionIds.map(Number).filter(id => validMissionIds.has(id)));
+  clearedStages = new Set(stageIds.map(Number).filter(id => stageById.has(id)));
+  for (const id of clearedMissions) clearedStages.add(Math.floor(id / 10));
+}
 
 function persist(){
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...cleared])); } catch (e) { console.warn(e); }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      stages: [...clearedStages].sort((a, b) => a - b),
+      missions: [...clearedMissions].sort((a, b) => a - b)
+    }));
+  } catch (e) { console.warn(e); }
+}
+
+function stageStatus(stage){
+  const done = stage.missions.filter(m => clearedMissions.has(m.mission_id)).length;
+  if (done === stage.missions.length) return "perfect";
+  if (clearedStages.has(stage.stage_id)) return "clear";
+  return "none";
+}
+
+function titleEarned(stage){
+  return stage.missions.some(m => m.is_title && clearedMissions.has(m.mission_id));
+}
+
+/* ---- 集計（画面サマリー・画像・シェア文で共通。分母はマスターから算出） ---- */
+function computeStats(){
+  const titleMissions = missions.filter(m => m.is_title);
+  const stageClear = stages.filter(s => clearedStages.has(s.stage_id)).length;
+  return {
+    stageTotal: stages.length,
+    stageClear,
+    perfect: stages.filter(s => stageStatus(s) === "perfect").length,
+    missionTotal: missions.length,
+    missionDone: missions.filter(m => clearedMissions.has(m.mission_id)).length,
+    titleTotal: titleMissions.length,
+    titleDone: titleMissions.filter(m => clearedMissions.has(m.mission_id)).length,
+    rate: stages.length ? Math.round(stageClear / stages.length * 100) : 0
+  };
 }
 
 function updateSummary(){
-  document.getElementById("sumMissions").textContent = `${cleared.size} / ${missions.length}`;
-  const titleClearedCount = missions.filter(m => m.is_title && cleared.has(m.mission_id)).length;
-  document.getElementById("sumTitles").textContent = `${titleClearedCount} / ${TOTAL_TITLE_MISSIONS}`;
+  const s = computeStats();
+  document.getElementById("sumStages").innerHTML = `${s.stageClear}<small> / ${s.stageTotal}</small>`;
+  document.getElementById("sumRate").textContent = `クリア率 ${s.rate}%`;
+  document.getElementById("sumPerfect").textContent = `${s.perfect} / ${s.stageTotal}`;
+  document.getElementById("sumMissions").textContent = `${s.missionDone} / ${s.missionTotal}`;
+  document.getElementById("sumTitles").textContent = `${s.titleDone} / ${s.titleTotal}`;
+}
+
+/* ---- フィルタ（表示のみに作用。画像生成・シェア・集計には影響しない） ---- */
+let filter = { status: "all", titleStage: false, titleUnearned: false, unclearedMissions: false };
+try {
+  const saved = JSON.parse(localStorage.getItem(FILTER_STORAGE_KEY) || "null");
+  if (saved && typeof saved === "object") filter = Object.assign(filter, saved);
+} catch (e) { /* 既定値のまま */ }
+if (!["all", "uncleared", "remaining", "perfect"].includes(filter.status)) filter.status = "all";
+
+function persistFilter(){
+  try { localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filter)); } catch (e) { /* 保存できなくても表示は継続 */ }
+}
+
+function passesToggles(stage){
+  if (filter.titleStage && !stage.hasTitle) return false;
+  if (filter.titleUnearned && (!stage.hasTitle || titleEarned(stage))) return false;
+  return true;
+}
+
+function passesStatus(stage, status){
+  const st = stageStatus(stage);
+  if (status === "uncleared") return st === "none";
+  if (status === "remaining") return st === "clear";
+  if (status === "perfect") return st === "perfect";
+  return true;
+}
+
+/* ---- 描画：カードは初回に1度だけ組み立て、以降は状態に応じてクラス・表示だけ更新する（画像の再読込を避けるため） ---- */
+const cardEls = new Map(); // stage_id -> { card, banner, progress, toggle, rows: Map(mission_id -> {row, input}) }
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 function missionRewardText(m){
   return m.is_title ? `称号「${m.title_name}」` : m.reward;
 }
 
-function render(){
+function stageImageUrl(stageId){
+  return `images/eternal-road/${stageId}.jpg`;
+}
+
+function buildList(){
   const listEl = document.getElementById("stageList");
   listEl.innerHTML = "";
-
-  const stages = [];
-  const byStage = new Map();
-  for (const m of missions) {
-    if (!byStage.has(m.stage_id)) {
-      const stage = { stage_id: m.stage_id, stage_name: m.stage_name, missions: [] };
-      byStage.set(m.stage_id, stage);
-      stages.push(stage);
-    }
-    byStage.get(m.stage_id).missions.push(m);
-  }
-
-  const titleOnly = document.getElementById("filterTitleOnly").checked;
-  const unclearedOnly = document.getElementById("filterUnclearedOnly").checked;
+  cardEls.clear();
 
   for (const stage of stages) {
     const card = document.createElement("div");
     card.className = "stageCard";
 
-    const head = document.createElement("div");
-    head.className = "stageHead";
-    head.innerHTML = `<span class="stageNo">No.${stage.stage_id}</span><span class="stageName">${escapeHtml(stage.stage_name)}</span>`;
-    card.appendChild(head);
+    const banner = document.createElement("button");
+    banner.type = "button";
+    banner.className = "banner";
+    const img = document.createElement("img");
+    img.src = stageImageUrl(stage.stage_id);
+    img.alt = `No.${stage.stage_id} ${stage.stage_name}`;
+    img.loading = "lazy";
+    img.addEventListener("error", () => {
+      // 画像が無い・読み込み失敗時は、No.とステージ名をテキスト表示するプレースホルダーに切り替える
+      const fb = document.createElement("div");
+      fb.className = "bannerFallback";
+      fb.innerHTML = `<span class="no">No.${stage.stage_id}</span><span class="nm">${escapeHtml(stage.stage_name)}</span>`;
+      img.replaceWith(fb);
+    });
+    banner.appendChild(img);
+    banner.addEventListener("click", () => toggleStageClear(stage));
+    card.appendChild(banner);
 
-    let visibleCount = 0;
+    const meta = document.createElement("div");
+    meta.className = "stageMeta";
+    const progress = document.createElement("span");
+    progress.className = "progress";
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "clearToggle";
+    toggle.addEventListener("click", () => toggleStageClear(stage));
+    meta.appendChild(progress);
+    meta.appendChild(toggle);
+    card.appendChild(meta);
+
+    const rows = new Map();
     for (const m of stage.missions) {
-      const isCleared = cleared.has(m.mission_id);
-      if (titleOnly && !m.is_title) continue;
-      if (unclearedOnly && isCleared) continue;
-      visibleCount++;
-
       const row = document.createElement("div");
-      row.className = "missionRow" + (m.is_title ? " title" : "") + (isCleared ? " cleared" : "");
+      row.className = "missionRow" + (m.is_title ? " title" : "");
       const cbId = "mission_" + m.mission_id;
       row.innerHTML = `
-        <input type="checkbox" id="${cbId}" ${isCleared ? "checked" : ""}>
+        <input type="checkbox" id="${cbId}">
         <label for="${cbId}">${escapeHtml(m.mission_text)}<span class="reward">${escapeHtml(missionRewardText(m))}</span></label>
       `;
-      row.querySelector("input").addEventListener("change", () => {
-        if (cleared.has(m.mission_id)) cleared.delete(m.mission_id);
-        else cleared.add(m.mission_id);
-        persist();
-        updateSummary();
-        render();
-      });
+      const input = row.querySelector("input");
+      input.addEventListener("change", () => toggleMission(stage, m, input.checked));
+      rows.set(m.mission_id, { row, input });
       card.appendChild(row);
     }
 
-    if (visibleCount === 0) card.classList.add("hiddenCard");
     listEl.appendChild(card);
+    cardEls.set(stage.stage_id, { card, banner, progress, toggle, rows });
   }
 }
 
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function refresh(){
+  let visibleCount = 0;
+  const counts = { all: 0, uncleared: 0, remaining: 0, perfect: 0 };
+
+  for (const stage of stages) {
+    const el = cardEls.get(stage.stage_id);
+    const st = stageStatus(stage);
+    const done = stage.missions.filter(m => clearedMissions.has(m.mission_id)).length;
+
+    el.banner.classList.toggle("stage-clear", st === "clear");
+    el.banner.classList.toggle("stage-perfect", st === "perfect");
+    el.banner.setAttribute("aria-pressed", st === "none" ? "false" : "true");
+    el.progress.textContent = `ミッション ${done}/${stage.missions.length}`;
+    el.toggle.classList.toggle("on", st === "clear");
+    el.toggle.classList.toggle("perfect", st === "perfect");
+    el.toggle.textContent = st === "perfect" ? "全ミッション達成 ✦" : st === "clear" ? "クリア済 ✓" : "未クリア";
+
+    for (const m of stage.missions) {
+      const r = el.rows.get(m.mission_id);
+      const isCleared = clearedMissions.has(m.mission_id);
+      r.input.checked = isCleared;
+      r.row.classList.toggle("cleared", isCleared);
+      r.row.classList.toggle("hiddenRow", filter.unclearedMissions && isCleared);
+    }
+
+    const toggleOk = passesToggles(stage);
+    if (toggleOk) {
+      counts.all++;
+      if (st === "none") counts.uncleared++;
+      else if (st === "clear") counts.remaining++;
+      else counts.perfect++;
+    }
+    const visible = toggleOk && passesStatus(stage, filter.status);
+    el.card.hidden = !visible;
+    if (visible) visibleCount++;
+  }
+
+  document.querySelectorAll("#statusTabs button").forEach(b => b.classList.toggle("active", b.dataset.status === filter.status));
+  document.querySelectorAll("#statusTabs .cnt").forEach(c => { c.textContent = counts[c.dataset.cnt]; });
+  document.getElementById("filterTitleStage").checked = filter.titleStage;
+  document.getElementById("filterTitleUnearned").checked = filter.titleUnearned;
+  document.getElementById("filterUnclearedMissions").checked = filter.unclearedMissions;
+  document.getElementById("emptyMsg").hidden = visibleCount > 0;
+  updateSummary();
 }
 
-document.getElementById("filterTitleOnly").addEventListener("change", render);
-document.getElementById("filterUnclearedOnly").addEventListener("change", render);
+function toggleStageClear(stage){
+  userEditedSinceLoad = true;
+  if (clearedStages.has(stage.stage_id)) {
+    clearedStages.delete(stage.stage_id);
+    let removed = 0;
+    for (const m of stage.missions) {
+      if (clearedMissions.delete(m.mission_id)) removed++;
+    }
+    if (removed > 0) showRegisterToast(`No.${stage.stage_id}のミッション達成も解除しました`);
+  } else {
+    clearedStages.add(stage.stage_id);
+  }
+  persist();
+  refresh();
+}
 
-let saveToastTimer = null;
-function showSaveToast(message){
-  const el = document.getElementById("saveToast");
+function toggleMission(stage, m, checked){
+  userEditedSinceLoad = true;
+  if (checked) {
+    clearedMissions.add(m.mission_id);
+    clearedStages.add(stage.stage_id); // ミッション達成はステージクリアが前提
+  } else {
+    clearedMissions.delete(m.mission_id);
+  }
+  persist();
+  refresh();
+}
+
+document.getElementById("statusTabs").addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  filter.status = btn.dataset.status;
+  persistFilter();
+  refresh();
+});
+[["filterTitleStage", "titleStage"], ["filterTitleUnearned", "titleUnearned"], ["filterUnclearedMissions", "unclearedMissions"]].forEach(([id, key]) => {
+  document.getElementById(id).addEventListener("change", (e) => {
+    filter[key] = e.target.checked;
+    persistFilter();
+    refresh();
+  });
+});
+
+/* =========================================================
+   トースト・DB送信
+   ========================================================= */
+let registerToastTimer = null;
+function showRegisterToast(message){
+  const el = document.getElementById("registerToast");
   el.textContent = message;
   el.classList.add("show");
-  clearTimeout(saveToastTimer);
-  saveToastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+  clearTimeout(registerToastTimer);
+  registerToastTimer = setTimeout(() => el.classList.remove("show"), 3200);
 }
 
-document.getElementById("btnSave").addEventListener("click", async () => {
-  const btn = document.getElementById("btnSave");
-  const original = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = "保存中...";
+// keepalive:trueはXシェア時のwindow.open()直後の送信がページ遷移で打ち切られるのを防ぐため（⑪②と同じ）
+function sendEternalRoadLog(){
   try {
-    const res = await fetch("/api/log-eternal-road-missions", {
+    return fetch("/api/log-eternal-road-missions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify({ clearedIds: [...cleared].join(",") })
+      keepalive: true,
+      body: JSON.stringify({
+        clearedIds: [...clearedMissions].sort((a, b) => a - b).join(","),
+        clearedStageIds: [...clearedStages].sort((a, b) => a - b).join(",")
+      })
     });
+  } catch (e) {
+    return Promise.reject(e);
+  }
+}
+
+document.getElementById("btnRegister").addEventListener("click", async () => {
+  const btn = document.getElementById("btnRegister");
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "登録中...";
+  try {
+    const res = await sendEternalRoadLog();
     const data = await res.json().catch(() => null);
     if (data && data.loggedIn) {
-      showSaveToast("データを保存しました");
+      showRegisterToast("データを登録しました");
     } else {
-      showSaveToast("この端末には保存されています。ログインすると端末をまたいで引き継げます");
+      showRegisterToast("登録にはログインが必要です");
     }
   } catch (e) {
-    showSaveToast("通信エラーが発生しました。時間をおいて再度お試しください");
+    showRegisterToast("通信エラーが発生しました。時間をおいて再度お試しください");
   } finally {
     btn.disabled = false;
     btn.textContent = original;
   }
 });
 
-(async function init(){
-  try {
-    const res = await fetch("/api/eternal-road/missions");
-    const data = await res.json();
-    missions = (data && data.missions) || [];
-  } catch (e) {
-    missions = [];
+/* =========================================================
+   画像生成：ネイティブCanvas APIで直接描画する（html2canvas不使用＝iOS対応）
+   フィルタに関係なく常に全ステージを描画する
+   ========================================================= */
+function loadImage(src){
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+const RAINBOW_STOPS = ["#ff5f6d", "#ffc371", "#9dff8a", "#5b8def", "#c471f5"];
+function rainbowGradient(ctx, x0, y0, x1, y1){
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  RAINBOW_STOPS.forEach((c, i) => g.addColorStop(i / (RAINBOW_STOPS.length - 1), c));
+  return g;
+}
+
+async function generateShareImage(){
+  const s = computeStats();
+  const cols = 3;
+  const rows = Math.ceil(stages.length / cols);
+  const cellW = 240;
+  const cellH = 88; // バナー比率640:234に合わせる
+  const gap = 10;
+  const pad = 40;
+  const headerH = 290;
+  const gridW = cols * cellW + (cols - 1) * gap;
+  const gridH = rows * cellH + (rows - 1) * gap;
+  const W = gridW + pad * 2;
+  const H = headerH + gridH + 70;
+
+  const scale = 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = W * scale;
+  canvas.height = H * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+
+  // 背景
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, "#0e141d");
+  bgGrad.addColorStop(1, "#0a0e14");
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "#26323f";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+
+  // ヘッダーテキスト
+  ctx.textBaseline = "top";
+  ctx.fillStyle = "#dab949";
+  ctx.font = "bold 15px sans-serif";
+  ctx.fillText("ジージェネレーション　エターナル", pad, pad);
+
+  ctx.fillStyle = "#eef2f5";
+  ctx.font = "bold 28px sans-serif";
+  const title = "エタロ攻略チェッカー";
+  ctx.fillText(title, pad, pad + 26);
+  const titleW = ctx.measureText(title).width;
+  // 難易度ラベル
+  ctx.font = "bold 13px sans-serif";
+  const diff = "EXPERT";
+  const diffW = ctx.measureText(diff).width + 16;
+  const diffX = pad + titleW + 12, diffY = pad + 32;
+  ctx.fillStyle = "#dab949";
+  ctx.fillRect(diffX, diffY, diffW, 20);
+  ctx.fillStyle = "#1b1503";
+  ctx.fillText(diff, diffX + 8, diffY + 4);
+
+  // ロゴ（画面ヘッダーと同じ画像を右上に表示）
+  const logoEl = document.querySelector(".titlerow .logo");
+  if (logoEl && logoEl.src) {
+    const logoImg = await loadImage(logoEl.src);
+    if (logoImg) {
+      const logoH = 50;
+      const logoW = logoImg.width * (logoH / logoImg.height);
+      ctx.drawImage(logoImg, W - pad - logoW, pad, logoW, logoH);
+    }
   }
-  updateSummary();
-  render();
-})();
+
+  // 主指標：ステージクリア
+  ctx.fillStyle = "#dab949";
+  ctx.font = "bold 64px monospace";
+  const mainText = String(s.stageClear);
+  ctx.fillText(mainText, pad, pad + 76);
+  const mainW = ctx.measureText(mainText).width;
+  ctx.fillStyle = "#7c8896";
+  ctx.font = "bold 26px monospace";
+  ctx.fillText(`/ ${s.stageTotal}`, pad + mainW + 10, pad + 106);
+  const denomW = ctx.measureText(`/ ${s.stageTotal}`).width;
+  ctx.fillStyle = "#eef2f5";
+  ctx.font = "bold 18px sans-serif";
+  ctx.fillText("ステージクリア", pad + mainW + 10 + denomW + 14, pad + 110);
+
+  // サブ指標
+  const subStats = [
+    { v: `${s.perfect} / ${s.stageTotal}`, l: "全ミッション達成" },
+    { v: `${s.missionDone} / ${s.missionTotal}`, l: "ミッション達成" },
+    { v: `${s.titleDone} / ${s.titleTotal}`, l: "称号獲得" },
+    { v: `${s.rate}%`, l: "クリア率" }
+  ];
+  const subW = gridW / subStats.length;
+  subStats.forEach((st, i) => {
+    const x = pad + i * subW;
+    const y = pad + 160;
+    ctx.fillStyle = "#101720";
+    ctx.fillRect(x, y, subW - 2, 60);
+    ctx.strokeStyle = "#26323f";
+    ctx.strokeRect(x, y, subW - 2, 60);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#5ad1d1";
+    ctx.font = "bold 23px monospace";
+    ctx.fillText(st.v, x + subW / 2, y + 12);
+    ctx.fillStyle = "#7c8896";
+    ctx.font = "12px sans-serif";
+    ctx.fillText(st.l, x + subW / 2, y + 40);
+    ctx.textAlign = "left";
+  });
+
+  // ステージグリッド
+  const imgs = await Promise.all(stages.map(st => loadImage(stageImageUrl(st.stage_id))));
+  const gridY = headerH;
+  stages.forEach((stage, i) => {
+    const x = pad + (i % cols) * (cellW + gap);
+    const y = gridY + Math.floor(i / cols) * (cellH + gap);
+    const status = stageStatus(stage);
+
+    const im = imgs[i];
+    if (im) {
+      ctx.drawImage(im, x, y, cellW, cellH);
+      // ctx.filterはSafari等で反映されないことがあるため、ピクセル操作で直接処理する
+      // 注意: getImageData/putImageDataはctx.scale()の影響を受けないため、実ピクセル座標に変換する
+      const gx = Math.round(x * scale), gy = Math.round(y * scale);
+      const gw = Math.round(cellW * scale), gh = Math.round(cellH * scale);
+      if (status === "none") {
+        const imgData = ctx.getImageData(gx, gy, gw, gh);
+        const d = imgData.data;
+        for (let p = 0; p < d.length; p += 4) {
+          const gray = (d[p] * 0.3 + d[p+1] * 0.59 + d[p+2] * 0.11) * 0.4;
+          d[p] = d[p+1] = d[p+2] = gray;
+        }
+        ctx.putImageData(imgData, gx, gy);
+      } else if (status === "perfect") {
+        const imgData = ctx.getImageData(gx, gy, gw, gh);
+        const d = imgData.data;
+        for (let p = 0; p < d.length; p += 4) {
+          const avg = (d[p] + d[p+1] + d[p+2]) / 3;
+          d[p]   = Math.min(255, (avg + (d[p]   - avg) * 1.3) * 1.08);
+          d[p+1] = Math.min(255, (avg + (d[p+1] - avg) * 1.3) * 1.08);
+          d[p+2] = Math.min(255, (avg + (d[p+2] - avg) * 1.3) * 1.08);
+        }
+        ctx.putImageData(imgData, gx, gy);
+      }
+    } else {
+      // 画像読み込み失敗時のフォールバック：濃紺の矩形＋No.のみ
+      ctx.fillStyle = status === "none" ? "#0d1320" : "#14203a";
+      ctx.fillRect(x, y, cellW, cellH);
+      ctx.fillStyle = status === "none" ? "#5a6573" : "#dab949";
+      ctx.font = "bold 22px monospace";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`No.${stage.stage_id}`, x + 14, y + cellH / 2);
+      ctx.textBaseline = "top";
+    }
+
+    // 枠：未クリア=細枠／通常クリア=金／全ミッション達成=虹（unit.htmlの完凸枠と同じ）
+    if (status === "perfect") {
+      ctx.save();
+      ctx.strokeStyle = rainbowGradient(ctx, x, y, x + cellW, y + cellH);
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = "rgba(255,255,255,0.6)";
+      ctx.shadowBlur = 4;
+      ctx.strokeRect(x + 1.25, y + 1.25, cellW - 2.5, cellH - 2.5);
+      ctx.restore();
+    } else if (status === "clear") {
+      ctx.save();
+      ctx.strokeStyle = "#dab949";
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = "rgba(218,185,73,0.6)";
+      ctx.shadowBlur = 4;
+      ctx.strokeRect(x + 1.25, y + 1.25, cellW - 2.5, cellH - 2.5);
+      ctx.restore();
+    } else {
+      ctx.strokeStyle = "#26323f";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, cellW - 1, cellH - 1);
+    }
+
+    // ミッション達成ピップ（右下。バナー内左下のNo./ステージ名表記と重ならない位置）
+    const n = stage.missions.length;
+    const spacing = 13;
+    const boxW = n * spacing + 8;
+    const boxH = 16;
+    const bx = x + cellW - boxW - 5, by = y + cellH - boxH - 5;
+    ctx.fillStyle = "rgba(10,14,20,0.7)";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx, by, boxW, boxH, 4);
+    else ctx.rect(bx, by, boxW, boxH);
+    ctx.fill();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "bold 11px sans-serif";
+    stage.missions.forEach((m, k) => {
+      const px = bx + 4 + spacing * k + spacing / 2;
+      const py = by + boxH / 2 + 0.5;
+      ctx.save();
+      if (status === "perfect") {
+        ctx.fillStyle = rainbowGradient(ctx, px - 6, py - 6, px + 6, py + 6);
+        ctx.shadowColor = "rgba(255,255,255,0.9)";
+        ctx.shadowBlur = 5;
+      } else if (clearedMissions.has(m.mission_id)) {
+        ctx.fillStyle = m.is_title ? "#e0a8f5" : "#dab949";
+      } else {
+        ctx.fillStyle = "rgba(255,255,255,0.28)";
+      }
+      ctx.fillText("●", px, py);
+      ctx.restore();
+    });
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+  });
+
+  // フッター
+  const footY = gridY + gridH + 20;
+  ctx.strokeStyle = "#26323f";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, footY);
+  ctx.lineTo(W - pad, footY);
+  ctx.stroke();
+
+  ctx.fillStyle = "#5ad1d1";
+  ctx.font = "13px monospace";
+  const handleWidth = ctx.measureText(CONFIG.xHandle).width;
+  ctx.fillText(CONFIG.xHandle, W - pad - handleWidth, footY + 14);
+
+  return canvas;
+}
+
+document.getElementById("btnSave").addEventListener("click", async () => {
+  const btn = document.getElementById("btnSave");
+  const originalLabel = btn.textContent;
+  btn.textContent = "生成中...";
+  btn.disabled = true;
+  try {
+    const canvas = await generateShareImage();
+    // Blob/ObjectURLは環境によってはimgタグでの表示に失敗することがあるため、data URI方式に統一する
+    const dataUrl = canvas.toDataURL("image/png");
+    document.getElementById("previewImg").src = dataUrl;
+    document.getElementById("downloadLink").href = dataUrl;
+    document.getElementById("previewModal").classList.add("show");
+
+    sendEternalRoadLog().catch(() => {});
+  } catch (err) {
+    console.error(err);
+    alert("画像の生成に失敗しました。\n(エラー内容: " + err.message + ")");
+  } finally {
+    btn.textContent = originalLabel;
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("btnClosePreview").addEventListener("click", () => {
+  document.getElementById("previewModal").classList.remove("show");
+});
+
+document.getElementById("btnShare").addEventListener("click", () => {
+  const s = computeStats();
+  const tags = CONFIG.hashtags.map(t => "#" + t).join(" ");
+  const text = `【Gジェネエターナル】エタロEXPERT攻略 ステージクリア ${s.stageClear}/${s.stageTotal}・全ミッション達成 ${s.perfect}/${s.stageTotal}（ミッション ${s.missionDone}/${s.missionTotal}・称号 ${s.titleDone}/${s.titleTotal}）\n${tags}\n${CONFIG.siteUrl}`;
+  const via = CONFIG.xHandle.replace(/^@/, "");
+  let intent = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text) + "&via=" + encodeURIComponent(via);
+  if (CONFIG.quotePostUrl) {
+    intent += "&url=" + encodeURIComponent(CONFIG.quotePostUrl);
+  }
+  window.open(intent, "_blank");
+
+  sendEternalRoadLog().catch(() => {});
+});
+
+/* =========================================================
+   起動：ログイン確認 → マスター取得・DB復元 → 描画（ログイン限定。analytics.htmlと同じクライアント側ガード）
+   ========================================================= */
+const guardView = document.getElementById("guardView");
+const loadingView = document.getElementById("loadingView");
+const errorView = document.getElementById("errorView");
+const contentView = document.getElementById("contentView");
+
+document.getElementById("guardLoginBtn").addEventListener("click", () => {
+  // auth.jsが生成するログインリンクを経由して、共通のログインモーダルを開く
+  const link = document.getElementById("authOpenLink");
+  if (link) link.click();
+});
+
+function showGuard(){
+  loadingView.hidden = true;
+  guardView.hidden = false;
+}
+
+async function loadChecker(){
+  let myData = null;
+  try {
+    let masterRes;
+    [masterRes, myData] = await Promise.all([
+      fetch("/api/eternal-road/missions").then(r => { if (!r.ok) throw new Error("master fetch failed"); return r.json(); }),
+      // 復元の失敗はチェッカー本体に影響させない（localStorageのまま使う）
+      fetch("/api/my-eternal-road", { credentials: "same-origin" }).then(r => r.json()).catch(() => null)
+    ]);
+    missions = (masterRes && masterRes.missions) || [];
+    if (!missions.length) throw new Error("empty master");
+  } catch (e) {
+    loadingView.hidden = true;
+    errorView.hidden = false;
+    return;
+  }
+
+  stages = [];
+  stageById = new Map();
+  for (const m of missions) {
+    if (!stageById.has(m.stage_id)) {
+      const stage = { stage_id: m.stage_id, stage_name: m.stage_name, missions: [], hasTitle: false };
+      stageById.set(m.stage_id, stage);
+      stages.push(stage);
+    }
+    const stage = stageById.get(m.stage_id);
+    stage.missions.push(m);
+    if (m.is_title) stage.hasTitle = true;
+  }
+  validMissionIds = new Set(missions.map(m => m.mission_id));
+
+  const local = loadLocalState();
+  applyState(local.stages, local.missions);
+  // 一度でもデータ登録済みならDBの状態を正とする。未登録ならlocalStorage（⑩時点のテストデータ等）をそのまま使う
+  if (myData && myData.loggedIn && myData.registered && !userEditedSinceLoad) {
+    applyState(myData.clearedStageIds || [], myData.clearedIds || []);
+  }
+  persist();
+
+  buildList();
+  refresh();
+  loadingView.hidden = true;
+  contentView.hidden = false;
+  document.getElementById("actionbar").hidden = false;
+}
+
+// /api/me失敗時は保守的にガード表示側に倒す（analytics.htmlと同じ）
+fetch("/api/me", { credentials: "same-origin" })
+  .then(res => res.json())
+  .then(data => { if (data && data.loggedIn) loadChecker(); else showGuard(); })
+  .catch(showGuard);
 </script>
 <script src="auth.js" defer></script>
 </body>

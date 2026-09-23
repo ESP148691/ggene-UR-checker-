@@ -362,6 +362,17 @@ const ETERNAL_ROAD_MISSION_IDS = new Set([
   231, 232, 233, 241, 242, 243, 251, 252, 253, 261, 262, 271, 272, 281, 282, 291, 292
 ]);
 const ETERNAL_ROAD_CLEAR_MAX_ENTRIES = 100; // 想定最大69件より十分大きい安全マージン
+// ⑮ 通常クリア（ステージクリア）用のstage_id正規集合（29件）。ステージのマスターテーブルは持たないため
+// ミッションIDの集合から導出する（mission_id = stage_id*10+slot）
+const ETERNAL_ROAD_STAGE_IDS = new Set([...ETERNAL_ROAD_MISSION_IDS].map(id => Math.floor(id / 10)));
+
+// ⑮ "1,2,..."形式のカンマ区切りID文字列を、正規集合に含まれる整数IDの重複なし配列にパースする。
+// 件数上限を超える不正に巨大な入力はnull（＝書き込みしない）を返す
+function parseEternalRoadIdList(raw, validIds) {
+  const parts = (typeof raw === "string" ? raw : "").split(",").map(s => s.trim()).filter(Boolean);
+  if (parts.length > ETERNAL_ROAD_CLEAR_MAX_ENTRIES) return null;
+  return [...new Set(parts.map(Number))].filter(id => Number.isInteger(id) && validIds.has(id));
+}
 
 // ⑩ エタロ攻略チェッカーのマスターデータ（ステージ・ミッション一覧）取得。
 // unit.html/supporter.htmlのUNITS配列に相当する静的参照データのため認証不要
@@ -376,24 +387,42 @@ async function handleEternalRoadMissions(request, env) {
 }
 
 // 所持データ（units_ownership等）と同じ「最新スナップショット方式」。
-// 送信の都度、そのuser_uidの既存クリア行を全削除してから現在のクリア状態を入れ直す
-async function replaceEternalRoadClears(env, userUid, missionIds) {
-  const now = toJstIsoString(new Date());
+// 送信の都度、そのuser_uidの既存クリア行（ミッション達成・ステージクリアの両方）を全削除してから
+// 現在のクリア状態を入れ直す。⑮ 初回登録日時（⑫と同じ考え方）の更新も同じbatchで行う
+async function replaceEternalRoadClears(env, userUid, missionIds, stageIds) {
+  const nowJst = toJstIsoString(new Date());
+  const nowUtc = new Date().toISOString(); // last_seenは⑪の対象外のままUTCを維持（既存方針を踏襲）
   const statements = [
-    env.DB.prepare("DELETE FROM eternal_road_mission_clears WHERE user_uid = ?").bind(userUid)
+    env.DB.prepare("DELETE FROM eternal_road_mission_clears WHERE user_uid = ?").bind(userUid),
+    env.DB.prepare("DELETE FROM eternal_road_stage_clears WHERE user_uid = ?").bind(userUid)
   ];
   for (const missionId of missionIds) {
     statements.push(
       env.DB.prepare(
         "INSERT INTO eternal_road_mission_clears (user_uid, mission_id, cleared_at) VALUES (?, ?, ?)"
-      ).bind(userUid, missionId, now)
+      ).bind(userUid, missionId, nowJst)
     );
   }
+  for (const stageId of stageIds) {
+    statements.push(
+      env.DB.prepare(
+        "INSERT INTO eternal_road_stage_clears (user_uid, stage_id, cleared_at) VALUES (?, ?, ?)"
+      ).bind(userUid, stageId, nowJst)
+    );
+  }
+  statements.push(
+    env.DB.prepare(
+      `UPDATE users SET eternal_road_first_registered_at = COALESCE(eternal_road_first_registered_at, ?), last_seen = ?
+       WHERE user_uid = ?`
+    ).bind(nowJst, nowUtc, userUid)
+  );
   await env.DB.batch(statements);
 }
 
-// ⑩ エタロ攻略チェッカーの「保存」ボタン押下時の同期エンドポイント。ログイン必須（設計7章）。
-// 未ログイン時はD1への保存を行わない（ゲストはlocalStorageのみで完結する）
+// ⑩⑮ エタロ攻略チェッカーの「データ登録」「画像で保存」「Xでシェア」押下時の同期エンドポイント。ログイン必須。
+// 未ログイン時はD1への保存を行わない。
+// ⑮ clearedStageIds（通常クリア）を追加。旧クライアント（キャッシュ）対策として欠落時はclearedIdsから導出し、
+// 「ミッション達成があるステージはクリア扱い」にサーバー側でも正規化する
 async function handleLogEternalRoadMissions(request, env) {
   const sessionUser = await getSessionUser(request, env);
   if (!sessionUser) return jsonResponse({ ok: true, loggedIn: false }, 200);
@@ -406,19 +435,41 @@ async function handleLogEternalRoadMissions(request, env) {
   }
 
   try {
-    const raw = (body && typeof body.clearedIds === "string") ? body.clearedIds : "";
-    const parts = raw.split(",").map(s => s.trim()).filter(Boolean);
-    if (parts.length <= ETERNAL_ROAD_CLEAR_MAX_ENTRIES) {
-      const missionIds = [...new Set(parts.map(Number))].filter(
-        id => Number.isInteger(id) && ETERNAL_ROAD_MISSION_IDS.has(id)
-      );
-      await replaceEternalRoadClears(env, sessionUser.userUid, missionIds);
+    const missionIds = parseEternalRoadIdList(body && body.clearedIds, ETERNAL_ROAD_MISSION_IDS);
+    const stageIds = parseEternalRoadIdList(body && body.clearedStageIds, ETERNAL_ROAD_STAGE_IDS);
+    if (missionIds && stageIds) {
+      const stageSet = new Set(stageIds);
+      for (const id of missionIds) stageSet.add(Math.floor(id / 10));
+      await replaceEternalRoadClears(env, sessionUser.userUid, missionIds, [...stageSet].sort((a, b) => a - b));
     }
   } catch (e) {
     console.error("eternal road clears write error", e);
   }
 
   return jsonResponse({ ok: true, loggedIn: true }, 200);
+}
+
+// ⑮ エタロ攻略チェッカー起動時の復元用（handleMyOwnership()のエタロ版）
+async function handleMyEternalRoad(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) return jsonResponse({ loggedIn: false }, 200);
+
+  const userRow = await env.DB.prepare(
+    "SELECT eternal_road_first_registered_at AS registeredAt FROM users WHERE user_uid = ?"
+  ).bind(sessionUser.userUid).first();
+  const { results: missionRows } = await env.DB.prepare(
+    "SELECT mission_id FROM eternal_road_mission_clears WHERE user_uid = ? ORDER BY mission_id"
+  ).bind(sessionUser.userUid).all();
+  const { results: stageRows } = await env.DB.prepare(
+    "SELECT stage_id FROM eternal_road_stage_clears WHERE user_uid = ? ORDER BY stage_id"
+  ).bind(sessionUser.userUid).all();
+
+  return jsonResponse({
+    loggedIn: true,
+    registered: !!(userRow && userRow.registeredAt),
+    clearedIds: missionRows.map(r => r.mission_id),
+    clearedStageIds: stageRows.map(r => r.stage_id)
+  }, 200);
 }
 
 export default {
@@ -462,6 +513,9 @@ export default {
     }
     if (url.pathname === "/api/log-eternal-road-missions" && request.method === "POST") {
       return handleLogEternalRoadMissions(request, env);
+    }
+    if (url.pathname === "/api/my-eternal-road" && request.method === "GET") {
+      return handleMyEternalRoad(request, env);
     }
 
     // ルートURLはトップページ（top.html）を配信する。index.htmlは廃止済み（unit.htmlへリネーム済み）のため、

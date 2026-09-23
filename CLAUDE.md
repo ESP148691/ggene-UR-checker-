@@ -18,8 +18,8 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `unit.html` — UR機体所持率チェッカー（84機収録）
 - `supporter.html` — URサポート所持率チェッカー（49体収録）
 - `analytics.html` — みんなの所持率ランキング（分析ページ。ログインユーザー限定・2026-09-19新設）
-- `eternal-road.html` — エタロ攻略チェッカー（エターナルロード エキスパート難易度。全29ステージ・69ミッション。2026-09-23新設・⑩⑭）
-- `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`・`analytics.html`から読み込む
+- `eternal-road.html` — エタロ攻略チェッカー（エターナルロード エキスパート難易度。全29ステージ・69ミッション。2026-09-23新設・⑩⑭。同日⑮でバナー画像・通常クリア・3ボタン・フィルタ追加、**ログインユーザー限定**化）
+- `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`・`analytics.html`・`eternal-road.html`から読み込む。ログイン成功後は`/top`へ遷移するが、`<body data-auth-stay>`のページ（`eternal-road.html`）はその場でリロード（⑮）
 - `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）、所持データログ収集API（`/api/log`・`/api/log-supporter`。**ログイン済みユーザーのみD1保存、ゲストは匿名カウンタのみ加算＝2026-09-19〜**）、分析API（`/api/analytics/units`・`/api/analytics/supporters`、ログイン必須。2026-09-19新設）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
 - `wrangler.jsonc` — プロジェクト名 `ggene-ur-checker`、assetsのdirectoryは`./`、D1バインディング`DB`（`ggene-ur-checker-db`）設定済み
 - `migrations/0001_add_user_auth.sql` — `users`テーブルへの`username`/`password`カラム追加、`sessions`テーブル新設。Cloudflareダッシュボード（D1 > Console）で手動適用済み
@@ -31,6 +31,8 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `migrations/0007_dedupe_ownership.sql` — 当初は`units_ownership`/`supporters_ownership`の`(user_uid, unit_id)`重複行削除＋一意インデックス追加を想定していたが、**2026-09-23、本番D1で確認した結果、前提（重複行の存在）が誤りだったと判明。適用しない（経緯の記録として残す）**。詳細は下記「⑬」節の訂正を参照
 - `migrations/0008_eternal_road_missions.sql` — ⑩エタロ攻略チェッカー（エキスパート難易度）のテーブル定義（`eternal_road_missions`・`eternal_road_mission_clears`）。**未適用（要Cloudflareダッシュボードでの手動適用）**
 - `migrations/0009_populate_eternal_road_missions.sql` — エキスパート全29ステージ・69ミッションのマスターデータ投入。**未適用（要Cloudflareダッシュボードでの手動適用）**
+- `migrations/0010_eternal_road_stage_clears.sql` — ⑮通常クリア用`eternal_road_stage_clears`テーブル新設・`users.eternal_road_first_registered_at`追加・既存ミッション達成からのバックフィル。**未適用。0008→0009→0010の順厳守、worker.jsのpushと同時に適用**。INSERT/UPDATEは冪等だが、**`ALTER TABLE`は再実行するとエラーになるため、再実行時はALTER文だけ除いて実行すること**
+- `images/eternal-road/1.jpg`〜`29.jpg` — エタロのステージバナー（640×234px。ユーザー撮影のスクショからCoworkが切り出し。⑮）
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
 
@@ -431,13 +433,30 @@ Cowork側の設計資料`docs/⑩エタロ攻略チェッカー_エキスパー�
 - 適用後、ユーザーが`/eternal-road.html`に直接アクセスしてテスト運用
 - **テスト運用完了後、ユーザーからの指示があったら`top.html`のROUTE 03をComing Soonから実カードへ差し替える**（差し替え方法は上記7.の「実装済み導線に差し替え」時のコード＝コミット`36fa384`時点の`top.html`の該当箇所を参照すれば良い）
 
+### ⑮ エタロ攻略チェッカー 機能追加（コード実装・検証完了・2026-09-23。**git commit・push・D1マイグレーション0010は未実施**）
+Cowork側の設計資料`docs/⑮エタロ攻略チェッカー_機能追加設計.md`に基づき実装した。テスト運用前のユーザー要望7点（アイコン追加／通常クリア追加／データ登録・画像で保存・Xでシェア／全達成で虹枠・通常クリアで金枠／フィルタ／ノーマル・ハード非表示／ログイン限定）への対応。**⑩からの方針変更2点**：「ゲスト利用可」→**ログイン必須**、「DBからの復元なし」→**起動時に`/api/my-eternal-road`から復元**（他チェッカーの⑪と揃えた）。
+
+1. **`migrations/0010_eternal_road_stage_clears.sql`（新規）**：設計書どおり（`--`コメントなし）。通常クリアは別テーブル`eternal_road_stage_clears`（疑似ミッション方式はミッション数・称号集計の意味を変えるため不採用）。`users.eternal_road_first_registered_at`で「登録済み0件」と「未登録」を区別（⑫と同じ）。バックフィルは既存ミッション達成からステージクリア（`cleared_at`はMIN）と初回登録日時を作る冪等SQL
+2. **`worker.js`**：`ETERNAL_ROAD_STAGE_IDS`（ミッションID集合から導出した29件）と共通パーサ`parseEternalRoadIdList()`を追加。`POST /api/log-eternal-road-missions`に`clearedStageIds`を追加し、欠落時（旧クライアント）は`clearedIds`から導出、保存するステージ集合は`clearedStageIds ∪ {floor(mission_id/10)}`に正規化。`replaceEternalRoadClears()`は1回の`batch()`でミッション・ステージ両テーブルのDELETE→INSERTと`users`の`eternal_road_first_registered_at = COALESCE(...)`・`last_seen`更新を行う。`GET /api/my-eternal-road`（`handleMyEternalRoad()`）を新設
+3. **`eternal-road.html`（全面改修）**：ログインガード（`analytics.html`と同じクライアント側方式）、バナー画像付きステージカード（画像欠損時はNo.＋ステージ名のプレースホルダー）、クリアトグル（バナータップでも可）、未クリア=グレースケール／通常クリア=金枠／全ミッション達成=虹枠（DOMは背景グラデーション＋paddingで枠を描画）、整合ルール（ミッションチェックでクリア自動ON、クリアOFFでミッション全解除＋トースト）、サマリー（ステージクリア主指標＋クリア率・全達成・ミッション・称号。分母はマスターから算出し`TOTAL_TITLE_MISSIONS`定数は廃止）、フィルタ（ステータス4択＋トグル3種、`eternalroad_filter_v1`に保存）、localStorage v2（`eternalroad_expert_v2`、v1からの1回移行）、`unit.html`と同じ3ボタン・トースト・プレビューモーダル、Canvas画像（3列×10行のバナー、ピップ表示）、Xシェア。難易度タブはCSS・マークアップをコメントアウトで残し非表示、`EXPERT`ラベルのみ表示。カードは初回に1度だけDOMを組み立て以降はクラス更新のみ（再描画のたびに画像を読み直さないため）。キャンバスのロゴ取得元として見出しにESPロゴを追加
+4. **`auth.js`（設計書にない追加変更）**：ログイン成功後は常に`/top`へ遷移する仕様だったが、トップページのROUTE 03が未公開のため、ガードからログインするとエタロに戻る導線が無くなる。そこで`<body data-auth-stay>`属性を持つページではトップへ遷移せずその場でリロードするようにした（他ページは挙動不変）
+5. **DB復元のタイミング**：設計の`userEditedSinceLoad`フラグは実装したが、今回はマスター取得と`/api/my-eternal-road`を並行取得し、両方そろってから一覧を描画するため、復元前にユーザーが操作できる時間帯は実質存在しない（フラグは保険として残置）
+
+**検証**：⑩と同じ方式。`worker.js`・`migrations/0008〜0010`はsql.js＋Playwrightのブラウザ内ハーネスで実ファイルを検証し全24件成功（バックフィルの内容・冪等性・ALTER再実行でエラーになること、POSTの各パターン＝ステージのみ／ミッションのみ補完／範囲外・重複破棄／旧クライアント互換／件数上限／空送信／未ログイン／他ユーザー非干渉、初回登録日時のJST・不変性、GETの3パターン）。`eternal-road.html`はAPIモックによるPlaywright UIテストで全53件成功（ガード表示とガードからのログイン→同ページリロード、29カード・画像・alt・欠損時プレースホルダー、整合ルール、2/3ミッションのステージでの枠3種、サマリー、フィルタ全種と件数・0件表示・リロード復元、v1→v2移行、DB復元の分岐、3ボタンの送信内容、シェア文、未ログイン応答トースト、consoleエラーなし、320/390/1024pxで横スクロールなし）。生成画像（1640×2660px）と各幅のスクリーンショットを目視確認済み。途中、UIテストで`loadChecker()`内の変数スコープの不具合（`try`ブロック内の`const`を外で参照）を検出し修正済み。テストハーネスはリポジトリに含めず、検証後に削除。
+`docs/WEBサイト仕様書.md`も1.2節・2.3節・2.6節（全面書き換え）・3章・3.1節・4章・5.-5節（新規）・6章・7章を更新済み。
+
+**未実施（要対応）**：
+- git commit・push（ユーザーの承認待ち）
+- Cloudflareダッシュボードでのマイグレーション適用：**0008→0009（未適用なら）→0010の順**。**0010はpush（自動デプロイ）と同じタイミングで適用する**（⑬のデプロイギャップ対策。間が空いた場合は0010のINSERT/UPDATE 2文を再実行すればよい）。なお0008・0009が未適用のまま新コードがデプロイされても、エタロページがエラー表示になるだけで他ページへの影響はない
+- ユーザーによる`/eternal-road.html`でのテスト運用（トップページROUTE 03はComing Soonのまま。解放はユーザー指示後）
+- 公開告知ポスト作成後、`eternal-road.html`の`CONFIG.quotePostUrl`を設定（現在`null`）
+
 ## 次にやること
-- ⑩の未実施項目（上記参照）：`migrations/0008`・`0009`のD1適用、ユーザーによるテスト運用、**指示があった後で**`top.html`のROUTE 03解放
+- ⑮の未実施項目（上記参照）：git commit・push、**pushと同時に**`migrations/0010`のD1適用（0008・0009が未適用なら先に）、ユーザーによるテスト運用、**指示があった後で**`top.html`のROUTE 03解放
 - ⑬は解決済み（上記訂正参照）。追加対応は不要
 - ⑪の未実施項目：`migrations/0005`のD1適用、本番実機確認（PC/スマホ通常ブラウザ/スマホXアプリ内蔵ブラウザ × 画像保存/Xシェア/データ登録）
 - ⑫のデプロイ後確認：本番の所持率表示が母数フィルタ適用後に上昇していること（急な低下があれば`registeredColumn`の指定誤りを疑う）。数値変化のX等での告知要否はユーザー判断
 - ⑦・⑨から継続：凸レベル別内訳（完凸率等）、期間限定/恒常別の切り替え集計、PCでのポップオーバー化、タイル長押し比較、絞り込み条件の複数選択（例：攻撃と支援を同時に）、絞り込み状態の保存（`localStorage`）、所持率の並べ替え切り替え（No.順・名前順）
-- ⑩エタロ攻略チェッカー（設計完了・実装待ち。`docs/⑩エタロ攻略チェッカー_エキスパート詳細設計.md`）
 - 次にどのテーマ（エタロ攻略/称号獲得チェッカー追加、自己紹介カード自動生成、「クリア率」分析 等）に着手するかは、次回セッション冒頭でユーザーに確認すること
 
 ## 作業上の注意
