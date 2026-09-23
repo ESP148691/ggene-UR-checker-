@@ -236,6 +236,8 @@
     .route::before{display:none;} /* 縦一列の航路線は2カラムでは意味をなさないため非表示 */
     .soonGroup{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
     .soonGroup .navcard{margin-bottom:0;}
+    /* 見出しがグリッドの1マスを占めてカードが互い違いにならないよう、見出しは全幅にする */
+    .route .sectionLabel, .soonGroup .sectionLabel{grid-column:1 / -1;margin-bottom:0;}
   }
 </style>
 </head>
