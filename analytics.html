@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>全軍戦況レポート | Gジェネエターナル ファンツール</title>
+<title>ログインユーザーレポート | Gジェネエターナル ファンツール</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
@@ -262,12 +262,12 @@
 
 <main class="wrap" id="mainWrap">
   <div class="headArea">
-    <p class="eyebrow">ALL FORCES REPORT</p>
-    <h1>全軍戦況レポート</h1>
+    <p class="eyebrow">LOGIN USER REPORT</p>
+    <h1>ログインユーザーレポート</h1>
     <p class="sub">登録ユーザーのデータを集計し、URユニット・URサポートの所持率ランキングと、エタロ攻略のクリア状況を見られます（ログインユーザー限定機能）。</p>
 
     <div id="guardView" class="guardCard" hidden>
-      <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、みんなの所持率やエタロ攻略状況を集計した全軍戦況レポートが見られるようになります。</p>
+      <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、みんなの所持率やエタロ攻略状況を集計したログインユーザーレポートが見られるようになります。</p>
       <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
     </div>
 
@@ -679,9 +679,9 @@
       return `<div class="erStat"><div class="k">${k}</div><div class="v">${pct}<small>%</small></div><div class="n">${count} / ${total}人</div></div>`;
     };
     document.getElementById("erSummary").innerHTML =
-      stat("全ステージ制覇", d.allClearCount) +
-      stat("全ミッション達成", d.allPerfectCount) +
-      `<div class="erStat"><div class="k">あなたのクリア</div><div class="v">${d.registered ? myClears : "-"}<small>/ ${stageTotal}</small></div><div class="n">${d.registered ? "ステージ" : "未登録"}</div></div>`;
+      stat("全ステージ<wbr>制覇", d.allClearCount) +
+      stat("全ミッション<wbr>達成", d.allPerfectCount) +
+      `<div class="erStat"><div class="k">あなたの<wbr>クリア</div><div class="v">${d.registered ? myClears : "-"}<small>/ ${stageTotal}</small></div><div class="n">${d.registered ? "ステージ" : "未登録"}</div></div>`;
   }
 
   function renderEternalList(){
