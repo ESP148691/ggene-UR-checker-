@@ -33,8 +33,8 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `migrations/0008_eternal_road_missions.sql` — ⑩エタロ攻略チェッカー（エキスパート難易度）のテーブル定義（`eternal_road_missions`・`eternal_road_mission_clears`）。**適用済み（2026-09-24にユーザー確認）**
 - `migrations/0009_populate_eternal_road_missions.sql` — エキスパート全29ステージ・69ミッションのマスターデータ投入。**適用済み（2026-09-24にユーザー確認）**
 - `migrations/0010_eternal_road_stage_clears.sql` — ⑮通常クリア用`eternal_road_stage_clears`テーブル新設・`users.eternal_road_first_registered_at`追加・既存ミッション達成からのバックフィル。**適用済み（2026-09-24にユーザー確認）**。INSERT/UPDATEは冪等だが、**`ALTER TABLE`は再実行するとエラーになるため、再実行時はALTER文だけ除いて実行すること**
-- `migrations/0011_profile_card.sql` — ㉒自己紹介カードの5テーブル（`works_master`・`unit_work_map`・`user_profiles`・`user_favorite_works`・`user_favorite_units`）＋`idx_fav_work`。冪等（`CREATE TABLE IF NOT EXISTS`）。**未適用（pushと同時に適用する。0011→0012の順）**
-- `migrations/0012_populate_works_master.sql` — 作品マスター106件＋URユニット→作品の対応84件の投入。冪等（`INSERT OR REPLACE`）。**未適用（0011の直後に適用）**
+- `migrations/0011_profile_card.sql` — ㉒自己紹介カードの5テーブル（`works_master`・`unit_work_map`・`user_profiles`・`user_favorite_works`・`user_favorite_units`）＋`idx_fav_work`。冪等（`CREATE TABLE IF NOT EXISTS`）。**適用済み（2026-09-24）**
+- `migrations/0012_populate_works_master.sql` — 作品マスター106件＋URユニット→作品の対応84件の投入。冪等（`INSERT OR REPLACE`）。**適用済み（2026-09-24）**
 - `images/eternal-road/1.jpg`〜`29.jpg` — エタロのステージバナー（640×234px。ユーザー撮影のスクショからCoworkが切り出し。⑮）
 - `images/eternal-road/icon/1.jpg`〜`29.jpg` — トップページのエタロ導線用アイコン（136×136px。各バナーの横中央・上端170×170を切り抜き。`scripts/make_eternal_road_icons.py`で生成。**バナーを差し替え・追加したら再実行すること**）
 - `images/series/1.png`〜`106.png` — 作品アイコン（ゲーム内「シリーズ絞り込み」画面のロゴ。運営者のスクショからCoworkが切り出し、320×140。番号＝`works_master.work_id`）
@@ -564,7 +564,7 @@ URユニット／URサポートのカードと同じ`.regBadge`（`data-reg="ete
 - `docs/WEBサイト仕様書.md`の2.2節を更新済み
 - 実装・検証後にそのままcommit（`ee617e4`）・`git push origin main`済み（2026-09-24）
 
-### ㉒ 自己紹介カード作成ページ（profile-card.html）新設（コード実装・検証・git commit完了・2026-09-24。**pushはD1マイグレーション0011・0012の適用直後に行う＝未push**）
+### ㉒ 自己紹介カード作成ページ（profile-card.html）新設（コード実装・検証・git commit・push完了・2026-09-24。D1マイグレーション0011・0012はユーザーが適用後にpush）
 Cowork側の実装依頼書`docs/㉒自己紹介カード_実装依頼書.md`に基づき実装した（⑰〜㉑と食い違う箇所は㉒を優先。描画は㉑プロトタイプから移植）。
 
 1. **マイグレーション**：`docs/㉒0011_profile_card.sql`・`㉒0012_populate_works_master.sql`を`migrations/0011_profile_card.sql`・`0012_populate_works_master.sql`としてそのまま配置（バイト単位で同一を確認。`--`コメントなし）
@@ -586,10 +586,10 @@ Cowork側の実装依頼書`docs/㉒自己紹介カード_実装依頼書.md`に
 - 既存のテスト（データ登録結果レポートのAPI 19件・画面、トップのアイコン18件）も再実行し回帰なし
 - **未確認（8章14）**：iOS Safari実機での背景生成時間（テーマ切替の初回）と2400×1350の画像保存
 - `docs/WEBサイト仕様書.md`の1.2節・2.2節・2.7節（新規）・3章・4章・5.-8節（新規）・6章を更新済み
-- commit（`111924a`、`images/series/`の106枚を含む）。**pushはD1適用後**
+- commit（`111924a`、`images/series/`の106枚を含む）。ユーザーがD1に0011→0012を適用した直後に`git push origin main`（2026-09-24）。本番で`/api/works`が106作品・84機、`/profile-card.html`が200、未ログインの`/api/profile-card`が401、トップの導線が`hidden`のままであることを確認
 
 **未実施（要対応）**：
-- **Cloudflareダッシュボード（D1 > Console）で`migrations/0011`→`0012`の順に実行し、その直後に`git push origin main`（自動デプロイ）**（⑬の教訓。どちらも冪等なので、間が空いたら両方とも再実行すればよい）。pushすると自動デプロイされるため、commitまで済ませてpushは適用の連絡を待っている。なお新コードはテーブル未作成でも既存ページに影響しない（`/api/works`は`{works:[]}`、`/api/profile-card`は既定値を返し、影響は非公開の`profile-card.html`の保存のみ）
+- ~~D1への0011→0012の適用とpush~~ → 完了（2026-09-24）。以下は当時の記録：**Cloudflareダッシュボード（D1 > Console）で`migrations/0011`→`0012`の順に実行し、その直後に`git push origin main`（自動デプロイ）**（⑬の教訓。どちらも冪等なので、間が空いたら両方とも再実行すればよい）。pushすると自動デプロイされるため、commitまで済ませてpushは適用の連絡を待っている。なお新コードはテーブル未作成でも既存ページに影響しない（`/api/works`は`{works:[]}`、`/api/profile-card`は既定値を返し、影響は非公開の`profile-card.html`の保存のみ）
 - `/profile-card.html`に直接アクセスしてテスト運用。問題なければユーザー指示で`top.html`の`#profileCardNav`の`hidden`を外す
 - iOS Safari実機確認（上記）
 
@@ -607,7 +607,7 @@ URユニット・URサポート・作品を追加するときに、そろえて�
 - **`works_master`（D1への`INSERT OR REPLACE`）・`worker.js`の`WORK_IDS`・`images/series/{work_id}.png`の3点を必ずそろえる**。`work_id`はゲーム内「シリーズ絞り込み」の並び順＝アイコン画像の番号。`WORK_IDS`に無いIDは`POST /api/profile`で読み飛ばされ、画像が無いとアイコンが空のプレートになる
 
 ## 次にやること
-- ㉒：**`migrations/0011`→`0012`のD1適用→直後にpush**、`/profile-card.html`のテスト運用、iOS Safari実機確認、指示後にトップ導線の`hidden`を外す
+- ㉒：D1適用・push済み。、`/profile-card.html`のテスト運用、iOS Safari実機確認、指示後にトップ導線の`hidden`を外す
 - ⑮：`migrations/0008`〜`0010`は適用済み、トップページへの導線も2026-09-24に公開済みで完了。残りは`CONFIG.quotePostUrl`（公開告知ポスト作成後）のみ
 - ⑬は解決済み（上記訂正参照）。追加対応は不要
 - ㉔：iOS Safari実機でエタロの「画像で保存」（1640×3140px）が保存できるかユーザー確認
