@@ -681,18 +681,107 @@ function loadImage(src){
 }
 
 const RAINBOW_STOPS = ["#ff5f6d", "#ffc371", "#9dff8a", "#5b8def", "#c471f5"];
-function rainbowGradient(ctx, x0, y0, x1, y1){
+
+// ㉔ 自己紹介カード（エタロ攻略特化テンプレート）の表記に合わせる（全ミッション達成の強調は㉔追補の案Dで、カードより強い）：
+//   ミッションは●ではなく文言チップ（missionLabel）、「クリア率」はステージクリアの右に%のみ、凡例を30マス目に描く
+//   見出し・フッターは変更しない（ユーザー判断・2026-09-24）
+const CARD_VIOLET = "#a58cf0"; // 自己紹介カード（宇宙世紀テーマ）の称号色。金はチェッカーと同じ#dab949
+
+// ミッションの短い表示名（自己紹介カードのmissionLabel()と同一ロジック・同一文言）
+function missionLabel(m){
+  if (m.is_title) return "称号獲得";
+  if (m.mission_type === "dev") return "開発縛り";
+  if (m.mission_type === "survive") return "生存10機";
+  if (m.mission_type === "tag") return `${m.tag || "タグ"}縛り`;
+  if (m.mission_type === "sr") return "SR縛り";
+  return "ミッション";
+}
+
+
+// 虹色を短い周期で繰り返すグラデーション（どの辺にも全色が現れる）
+function rainbowRepeat(ctx, x0, y0, x1, y1, times){
   const g = ctx.createLinearGradient(x0, y0, x1, y1);
-  RAINBOW_STOPS.forEach((c, i) => g.addColorStop(i / (RAINBOW_STOPS.length - 1), c));
+  const n = RAINBOW_STOPS.length, total = times * n;
+  for (let k = 0; k <= total; k++) g.addColorStop(k / total, RAINBOW_STOPS[k % n]);
   return g;
+}
+function drawStarBadge(ctx, cx, cy, R){
+  ctx.save();
+  ctx.shadowColor = "rgba(255,255,255,0.9)"; ctx.shadowBlur = 8;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.fillStyle = rainbowRepeat(ctx, cx - R, cy - R, cx + R, cy + R, 1); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 2; ctx.strokeStyle = "#ffffff"; ctx.stroke();
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? R * 0.28 : R * 0.62; ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+  ctx.closePath(); ctx.fillStyle = "#ffffff"; ctx.fill();
+  ctx.restore();
+}
+// ㉔追補 全ミッション達成の枠：太い虹枠（周期を繰り返し、どの辺にも全色が出る）＋外側の白いグロー＋内側の白い細線＋右上の虹色★バッジ
+function drawPerfectFrame(ctx, x, y, w, h){
+  ctx.save();
+  ctx.strokeStyle = rainbowRepeat(ctx, x, y, x + w, y + h, 4);
+  ctx.lineWidth = 5;
+  ctx.shadowColor = "rgba(255,255,255,0.85)";
+  ctx.shadowBlur = 10;
+  ctx.strokeRect(x + 2.5, y + 2.5, w - 5, h - 5);
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = "rgba(255,255,255,0.9)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 5.5, y + 5.5, w - 11, h - 11);
+  ctx.restore();
+  drawStarBadge(ctx, x + w - 16, y + 16, 12);
+}
+
+function roundRectPath(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+  else ctx.rect(x, y, w, h);
+}
+
+// ミッションごとの文言チップ。達成=塗り（称号は紫・他は金）、未達成=枠線のみ（ステージ未クリアはさらに薄く）
+// ㉔追補 全ミッション達成のステージはチップをすべて虹色で塗る（金枠のステージと一目で区別するため）
+function drawMissionChips(ctx, x, y, w, h, stageMissions, stageCleared, perfect){
+  const labels = stageMissions.map(missionLabel), gap = 4, padX = 6;
+  let fs = 12, widths;
+  for (; fs >= 9; fs -= 0.5) {
+    ctx.font = `bold ${fs}px sans-serif`;
+    widths = labels.map(l => ctx.measureText(l).width + padX * 2);
+    if (widths.reduce((a, b) => a + b, 0) + gap * (labels.length - 1) <= w) break;
+  }
+  const extra = Math.max(0, (w - widths.reduce((a, b) => a + b, 0) - gap * (labels.length - 1)) / labels.length);
+  let cx = x;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  stageMissions.forEach((m, i) => {
+    const cw = widths[i] + extra, done = clearedMissions.has(m.mission_id);
+    roundRectPath(ctx, cx, y, cw, h, 3);
+    if (done) {
+      ctx.fillStyle = perfect ? rainbowRepeat(ctx, cx, y, cx + cw, y + h, 1) : (m.is_title ? CARD_VIOLET : "#dab949");
+      ctx.fill();
+      ctx.fillStyle = "#121019";
+    } else {
+      ctx.strokeStyle = "rgba(255,255,255,0.28)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = stageCleared ? "rgba(230,236,242,0.72)" : "rgba(200,210,220,0.38)";
+    }
+    ctx.fillText(labels[i], cx + cw / 2, y + h / 2 + 0.5);
+    cx += cw + gap;
+  });
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
 }
 
 async function generateShareImage(){
   const s = computeStats();
   const cols = 3;
-  const rows = Math.ceil(stages.length / cols);
+  const cells = stages.length + 1; // 最後の1マスは凡例
+  const rows = Math.ceil(cells / cols);
   const cellW = 240;
-  const cellH = 88; // バナー比率640:234に合わせる
+  const bannerH = 88; // バナー比率640:234に合わせる
+  const chipBandH = 24; // バナー下のミッション文言チップ帯
+  const cellH = bannerH + chipBandH;
   const gap = 10;
   const pad = 40;
   const headerH = 290;
@@ -718,7 +807,7 @@ async function generateShareImage(){
   ctx.lineWidth = 1;
   ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
 
-  // ヘッダーテキスト
+  // ヘッダーテキスト（変更なし）
   ctx.textBaseline = "top";
   ctx.fillStyle = "#dab949";
   ctx.font = "bold 15px sans-serif";
@@ -729,7 +818,6 @@ async function generateShareImage(){
   const title = "エタロ攻略チェッカー";
   ctx.fillText(title, pad, pad + 26);
   const titleW = ctx.measureText(title).width;
-  // 難易度ラベル
   ctx.font = "bold 13px sans-serif";
   const diff = "EXPERT";
   const diffW = ctx.measureText(diff).width + 16;
@@ -739,7 +827,6 @@ async function generateShareImage(){
   ctx.fillStyle = "#1b1503";
   ctx.fillText(diff, diffX + 8, diffY + 4);
 
-  // ロゴ（画面ヘッダーと同じ画像を右上に表示）
   const logoEl = document.querySelector(".titlerow .logo");
   if (logoEl && logoEl.src) {
     const logoImg = await loadImage(logoEl.src);
@@ -750,37 +837,40 @@ async function generateShareImage(){
     }
   }
 
-  // 主指標：ステージクリア
+  // 主指標：自己紹介カードと同じく「ステージクリア」ラベル → 「n / 29」 → 右端に%（「クリア率」の語は使わない）
+  ctx.fillStyle = "#9fb0c0";
+  ctx.font = "bold 14px sans-serif";
+  ctx.fillText("ステージクリア", pad, pad + 76);
   ctx.fillStyle = "#dab949";
-  ctx.font = "bold 64px monospace";
+  ctx.font = "bold 58px monospace";
   const mainText = String(s.stageClear);
-  ctx.fillText(mainText, pad, pad + 76);
+  ctx.fillText(mainText, pad, pad + 96);
   const mainW = ctx.measureText(mainText).width;
   ctx.fillStyle = "#7c8896";
   ctx.font = "bold 26px monospace";
-  ctx.fillText(`/ ${s.stageTotal}`, pad + mainW + 10, pad + 106);
-  const denomW = ctx.measureText(`/ ${s.stageTotal}`).width;
+  ctx.fillText(` / ${s.stageTotal}`, pad + mainW + 4, pad + 124);
   ctx.fillStyle = "#eef2f5";
-  ctx.font = "bold 18px sans-serif";
-  ctx.fillText("ステージクリア", pad + mainW + 10 + denomW + 14, pad + 110);
+  ctx.font = "bold 22px sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText(`${s.rate}%`, W - pad, pad + 124);
+  ctx.textAlign = "left";
 
-  // サブ指標
+  // サブ指標：自己紹介カードの3行と同じ項目・同じ文言
   const subStats = [
-    { v: `${s.perfect} / ${s.stageTotal}`, l: "全ミッション達成" },
-    { v: `${s.missionDone} / ${s.missionTotal}`, l: "ミッション達成" },
-    { v: `${s.titleDone} / ${s.titleTotal}`, l: "称号獲得" },
-    { v: `${s.rate}%`, l: "クリア率" }
+    { v: `${s.perfect} / ${s.stageTotal}`, l: "全ミッション達成", c: "#5ad1d1" },
+    { v: `${s.missionDone} / ${s.missionTotal}`, l: "ミッション達成", c: "#5ad1d1" },
+    { v: `${s.titleDone} / ${s.titleTotal}`, l: "称号獲得", c: CARD_VIOLET }
   ];
   const subW = gridW / subStats.length;
   subStats.forEach((st, i) => {
     const x = pad + i * subW;
-    const y = pad + 160;
+    const y = pad + 170;
     ctx.fillStyle = "#101720";
     ctx.fillRect(x, y, subW - 2, 60);
     ctx.strokeStyle = "#26323f";
     ctx.strokeRect(x, y, subW - 2, 60);
     ctx.textAlign = "center";
-    ctx.fillStyle = "#5ad1d1";
+    ctx.fillStyle = st.c;
     ctx.font = "bold 23px monospace";
     ctx.fillText(st.v, x + subW / 2, y + 12);
     ctx.fillStyle = "#7c8896";
@@ -797,13 +887,17 @@ async function generateShareImage(){
     const y = gridY + Math.floor(i / cols) * (cellH + gap);
     const status = stageStatus(stage);
 
+    // チップ帯の下地
+    ctx.fillStyle = "#0b111a";
+    ctx.fillRect(x, y, cellW, cellH);
+
     const im = imgs[i];
     if (im) {
-      ctx.drawImage(im, x, y, cellW, cellH);
+      ctx.drawImage(im, x, y, cellW, bannerH);
       // ctx.filterはSafari等で反映されないことがあるため、ピクセル操作で直接処理する
       // 注意: getImageData/putImageDataはctx.scale()の影響を受けないため、実ピクセル座標に変換する
       const gx = Math.round(x * scale), gy = Math.round(y * scale);
-      const gw = Math.round(cellW * scale), gh = Math.round(cellH * scale);
+      const gw = Math.round(cellW * scale), gh = Math.round(bannerH * scale);
       if (status === "none") {
         const imgData = ctx.getImageData(gx, gy, gw, gh);
         const d = imgData.data;
@@ -826,24 +920,17 @@ async function generateShareImage(){
     } else {
       // 画像読み込み失敗時のフォールバック：濃紺の矩形＋No.のみ
       ctx.fillStyle = status === "none" ? "#0d1320" : "#14203a";
-      ctx.fillRect(x, y, cellW, cellH);
+      ctx.fillRect(x, y, cellW, bannerH);
       ctx.fillStyle = status === "none" ? "#5a6573" : "#dab949";
       ctx.font = "bold 22px monospace";
       ctx.textBaseline = "middle";
-      ctx.fillText(`No.${stage.stage_id}`, x + 14, y + cellH / 2);
+      ctx.fillText(`No.${stage.stage_id}`, x + 14, y + bannerH / 2);
       ctx.textBaseline = "top";
     }
 
-    // 枠：未クリア=細枠／通常クリア=金／全ミッション達成=虹（unit.htmlの完凸枠と同じ）
-    if (status === "perfect") {
-      ctx.save();
-      ctx.strokeStyle = rainbowGradient(ctx, x, y, x + cellW, y + cellH);
-      ctx.lineWidth = 2.5;
-      ctx.shadowColor = "rgba(255,255,255,0.6)";
-      ctx.shadowBlur = 4;
-      ctx.strokeRect(x + 1.25, y + 1.25, cellW - 2.5, cellH - 2.5);
-      ctx.restore();
-    } else if (status === "clear") {
+    // 枠（バナー＋チップ帯を囲む）：未クリア=細枠／ステージクリア=金／全ミッション達成=太い虹枠＋★（drawPerfectFrame）
+    if (status === "perfect") drawPerfectFrame(ctx, x, y, cellW, cellH);
+    else if (status === "clear") {
       ctx.save();
       ctx.strokeStyle = "#dab949";
       ctx.lineWidth = 2.5;
@@ -857,41 +944,60 @@ async function generateShareImage(){
       ctx.strokeRect(x + 0.5, y + 0.5, cellW - 1, cellH - 1);
     }
 
-    // ミッション達成ピップ（右下。バナー内左下のNo./ステージ名表記と重ならない位置）
-    const n = stage.missions.length;
-    const spacing = 13;
-    const boxW = n * spacing + 8;
-    const boxH = 16;
-    const bx = x + cellW - boxW - 5, by = y + cellH - boxH - 5;
-    ctx.fillStyle = "rgba(10,14,20,0.7)";
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(bx, by, boxW, boxH, 4);
-    else ctx.rect(bx, by, boxW, boxH);
-    ctx.fill();
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = "bold 11px sans-serif";
-    stage.missions.forEach((m, k) => {
-      const px = bx + 4 + spacing * k + spacing / 2;
-      const py = by + boxH / 2 + 0.5;
-      ctx.save();
-      if (status === "perfect") {
-        ctx.fillStyle = rainbowGradient(ctx, px - 6, py - 6, px + 6, py + 6);
-        ctx.shadowColor = "rgba(255,255,255,0.9)";
-        ctx.shadowBlur = 5;
-      } else if (clearedMissions.has(m.mission_id)) {
-        ctx.fillStyle = m.is_title ? "#e0a8f5" : "#dab949";
-      } else {
-        ctx.fillStyle = "rgba(255,255,255,0.28)";
-      }
-      ctx.fillText("●", px, py);
-      ctx.restore();
-    });
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
+    drawMissionChips(ctx, x + 5, y + bannerH + 4, cellW - 10, chipBandH - 8, stage.missions, status !== "none", status === "perfect");
   });
 
-  // フッター
+  // 凡例（最後のマス。自己紹介カードの凡例と同じ文言）
+  {
+    const i = stages.length;
+    const x = pad + (i % cols) * (cellW + gap);
+    const y = gridY + Math.floor(i / cols) * (cellH + gap);
+    ctx.fillStyle = "#101720";
+    ctx.fillRect(x, y, cellW, cellH);
+    ctx.strokeStyle = "#26323f";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, cellW - 1, cellH - 1);
+    const items = [["rb", "全ミッション達成"], ["gold", "ステージクリア"], ["none", "未クリア"]];
+    ctx.font = "12px sans-serif";
+    ctx.textBaseline = "middle";
+    items.forEach(([k, l], j) => {
+      const ly = y + 16 + j * 20;
+      if (k === "rb") {
+        ctx.save();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = rainbowRepeat(ctx, x + 12, ly - 6, x + 34, ly + 6, 2);
+        ctx.shadowColor = "rgba(255,255,255,0.8)";
+        ctx.shadowBlur = 4;
+        ctx.strokeRect(x + 13, ly - 5, 20, 11);
+        ctx.restore();
+        drawStarBadge(ctx, x + 33, ly - 5, 5);
+      } else {
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = k === "gold" ? "#dab949" : "#4a5868";
+        ctx.strokeRect(x + 13, ly - 5, 20, 11);
+      }
+      ctx.fillStyle = "#9fb0c0";
+      ctx.font = "12px sans-serif";
+      ctx.textBaseline = "middle";
+      ctx.fillText(l, x + 42, ly);
+    });
+    // チップの凡例：全達成（虹）／達成（金）／称号達成（紫）／未達成（枠のみ）
+    const ly = y + 16 + 3 * 20 + 6, lw = (cellW - 26 - 9) / 4;
+    [["全達成", "rb", true], ["達成", "#dab949", true], ["称号達成", CARD_VIOLET, true], ["未達成", null, false]].forEach(([l, col, fill], j) => {
+      const lx = x + 13 + j * (lw + 3);
+      roundRectPath(ctx, lx, ly - 8, lw, 16, 3);
+      if (fill) { ctx.fillStyle = col === "rb" ? rainbowRepeat(ctx, lx, ly - 8, lx + lw, ly + 8, 1) : col; ctx.fill(); ctx.fillStyle = "#121019"; }
+      else { ctx.strokeStyle = "rgba(255,255,255,0.28)"; ctx.lineWidth = 1; ctx.stroke(); ctx.fillStyle = "#9fb0c0"; }
+      ctx.font = "bold 10px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(l, lx + lw / 2, ly + 0.5);
+      ctx.textAlign = "left";
+    });
+    ctx.textBaseline = "top";
+  }
+
+  // フッター（変更なし）
   const footY = gridY + gridH + 20;
   ctx.strokeStyle = "#26323f";
   ctx.lineWidth = 1;
@@ -938,7 +1044,8 @@ document.getElementById("btnClosePreview").addEventListener("click", () => {
 document.getElementById("btnShare").addEventListener("click", () => {
   const s = computeStats();
   const tags = CONFIG.hashtags.map(t => "#" + t).join(" ");
-  const text = `【Gジェネエターナル】エタロEXPERT攻略 ステージクリア ${s.stageClear}/${s.stageTotal}・全ミッション達成 ${s.perfect}/${s.stageTotal}（ミッション ${s.missionDone}/${s.missionTotal}・称号 ${s.titleDone}/${s.titleTotal}）\n${tags}\n${CONFIG.siteUrl}`;
+  // ㉔ 自己紹介カード（6.4 エタロテンプレートの2行目）と同じ表記
+  const text = `【Gジェネエターナル】エタロEXPERT ステージクリア ${s.stageClear}/${s.stageTotal}・全ミッション達成 ${s.perfect}/${s.stageTotal}・称号 ${s.titleDone}/${s.titleTotal}\n${tags}\n${CONFIG.siteUrl}`;
   const via = CONFIG.xHandle.replace(/^@/, "");
   let intent = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text) + "&via=" + encodeURIComponent(via);
   if (CONFIG.quotePostUrl) {
