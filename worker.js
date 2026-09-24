@@ -449,7 +449,7 @@ async function handleLogEternalRoadMissions(request, env) {
   return jsonResponse({ ok: true, loggedIn: true }, 200);
 }
 
-// エタロ攻略状況の集計API（ログインユーザーレポートの「エタロ攻略」タブ用・2026-09-24）。ログイン必須。
+// エタロ攻略状況の集計API（データ登録結果レポートの「エタロ攻略」タブ用・2026-09-24）。ログイン必須。
 // 母数はエタロでデータ登録済みのユーザー（eternal_road_first_registered_at IS NOT NULL）。
 // 分子も同じ条件のユーザーに限定する（⑬のデプロイギャップのように、フラグ未付与のクリア行があっても
 // 率が100%を超えないようにするため）
@@ -628,7 +628,7 @@ export default {
     if (url.pathname === "/api/my-eternal-road" && request.method === "GET") {
       return handleMyEternalRoad(request, env);
     }
-    // ログインユーザーレポート（analytics.html）の「エタロ攻略」タブ用の集計API。ログイン必須
+    // データ登録結果レポート（analytics.html）の「エタロ攻略」タブ用の集計API。ログイン必須
     if (url.pathname === "/api/analytics/eternal-road" && request.method === "GET") {
       return handleAnalyticsEternalRoad(request, env);
     }
