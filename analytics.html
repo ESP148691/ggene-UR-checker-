@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>みんなの所持率ランキング | Gジェネエターナル ファンツール</title>
+<title>全軍戦況レポート | Gジェネエターナル ファンツール</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
@@ -180,6 +180,72 @@
 
   .stateMsg{color:var(--muted);font-size:12.5px;text-align:center;padding:28px 0;}
 
+  /* ---- エタロ攻略タブ ----
+     クリア率=金・全ミッション達成率=シアン（dataviz validate_palette.js：dark / surface #121924で全チェック合格）。
+     サイトのアクセント色（--gold・--cyan）は明度が高すぎて基準帯を外れるため、バー専用に一段落とした色を使う。
+     文字色はデータ色を使わず、ラベルは常にテキストで併記する */
+  :root{ --er-clear:#b09020; --er-perfect:#2f9aa0; --er-violet:#a58cf0; }
+  .tabs button{white-space:nowrap;min-width:0;}
+  @media (max-width:360px){ .tabs{gap:6px;} .tabs button{font-size:13px;padding:10px 4px;} }
+  .erStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px;}
+  .erStat{background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;padding:9px 10px;min-width:0;}
+  .erStat .k{font-size:10.5px;color:var(--muted);line-height:1.4;word-break:keep-all;overflow-wrap:break-word;}
+  .erStat .v{font-family:'Share Tech Mono',monospace;font-size:19px;color:var(--text);margin-top:3px;white-space:nowrap;}
+  .erStat .v small{font-size:11px;color:var(--muted);margin-left:2px;}
+  .erStat .n{font-size:10.5px;color:var(--muted);white-space:nowrap;}
+  .erKey{display:inline-block;width:14px;height:8px;border-radius:0 4px 4px 0;margin-right:5px;vertical-align:middle;}
+  .erKey.clear{background:var(--er-clear);}
+  .erKey.perfect{background:var(--er-perfect);}
+  .erList{display:flex;flex-direction:column;gap:10px;max-width:640px;margin:0 auto;}
+  .erRow{
+    display:grid;grid-template-columns:104px 1fr;gap:10px 12px;align-items:start;text-align:left;width:100%;
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px;cursor:pointer;
+    color:inherit;font-family:inherit;-webkit-tap-highlight-color:transparent;
+  }
+  .erRow:hover{border-color:var(--line-strong);}
+  .erRow:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
+  @media (min-width:600px){ .erRow{grid-template-columns:150px 1fr;} }
+  .erBanner{position:relative;aspect-ratio:640/234;border-radius:4px;overflow:hidden;background:var(--panel-solid);border:1px solid var(--line-strong);}
+  .erBanner img, .erSheetBanner img{width:100%;height:100%;object-fit:cover;display:block;}
+  .erBanner .ph, .erSheetBanner .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);padding:4px;text-align:center;}
+  .erBody, .erBanner, .erTrack{display:block;}
+  .erBody{min-width:0;}
+  .erBanner img, .erSheetBanner img{position:relative;z-index:1;} /* 読み込めた画像はプレースホルダーの上に重ねる */
+  .erHead{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin:0 0 6px;}
+  .erNo{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan);}
+  .erName{font-size:13.5px;font-weight:700;}
+  .erMine{font-size:10.5px;font-weight:700;border-radius:3px;padding:1px 6px;white-space:nowrap;}
+  .erMine.cleared{color:#1b1503;background:var(--gold);}
+  .erMine.perfect{color:#04262b;background:var(--cyan);}
+  .erBarRow{display:grid;grid-template-columns:3.6em 1fr 3.2em;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin:0 0 4px;}
+  .erTrack{height:8px;background:rgba(147,163,179,.14);border-radius:0 4px 4px 0;overflow:hidden;}
+  .erFill{display:block;height:100%;border-radius:0 4px 4px 0;}
+  .erFill.clear{background:var(--er-clear);}
+  .erFill.perfect{background:var(--er-perfect);}
+  .erBarRow .pct{font-family:'Share Tech Mono',monospace;color:var(--text);text-align:right;font-variant-numeric:tabular-nums;}
+  .erChips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+  .erChip{font-size:10.5px;line-height:1;border:1px solid var(--line-strong);border-radius:10px;padding:4px 8px;color:var(--muted);white-space:nowrap;}
+  .erChip .r{font-family:'Share Tech Mono',monospace;color:var(--text);margin-left:4px;}
+  .erChip.title{border-color:rgba(165,140,240,.6);}
+  .erChip.mine{border-color:var(--gold);color:var(--text);}
+  .erChip.mine::before{content:"✓ ";color:var(--gold);}
+  .erChip.title.mine{border-color:var(--er-violet);}
+  .erChip.title.mine::before{color:var(--er-violet);}
+  .erSheetBanner{aspect-ratio:640/234;border-radius:6px;overflow:hidden;background:var(--panel-2);border:1px solid var(--line-strong);margin:22px 0 12px;position:relative;}
+  .detailSheet .closeBtn{z-index:2;} /* バナー画像（z-index:1）より前面に */
+  .erSheetName{font-size:15px;font-weight:700;margin:0 0 4px;padding-right:28px;}
+  .erSheetRank{font-family:'Share Tech Mono',monospace;font-size:11.5px;color:var(--cyan);margin:0 0 14px;}
+  .erSheetSection{font-size:11.5px;color:var(--muted);margin:18px 0 8px;}
+  .erSheetMissions{display:flex;flex-direction:column;gap:8px;}
+  .erMission{border:1px solid var(--line);border-radius:4px;padding:9px 10px;font-size:12px;}
+  .erMission .top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;}
+  .erMission .lbl{font-weight:700;}
+  .erMission .lbl.title{color:var(--er-violet);}
+  .erMission .rate{font-family:'Share Tech Mono',monospace;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .erMission .txt{color:var(--muted);margin-top:4px;line-height:1.6;}
+  .erMission .me{font-size:11px;margin-top:4px;color:var(--muted);}
+  .erMission .me.done{color:var(--cyan);}
+
   .pageFooter{
     margin-top:36px;padding-top:16px;border-top:1px solid var(--line);
     font-size:10.5px;line-height:1.9;color:var(--muted);
@@ -196,12 +262,12 @@
 
 <main class="wrap" id="mainWrap">
   <div class="headArea">
-    <p class="eyebrow">ANALYTICS</p>
-    <h1>みんなの所持率ランキング</h1>
-    <p class="sub">登録ユーザーの所持データをもとに、URユニット・URサポートの全体所持率をランキング形式で見られます（ログインユーザー限定機能）。</p>
+    <p class="eyebrow">ALL FORCES REPORT</p>
+    <h1>全軍戦況レポート</h1>
+    <p class="sub">登録ユーザーのデータを集計し、URユニット・URサポートの所持率ランキングと、エタロ攻略のクリア状況を見られます（ログインユーザー限定機能）。</p>
 
     <div id="guardView" class="guardCard" hidden>
-      <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、みんなの所持率ランキングが見られるようになります。</p>
+      <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、みんなの所持率やエタロ攻略状況を集計した全軍戦況レポートが見られるようになります。</p>
       <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
     </div>
 
@@ -210,11 +276,12 @@
 
   <div id="contentView" hidden>
     <div class="headArea">
-      <div class="sampleNote"><span>集計対象（データ登録済みユーザー）：</span><span>URユニット <strong id="totalUsersUnits">-</strong> 人</span><span>／ URサポート <strong id="totalUsersSupporters">-</strong> 人</span></div>
+      <div class="sampleNote"><span>集計対象（データ登録済みユーザー）：</span><span>URユニット <strong id="totalUsersUnits">-</strong> 人</span><span>／ URサポート <strong id="totalUsersSupporters">-</strong> 人</span><span>／ エタロ攻略 <strong id="totalUsersEternal">-</strong> 人</span></div>
 
       <div class="tabs">
         <button type="button" data-tab="units" class="active">URユニット</button>
         <button type="button" data-tab="supporters">URサポート</button>
+        <button type="button" data-tab="eternal">エタロ攻略</button>
       </div>
     </div>
 
@@ -263,6 +330,29 @@
       <div id="noMatchSupporters" class="stateMsg" hidden>条件に一致するサポートがありません</div>
       <div id="tierListSupporters"></div>
     </div>
+
+    <!-- エタロ攻略タブ（2026-09-24追加）。所持率ではなくクリア率のため、ティアリストではなくステージ別の一覧で表示する -->
+    <div id="rankAreaEternal" hidden>
+      <div class="headArea">
+        <div id="erNoUsersMsg" class="stateMsg" hidden>集計対象のユーザーがまだいません</div>
+        <div id="erErrorMsg" class="stateMsg" hidden>エタロ攻略の集計データを取得できませんでした。時間をおいて再度お試しください。</div>
+        <div class="syncNote" id="syncNoteEternal" hidden>攻略データがまだ登録されていません。エタロ攻略チェッカーで攻略データを登録すると、ここに反映されます</div>
+        <div id="erContent">
+          <div id="erSummary" class="erStats"></div>
+          <div class="legend erLegend">
+            <span><i class="erKey clear"></i>クリア率</span><span><i class="erKey perfect"></i>全ミッション達成率</span><span>✓＝自分がクリア・達成</span>
+          </div>
+          <div class="filterRow">
+            <span class="filterLabel">並び順</span>
+            <div class="chipGroup" id="chipsSortEternal"></div>
+          </div>
+          <div class="toggleRow">
+            <div class="toggleItem"><input type="checkbox" id="mineToggleEternal" checked><label for="mineToggleEternal">自分の攻略状況を表示</label></div>
+          </div>
+        </div>
+      </div>
+      <div id="erList" class="erList"></div>
+    </div>
   </div>
 
   <div id="errorView" class="stateMsg headArea" hidden>データの取得に失敗しました。時間をおいて再度お試しください。</div>
@@ -291,6 +381,17 @@
     <div class="detailRow"><span class="k">期間限定</span><span class="v" id="detailLimited"></span></div>
     <div class="detailRow"><span class="k">自分の所持</span><span class="v" id="detailMine"></span></div>
   </div>
+</div>
+
+<!-- エタロ攻略：ステージ詳細（ユニット／サポートの詳細と同じボトムシートの見た目で中身だけ別） -->
+<div id="erSheet" class="detailSheet" hidden role="dialog" aria-modal="true" aria-labelledby="erSheetName">
+  <button type="button" class="closeBtn" id="erSheetCloseBtn" aria-label="閉じる">&times;</button>
+  <div class="erSheetBanner" id="erSheetBanner"></div>
+  <p class="erSheetName" id="erSheetName"></p>
+  <p class="erSheetRank" id="erSheetRank"></p>
+  <div class="detailRows" id="erSheetRows"></div>
+  <p class="erSheetSection">ミッション別の達成率</p>
+  <div class="erSheetMissions" id="erSheetMissions"></div>
 </div>
 
 <script>
@@ -341,8 +442,19 @@
     units: { type: "すべて", limited: "すべて" },
     supporters: { type: "すべて", limited: "すべて" }
   };
-  let dataCache = { units: null, supporters: null };
+  let dataCache = { units: null, supporters: null, eternal: null };
+  // エタロ攻略タブの並び順（stage=ステージ順／clear=クリア率が低い順／perfect=全ミッション達成率が低い順）
+  const erState = { sort: "stage" };
+  const ER_SORTS = [
+    { key: "stage", label: "ステージ順" },
+    { key: "clear", label: "クリア率が低い順" },
+    { key: "perfect", label: "全達成率が低い順" }
+  ];
+  // ユニット／サポートの集計対象が0人か（従来どおり、この場合は両タブとも「集計対象のユーザーがまだいません」）
+  let ownershipEmpty = false;
   let currentTab = "units";
+  const detailBackdrop = document.getElementById("detailBackdrop");
+  const detailSheet = document.getElementById("detailSheet");
 
   document.getElementById("guardLoginBtn").addEventListener("click", () => {
     // auth.jsが生成する非表示のログインリンクを経由して、共通のログインモーダルを開く
@@ -353,12 +465,19 @@
   tabs.forEach(btn => {
     btn.addEventListener("click", () => {
       tabs.forEach(b => b.classList.toggle("active", b === btn));
-      const isSupporter = btn.dataset.tab === "supporters";
-      currentTab = isSupporter ? "supporters" : "units";
-      document.getElementById("rankAreaUnits").hidden = isSupporter;
-      document.getElementById("rankAreaSupporters").hidden = !isSupporter;
+      currentTab = btn.dataset.tab;
+      updateAreas();
     });
   });
+
+  // 表示中のタブの領域だけを出す。エタロ攻略タブはユニット／サポートの集計対象の有無と独立して表示する
+  function updateAreas(){
+    const ownershipTab = currentTab !== "eternal";
+    noUsersMsg.hidden = !(ownershipTab && ownershipEmpty);
+    document.getElementById("rankAreaUnits").hidden = currentTab !== "units" || ownershipEmpty;
+    document.getElementById("rankAreaSupporters").hidden = currentTab !== "supporters" || ownershipEmpty;
+    document.getElementById("rankAreaEternal").hidden = currentTab !== "eternal";
+  }
 
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
@@ -507,9 +626,157 @@
     renderTierList(tabKey);
   }
 
+  // ---- エタロ攻略タブ ----
+  // ミッションの短い表示名。eternal-road.html・自己紹介カードのmissionLabel()と同じロジック
+  // （このページはAPIがキャメルケースで返すため引数の形だけ異なる。ミッション種別を追加・変更するときは3か所とも直すこと）
+  function erMissionLabel(m){
+    if (m.isTitle) return "称号獲得";
+    if (m.type === "dev") return "開発縛り";
+    if (m.type === "survive") return "生存10機";
+    if (m.type === "tag") return `${m.tag || "タグ"}縛り`;
+    if (m.type === "sr") return "SR縛り";
+    return "ミッション";
+  }
+
+  function erBannerHtml(stage){
+    // 画像が無い場合はNo.＋ステージ名のプレースホルダー（eternal-road.htmlと同じ扱い）
+    return `<img src="images/eternal-road/${stage.stageId}.jpg" alt="" loading="lazy" width="640" height="234"
+      onerror="this.remove()"><span class="ph" aria-hidden="true">No.${stage.stageId} ${escapeHtml(stage.stageName)}</span>`;
+  }
+
+  // 同率同順位（競技順位方式）。keyの値が大きいほど上位
+  function erRanks(stages, key){
+    const sorted = stages.slice().sort((a, b) => b[key] - a[key] || a.stageId - b.stageId);
+    const ranks = new Map();
+    let last = null, lastRank = 0;
+    sorted.forEach((s, i) => {
+      if (s[key] !== last) { lastRank = i + 1; last = s[key]; }
+      ranks.set(s.stageId, lastRank);
+    });
+    return ranks;
+  }
+
+  function renderEternalSortChips(){
+    const el = document.getElementById("chipsSortEternal");
+    el.innerHTML = ER_SORTS.map(o =>
+      `<button type="button" class="chip${o.key === erState.sort ? ' active' : ''}" data-sort="${o.key}">${escapeHtml(o.label)}</button>`
+    ).join("");
+    el.querySelectorAll(".chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        erState.sort = chip.dataset.sort;
+        renderEternal();
+      });
+    });
+  }
+
+  function renderEternalSummary(){
+    const d = dataCache.eternal;
+    const total = d.totalUsers;
+    const stageTotal = d.stages.length;
+    const myClears = d.mineStages.size;
+    const stat = (k, count) => {
+      const pct = floorPct(count, total, 0);
+      return `<div class="erStat"><div class="k">${k}</div><div class="v">${pct}<small>%</small></div><div class="n">${count} / ${total}人</div></div>`;
+    };
+    document.getElementById("erSummary").innerHTML =
+      stat("全ステージ制覇", d.allClearCount) +
+      stat("全ミッション達成", d.allPerfectCount) +
+      `<div class="erStat"><div class="k">あなたのクリア</div><div class="v">${d.registered ? myClears : "-"}<small>/ ${stageTotal}</small></div><div class="n">${d.registered ? "ステージ" : "未登録"}</div></div>`;
+  }
+
+  function renderEternalList(){
+    const d = dataCache.eternal;
+    const total = d.totalUsers;
+    const showMine = document.getElementById("mineToggleEternal").checked;
+    let stages = d.stages.slice();
+    if (erState.sort === "clear") stages.sort((a, b) => a.clearedCount - b.clearedCount || a.stageId - b.stageId);
+    if (erState.sort === "perfect") stages.sort((a, b) => a.perfectCount - b.perfectCount || a.stageId - b.stageId);
+
+    document.getElementById("erList").innerHTML = stages.map(st => {
+      const clearPct = floorPct(st.clearedCount, total, 0);
+      const perfectPct = floorPct(st.perfectCount, total, 0);
+      const myCleared = d.mineStages.has(st.stageId);
+      const myPerfect = myCleared && st.missions.every(m => d.mineMissions.has(m.missionId));
+      const mineBadge = !showMine ? "" :
+        myPerfect ? '<span class="erMine perfect">★ 全達成</span>' :
+        myCleared ? '<span class="erMine cleared">✓ クリア</span>' : "";
+      const chips = st.missions.map(m => {
+        const mine = showMine && d.mineMissions.has(m.missionId);
+        return `<span class="erChip${m.isTitle ? ' title' : ''}${mine ? ' mine' : ''}">${escapeHtml(erMissionLabel(m))}<span class="r">${floorPct(m.achievedCount, total, 0)}%</span></span>`;
+      }).join("");
+      const aria = `No.${st.stageId} ${st.stageName} クリア率${clearPct}% 全ミッション達成率${perfectPct}%`;
+      return `
+        <button type="button" class="erRow" data-stage="${st.stageId}" aria-label="${escapeHtml(aria)}">
+          <span class="erBanner">${erBannerHtml(st)}</span>
+          <span class="erBody">
+            <span class="erHead"><span class="erNo">No.${st.stageId}</span><span class="erName">${escapeHtml(st.stageName)}</span>${mineBadge}</span>
+            <span class="erBarRow"><span>クリア</span><span class="erTrack"><span class="erFill clear" style="width:${clearPct}%"></span></span><span class="pct">${clearPct}%</span></span>
+            <span class="erBarRow"><span>全達成</span><span class="erTrack"><span class="erFill perfect" style="width:${perfectPct}%"></span></span><span class="pct">${perfectPct}%</span></span>
+            <span class="erChips">${chips}</span>
+          </span>
+        </button>`;
+    }).join("");
+  }
+
+  function renderEternal(){
+    const d = dataCache.eternal;
+    if (!d) return;
+    const empty = d.totalUsers === 0;
+    document.getElementById("erNoUsersMsg").hidden = !empty;
+    document.getElementById("erContent").hidden = empty;
+    document.getElementById("erList").hidden = empty;
+    // 集計対象が0人でも、自分が未登録なら登録を促す
+    document.getElementById("syncNoteEternal").hidden = d.registered;
+    if (empty) return;
+    renderEternalSortChips();
+    renderEternalSummary();
+    renderEternalList();
+  }
+
+  const erSheet = document.getElementById("erSheet");
+
+  function openEternalDetail(stageId){
+    const d = dataCache.eternal;
+    const st = d.stages.find(x => String(x.stageId) === String(stageId));
+    if (!st) return;
+    const total = d.totalUsers;
+    const decimals = total > 1000 ? 2 : 1;
+    const pctText = count => `${floorPct(count, total, decimals).toFixed(decimals)}%（${count} / ${total}人）`;
+    const clearRanks = erRanks(d.stages, "clearedCount");
+    const myCleared = d.mineStages.has(st.stageId);
+    const myPerfect = myCleared && st.missions.every(m => d.mineMissions.has(m.missionId));
+
+    document.getElementById("erSheetBanner").innerHTML = erBannerHtml(st);
+    document.getElementById("erSheetName").textContent = `No.${st.stageId} ${st.stageName}`;
+    document.getElementById("erSheetRank").textContent = `クリア率 全体${clearRanks.get(st.stageId)}位 / ${d.stages.length}ステージ中`;
+    const mineText = !d.registered ? "未登録" : myPerfect ? "全ミッション達成" : myCleared ? "クリア済み" : "未クリア";
+    document.getElementById("erSheetRows").innerHTML = `
+      <div class="detailRow"><span class="k">クリア率</span><span class="v">${pctText(st.clearedCount)}</span></div>
+      <div class="detailRow"><span class="k">全ミッション達成率</span><span class="v">${pctText(st.perfectCount)}</span></div>
+      <div class="detailRow"><span class="k">自分の攻略状況</span><span class="v${myCleared ? ' mine-owned' : ''}">${mineText}</span></div>`;
+    document.getElementById("erSheetMissions").innerHTML = st.missions.map(m => {
+      const done = d.mineMissions.has(m.missionId);
+      const reward = m.isTitle && m.titleName ? `（称号「${escapeHtml(m.titleName)}」）` : "";
+      return `
+        <div class="erMission">
+          <div class="top"><span class="lbl${m.isTitle ? ' title' : ''}">${escapeHtml(erMissionLabel(m))}</span><span class="rate">${pctText(m.achievedCount)}</span></div>
+          <div class="txt">${escapeHtml(m.text)}${reward}</div>
+          ${d.registered ? `<div class="me${done ? ' done' : ''}">${done ? "✓ 自分は達成済み" : "自分は未達成"}</div>` : ""}
+        </div>`;
+    }).join("");
+
+    detailBackdrop.hidden = false;
+    erSheet.hidden = false;
+  }
+
+  document.getElementById("erList").addEventListener("click", e => {
+    const row = e.target.closest(".erRow");
+    if (row) openEternalDetail(row.dataset.stage);
+  });
+  document.getElementById("mineToggleEternal").addEventListener("change", renderEternal);
+  document.getElementById("erSheetCloseBtn").addEventListener("click", () => closeDetail());
+
   // ---- 詳細表示（ボトムシート） ----
-  const detailBackdrop = document.getElementById("detailBackdrop");
-  const detailSheet = document.getElementById("detailSheet");
 
   function openDetail(tabKey, id){
     const isSupporter = tabKey === "supporters";
@@ -546,12 +813,13 @@
   function closeDetail(){
     detailBackdrop.hidden = true;
     detailSheet.hidden = true;
+    erSheet.hidden = true;
   }
 
   detailBackdrop.addEventListener("click", closeDetail);
   document.getElementById("detailCloseBtn").addEventListener("click", closeDetail);
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && !detailSheet.hidden) closeDetail();
+    if (e.key === "Escape" && (!detailSheet.hidden || !erSheet.hidden)) closeDetail();
   });
 
   document.getElementById("tierListUnits").addEventListener("click", e => {
@@ -570,12 +838,14 @@
 
   async function loadAnalytics(){
     try {
-      const [unitsRes, supportersRes] = await Promise.all([
+      // エタロ攻略の集計は失敗してもユニット／サポートの表示は続ける（エタロタブ内にだけエラーを出す）
+      const [unitsRes, supportersRes, eternalRes] = await Promise.all([
         fetch("/api/analytics/units", { credentials: "same-origin" }),
-        fetch("/api/analytics/supporters", { credentials: "same-origin" })
+        fetch("/api/analytics/supporters", { credentials: "same-origin" }),
+        fetch("/api/analytics/eternal-road", { credentials: "same-origin" }).catch(() => null)
       ]);
 
-      if (unitsRes.status === 401 || supportersRes.status === 401) {
+      if (unitsRes.status === 401 || supportersRes.status === 401 || (eternalRes && eternalRes.status === 401)) {
         loadingView.hidden = true;
         guardView.hidden = false;
         return;
@@ -606,22 +876,41 @@
         registered: !!supportersData.registered
       };
 
+      let eternalData = null;
+      try {
+        if (eternalRes && eternalRes.ok) eternalData = await eternalRes.json();
+      } catch (e) { eternalData = null; }
+      if (eternalData && Array.isArray(eternalData.stages)) {
+        const mine = eternalData.mine || {};
+        dataCache.eternal = {
+          totalUsers: eternalData.totalUsers || 0,
+          allClearCount: eternalData.allClearCount || 0,
+          allPerfectCount: eternalData.allPerfectCount || 0,
+          stages: eternalData.stages,
+          mineMissions: new Set(mine.clearedIds || []),
+          mineStages: new Set(mine.clearedStageIds || []),
+          registered: !!eternalData.registered
+        };
+      }
+
       const totalUsers = dataCache.units.totalUsers;
-      // ユニット・サポートで集計対象（データ登録済みユーザー数）が異なるため両方を表示する
+      // ユニット・サポート・エタロで集計対象（データ登録済みユーザー数）が異なるため全て表示する
       document.getElementById("totalUsersUnits").textContent = String(dataCache.units.totalUsers);
       document.getElementById("totalUsersSupporters").textContent = String(dataCache.supporters.totalUsers);
+      document.getElementById("totalUsersEternal").textContent = dataCache.eternal ? String(dataCache.eternal.totalUsers) : "-";
 
-      if (totalUsers === 0) {
-        noUsersMsg.hidden = false;
-        document.getElementById("rankAreaUnits").hidden = true;
-        document.getElementById("rankAreaSupporters").hidden = true;
-      } else {
-        noUsersMsg.hidden = true;
-        document.getElementById("rankAreaUnits").hidden = currentTab !== "units";
-        document.getElementById("rankAreaSupporters").hidden = currentTab !== "supporters";
+      ownershipEmpty = totalUsers === 0;
+      if (!ownershipEmpty) {
         renderTab("units");
         renderTab("supporters");
       }
+      if (dataCache.eternal) {
+        renderEternal();
+      } else {
+        document.getElementById("erErrorMsg").hidden = false;
+        document.getElementById("erContent").hidden = true;
+      }
+      updateAreas();
 
       loadingView.hidden = true;
       contentView.hidden = false;

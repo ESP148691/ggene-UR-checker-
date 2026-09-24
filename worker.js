@@ -449,6 +449,117 @@ async function handleLogEternalRoadMissions(request, env) {
   return jsonResponse({ ok: true, loggedIn: true }, 200);
 }
 
+// エタロ攻略状況の集計API（全軍戦況レポートの「エタロ攻略」タブ用・2026-09-24）。ログイン必須。
+// 母数はエタロでデータ登録済みのユーザー（eternal_road_first_registered_at IS NOT NULL）。
+// 分子も同じ条件のユーザーに限定する（⑬のデプロイギャップのように、フラグ未付与のクリア行があっても
+// 率が100%を超えないようにするため）
+async function handleAnalyticsEternalRoad(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) {
+    return jsonResponse({ error: "not_logged_in", message: "ログインが必要です" }, 401);
+  }
+
+  const REGISTERED_JOIN = "JOIN users u ON u.user_uid = c.user_uid AND u.eternal_road_first_registered_at IS NOT NULL";
+
+  const totalRow = await env.DB.prepare(
+    "SELECT COUNT(*) AS c FROM users WHERE eternal_road_first_registered_at IS NOT NULL"
+  ).first();
+  const totalUsers = totalRow ? totalRow.c : 0;
+
+  const { results: missionRows } = await env.DB.prepare(
+    `SELECT m.mission_id, m.stage_id, m.stage_name, m.mission_slot, m.mission_type, m.mission_text,
+            m.is_title, m.tag, m.title_name, m.sort_order,
+            (SELECT COUNT(DISTINCT c.user_uid) FROM eternal_road_mission_clears c ${REGISTERED_JOIN}
+              WHERE c.mission_id = m.mission_id) AS achieved_count
+     FROM eternal_road_missions m
+     ORDER BY m.sort_order ASC`
+  ).all();
+
+  const { results: clearRows } = await env.DB.prepare(
+    `SELECT c.stage_id AS stage_id, COUNT(DISTINCT c.user_uid) AS cleared_count
+     FROM eternal_road_stage_clears c ${REGISTERED_JOIN}
+     GROUP BY c.stage_id`
+  ).all();
+
+  // ステージ内の全ミッションを達成したユーザー数（ステージごと）
+  const { results: perfectRows } = await env.DB.prepare(
+    `SELECT x.stage_id AS stage_id, COUNT(*) AS perfect_count
+     FROM (SELECT c.user_uid, m.stage_id, COUNT(DISTINCT c.mission_id) AS n
+           FROM eternal_road_mission_clears c ${REGISTERED_JOIN}
+           JOIN eternal_road_missions m ON m.mission_id = c.mission_id
+           GROUP BY c.user_uid, m.stage_id) x
+     JOIN (SELECT stage_id, COUNT(*) AS total FROM eternal_road_missions GROUP BY stage_id) t
+       ON t.stage_id = x.stage_id
+     WHERE x.n = t.total
+     GROUP BY x.stage_id`
+  ).all();
+
+  // 全ステージクリア・全ミッション達成のユーザー数（分母はマスターの件数）
+  const stageTotal = new Set(missionRows.map(r => r.stage_id)).size;
+  const missionTotal = missionRows.length;
+  const allClearRow = await env.DB.prepare(
+    `SELECT COUNT(*) AS c FROM (
+       SELECT c.user_uid FROM eternal_road_stage_clears c ${REGISTERED_JOIN}
+       WHERE c.stage_id IN (SELECT DISTINCT stage_id FROM eternal_road_missions)
+       GROUP BY c.user_uid HAVING COUNT(DISTINCT c.stage_id) >= ?)`
+  ).bind(stageTotal).first();
+  const allPerfectRow = await env.DB.prepare(
+    `SELECT COUNT(*) AS c FROM (
+       SELECT c.user_uid FROM eternal_road_mission_clears c ${REGISTERED_JOIN}
+       WHERE c.mission_id IN (SELECT mission_id FROM eternal_road_missions)
+       GROUP BY c.user_uid HAVING COUNT(DISTINCT c.mission_id) >= ?)`
+  ).bind(missionTotal).first();
+
+  const clearedByStage = new Map(clearRows.map(r => [r.stage_id, r.cleared_count]));
+  const perfectByStage = new Map(perfectRows.map(r => [r.stage_id, r.perfect_count]));
+  const stages = [];
+  for (const r of missionRows) {
+    let s = stages.find(x => x.stageId === r.stage_id);
+    if (!s) {
+      s = {
+        stageId: r.stage_id,
+        stageName: r.stage_name,
+        clearedCount: clearedByStage.get(r.stage_id) || 0,
+        perfectCount: perfectByStage.get(r.stage_id) || 0,
+        missions: []
+      };
+      stages.push(s);
+    }
+    s.missions.push({
+      missionId: r.mission_id,
+      slot: r.mission_slot,
+      type: r.mission_type,
+      text: r.mission_text,
+      isTitle: !!r.is_title,
+      tag: r.tag,
+      titleName: r.title_name,
+      achievedCount: r.achieved_count
+    });
+  }
+
+  const { results: myMissions } = await env.DB.prepare(
+    "SELECT mission_id FROM eternal_road_mission_clears WHERE user_uid = ?"
+  ).bind(sessionUser.userUid).all();
+  const { results: myStages } = await env.DB.prepare(
+    "SELECT stage_id FROM eternal_road_stage_clears WHERE user_uid = ?"
+  ).bind(sessionUser.userUid).all();
+  const userRow = await env.DB.prepare(
+    "SELECT eternal_road_first_registered_at AS registeredAt FROM users WHERE user_uid = ?"
+  ).bind(sessionUser.userUid).first();
+
+  return jsonResponse({
+    totalUsers,
+    allClearCount: allClearRow ? allClearRow.c : 0,
+    allPerfectCount: allPerfectRow ? allPerfectRow.c : 0,
+    stages,
+    mine: {
+      clearedIds: myMissions.map(r => r.mission_id),
+      clearedStageIds: myStages.map(r => r.stage_id)
+    },
+    registered: !!(userRow && userRow.registeredAt)
+  }, 200);
+}
+
 // ⑮ エタロ攻略チェッカー起動時の復元用（handleMyOwnership()のエタロ版）
 async function handleMyEternalRoad(request, env) {
   const sessionUser = await getSessionUser(request, env);
@@ -516,6 +627,10 @@ export default {
     }
     if (url.pathname === "/api/my-eternal-road" && request.method === "GET") {
       return handleMyEternalRoad(request, env);
+    }
+    // 全軍戦況レポート（analytics.html）の「エタロ攻略」タブ用の集計API。ログイン必須
+    if (url.pathname === "/api/analytics/eternal-road" && request.method === "GET") {
+      return handleAnalyticsEternalRoad(request, env);
     }
 
     // ルートURLはトップページ（top.html）を配信する。index.htmlは廃止済み（unit.htmlへリネーム済み）のため、
