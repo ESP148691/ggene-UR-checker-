@@ -289,7 +289,7 @@
     </a>
     <!-- エタロはログイン必須（⑮）。未ログインでも導線は出し、開いた先のログイン案内から登録へつなげる -->
     <a class="navcard" href="/eternal-road.html">
-      <div class="icon analyticsIcon" aria-hidden="true">🚩</div>
+      <div class="icon" data-pool="eternal"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
         <div class="name">エタロ攻略<wbr>チェッカー</div>
         <div class="desc">エターナルロード エキスパート全29ステージ・69ミッションの達成状況を記録（ログイン会員限定）</div>
@@ -335,6 +335,9 @@
 
   var UNIT_IMAGES = Array.from({length:84}, function(_, i){ return 'images/units/' + (i+1) + '.jpg'; });
   var SUPPORTER_IMAGES = Array.from({length:49}, function(_, i){ return 'images/supporters/' + (i+1) + '.jpg'; });
+  /* エタロのステージバナー（640x234）の横中央・上端170x170を切り抜いた画像（ステージ名・EXPERTラベルにかからない範囲）。
+     元バナーを差し替えたときは images/eternal-road/icon/ も作り直すこと */
+  var ETERNAL_ROAD_IMAGES = Array.from({length:29}, function(_, i){ return 'images/eternal-road/icon/' + (i+1) + '.jpg'; });
 
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -529,7 +532,10 @@
     var icons = document.querySelectorAll('.navcard .icon[data-pool]');
     if(!icons.length) return;
 
-    function poolFor(el){ return el.getAttribute('data-pool') === 'unit' ? UNIT_IMAGES : SUPPORTER_IMAGES; }
+    function poolFor(el){
+      var pool = el.getAttribute('data-pool');
+      return pool === 'unit' ? UNIT_IMAGES : pool === 'eternal' ? ETERNAL_ROAD_IMAGES : SUPPORTER_IMAGES;
+    }
 
     function setImage(img, src){
       img.classList.remove('show');
