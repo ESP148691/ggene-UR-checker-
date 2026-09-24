@@ -547,6 +547,7 @@ URユニット／URサポートのカードと同じ`.regBadge`（`data-reg="ete
 - `analytics.html`（`<title>`・見出し・ガード文言、eyebrowは`REGISTERED DATA REPORT`）、`top.html`（導線カード名「データ登録<wbr>結果<wbr>レポート」。説明末尾の「（ログイン会員限定）」は維持）、`unit.html`／`supporter.html`（未登録案内「データ登録結果レポートの所持率ランキングにも反映されます」）、`worker.js`（コメントのみ）
 - **検証**：UIテスト55件中53件成功（失敗2件は従来と同じテスト側の判定の誤り）。320px幅でカード名が「データ登録結果／レポート」と自然に改行され、見出しが1行に収まることを目視確認
 - `docs/WEBサイト仕様書.md`の名称・2.5節の改名経緯を更新済み
+- 実装・検証後にそのままcommit（`ebe08f5`）・`git push origin main`済み（2026-09-24）
 
 ## 次にやること
 - ⑮：`migrations/0008`〜`0010`は適用済み、トップページへの導線も2026-09-24に公開済みで完了。残りは`CONFIG.quotePostUrl`（公開告知ポスト作成後）のみ
