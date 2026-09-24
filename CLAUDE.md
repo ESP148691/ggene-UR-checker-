@@ -29,9 +29,9 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `migrations/0005_fix_registered_at_to_jst.sql` — 既存の`units_ownership`/`supporters_ownership`の`registered_at`（UTC）をJST（`+09:00`）表記へ一括変換。スキーマ変更なし・冪等。**未適用（要Cloudflareダッシュボードでの手動適用）**
 - `migrations/0006_add_first_registered_flag.sql` — `users`に`units_first_registered_at`/`supporters_first_registered_at`カラムを追加し、既存ownershipデータからバックフィル。冪等。**適用済み（2026-09-22、ユーザーが事前にCloudflareダッシュボードで手動適用）**
 - `migrations/0007_dedupe_ownership.sql` — 当初は`units_ownership`/`supporters_ownership`の`(user_uid, unit_id)`重複行削除＋一意インデックス追加を想定していたが、**2026-09-23、本番D1で確認した結果、前提（重複行の存在）が誤りだったと判明。適用しない（経緯の記録として残す）**。詳細は下記「⑬」節の訂正を参照
-- `migrations/0008_eternal_road_missions.sql` — ⑩エタロ攻略チェッカー（エキスパート難易度）のテーブル定義（`eternal_road_missions`・`eternal_road_mission_clears`）。**未適用（要Cloudflareダッシュボードでの手動適用）**
-- `migrations/0009_populate_eternal_road_missions.sql` — エキスパート全29ステージ・69ミッションのマスターデータ投入。**未適用（要Cloudflareダッシュボードでの手動適用）**
-- `migrations/0010_eternal_road_stage_clears.sql` — ⑮通常クリア用`eternal_road_stage_clears`テーブル新設・`users.eternal_road_first_registered_at`追加・既存ミッション達成からのバックフィル。**未適用。0008→0009→0010の順厳守、worker.jsのpushと同時に適用**。INSERT/UPDATEは冪等だが、**`ALTER TABLE`は再実行するとエラーになるため、再実行時はALTER文だけ除いて実行すること**
+- `migrations/0008_eternal_road_missions.sql` — ⑩エタロ攻略チェッカー（エキスパート難易度）のテーブル定義（`eternal_road_missions`・`eternal_road_mission_clears`）。**適用済み（2026-09-24にユーザー確認）**
+- `migrations/0009_populate_eternal_road_missions.sql` — エキスパート全29ステージ・69ミッションのマスターデータ投入。**適用済み（2026-09-24にユーザー確認）**
+- `migrations/0010_eternal_road_stage_clears.sql` — ⑮通常クリア用`eternal_road_stage_clears`テーブル新設・`users.eternal_road_first_registered_at`追加・既存ミッション達成からのバックフィル。**適用済み（2026-09-24にユーザー確認）**。INSERT/UPDATEは冪等だが、**`ALTER TABLE`は再実行するとエラーになるため、再実行時はALTER文だけ除いて実行すること**
 - `images/eternal-road/1.jpg`〜`29.jpg` — エタロのステージバナー（640×234px。ユーザー撮影のスクショからCoworkが切り出し。⑮）
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
@@ -429,11 +429,11 @@ Cowork側の設計資料`docs/⑩エタロ攻略チェッカー_エキスパー�
 `docs/WEBサイト仕様書.md`も1.2節（ファイル構成）・2章（処理一覧に新規チェッカーの節を追加）・3章（API一覧）・4章（DB設計）・5章（新規テストケース節）・6章（既知の制約）・7章（関連資料）を更新済み。
 
 **未実施（要対応）**：
-- `migrations/0008_eternal_road_missions.sql`・`migrations/0009_populate_eternal_road_missions.sql`のCloudflareダッシュボードでの手動適用（この2件は順序厳守：0008でテーブル作成→0009でデータ投入）
+- ~~`migrations/0008`・`0009`のCloudflareダッシュボードでの手動適用~~ → 適用済み（2026-09-24にユーザー確認）
 - 適用後、ユーザーが`/eternal-road.html`に直接アクセスしてテスト運用
 - **テスト運用完了後、ユーザーからの指示があったら`top.html`のROUTE 03をComing Soonから実カードへ差し替える**（差し替え方法は上記7.の「実装済み導線に差し替え」時のコード＝コミット`36fa384`時点の`top.html`の該当箇所を参照すれば良い）
 
-### ⑮ エタロ攻略チェッカー 機能追加（コード実装・検証・git commit・push完了・2026-09-23。**D1マイグレーション0010は未適用**）
+### ⑮ エタロ攻略チェッカー 機能追加（コード実装・検証・git commit・push完了・2026-09-23。D1マイグレーション0010は適用済み＝2026-09-24にユーザー確認）
 Cowork側の設計資料`docs/⑮エタロ攻略チェッカー_機能追加設計.md`に基づき実装した。テスト運用前のユーザー要望7点（アイコン追加／通常クリア追加／データ登録・画像で保存・Xでシェア／全達成で虹枠・通常クリアで金枠／フィルタ／ノーマル・ハード非表示／ログイン限定）への対応。**⑩からの方針変更2点**：「ゲスト利用可」→**ログイン必須**、「DBからの復元なし」→**起動時に`/api/my-eternal-road`から復元**（他チェッカーの⑪と揃えた）。
 
 1. **`migrations/0010_eternal_road_stage_clears.sql`（新規）**：設計書どおり（`--`コメントなし）。通常クリアは別テーブル`eternal_road_stage_clears`（疑似ミッション方式はミッション数・称号集計の意味を変えるため不採用）。`users.eternal_road_first_registered_at`で「登録済み0件」と「未登録」を区別（⑫と同じ）。バックフィルは既存ミッション達成からステージクリア（`cleared_at`はMIN）と初回登録日時を作る冪等SQL
@@ -447,7 +447,7 @@ Cowork側の設計資料`docs/⑮エタロ攻略チェッカー_機能追加設�
 
 **未実施（要対応）**：
 - ~~git commit・push~~ → ユーザー承認を得てcommit（`4321386`）・`git push origin main`済み（2026-09-23）。Cloudflare Workersの自動デプロイで本番反映される
-- Cloudflareダッシュボードでのマイグレーション適用：**0008→0009（未適用なら）→0010の順**。**0010はpush（自動デプロイ）と同じタイミングで適用する**（⑬のデプロイギャップ対策。間が空いた場合は0010のINSERT/UPDATE 2文を再実行すればよい）。なお0008・0009が未適用のまま新コードがデプロイされても、エタロページがエラー表示になるだけで他ページへの影響はない
+- ~~Cloudflareダッシュボードでのマイグレーション適用~~ → 0008・0009・0010とも適用済み（2026-09-24にユーザー確認）。以下は当時の記録：**0008→0009（未適用なら）→0010の順**。**0010はpush（自動デプロイ）と同じタイミングで適用する**（⑬のデプロイギャップ対策。間が空いた場合は0010のINSERT/UPDATE 2文を再実行すればよい）。なお0008・0009が未適用のまま新コードがデプロイされても、エタロページがエラー表示になるだけで他ページへの影響はない
 - ~~ユーザーによる`/eternal-road.html`でのテスト運用（トップページROUTE 03はComing Soonのまま。解放はユーザー指示後）~~ → 2026-09-24にトップページへ公開（下記「エタロ攻略チェッカーの本番化」参照）
 - 公開告知ポスト作成後、`eternal-road.html`の`CONFIG.quotePostUrl`を設定（現在`null`）
 
@@ -521,7 +521,7 @@ URユニット／URサポートのカードと同じ`.regBadge`（`data-reg="ete
 - 前回の本番化と同じ流れで、実装・検証後にそのままcommit（`3b49f4c`）・`git push origin main`済み（2026-09-24）
 
 ## 次にやること
-- ⑮の未実施項目（上記参照）：`migrations/0008`〜`0010`のD1適用状況をユーザーに確認（未適用ならトップから公開したエタロページがエラー表示になるため至急）。トップページへの導線は2026-09-24に公開済み
+- ⑮：`migrations/0008`〜`0010`は適用済み、トップページへの導線も2026-09-24に公開済みで完了。残りは`CONFIG.quotePostUrl`（公開告知ポスト作成後）のみ
 - ⑬は解決済み（上記訂正参照）。追加対応は不要
 - ㉔：iOS Safari実機でエタロの「画像で保存」（1640×3140px）が保存できるかユーザー確認
 - ⑪の未実施項目：`migrations/0005`のD1適用、本番実機確認（PC/スマホ通常ブラウザ/スマホXアプリ内蔵ブラウザ × 画像保存/Xシェア/データ登録）
