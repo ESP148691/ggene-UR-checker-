@@ -1266,7 +1266,8 @@ return { drawProfileCard, drawThemeBackground, THEMES, eternalSummary, W, H };
 const CONFIG = {
   xHandle: "polarbear148691",
   siteUrl: "https://ggene-ur-checker.polarbear14869.workers.dev/profile-card.html",
-  hashtags: ["ジージェネエターナル", "GGET自己紹介カード"]
+  hashtags: ["ジージェネエターナル", "GGET自己紹介カード"],
+  quotePostUrl: "https://x.com/polarbear148691/status/2103111095745675510?s=46" // Xでシェア時にこのポストへの引用RTになる（2026-09-24、4ページ共通。㉒6.4の「未設定」から変更）
 };
 const DRAFT_KEY = "profilecard_draft_v1";
 const MAX_FAV = 5;
@@ -1733,14 +1734,17 @@ function buildShareText(){
   const favLine = data.favorites.length ? "推し作品：" + data.favorites.map(f => f.shortName).join("／") : null;
   const tags = CONFIG.hashtags.map(t => "#" + t).join(" ");
   const compose = (name, fav) => [`【Gジェネエターナル】${name}の自己紹介カード`, stats, fav, tags, CONFIG.siteUrl].filter(Boolean).join("\n");
+  // 引用するポストのURLもXが本文末尾に付けて数えるため（URL23＋区切り1）、その分を上限から引く
+  const limit = 280 - (CONFIG.quotePostUrl ? 24 : 0);
   let name = data.profile.displayName, fav = favLine;
   let text = compose(name, fav);
-  if (tweetWeight(text) > 280 && fav) { fav = "推し作品5選は画像で！"; text = compose(name, fav); }
-  if (tweetWeight(text) > 280) { name = [...name].slice(0, 10).join(""); text = compose(name, fav); }
+  if (tweetWeight(text) > limit && fav) { fav = "推し作品5選は画像で！"; text = compose(name, fav); }
+  if (tweetWeight(text) > limit) { name = [...name].slice(0, 10).join(""); text = compose(name, fav); }
   return text;
 }
 $("btnShare").addEventListener("click", () => {
-  const intent = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(buildShareText()) + "&via=" + encodeURIComponent(CONFIG.xHandle);
+  let intent = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(buildShareText()) + "&via=" + encodeURIComponent(CONFIG.xHandle);
+  if (CONFIG.quotePostUrl) intent += "&url=" + encodeURIComponent(CONFIG.quotePostUrl);
   // ポップアップブロック対策：保存より先に同期的に開く。保存はkeepaliveで並行して送る
   window.open(intent, "_blank");
   saveProfile(true).catch(() => {});
