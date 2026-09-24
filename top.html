@@ -196,7 +196,7 @@
   .navcard .regBadge.ok .st{color:#7fd9a0;}
   .navcard .regBadge.todo{border-color:rgba(218,185,73,.55);}
   .navcard .regBadge.todo .st{color:var(--gold);}
-  .navcard .regBadge .rate{font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;}
+  .navcard .regBadge .rate{font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;white-space:nowrap;}
   .navcard .regBadge .cnt{color:var(--muted);white-space:nowrap;}
 
   .navcard.soon{
@@ -293,6 +293,7 @@
       <div class="body">
         <div class="name">エタロ攻略<wbr>チェッカー</div>
         <div class="desc">エターナルロード エキスパート全29ステージ・69ミッションの達成状況を記録（ログイン会員限定）</div>
+        <div class="regBadge" data-reg="eternal-road" hidden></div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
@@ -580,6 +581,7 @@
   /* ---------------- ログイン中のみ、各チェッカーのデータ登録状況を導線カードに表示 ----------------
      登録済みならDBに登録されている所持率、未登録ならデータ登録を促す。取得失敗時は何も表示しない */
   function showRegStatus(){
+    showEternalRoadRegStatus();
     var targets = [
       { key: 'unit', api: '/api/my-ownership', total: UNIT_IMAGES.length, word: '機' },
       { key: 'supporter', api: '/api/my-ownership-supporter', total: SUPPORTER_IMAGES.length, word: '体' }
@@ -604,6 +606,33 @@
         })
         .catch(function(){ /* 失敗時は表示しない */ });
     });
+  }
+
+  /* エタロ攻略チェッカーの登録状況。分母（29ステージ・69ミッション）はeternal-road.htmlと同じくマスターから算出し、
+     マスターに無いIDは数えない（所持率側の範囲外ID除外と同じ扱い） */
+  function showEternalRoadRegStatus(){
+    var el = document.querySelector('.regBadge[data-reg="eternal-road"]');
+    if (!el) return;
+    function getJson(url){ return fetch(url, { credentials: 'same-origin' }).then(function(res){ return res.json(); }); }
+    Promise.all([getJson('/api/eternal-road/missions'), getJson('/api/my-eternal-road')])
+      .then(function(r){
+        var master = r[0], data = r[1];
+        if (!data || !data.loggedIn || !master || !Array.isArray(master.missions)) return;
+        if (data.registered) {
+          var missionIds = {}, stageIds = {};
+          master.missions.forEach(function(m){ missionIds[m.mission_id] = true; stageIds[m.stage_id] = true; });
+          var totalStages = Object.keys(stageIds).length, totalMissions = master.missions.length;
+          var stages = (data.clearedStageIds || []).filter(function(id){ return stageIds[id]; }).length;
+          var missions = (data.clearedIds || []).filter(function(id){ return missionIds[id]; }).length;
+          el.className = 'regBadge ok';
+          el.innerHTML = '<span class="st">✓ データ登録済み</span><span>ステージクリア <span class="rate">' + stages + ' / ' + totalStages + '</span> <span class="cnt">(ミッション ' + missions + ' / ' + totalMissions + ')</span></span>';
+        } else {
+          el.className = 'regBadge todo';
+          el.innerHTML = '<span class="st">データ未登録</span><span><span style="white-space:nowrap">攻略データを</span><span style="white-space:nowrap">登録ください。</span></span>';
+        }
+        el.hidden = false;
+      })
+      .catch(function(){ /* 失敗時は表示しない */ });
   }
 })();
 </script>
