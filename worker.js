@@ -565,7 +565,8 @@ async function handleAnalyticsEternalRoad(request, env) {
 // migrations/0012で作品を追加・変更した場合は、この集合も必ず更新すること（ETERNAL_ROAD_MISSION_IDSと同じ運用）
 const WORK_IDS = new Set(Array.from({ length: 106 }, (_, i) => i + 1));
 const CARD_TEMPLATES = new Set(["standard", "eternal", "units"]);
-const CARD_THEMES = new Set(["galaxy", "earth", "sky", "jungle"]);
+// ジャングル（"jungle"）は2026-09-24に選択肢から削除。保存済みの"jungle"は読み出し時に"galaxy"として返す
+const CARD_THEMES = new Set(["galaxy", "earth", "sky"]);
 const PROFILE_BODY_MAX_BYTES = 4096;
 const FAVORITES_MAX = 5;
 const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/;

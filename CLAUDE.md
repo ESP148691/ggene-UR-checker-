@@ -606,6 +606,15 @@ URユニット・URサポート・作品を追加するときに、そろえて�
 **作品（推し作品の選択肢）を追加するとき**
 - **`works_master`（D1への`INSERT OR REPLACE`）・`worker.js`の`WORK_IDS`・`images/series/{work_id}.png`の3点を必ずそろえる**。`work_id`はゲーム内「シリーズ絞り込み」の並び順＝アイコン画像の番号。`WORK_IDS`に無いIDは`POST /api/profile`で読み飛ばされ、画像が無いとアイコンが空のプレートになる
 
+### 自己紹介カードのジャングル背景削除・トップの英字表記修正（2026-09-24・ユーザーからの直接依頼）
+「ジャングルの背景は不要。選択肢から削除し、画像はdocsに保管」「トップページの英字はGJENEではなくGGENE」との指示。
+
+- **ジャングル背景の削除**：`profile-card.html`の背景ボタンから削除し3列に。`sanitizeDraft()`と`worker.js`の`CARD_THEMES`からも外したため、`POST /api/profile`の`"jungle"`は`"galaxy"`で保存され、保存済みの`"jungle"`も`GET /api/profile-card`で`"galaxy"`として返る（D1の変更は不要）。**描画コード（`THEMES.jungle`・`bgJungle`・`leafFrond`等）は㉑プロトタイプとの対応を保つため残置**（復活させる場合はボタン・`sanitizeDraft()`・`CARD_THEMES`の3か所に戻す）
+- **保管用画像**：削除前の描画を`docs/自己紹介カード_ジャングル背景（廃止・保管用）_標準.jpg`・`_エタロ攻略.jpg`・`_推しユニット.jpg`・`_背景のみ.jpg`（2400×1350、JPEG品質0.9）として保存。テスト用モックデータで描いたため、フッターのホスト名は`t.local`
+- **英字表記**：`top.html`の見出し上の英字「GJENERATION ETERNAL」を「GGENERATION ETERNAL」に修正。同じ誤記があった`eternal-road.html`も合わせて修正（旧プロトタイプ`design-proposal/top-galaxy-prototype.html`は配信対象外のため据え置き）
+- **検証**：APIハーネス62件（`jungle`の保存・読み出しが`galaxy`になる2件を追加）、画面66件（サムネイル3枚・ジャングルの選択肢が無い・保存済み／下書きの`jungle`は宇宙世紀・トップの表記を追加）、トップのアイコン18件、すべて成功
+- `docs/WEBサイト仕様書.md`の2.7節を更新済み
+
 ## 次にやること
 - ㉒：D1適用・push済み。、`/profile-card.html`のテスト運用、iOS Safari実機確認、指示後にトップ導線の`hidden`を外す
 - ⑮：`migrations/0008`〜`0010`は適用済み、トップページへの導線も2026-09-24に公開済みで完了。残りは`CONFIG.quotePostUrl`（公開告知ポスト作成後）のみ

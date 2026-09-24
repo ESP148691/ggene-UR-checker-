@@ -102,7 +102,7 @@
   .seg button.active{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold);}
   .seg button:disabled{opacity:.4;cursor:not-allowed;}
   /* 背景（サムネイル） */
-  .themes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;}
+  .themes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;}
   .themes button{
     min-width:0;padding:0;background:var(--panel-2);border:2px solid transparent;border-radius:6px;cursor:pointer;
     color:var(--text);font:inherit;font-size:11px;overflow:hidden;
@@ -245,7 +245,6 @@
           <button type="button" data-theme="galaxy"><canvas width="240" height="135"></canvas><span>宇宙世紀</span></button>
           <button type="button" data-theme="earth"><canvas width="240" height="135"></canvas><span>地球</span></button>
           <button type="button" data-theme="sky"><canvas width="240" height="135"></canvas><span>大空</span></button>
-          <button type="button" data-theme="jungle"><canvas width="240" height="135"></canvas><span>ジャングル</span></button>
         </div>
       </section>
 
@@ -768,6 +767,7 @@ const THEMES={
     // 空に直接載る文字（名前・ヘッダー・フッター）は白＋紺の影。パネル内は濃色文字
     bgText:"#ffffff", bgMuted:"#eef6ff", bgAccent:"#ffffff", headColor:"#fff4c8", rainbow:["#e0314a","#e08a00","#2ea043","#2f6fd6","#9b3fd6"],
     scrim:"rgba(24,86,160,.42)" },
+  // ジャングル（jungle）は2026-09-24に選択肢から削除。描画コードはプロトタイプとの対応を保つため残している（復活時はボタン・sanitizeDraft・worker.jsのCARD_THEMESに戻す）
   jungle:{ label:"大自然のジャングル", draw:bgJungle, dark:true,
     panel:"rgba(6,24,14,.54)", line:"rgba(160,230,150,.22)", frame:"#2c4a33",
     text:"#f1f7ef", muted:"#b0c9b3", gold:"#ecc95c", goldDim:"#ad8f3c", cyan:"#9be6b4", violet:"#b9a2f7",
@@ -1322,7 +1322,8 @@ function sanitizeDraft(){
   draft.favoriteUnits = [...new Set(draft.favoriteUnits)].filter(id => owned.has(id)).slice(0, MAX_FAV);
   if (!earnedTitleIds().has(draft.titleMissionId)) draft.titleMissionId = null;
   if (!["standard", "eternal", "units"].includes(draft.cardTemplate)) draft.cardTemplate = "standard";
-  if (!["galaxy", "earth", "sky", "jungle"].includes(draft.cardTheme)) draft.cardTheme = "galaxy";
+  // ジャングル背景は2026-09-24に選択肢から削除（ユーザー指示）。保存済み・下書きの"jungle"は宇宙世紀で描く
+  if (!["galaxy", "earth", "sky"].includes(draft.cardTheme)) draft.cardTheme = "galaxy";
   draft.displayName = String(draft.displayName || "").slice(0, 32);
   draft.comment = String(draft.comment || "").slice(0, 80);
 }
