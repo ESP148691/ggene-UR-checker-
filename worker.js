@@ -560,6 +560,259 @@ async function handleAnalyticsEternalRoad(request, env) {
   }, 200);
 }
 
+// ================= ㉒ 自己紹介カード（profile-card.html） =================
+// 作品マスター（works_master）の正規ID集合。work_id＝ゲーム内「シリーズ絞り込み」の並び順＝images/series/{id}.png。
+// migrations/0012で作品を追加・変更した場合は、この集合も必ず更新すること（ETERNAL_ROAD_MISSION_IDSと同じ運用）
+const WORK_IDS = new Set(Array.from({ length: 106 }, (_, i) => i + 1));
+const CARD_TEMPLATES = new Set(["standard", "eternal", "units"]);
+const CARD_THEMES = new Set(["galaxy", "earth", "sky", "jungle"]);
+const PROFILE_BODY_MAX_BYTES = 4096;
+const FAVORITES_MAX = 5;
+const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/;
+
+// GET /api/works（認証不要）。作品マスター＋作品ごとのURユニット。0011未適用なら{works:[]}を返す
+async function handleWorks(request, env) {
+  let rows;
+  try {
+    ({ results: rows } = await env.DB.prepare(
+      `SELECT w.work_id, w.era, w.universe, w.sort_order, w.name, w.short_name, w.timeline_label,
+              u.unit_id, u.name AS unit_name, u.type AS unit_type, u.limited AS unit_limited
+       FROM works_master w
+       LEFT JOIN unit_work_map m ON m.work_id = w.work_id
+       LEFT JOIN units_master u ON u.unit_id = m.unit_id
+       ORDER BY w.sort_order ASC, w.work_id ASC, u.unit_id ASC`
+    ).all());
+  } catch (e) {
+    return jsonResponse({ works: [] }, 200);
+  }
+  const works = [];
+  const byId = new Map();
+  for (const r of rows) {
+    let w = byId.get(r.work_id);
+    if (!w) {
+      w = {
+        workId: r.work_id, era: r.era, universe: r.universe, sortOrder: r.sort_order,
+        name: r.name, shortName: r.short_name, timeline: r.timeline_label || "", units: []
+      };
+      byId.set(r.work_id, w);
+      works.push(w);
+    }
+    if (r.unit_id != null) {
+      w.units.push({ unitId: r.unit_id, name: r.unit_name, type: r.unit_type, limited: !!r.unit_limited });
+    }
+  }
+  return jsonResponse({ works }, 200, { "Cache-Control": "public, max-age=3600" });
+}
+
+// 所持データの集計（unit.html／supporter.htmlのcomputeStats()と同じ定義）
+async function computeOwnershipStats(env, userUid, isSupporter) {
+  const masterTable = isSupporter ? "supporters_master" : "units_master";
+  const ownershipTable = isSupporter ? "supporters_ownership" : "units_ownership";
+  const idColumn = isSupporter ? "supporter_id" : "unit_id";
+  const attrColumn = isSupporter ? "skill" : "type";
+  const registeredColumn = isSupporter ? "supporters_first_registered_at" : "units_first_registered_at";
+  const attrs = isSupporter ? ["HP回復", "EN回復", "複合"] : ["攻撃", "支援", "耐久"];
+
+  const userRow = await env.DB.prepare(
+    `SELECT ${registeredColumn} AS registeredAt FROM users WHERE user_uid = ?`
+  ).bind(userUid).first();
+  const { results: master } = await env.DB.prepare(
+    `SELECT ${idColumn} AS id, ${attrColumn} AS attr, limited FROM ${masterTable}`
+  ).all();
+  const { results: owned } = await env.DB.prepare(
+    `SELECT ${idColumn} AS id, level FROM ${ownershipTable} WHERE user_uid = ?`
+  ).bind(userUid).all();
+
+  const byId = new Map(master.map(m => [m.id, m]));
+  const ownership = {};
+  for (const r of owned) if (byId.has(r.id)) ownership[String(r.id)] = r.level; // マスターに無いIDは数えない
+  const ids = Object.keys(ownership).map(Number);
+  const levels = ids.map(id => ownership[String(id)]);
+  const total = master.length;
+  const byType = {};
+  for (const a of attrs) byType[a] = { owned: 0, total: 0 };
+  for (const m of master) if (byType[m.attr]) byType[m.attr].total++;
+  for (const id of ids) { const m = byId.get(id); if (byType[m.attr]) byType[m.attr].owned++; }
+  return {
+    registered: !!(userRow && userRow.registeredAt),
+    total,
+    owned: ids.length,
+    pct: total ? Math.round(ids.length / total * 100) : 0,
+    avgLevel: ids.length ? levels.reduce((a, b) => a + b, 0) / ids.length : 0,
+    maxCount: levels.filter(l => l === 3).length,
+    limitedOwned: ids.filter(id => byId.get(id).limited).length,
+    limitedTotal: master.filter(m => m.limited).length,
+    byType,
+    ownership
+  };
+}
+
+// エタロのクリア済みIDと獲得称号。0008〜0010未適用の環境ではnull
+async function loadEternalRoadForCard(env, userUid) {
+  try {
+    const userRow = await env.DB.prepare(
+      "SELECT eternal_road_first_registered_at AS registeredAt FROM users WHERE user_uid = ?"
+    ).bind(userUid).first();
+    const { results: stages } = await env.DB.prepare(
+      "SELECT DISTINCT stage_id FROM eternal_road_stage_clears WHERE user_uid = ? ORDER BY stage_id"
+    ).bind(userUid).all();
+    const { results: missions } = await env.DB.prepare(
+      "SELECT DISTINCT mission_id FROM eternal_road_mission_clears WHERE user_uid = ? ORDER BY mission_id"
+    ).bind(userUid).all();
+    const { results: titles } = await env.DB.prepare(
+      `SELECT m.mission_id, m.title_name FROM eternal_road_missions m
+       WHERE m.is_title = 1 AND EXISTS (SELECT 1 FROM eternal_road_mission_clears c WHERE c.user_uid = ? AND c.mission_id = m.mission_id)
+       ORDER BY m.sort_order`
+    ).bind(userUid).all();
+    return {
+      registered: !!(userRow && userRow.registeredAt),
+      clearedStageIds: stages.map(r => r.stage_id),
+      clearedMissionIds: missions.map(r => r.mission_id),
+      earnedTitles: titles.map(r => ({ missionId: r.mission_id, titleName: r.title_name }))
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+// 保存済みプロフィール（4.2のprofile形式）。未作成・0011未適用なら既定値。
+// 推し作品はworks_masterに無いものを、推しユニットは現在所持していないものを除く
+async function loadProfile(env, userUid, earnedTitles) {
+  const empty = {
+    displayName: null, comment: null, titleMissionId: null,
+    cardTemplate: "standard", cardTheme: "galaxy",
+    favoriteWorks: [], favoriteUnits: [], updatedAt: null
+  };
+  let row, works, units;
+  try {
+    row = await env.DB.prepare(
+      `SELECT display_name, comment, title_mission_id, card_template, card_theme, updated_at
+       FROM user_profiles WHERE user_uid = ?`
+    ).bind(userUid).first();
+    ({ results: works } = await env.DB.prepare(
+      `SELECT f.slot, f.work_id FROM user_favorite_works f
+       JOIN works_master w ON w.work_id = f.work_id
+       WHERE f.user_uid = ? ORDER BY f.slot`
+    ).bind(userUid).all());
+    ({ results: units } = await env.DB.prepare(
+      `SELECT f.slot, f.unit_id FROM user_favorite_units f
+       WHERE f.user_uid = ? AND EXISTS (SELECT 1 FROM units_ownership o WHERE o.user_uid = f.user_uid AND o.unit_id = f.unit_id)
+       ORDER BY f.slot`
+    ).bind(userUid).all());
+  } catch (e) {
+    return empty;
+  }
+  const titleIds = new Set((earnedTitles || []).map(t => t.missionId));
+  return {
+    displayName: row ? row.display_name : null,
+    comment: row ? row.comment : null,
+    titleMissionId: row && titleIds.has(row.title_mission_id) ? row.title_mission_id : null,
+    cardTemplate: row && CARD_TEMPLATES.has(row.card_template) ? row.card_template : "standard",
+    cardTheme: row && CARD_THEMES.has(row.card_theme) ? row.card_theme : "galaxy",
+    favoriteWorks: works.map(r => ({ slot: r.slot, workId: r.work_id })),
+    favoriteUnits: units.map(r => ({ slot: r.slot, unitId: r.unit_id })),
+    updatedAt: row ? row.updated_at : null
+  };
+}
+
+// GET /api/profile-card（ログイン必須）
+async function handleProfileCard(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) return jsonResponse({ error: "not_logged_in" }, 401);
+  const uid = sessionUser.userUid;
+
+  const [units, supporters, eternalRoad] = await Promise.all([
+    computeOwnershipStats(env, uid, false),
+    computeOwnershipStats(env, uid, true),
+    loadEternalRoadForCard(env, uid)
+  ]);
+  delete supporters.ownership; // サポートの所持内訳はカードで使わない
+  const profile = await loadProfile(env, uid, eternalRoad ? eternalRoad.earnedTitles : []);
+
+  return jsonResponse({ username: sessionUser.username, profile, units, supporters, eternalRoad, titles: null }, 200);
+}
+
+// 表示名・ひとことの正規化。不正ならundefinedを返す
+function normalizeProfileText(value, maxLen, allowNewline) {
+  if (value == null) return null;
+  if (typeof value !== "string") return undefined;
+  let s = allowNewline ? value.replace(/\r\n|\r|\n/g, " ") : value;
+  s = s.trim();
+  if (!s) return null;
+  if (CONTROL_CHARS.test(s)) return undefined;
+  if ([...s].length > maxLen) return undefined; // サロゲートペア（絵文字等）を1文字として数える
+  return s;
+}
+
+// 推し作品・推しユニットの配列。6件以上・配列でない→null（400）。許可集合外は読み飛ばし、重複は後ろを捨てる
+function normalizeFavoriteIds(value, allowed) {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > FAVORITES_MAX) return null;
+  const out = [];
+  for (const v of value) {
+    if (Number.isInteger(v) && allowed.has(v) && !out.includes(v)) out.push(v);
+  }
+  return out;
+}
+
+// POST /api/profile（ログイン必須）
+async function handleSaveProfile(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) return jsonResponse({ error: "not_logged_in" }, 401);
+  const uid = sessionUser.userUid;
+
+  let body;
+  try {
+    const text = await request.text();
+    if (new TextEncoder().encode(text).length > PROFILE_BODY_MAX_BYTES) throw new Error("too large");
+    body = JSON.parse(text);
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("not object");
+  } catch (e) {
+    return jsonResponse({ error: "invalid_body" }, 400);
+  }
+
+  const displayName = normalizeProfileText(body.displayName, 16, false);
+  if (displayName === undefined) return jsonResponse({ error: "invalid_display_name" }, 400);
+  const comment = normalizeProfileText(body.comment, 40, true);
+  if (comment === undefined) return jsonResponse({ error: "invalid_comment" }, 400);
+
+  const favoriteWorks = normalizeFavoriteIds(body.favoriteWorks, WORK_IDS);
+  if (!favoriteWorks) return jsonResponse({ error: "invalid_favorites" }, 400);
+  const { results: ownedRows } = await env.DB.prepare(
+    "SELECT DISTINCT unit_id FROM units_ownership WHERE user_uid = ?"
+  ).bind(uid).all();
+  const favoriteUnits = normalizeFavoriteIds(body.favoriteUnits, new Set(ownedRows.map(r => r.unit_id)));
+  if (!favoriteUnits) return jsonResponse({ error: "invalid_favorite_units" }, 400);
+
+  const eternalRoad = await loadEternalRoadForCard(env, uid);
+  const earnedIds = new Set(eternalRoad ? eternalRoad.earnedTitles.map(t => t.missionId) : []);
+  const titleMissionId = Number.isInteger(body.titleMissionId) && earnedIds.has(body.titleMissionId) ? body.titleMissionId : null;
+  const cardTemplate = CARD_TEMPLATES.has(body.cardTemplate) ? body.cardTemplate : "standard";
+  const cardTheme = CARD_THEMES.has(body.cardTheme) ? body.cardTheme : "galaxy";
+
+  const nowJst = toJstIsoString(new Date());
+  const statements = [
+    env.DB.prepare(
+      `INSERT INTO user_profiles (user_uid, display_name, comment, title_mission_id, card_template, card_theme, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_uid) DO UPDATE SET display_name = excluded.display_name, comment = excluded.comment,
+         title_mission_id = excluded.title_mission_id, card_template = excluded.card_template,
+         card_theme = excluded.card_theme, updated_at = excluded.updated_at`
+    ).bind(uid, displayName, comment, titleMissionId, cardTemplate, cardTheme, nowJst),
+    env.DB.prepare("DELETE FROM user_favorite_works WHERE user_uid = ?").bind(uid),
+    ...favoriteWorks.map((id, i) =>
+      env.DB.prepare("INSERT INTO user_favorite_works (user_uid, slot, work_id) VALUES (?, ?, ?)").bind(uid, i + 1, id)),
+    env.DB.prepare("DELETE FROM user_favorite_units WHERE user_uid = ?").bind(uid),
+    ...favoriteUnits.map((id, i) =>
+      env.DB.prepare("INSERT INTO user_favorite_units (user_uid, slot, unit_id) VALUES (?, ?, ?)").bind(uid, i + 1, id)),
+    env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(new Date().toISOString(), uid)
+  ];
+  await env.DB.batch(statements);
+
+  const profile = await loadProfile(env, uid, eternalRoad ? eternalRoad.earnedTitles : []);
+  return jsonResponse({ ok: true, profile }, 200);
+}
+
 // ⑮ エタロ攻略チェッカー起動時の復元用（handleMyOwnership()のエタロ版）
 async function handleMyEternalRoad(request, env) {
   const sessionUser = await getSessionUser(request, env);
@@ -631,6 +884,17 @@ export default {
     // データ登録結果レポート（analytics.html）の「エタロ攻略」タブ用の集計API。ログイン必須
     if (url.pathname === "/api/analytics/eternal-road" && request.method === "GET") {
       return handleAnalyticsEternalRoad(request, env);
+    }
+
+    // ㉒ 自己紹介カード
+    if (url.pathname === "/api/works" && request.method === "GET") {
+      return handleWorks(request, env);
+    }
+    if (url.pathname === "/api/profile-card" && request.method === "GET") {
+      return handleProfileCard(request, env);
+    }
+    if (url.pathname === "/api/profile" && request.method === "POST") {
+      return handleSaveProfile(request, env);
     }
 
     // ルートURLはトップページ（top.html）を配信する。index.htmlは廃止済み（unit.htmlへリネーム済み）のため、

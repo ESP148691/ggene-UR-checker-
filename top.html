@@ -191,6 +191,7 @@
     background:rgba(5,7,13,.45);border:1px solid var(--line-strong);color:var(--text);
   }
   .navcard .regBadge[hidden]{display:none;}
+  .navcard[hidden]{display:none;} /* .navcardのdisplay指定がhidden属性を打ち消さないように */
   .navcard .regBadge .st{font-weight:700;white-space:nowrap;}
   .navcard .regBadge.ok{border-color:rgba(127,217,160,.55);}
   .navcard .regBadge.ok .st{color:#7fd9a0;}
@@ -306,6 +307,16 @@
       <div class="body">
         <div class="name">データ登録<wbr>結果<wbr>レポート</div>
         <div class="desc">みんなの所持率ランキングとエタロ攻略のクリア状況を集計（ログイン会員限定）</div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
+    <!-- ㉒ 自己紹介カード。テスト運用中のため hidden のまま（公開はユーザー指示後に hidden を外すだけ。
+         この節（#analyticsSection）ごとログイン中のみ表示されるため、判定はtoggleAnalyticsNav()と同じ） -->
+    <a class="navcard" href="/profile-card.html" id="profileCardNav" hidden>
+      <div class="icon analyticsIcon" aria-hidden="true">🪪</div>
+      <div class="body">
+        <div class="name">自己紹介<wbr>カード</div>
+        <div class="desc">登録データと推し作品・推しユニットからXでシェアできるカードを作成（ログイン会員限定）</div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>

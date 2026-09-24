@@ -19,8 +19,9 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `supporter.html` — URサポート所持率チェッカー（49体収録）
 - `analytics.html` — データ登録結果レポート（分析ページ。ログインユーザー限定・2026-09-19新設。2026-09-24に「みんなの所持率ランキング」→「全軍戦況レポート」→「ログインユーザーレポート」→「データ登録結果レポート」と改名し、エタロ攻略タブを追加）
 - `eternal-road.html` — エタロ攻略チェッカー（エターナルロード エキスパート難易度。全29ステージ・69ミッション。2026-09-23新設・⑩⑭。同日⑮でバナー画像・通常クリア・3ボタン・フィルタ追加、**ログインユーザー限定**化）
-- `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`・`analytics.html`・`eternal-road.html`から読み込む。ログイン成功後は`/top`へ遷移するが、`<body data-auth-stay>`のページ（`eternal-road.html`）はその場でリロード（⑮）
-- `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）、所持データログ収集API（`/api/log`・`/api/log-supporter`。**ログイン済みユーザーのみD1保存、ゲストは匿名カウンタのみ加算＝2026-09-19〜**）、分析API（`/api/analytics/units`・`/api/analytics/supporters`、ログイン必須。2026-09-19新設。`/api/analytics/eternal-road`は2026-09-24新設）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
+- `profile-card.html` — 自己紹介カード作成ページ（㉒・2026-09-24新設。ログインユーザー限定。テンプレート3種×背景4種の16:9カードをCanvasで生成。描画は`docs/㉑自己紹介カード_試作5_プロトタイプ.html`から移植した`CardRenderer`。**トップページの導線`#profileCardNav`は`hidden`のまま**＝テスト運用後にユーザー指示で公開）
+- `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`・`analytics.html`・`eternal-road.html`・`profile-card.html`から読み込む。ログイン成功後は`/top`へ遷移するが、`<body data-auth-stay>`のページ（`eternal-road.html`・`profile-card.html`）はその場でリロード（⑮）
+- `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）、所持データログ収集API（`/api/log`・`/api/log-supporter`。**ログイン済みユーザーのみD1保存、ゲストは匿名カウンタのみ加算＝2026-09-19〜**）、分析API（`/api/analytics/units`・`/api/analytics/supporters`、ログイン必須。2026-09-19新設。`/api/analytics/eternal-road`は2026-09-24新設）、自己紹介カードAPI（`/api/works`・`/api/profile-card`・`/api/profile`。㉒・2026-09-24新設）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
 - `wrangler.jsonc` — プロジェクト名 `ggene-ur-checker`、assetsのdirectoryは`./`、D1バインディング`DB`（`ggene-ur-checker-db`）設定済み
 - `migrations/0001_add_user_auth.sql` — `users`テーブルへの`username`/`password`カラム追加、`sessions`テーブル新設。Cloudflareダッシュボード（D1 > Console）で手動適用済み
 - `migrations/0002_populate_master_data.sql` — `units_master`/`supporters_master`への実データ投入（機体84件・サポート49件）。Cloudflareダッシュボード（D1 > Console）で手動適用済み（2026-09-19）
@@ -32,8 +33,11 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `migrations/0008_eternal_road_missions.sql` — ⑩エタロ攻略チェッカー（エキスパート難易度）のテーブル定義（`eternal_road_missions`・`eternal_road_mission_clears`）。**適用済み（2026-09-24にユーザー確認）**
 - `migrations/0009_populate_eternal_road_missions.sql` — エキスパート全29ステージ・69ミッションのマスターデータ投入。**適用済み（2026-09-24にユーザー確認）**
 - `migrations/0010_eternal_road_stage_clears.sql` — ⑮通常クリア用`eternal_road_stage_clears`テーブル新設・`users.eternal_road_first_registered_at`追加・既存ミッション達成からのバックフィル。**適用済み（2026-09-24にユーザー確認）**。INSERT/UPDATEは冪等だが、**`ALTER TABLE`は再実行するとエラーになるため、再実行時はALTER文だけ除いて実行すること**
+- `migrations/0011_profile_card.sql` — ㉒自己紹介カードの5テーブル（`works_master`・`unit_work_map`・`user_profiles`・`user_favorite_works`・`user_favorite_units`）＋`idx_fav_work`。冪等（`CREATE TABLE IF NOT EXISTS`）。**未適用（pushと同時に適用する。0011→0012の順）**
+- `migrations/0012_populate_works_master.sql` — 作品マスター106件＋URユニット→作品の対応84件の投入。冪等（`INSERT OR REPLACE`）。**未適用（0011の直後に適用）**
 - `images/eternal-road/1.jpg`〜`29.jpg` — エタロのステージバナー（640×234px。ユーザー撮影のスクショからCoworkが切り出し。⑮）
 - `images/eternal-road/icon/1.jpg`〜`29.jpg` — トップページのエタロ導線用アイコン（136×136px。各バナーの横中央・上端170×170を切り抜き。`scripts/make_eternal_road_icons.py`で生成。**バナーを差し替え・追加したら再実行すること**）
+- `images/series/1.png`〜`106.png` — 作品アイコン（ゲーム内「シリーズ絞り込み」画面のロゴ。運営者のスクショからCoworkが切り出し、320×140。番号＝`works_master.work_id`）
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
 
@@ -560,7 +564,49 @@ URユニット／URサポートのカードと同じ`.regBadge`（`data-reg="ete
 - `docs/WEBサイト仕様書.md`の2.2節を更新済み
 - 実装・検証後にそのままcommit（`ee617e4`）・`git push origin main`済み（2026-09-24）
 
+### ㉒ 自己紹介カード作成ページ（profile-card.html）新設（コード実装・検証・git commit完了・2026-09-24。**pushはD1マイグレーション0011・0012の適用直後に行う＝未push**）
+Cowork側の実装依頼書`docs/㉒自己紹介カード_実装依頼書.md`に基づき実装した（⑰〜㉑と食い違う箇所は㉒を優先。描画は㉑プロトタイプから移植）。
+
+1. **マイグレーション**：`docs/㉒0011_profile_card.sql`・`㉒0012_populate_works_master.sql`を`migrations/0011_profile_card.sql`・`0012_populate_works_master.sql`としてそのまま配置（バイト単位で同一を確認。`--`コメントなし）
+2. **`worker.js`**：API 3本と定数を追加
+   - `GET /api/works`（`handleWorks()`・認証不要）：`works_master`＋作品ごとのURユニット（`unit_work_map`×`units_master`、`unit_id`昇順）を`sort_order`順で返す。`Cache-Control: public, max-age=3600`。0011未適用なら`{works:[]}`を200
+   - `GET /api/profile-card`（`handleProfileCard()`・ログイン必須401）：`profile`（未作成・0011未適用なら既定値）、`units`・`supporters`（`computeOwnershipStats()`＝`unit.html`の`computeStats()`と同じ定義。マスターに無いIDは数えない。`units.ownership`のみ返す）、`eternalRoad`（クリア済みIDの配列＋`earnedTitles`。0008〜0010未適用なら`null`）、`titles:null`。未達成の称号は`titleMissionId:null`、現在所持していない推しユニット・`works_master`に無い作品は除いて返す（slotは詰め直さない）
+   - `POST /api/profile`（`handleSaveProfile()`・ログイン必須）：4KB超・壊れたJSONは`400 invalid_body`。表示名16文字・ひとこと40文字（`[...str].length`でサロゲートペアを1文字、ひとことの改行は空白に置換、制御文字は400）、推し作品は`WORK_IDS`、推しユニットは本人が現在所持しているIDのみ（6件以上・配列でない→400、未知・未所持は読み飛ばし、重複は後ろを捨てる）、称号は`is_title`かつ本人達成のみ（それ以外はNULL）、テンプレート・テーマは不正なら既定値。`DB.batch()`で`user_profiles`をUPSERT（`updated_at`はJST）→推し作品・推しユニットをDELETE→INSERT→`users.last_seen`更新
+   - 定数`WORK_IDS`（1〜106の集合。**0012と必ず同期**）・`CARD_TEMPLATES`・`CARD_THEMES`
+3. **`profile-card.html`（新規）**：ログインガード（`/api/me`が未ログイン・失敗なら他のAPIを呼ばない）、プレビュー（300msデバウンス。オフスクリーンに描いて最新の要求だけを反映）、テンプレート3種（エタロ未登録・ユニット0機のときは無効化＋案内、保存値が選べなければ標準で描く）、背景4種のサムネイル（プレビュー描画後に1枚ずつ生成）、実績の登録状況（`eternalRoad:null`ならエタロの行を出さない）、表示名・ひとこと（残り文字数）・表示称号、推し作品（3タブ・`universe`小見出し・作品アイコン・追加／解除／▲▼・5件で他を無効化）、推しユニット（所持分のみ・タイプと作品で絞り込み・5機まで）、3ボタン（プロフィール保存＋「●未保存」／画像で保存＝保存→2400×1350のdata URIプレビュー／Xでシェア＝`window.open`を先に同期で開き保存は`keepalive`）。下書きは`profilecard_draft_v1`に**ユーザー名つき**で保存し（他ユーザーの下書きは使わない）、サーバーの`updatedAt`の方が新しければサーバーを優先。ユーザー入力・DB由来の文字列は`textContent`とCanvasの`fillText`だけで描き、`innerHTML`は使わない。スマホ1カラム、760px以上は左にstickyのプレビュー
+4. **カード描画**：㉑プロトタイプの21〜939行目（共通ヘルパー・`THEMES`と背景4種・部品・テンプレート3種・`workLogo`・`missionLabel`/`missionChips`・`totsuStars`・`drawProfileCard`）を**スクリプトで抜き出してそのまま埋め込んだ**（手での書き写しなし）。名前の衝突を避けるため即時関数`CardRenderer`で包んだ。変更は2点のみ：`BASE`を`""`に、`identity()`の表示名の縮小下限を22px→18px（全角16文字が左カラム290pxの「エタロ攻略」「推しユニット」で省略されずに収まるように。8章9の観点で検出）
+5. **Xシェア文**（㉒6.4）：テンプレート別の2行目、推し作品0件なら行を省く、全角2・半角1・URL23で数えて280を超えたら推し作品行を「推し作品5選は画像で！」に、なお超えたら表示名を10文字に。`&via=polarbear148691`
+6. **`top.html`**：「ログイン会員限定」欄に導線カード`#profileCardNav`（🪪）を**`hidden`で**追加。`.navcard`の`display`指定が`hidden`属性を打ち消さないよう`.navcard[hidden]{display:none}`を追加。公開時は`hidden`属性を外すだけ（節ごとログイン中のみ表示）
+7. **`images/series/1.png`〜`106.png`**（Cowork配置済み）をコミットに含めた
+
+**検証（依頼書8章）**：
+- マイグレーション＋API：sql.js＋Playwrightのブラウザ内ハーネス（`migrations/0002`・`0008`〜`0012`の実ファイル）で**60件成功**。0011→0012の重複実行で106件・84件・参照切れ0件、`/api/works`の並び・対応表・0011未適用時の`{works:[]}`、`/api/profile-card`の既定値・401・`registered`・所持0件・`computeStats()`と独立に計算した値との一致・範囲外ID除外・未達成称号のnull・未所持推しユニットの除外・エタロ未適用で`eternalRoad:null`、`/api/profile`の保存と再取得の一致・slot順・重複除去・6件で400・16/17文字・絵文字（サロゲートペア）16/17個・41文字・改行・制御文字・未知ID／未所持の読み飛ばし・不正テンプレート／テーマの既定値・401・4KB超・UPSERT・エタロ未適用環境での保存
+- 画面：APIモック（マイグレーション実ファイルから生成）で**62件成功**。ガード（プロフィール系APIを呼ばない）、テンプレートの有効・無効、背景切替とサムネイル、推し作品（3タブ51/37/18件・小見出し・アイコン読込・追加・▲▼・解除・5件で無効化）、推しユニット（所持分のみ・絞り込み・5機）、12通り×（通常・長い入力）の描画でconsoleエラーなし、3ボタン（トースト・送信内容・2400×1350のdata URI・テンプレート別のシェア文・280超えの置換）、下書きの復元／サーバー優先／他ユーザーの下書きを無視、320/390/1024pxで横スクロールなし、PCでsticky、回帰（トップの導線は`hidden`のまま・既存4ページでJSエラーなし）
+- 12通りを`㉑カードモック_一覧.jpg`と見比べ、レイアウト・配色・部品が一致することを目視確認。全角16文字の表示名・40文字のひとこと（2行）・長いユニット名（2行・禁則）を実寸（2400×1350）で確認
+- 既存のテスト（データ登録結果レポートのAPI 19件・画面、トップのアイコン18件）も再実行し回帰なし
+- **未確認（8章14）**：iOS Safari実機での背景生成時間（テーマ切替の初回）と2400×1350の画像保存
+- `docs/WEBサイト仕様書.md`の1.2節・2.2節・2.7節（新規）・3章・4章・5.-8節（新規）・6章を更新済み
+
+**未実施（要対応）**：
+- **Cloudflareダッシュボード（D1 > Console）で`migrations/0011`→`0012`の順に実行し、その直後に`git push origin main`（自動デプロイ）**（⑬の教訓。どちらも冪等なので、間が空いたら両方とも再実行すればよい）。pushすると自動デプロイされるため、commitまで済ませてpushは適用の連絡を待っている。なお新コードはテーブル未作成でも既存ページに影響しない（`/api/works`は`{works:[]}`、`/api/profile-card`は既定値を返し、影響は非公開の`profile-card.html`の保存のみ）
+- `/profile-card.html`に直接アクセスしてテスト運用。問題なければユーザー指示で`top.html`の`#profileCardNav`の`hidden`を外す
+- iOS Safari実機確認（上記）
+
+## 新ユニット・作品の追加手順
+URユニット・URサポート・作品を追加するときに、そろえて更新する箇所の一覧（各節に散らばっていた内容を2026-09-24に集約）。
+
+**URユニット（URサポートも同様）を追加するとき**
+1. `unit.html`（`supporter.html`）の`UNITS`（`SUPPORTERS`）配列に追加し、画像を`images/units/{id}.jpg`（`images/supporters/{id}.jpg`）に置く（既存IDは振り直さない）
+2. `top.html`の`UNIT_IMAGES`（`SUPPORTER_IMAGES`）の件数を更新
+3. `worker.js`の`MAX_UNIT_ID`（`MAX_SUPPORTER_ID`）を更新
+4. D1の`units_master`（`supporters_master`）に1行追加（`migrations/0002`と同じ形式のINSERTをCloudflareダッシュボードで実行）
+5. **URユニットのみ：`unit_work_map`に1行追加する（`INSERT OR REPLACE INTO unit_work_map (unit_id, work_id) VALUES (…, …);`）**。`work_id`はゲーム内の主シリーズ表記に合わせる。これが無いと自己紹介カードの推しユニット一覧・作品名に出ない
+
+**作品（推し作品の選択肢）を追加するとき**
+- **`works_master`（D1への`INSERT OR REPLACE`）・`worker.js`の`WORK_IDS`・`images/series/{work_id}.png`の3点を必ずそろえる**。`work_id`はゲーム内「シリーズ絞り込み」の並び順＝アイコン画像の番号。`WORK_IDS`に無いIDは`POST /api/profile`で読み飛ばされ、画像が無いとアイコンが空のプレートになる
+
 ## 次にやること
+- ㉒：**`migrations/0011`→`0012`のD1適用→直後にpush**、`/profile-card.html`のテスト運用、iOS Safari実機確認、指示後にトップ導線の`hidden`を外す
 - ⑮：`migrations/0008`〜`0010`は適用済み、トップページへの導線も2026-09-24に公開済みで完了。残りは`CONFIG.quotePostUrl`（公開告知ポスト作成後）のみ
 - ⑬は解決済み（上記訂正参照）。追加対応は不要
 - ㉔：iOS Safari実機でエタロの「画像で保存」（1640×3140px）が保存できるかユーザー確認
@@ -575,6 +621,6 @@ URユニット／URサポートのカードと同じ`.regBadge`（`data-reg="ete
 - ファイルを作ったら必ず動作確認（Playwrightでのヘッドレステスト）を行ってから渡すこと
 - 日本語で応答すること
 - ファイル削除時は必ず確認することを原則とする
-- **ミッションの短い表示名`missionLabel()`は`eternal-road.html`（㉔）・自己紹介カード（㉒）・`analytics.html`（`erMissionLabel()`。APIがキャメルケースのため引数の形だけ異なる）の3か所で別々に持っている。ミッション種別を追加・変更するときは3か所とも同時に直すこと**
+- **ミッションの短い表示名`missionLabel()`は`eternal-road.html`（㉔）・自己紹介カード（㉒）・`analytics.html`（`erMissionLabel()`。APIがキャメルケースのため引数の形だけ異なる）の3か所（自己紹介カードは`profile-card.html`の`CardRenderer`内）で別々に持っている。ミッション種別を追加・変更するときは3か所とも同時に直すこと**
 - **作業を閉じる前に、その回で実装・変更した内容を必ずこのCLAUDE.md（「完了済みの作業」セクション）に追記してからセッションを終えること。今回、新規UR3件追加とログインモーダルのデザイン統一の2件が未記載のままクローズされ、事後追記が必要になった**
 - Cowork側（claude.ai）との役割分担・橋渡しルール（`../docs/`の新規資料確認、`../docs/WEBサイト仕様書.md`との内容同期など）は`../README.md`に正本があるので、作業開始前と作業を閉じる前に確認すること

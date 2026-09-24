@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自己紹介カード | Gジェネエターナル ファンツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+<!-- "/"ではなく"/top"を対象にする。過去の"/"→/unit 301キャッシュを引き当てても意味がないため（⑧） -->
+<link rel="prefetch" href="/top">
+<style>
+  :root{
+    --void:#05070d;
+    --panel:rgba(16,22,32,.68);
+    --panel-2:#0e141d;
+    --panel-solid:#121924;
+    --line:rgba(107,224,224,.16);
+    --line-strong:rgba(140,160,180,.28);
+    --gold:#dab949;
+    --gold-dim:#8a7128;
+    --cyan:#6be0e0;
+    --cyan-dim:#3f8f8f;
+    --violet:#a58cf0;
+    --text:#eef3f6;
+    --muted:#93a3b3;
+    --register:#7fd9a0;
+  }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  html,body{height:100%;}
+  body{
+    margin:0;background:var(--void);color:var(--text);
+    font-family:'Noto Sans JP',sans-serif;min-height:100%;
+    -webkit-font-smoothing:antialiased;padding-bottom:96px;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 60vmax 60vmax at 10% -10%, rgba(122,95,207,.28), transparent 60%),
+      radial-gradient(ellipse 55vmax 55vmax at 110% 10%, rgba(52,224,177,.16), transparent 60%),
+      radial-gradient(ellipse 70vmax 70vmax at 50% 120%, rgba(44,63,122,.35), transparent 60%);
+  }
+  ::selection{background:rgba(107,224,224,.3);color:#fff;}
+
+  main.wrap{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 16px calc(28px + env(safe-area-inset-bottom,0px));}
+  .eyebrow{
+    font-family:'Share Tech Mono',monospace;letter-spacing:.16em;font-size:11px;
+    color:var(--cyan);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin:0 0 14px;opacity:.9;
+  }
+  .eyebrow::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);display:inline-block;border-radius:1px;}
+  h1{font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:23px;margin:0 0 10px;word-break:keep-all;overflow-wrap:break-word;}
+  .sub{color:#c7d2dc;font-size:13px;margin:0 0 22px;line-height:1.8;word-break:keep-all;overflow-wrap:break-word;}
+
+  .guardCard{
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:28px 22px;text-align:center;
+  }
+  .guardCard p{color:var(--muted);font-size:13px;line-height:1.8;margin:0 0 18px;}
+  .guardCard button{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;
+    background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;
+    border:1px solid var(--gold);border-radius:3px;padding:10px 26px;cursor:pointer;
+  }
+  .stateMsg{color:var(--muted);font-size:12.5px;text-align:center;padding:28px 0;}
+
+  /* ---- レイアウト：スマホ1カラム／PCは左にプレビュー（sticky）・右に編集フォーム ---- */
+  .layout{display:block;}
+  .previewCol{margin:0 0 18px;}
+  .previewBox{position:relative;width:100%;aspect-ratio:16/9;border:1px solid var(--line-strong);border-radius:6px;overflow:hidden;background:var(--panel-2);}
+  .previewBox canvas{display:block;width:100%;height:100%;}
+  .previewBusy{position:absolute;right:8px;bottom:6px;font-size:10.5px;color:var(--muted);background:rgba(5,7,13,.7);padding:2px 8px;border-radius:10px;}
+  .previewNote{font-size:11px;color:var(--muted);margin:6px 0 0;line-height:1.6;}
+  @media (min-width:760px){
+    main.wrap{max-width:1100px;}
+    .layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:26px;align-items:start;}
+    .previewCol{position:sticky;top:16px;margin:0;}
+  }
+
+  .section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px 14px;margin:0 0 14px;}
+  .section h2{font-size:14px;margin:0 0 12px;display:flex;align-items:center;gap:8px;}
+  .section h2::before{content:"";width:3px;height:15px;background:var(--gold);display:inline-block;}
+  .section h2 .cnt{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted);font-weight:400;margin-left:auto;}
+  .hint{font-size:11.5px;color:var(--muted);line-height:1.6;margin:6px 0 0;}
+  .fieldLabel{display:block;font-size:12px;color:var(--muted);margin:0 0 5px;}
+  .field{margin:0 0 14px;}
+  .field:last-child{margin-bottom:0;}
+  .field input[type=text], .field select{
+    width:100%;font:inherit;font-size:14px;color:var(--text);background:var(--panel-2);
+    border:1px solid var(--line-strong);border-radius:4px;padding:9px 10px;
+  }
+  .field input:focus, .field select:focus{outline:2px solid var(--cyan);outline-offset:1px;}
+  .field select:disabled{opacity:.55;}
+  .counter{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);text-align:right;margin-top:3px;}
+
+  /* テンプレート（セグメント） */
+  .seg{display:flex;gap:6px;}
+  .seg button{
+    flex:1;min-width:0;font:inherit;font-size:13px;font-weight:700;color:var(--muted);background:var(--panel-2);
+    border:1px solid var(--line-strong);border-radius:4px;padding:9px 4px;cursor:pointer;white-space:nowrap;
+  }
+  .seg button.active{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold);}
+  .seg button:disabled{opacity:.4;cursor:not-allowed;}
+  /* 背景（サムネイル） */
+  .themes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;}
+  .themes button{
+    min-width:0;padding:0;background:var(--panel-2);border:2px solid transparent;border-radius:6px;cursor:pointer;
+    color:var(--text);font:inherit;font-size:11px;overflow:hidden;
+  }
+  .themes button canvas{display:block;width:100%;aspect-ratio:16/9;background:#0b1018;}
+  .themes button span{display:block;padding:4px 2px 5px;white-space:nowrap;}
+  .themes button.active{border-color:var(--gold);}
+
+  /* 実績の登録状況 */
+  .regRow{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:12.5px;padding:8px 0;border-bottom:1px solid var(--line);}
+  .regRow:last-child{border-bottom:none;padding-bottom:0;}
+  .regRow .k{font-weight:700;min-width:6.5em;}
+  .regRow .ok{color:var(--register);}
+  .regRow .todo{color:var(--gold);}
+  .regRow a{color:var(--cyan);font-size:12px;}
+
+  /* 推し作品・推しユニット：選択済みリスト */
+  .picked{display:flex;flex-direction:column;gap:6px;margin:0 0 10px;}
+  .picked .empty{font-size:12px;color:var(--muted);padding:6px 0;}
+  .pickedRow{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:5px;padding:6px 8px;}
+  .pickedRow .no{font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;width:1.6em;flex:0 0 auto;}
+  .pickedRow .logo{width:64px;height:28px;object-fit:contain;background:#c6c7d6;border-radius:4px;flex:0 0 auto;}
+  .pickedRow .thumb{width:36px;height:36px;object-fit:cover;border-radius:4px;flex:0 0 auto;border:1px solid var(--line-strong);}
+  .pickedRow .nm{flex:1;min-width:0;font-size:12.5px;line-height:1.4;overflow-wrap:anywhere;}
+  .pickedRow .nm small{display:block;color:var(--muted);font-size:10.5px;}
+  .eraChip{display:inline-block;font-size:10px;border:1px solid currentColor;border-radius:3px;padding:0 5px;margin-right:4px;}
+  .eraChip.UC{color:var(--gold);} .eraChip.ALT{color:var(--cyan);} .eraChip.ETC{color:var(--violet);}
+  .pickedRow .ops{display:flex;gap:3px;flex:0 0 auto;}
+  .pickedRow .ops button{
+    width:28px;height:28px;padding:0;font-size:12px;color:var(--text);background:transparent;
+    border:1px solid var(--line-strong);border-radius:3px;cursor:pointer;
+  }
+  .pickedRow .ops button:disabled{opacity:.3;cursor:default;}
+
+  /* ピッカー */
+  .pickTabs{display:flex;gap:4px;margin:0 0 8px;}
+  .pickTabs button{
+    flex:1;min-width:0;font:inherit;font-size:12px;font-weight:700;color:var(--muted);background:transparent;
+    border:none;border-bottom:2px solid var(--line-strong);padding:7px 2px;cursor:pointer;white-space:nowrap;
+  }
+  .pickTabs button.active{color:var(--gold);border-bottom-color:var(--gold);}
+  .pickList{max-height:360px;overflow-y:auto;border:1px solid var(--line);border-radius:5px;background:rgba(5,7,13,.35);}
+  .pickHead{position:sticky;top:0;z-index:1;font-size:11px;color:var(--cyan);background:#0b1119;padding:5px 10px;border-bottom:1px solid var(--line);}
+  .pickItem{
+    display:flex;align-items:center;gap:9px;width:100%;text-align:left;font:inherit;color:var(--text);
+    background:transparent;border:none;border-bottom:1px solid rgba(107,224,224,.07);padding:7px 10px;cursor:pointer;
+  }
+  .pickItem:disabled{opacity:.35;cursor:not-allowed;}
+  .pickItem.sel{background:rgba(218,185,73,.12);}
+  .pickItem .logo{width:73px;height:32px;object-fit:contain;background:#c6c7d6;border-radius:4px;flex:0 0 auto;}
+  .pickItem .thumb{width:40px;height:40px;object-fit:cover;border-radius:4px;flex:0 0 auto;border:1px solid var(--line-strong);}
+  .pickItem .nm{flex:1;min-width:0;font-size:12.5px;line-height:1.45;overflow-wrap:anywhere;}
+  .pickItem .nm small{display:block;font-family:'Share Tech Mono',monospace;color:var(--muted);font-size:10.5px;}
+  .pickItem .mark{flex:0 0 auto;width:20px;text-align:center;color:var(--gold);font-weight:700;}
+  .filterRow{display:flex;gap:8px;margin:0 0 8px;}
+  .filterRow select{
+    flex:1;min-width:0;font:inherit;font-size:12.5px;color:var(--text);background:var(--panel-2);
+    border:1px solid var(--line-strong);border-radius:4px;padding:7px 6px;
+  }
+
+  /* アクションバー（既存チェッカーと同じ3ボタン構成） */
+  .actionbar{
+    position:fixed;left:0;right:0;bottom:0;background:rgba(10,14,20,.92);backdrop-filter:blur(6px);
+    border-top:1px solid var(--line-strong);padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    display:flex;gap:10px;max-width:640px;margin:0 auto;z-index:50;
+  }
+  .actionbar button{
+    flex:1;min-width:0;font-family:'Rajdhani','Noto Sans JP',sans-serif;font-weight:700;font-size:14px;letter-spacing:.02em;
+    padding:12px 4px;cursor:pointer;border:1px solid var(--line-strong);border-radius:3px;white-space:nowrap;position:relative;
+  }
+  .actionbar button:disabled{opacity:.6;cursor:default;}
+  .btn-save{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold) !important;}
+  .btn-share{background:transparent;color:var(--cyan);border-color:var(--cyan) !important;}
+  .btn-register{background:transparent;color:var(--register);border-color:var(--register) !important;}
+  .dirtyMark{position:absolute;top:-9px;right:4px;font-size:10px;font-family:'Noto Sans JP',sans-serif;color:#1b1503;background:var(--gold);border-radius:8px;padding:1px 6px;letter-spacing:0;}
+  @media (max-width:360px){ .actionbar button{font-size:12.5px;} }
+
+  .toast{
+    position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,8px);
+    background:rgba(10,14,20,.95);border:1px solid var(--register);color:var(--text);
+    font-size:13px;padding:10px 18px;max-width:88%;text-align:center;border-radius:4px;
+    z-index:110;opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0);}
+
+  .previewModal{
+    position:fixed;inset:0;background:rgba(5,7,10,.94);display:none;align-items:center;justify-content:center;
+    flex-direction:column;gap:14px;padding:24px 16px;z-index:100;
+  }
+  .previewModal.show{display:flex;}
+  .previewModal img{max-width:96%;max-height:74vh;border:1px solid var(--line-strong);background:#000;}
+  .previewModal .msg{color:var(--muted);font-size:12.5px;text-align:center;line-height:1.7;max-width:420px;}
+  .previewModal .msg b{color:var(--cyan);}
+  .previewModal .row{display:flex;gap:10px;}
+  .previewModal button, .previewModal a{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;background:var(--gold);color:#1b1503;
+    border:1px solid var(--gold);padding:10px 20px;cursor:pointer;text-decoration:none;display:inline-block;
+  }
+  .previewModal .btn-secondary{background:transparent;color:var(--muted);border-color:var(--line-strong);}
+
+  .pageFooter{margin-top:28px;padding-top:16px;border-top:1px solid var(--line-strong);font-size:10.5px;line-height:1.9;color:var(--muted);}
+  .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
+  .pageFooter a{color:var(--cyan);text-decoration:none;}
+</style>
+</head>
+<!-- data-auth-stay: ログイン案内からログインした人をトップへ飛ばさず、このページに戻す（auth.js） -->
+<body data-auth-stay>
+
+<main class="wrap">
+  <p class="eyebrow">PLAYER PROFILE</p>
+  <h1>自己紹介カード</h1>
+  <p class="sub">登録済みのデータと推し作品・推しユニットから、Xでシェアできる自己紹介カード（16:9）を作れます（ログイン会員限定）。</p>
+
+  <div id="guardView" class="guardCard" hidden>
+    <p>自己紹介カードはログインユーザー限定です。<br>ログインすると、登録したデータからカードを作れるようになります。</p>
+    <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
+  </div>
+  <div id="loadingView" class="stateMsg">読み込み中...</div>
+  <div id="errorView" class="stateMsg" hidden>データの読み込みに失敗しました。時間をおいて再度お試しください。</div>
+
+  <div id="contentView" class="layout" hidden>
+    <div class="previewCol">
+      <div class="previewBox">
+        <canvas id="previewCanvas" width="1200" height="675" aria-label="自己紹介カードのプレビュー"></canvas>
+        <span class="previewBusy" id="previewBusy" hidden>描画中…</span>
+      </div>
+      <p class="previewNote">プレビューは縮小表示です。「画像で保存」で2400×1350pxの画像を作ります。</p>
+    </div>
+
+    <div class="formCol">
+      <section class="section">
+        <h2>カードのデザイン</h2>
+        <div class="seg" id="tplButtons" role="group" aria-label="テンプレート">
+          <button type="button" data-tpl="standard">標準</button>
+          <button type="button" data-tpl="eternal">エタロ攻略</button>
+          <button type="button" data-tpl="units">推しユニット</button>
+        </div>
+        <p class="hint" id="tplHint" hidden></p>
+        <div class="themes" id="themeButtons" role="group" aria-label="背景">
+          <button type="button" data-theme="galaxy"><canvas width="240" height="135"></canvas><span>宇宙世紀</span></button>
+          <button type="button" data-theme="earth"><canvas width="240" height="135"></canvas><span>地球</span></button>
+          <button type="button" data-theme="sky"><canvas width="240" height="135"></canvas><span>大空</span></button>
+          <button type="button" data-theme="jungle"><canvas width="240" height="135"></canvas><span>ジャングル</span></button>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>実績の登録状況</h2>
+        <div id="regList"></div>
+      </section>
+
+      <section class="section">
+        <h2>プロフィール</h2>
+        <div class="field">
+          <label class="fieldLabel" for="inName">表示名（16文字まで）</label>
+          <input type="text" id="inName" maxlength="16" autocomplete="off">
+        </div>
+        <div class="field">
+          <label class="fieldLabel" for="inComment">ひとこと（40文字まで）</label>
+          <input type="text" id="inComment" maxlength="40" autocomplete="off">
+          <div class="counter" id="commentCounter">残り40文字</div>
+        </div>
+        <div class="field">
+          <label class="fieldLabel" for="inTitle">表示称号</label>
+          <select id="inTitle"></select>
+          <p class="hint" id="titleHint" hidden>エタロ攻略チェッカーで称号を獲得すると選べます</p>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>推し作品<span class="cnt" id="workCount">0 / 5</span></h2>
+        <div class="picked" id="pickedWorks"></div>
+        <div class="pickTabs" id="workTabs" role="tablist">
+          <button type="button" data-era="UC">宇宙世紀</button>
+          <button type="button" data-era="ALT">アナザー</button>
+          <button type="button" data-era="ETC">SD・ビルド・その他</button>
+        </div>
+        <div class="pickList" id="workList"></div>
+        <p class="hint">タップで追加・もう一度タップで解除。最大5作品まで選べます。</p>
+      </section>
+
+      <section class="section">
+        <h2>推しユニット<span class="cnt" id="unitCount">0 / 5</span></h2>
+        <div class="picked" id="pickedUnits"></div>
+        <div id="unitPicker">
+          <div class="filterRow">
+            <select id="unitTypeFilter" aria-label="タイプで絞り込み">
+              <option value="">タイプ：すべて</option>
+              <option value="攻撃">攻撃</option><option value="支援">支援</option><option value="耐久">耐久</option>
+            </select>
+            <select id="unitWorkFilter" aria-label="作品で絞り込み"><option value="">作品：すべて</option></select>
+          </div>
+          <div class="pickList" id="unitList"></div>
+          <p class="hint">登録済みの所持URユニットから最大5機まで選べます。</p>
+        </div>
+        <p class="hint" id="unitEmptyHint" hidden>URユニット所持率チェッカーで所持データを登録すると選べます。</p>
+      </section>
+    </div>
+  </div>
+
+  <footer class="pageFooter">
+    <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
+    <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
+    <p>掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
+    <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+  </footer>
+</main>
+
+<div class="actionbar" id="actionbar" hidden>
+  <button type="button" class="btn-register" id="btnProfileSave">プロフィール保存<span class="dirtyMark" id="dirtyMark" hidden>●未保存</span></button>
+  <button type="button" class="btn-save" id="btnSave">画像で保存</button>
+  <button type="button" class="btn-share" id="btnShare">Xでシェア</button>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="previewModal" id="previewModal">
+  <img id="previewImg" alt="自己紹介カード">
+  <div class="msg">自動ダウンロードが始まらない場合は、画像を<b>長押し（スマホ）</b>または<b>右クリック</b>して「画像を保存」を選んでください。</div>
+  <div class="row">
+    <a id="downloadLink" download="gget_profile_card.png">ダウンロード</a>
+    <button type="button" class="btn-secondary" id="btnClosePreview">閉じる</button>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+ * カード描画：docs/㉑自己紹介カード_試作5_プロトタイプ.html の描画コードをそのまま移植（㉒6.1）。
+ * 変更点は BASE を "" にしたこと（ページがサイトルート直下のため）と、名前の衝突を避けるため
+ * 即時関数で包んで CardRenderer として公開したことのみ。描画仕様の変更はプロトタイプ側で検討してから移すこと
+ * ===================================================================== */
+const CardRenderer = (function(){
+const W = 1200, H = 675, SCALE = 2;
+const RAINBOW = ["#ff5f6d","#ffc371","#9dff8a","#5b8def","#c471f5"];
+const FONT = "'Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif";
+const BASE = "";   // 本番：ページがサイトルート直下のため（プロトタイプは"../checker/"）
+
+/* ---------------- 共通ヘルパー ---------------- */
+function loadImage(src){
+  return new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src=src; });
+}
+let CUR_RAINBOW = RAINBOW;   // 明るいテーマでは濃い虹色に切替（白パネル上の視認性確保）
+function rainbow(ctx,x0,y0,x1,y1){
+  const g=ctx.createLinearGradient(x0,y0,x1,y1);
+  CUR_RAINBOW.forEach((c,i)=>g.addColorStop(i/(CUR_RAINBOW.length-1),c)); return g;
+}
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function fitText(ctx,text,maxW){
+  if(ctx.measureText(text).width<=maxW) return text;
+  let t=text; while(t.length>0 && ctx.measureText(t+"…").width>maxW) t=t.slice(0,-1);
+  return t+"…";
+}
+function drawCover(ctx,im,x,y,w,h){
+  const s=Math.max(w/im.width,h/im.height), sw=w/s, sh=h/s;
+  ctx.drawImage(im,(im.width-sw)/2,(im.height-sh)/2,sw,sh,x,y,w,h);
+}
+function mulberry(seed){ return ()=>{ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* 3Dバリューノイズ＋fBm（地球の大陸・雲、空の雲、星雲に使用） */
+function hash3(x,y,z){ let h=Math.imul(x,374761393)+Math.imul(y,668265263)+Math.imul(z,1274126177);
+  h=Math.imul(h^(h>>>13),1274126177); return ((h^(h>>>16))>>>0)/4294967296; }
+function noise3(x,y,z){
+  const xi=Math.floor(x), yi=Math.floor(y), zi=Math.floor(z);
+  const xf=x-xi, yf=y-yi, zf=z-zi, u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf), w=zf*zf*(3-2*zf);
+  const L=(a,b,t)=>a+(b-a)*t;
+  const c=(dx,dy,dz)=>hash3(xi+dx,yi+dy,zi+dz);
+  return L(L(L(c(0,0,0),c(1,0,0),u),L(c(0,1,0),c(1,1,0),u),v),
+           L(L(c(0,0,1),c(1,0,1),u),L(c(0,1,1),c(1,1,1),u),v),w);
+}
+function fbm(x,y,z,oct){ let a=0.5,f=1,s=0,n=0; for(let i=0;i<oct;i++){ s+=a*noise3(x*f,y*f,z*f); n+=a; a*=0.5; f*=2.03; } return s/n; }
+
+/* 背景は重いピクセル処理を含むため、論理解像度(1200×675)のオフスクリーンに1回だけ描き、テーマごとにキャッシュする */
+const bgCache={};
+function offscreen(w,h){ const c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
+
+/* ======================= 背景テーマ ======================= */
+function stars(ctx,n,seed,maxA){
+  const r=mulberry(seed);
+  for(let i=0;i<n;i++){
+    const x=r()*W, y=r()*H, s=r()<0.04?r()*1.6+1:r()*0.9+0.2, a=0.2+r()*(maxA-0.2);
+    ctx.fillStyle=`rgba(255,255,255,${a})`; ctx.beginPath(); ctx.arc(x,y,s,0,Math.PI*2); ctx.fill();
+    if(s>1.6){ // 明るい星の十字光
+      ctx.strokeStyle=`rgba(200,230,255,${a*0.5})`; ctx.lineWidth=0.6;
+      ctx.beginPath(); ctx.moveTo(x-s*4,y); ctx.lineTo(x+s*4,y); ctx.moveTo(x,y-s*4); ctx.lineTo(x,y+s*4); ctx.stroke();
+    }
+  }
+}
+
+// ① 宇宙世紀：銀河系（渦巻銀河＋星雲＋遠景のスペースコロニー）
+function bgGalaxy(layout){
+  const c=offscreen(W,H), ctx=c.getContext("2d");
+  const bg=ctx.createLinearGradient(0,0,W,H); bg.addColorStop(0,"#070b16"); bg.addColorStop(1,"#03050a");
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  // 星雲（ノイズで濃淡を付けたエメラルド〜バイオレットの霞）
+  const img=ctx.getImageData(0,0,W,H), d=img.data;
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const n=fbm(x/260,y/260,1.7,5), m=Math.max(0,n-0.48)*2.4;
+    const t=x/W, i=(y*W+x)*4;
+    d[i]  += m*(40+80*t);  d[i+1]+= m*(120-60*t); d[i+2]+= m*(110+60*t);
+  }
+  ctx.putImageData(img,0,0);
+  stars(ctx,420,7,0.85);
+  // 渦巻銀河（右上。楕円に傾けた対数螺旋の腕に粒子を配置）
+  // 見せ場の位置：パネルやバナーで隠れないヘッダー帯（タイトル文字とロゴの間）に置く
+  const [gx,gy,gs]=layout!=="standard"?[975,52,0.62]:[800,78,0.85], r=mulberry(42);
+  ctx.save(); ctx.translate(gx,gy); ctx.rotate(-0.30); ctx.scale(1.45*gs,0.5*gs);
+  const core=ctx.createRadialGradient(0,0,0,0,0,260);
+  core.addColorStop(0,"rgba(255,245,215,.9)"); core.addColorStop(0.05,"rgba(255,225,160,.45)");
+  core.addColorStop(0.2,"rgba(52,224,177,.16)"); core.addColorStop(1,"rgba(52,224,177,0)");
+  ctx.fillStyle=core; ctx.beginPath(); ctx.arc(0,0,260,0,Math.PI*2); ctx.fill();
+  ctx.globalCompositeOperation="lighter";
+  for(let arm=0;arm<2;arm++){
+    for(let k=0;k<4200;k++){
+      const t=0.35+r()*3.85, rad=18*Math.exp(0.62*t)+(r()-0.5)*26*(1+t*0.3);
+      const ang=t+arm*Math.PI+(r()-0.5)*0.5;
+      const x=Math.cos(ang)*rad, y=Math.sin(ang)*rad;
+      const hue=r(); const col=hue<0.55?"120,235,205":hue<0.85?"170,150,255":"255,220,160";
+      ctx.fillStyle=`rgba(${col},${0.10+r()*0.35})`;
+      ctx.beginPath(); ctx.arc(x,y,r()*1.6+0.3,0,Math.PI*2); ctx.fill();
+    }
+  }
+  ctx.restore(); ctx.globalCompositeOperation="source-over";
+  // 遠景のスペースコロニー（円筒＋3枚のミラー。シルエットのみの一般的なモチーフ）
+  const [kx,ky]=[600,646];   // フッター帯の中央（左右のフッター文字の間）
+  ctx.save(); ctx.translate(kx,ky); ctx.rotate(-0.12); ctx.scale(0.62,0.62);
+  const cw=150, ch=26;
+  const body=ctx.createLinearGradient(0,-ch/2,0,ch/2);
+  body.addColorStop(0,"#3a4a5e"); body.addColorStop(0.5,"#1c2533"); body.addColorStop(1,"#0c1119");
+  ctx.fillStyle=body; ctx.fillRect(-cw/2,-ch/2,cw,ch);
+  ctx.fillStyle="rgba(140,220,255,.55)";   // 採光窓（縞）
+  for(let i=0;i<3;i++) ctx.fillRect(-cw/2+8,-ch/2+4+i*7,cw-16,1.6);
+  ctx.strokeStyle="rgba(150,180,210,.45)"; ctx.lineWidth=1.2;
+  for(const s of [-1,0,1]){ ctx.beginPath(); ctx.moveTo(cw/2,0); ctx.lineTo(cw/2+70,s*22); ctx.stroke(); }
+  ctx.fillStyle="rgba(255,240,200,.9)"; ctx.beginPath(); ctx.arc(-cw/2,0,2.2,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  return c;
+}
+
+// ② 美しい地球：軌道上から見た地球（深い青の海・大陸・渦を巻く雲・大気の縁光・日の出のフレア）
+function bgEarth(layout){
+  const c=offscreen(W,H), ctx=c.getContext("2d");
+  const sp=ctx.createLinearGradient(0,0,0,H); sp.addColorStop(0,"#01030a"); sp.addColorStop(1,"#040a1c");
+  ctx.fillStyle=sp; ctx.fillRect(0,0,W,H);
+  stars(ctx,300,11,0.8);
+  const cx=700, cy=1180, R=820;             // 画面下半分に大きな弧として見える配置
+  const img=ctx.getImageData(0,0,W,H), d=img.data;
+  const sun=[0.78,0.42,0.46]; const sl=Math.hypot(...sun); sun.forEach((v,i)=>sun[i]=v/sl);   // 光源：右上手前
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const dx=(x-cx)/R, dy=(y-cy)/R, rr=dx*dx+dy*dy;
+    if(rr>1) continue;
+    const nz=Math.sqrt(1-rr), nx=dx, ny=-dy;               // 球面の法線
+    const px=nx*4.2, py=ny*4.2, pz=nz*4.2;                  // 球面上の3D座標でノイズを引く（歪みなし）
+    // 雲は座標をねじって渦巻き状に
+    const sw=fbm(px*0.6,py*0.6,pz*0.6+20,3)*3.0;
+    // fBmは0.5付近に値が集まるため、コントラストを広げてから閾値判定する
+    const cloud=(fbm(px*1.3+Math.cos(sw)*0.8,py*2.2+Math.sin(sw)*0.8,pz*1.3+7,6)-0.5)*2.6+0.5;
+    const land=(fbm(px*0.9+3.1,py*0.9,pz*0.9,6)-0.5)*2.8+0.5;
+    const lit=Math.max(0,nx*sun[0]+ny*sun[1]+nz*sun[2]);
+    let r,g,b;
+    if(land>0.57){ const h=Math.min(1,(land-0.57)*3);               // 陸：沿岸の緑→内陸の黄土
+      r=46+h*120; g=96+h*50; b=40+h*25; }
+    else { const dep=Math.min(1,(0.57-land)*5);                    // 海：浅瀬のターコイズ→深海のロイヤルブルー
+      r=3+(1-dep)*14; g=28+(1-dep)*90; b=92+(1-dep)*90; }
+    const cl=Math.max(0,Math.min(1,(cloud-0.58)*3.2));
+    r=r*(1-cl)+250*cl; g=g*(1-cl)+252*cl; b=b*(1-cl)+255*cl;
+    const shade=0.03+1.05*Math.pow(lit,0.85);
+    const night=Math.max(0,0.18-lit)*5.5;                          // 夜側の都市の灯り
+    const city=(land>0.6 && cl<0.2 && night>0.3 && hash3(x,y,5)>0.965)?night*160:0;
+    const limb=Math.pow(1-nz,2.4);                                 // 縁ほど大気で青白く
+    const i=(y*W+x)*4;
+    d[i]  =Math.min(255,r*shade+city+limb*40*lit);
+    d[i+1]=Math.min(255,g*shade+city*0.75+limb*110*lit);
+    d[i+2]=Math.min(255,b*shade+city*0.35+limb*220*lit);
+  }
+  ctx.putImageData(img,0,0);
+  ctx.save(); ctx.globalCompositeOperation="lighter";
+  const atm=ctx.createRadialGradient(cx,cy,R*0.99,cx,cy,R*1.07);   // 大気の縁光
+  atm.addColorStop(0,"rgba(110,185,255,.75)"); atm.addColorStop(0.3,"rgba(60,130,255,.28)"); atm.addColorStop(1,"rgba(30,80,200,0)");
+  ctx.fillStyle=atm; ctx.beginPath(); ctx.arc(cx,cy,R*1.07,0,Math.PI*2); ctx.fill();
+  const fa=-1.06, fx=cx+R*Math.cos(fa), fy=cy+R*Math.sin(fa);      // 地平線上の日の出フレア
+  const fl=ctx.createRadialGradient(fx,fy,0,fx,fy,300);
+  fl.addColorStop(0,"rgba(255,252,240,1)"); fl.addColorStop(0.05,"rgba(255,228,170,.7)"); fl.addColorStop(0.3,"rgba(255,170,110,.18)"); fl.addColorStop(1,"rgba(255,150,100,0)");
+  ctx.fillStyle=fl; ctx.beginPath(); ctx.arc(fx,fy,300,0,Math.PI*2); ctx.fill();
+  const tang=fa+Math.PI/2, lx=Math.cos(tang), ly=Math.sin(tang);   // 地平線に沿う光条
+  const lg=ctx.createLinearGradient(fx-lx*500,fy-ly*500,fx+lx*500,fy+ly*500);
+  lg.addColorStop(0,"rgba(255,240,220,0)"); lg.addColorStop(0.5,"rgba(255,240,220,.5)"); lg.addColorStop(1,"rgba(255,240,220,0)");
+  ctx.strokeStyle=lg; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(fx-lx*500,fy-ly*500); ctx.lineTo(fx+lx*500,fy+ly*500); ctx.stroke();
+  ctx.restore();
+  // 遠くの月
+  const [mx,my]=[990,48];   // ヘッダーのタイトルとロゴの間（どちらのテンプレートでも文字と重ならない位置）
+  const mg=ctx.createRadialGradient(mx-4,my-4,0,mx,my,18);
+  mg.addColorStop(0,"#eeebe2"); mg.addColorStop(0.85,"#a8a59c"); mg.addColorStop(1,"rgba(120,118,110,0)");
+  ctx.fillStyle=mg; ctx.beginPath(); ctx.arc(mx,my,15,0,Math.PI*2); ctx.fill();
+  if(layout==="eternal"){ /* エタロ版は右側がバナーで埋まるため、見え方は左カラムと下辺が中心になる */ }
+  return c;
+}
+
+// ③ 青くすがすがしい大空：青空グラデーション＋太陽の光芒＋ふわふわの積雲
+function cumulus(ctx,x,y,w,h,seed,alpha){
+  // 小さな円（ラジアルグラデーション）を重ねて雲を作る。上面は白、下面はわずかに青灰
+  const r=mulberry(seed), n=Math.round(w/7);
+  for(let pass=0;pass<2;pass++){
+    for(let i=0;i<n;i++){
+      const t=r(), px=x+t*w, bulge=Math.sin(t*Math.PI);
+      const py=y-(r()*0.9)*h*bulge+(pass?0:h*0.18), rad=(0.25+r()*0.5)*h*(0.5+bulge*0.7);
+      const g=ctx.createRadialGradient(px,py-rad*0.3,0,px,py,rad);
+      if(pass===0){ g.addColorStop(0,`rgba(205,222,240,${alpha*0.9})`); g.addColorStop(1,"rgba(205,222,240,0)"); }
+      else { g.addColorStop(0,`rgba(255,255,255,${alpha})`); g.addColorStop(0.55,`rgba(255,255,255,${alpha*0.75})`); g.addColorStop(1,"rgba(255,255,255,0)"); }
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(px,py,rad,0,Math.PI*2); ctx.fill();
+    }
+  }
+}
+function bgSky(layout){
+  const c=offscreen(W,H), ctx=c.getContext("2d");
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,"#1766d0"); g.addColorStop(0.5,"#4aa2ef"); g.addColorStop(1,"#bfe7ff");
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  const sx=1030, sy=70;
+  ctx.save(); ctx.globalCompositeOperation="lighter";
+  const sun=ctx.createRadialGradient(sx,sy,0,sx,sy,440);
+  sun.addColorStop(0,"rgba(255,255,245,1)"); sun.addColorStop(0.05,"rgba(255,255,230,.85)");
+  sun.addColorStop(0.22,"rgba(255,250,220,.22)"); sun.addColorStop(1,"rgba(255,255,255,0)");
+  ctx.fillStyle=sun; ctx.fillRect(0,0,W,H);
+  const r=mulberry(3);
+  for(let i=0;i<14;i++){
+    const a=r()*Math.PI*2, len=300+r()*400;
+    const lg=ctx.createLinearGradient(sx,sy,sx+Math.cos(a)*len,sy+Math.sin(a)*len);
+    lg.addColorStop(0,"rgba(255,255,240,.16)"); lg.addColorStop(1,"rgba(255,255,240,0)");
+    ctx.strokeStyle=lg; ctx.lineWidth=2+r()*6;
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+Math.cos(a)*len,sy+Math.sin(a)*len); ctx.stroke();
+  }
+  for(const [t,rad,al] of [[0.35,26,.14],[0.55,12,.18],[0.8,44,.08]]){
+    const fx=sx+(W*0.35-sx)*t, fy=sy+(H*0.8-sy)*t;
+    ctx.fillStyle=`rgba(200,240,255,${al})`; ctx.beginPath(); ctx.arc(fx,fy,rad,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+  // 薄い高層の筋雲
+  for(let i=0;i<5;i++){
+    const y=90+i*38+r()*20, x=r()*W*0.6;
+    const lg=ctx.createLinearGradient(x,y,x+520,y-60);
+    lg.addColorStop(0,"rgba(255,255,255,0)"); lg.addColorStop(0.5,"rgba(255,255,255,.16)"); lg.addColorStop(1,"rgba(255,255,255,0)");
+    ctx.strokeStyle=lg; ctx.lineWidth=10+r()*14; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x+260,y-50,x+520,y-60); ctx.stroke();
+  }
+  // 積雲：遠景（小さく薄く）→近景（下辺に大きく）
+  cumulus(ctx,60,300,260,60,5,0.55); cumulus(ctx,760,260,300,55,6,0.5); cumulus(ctx,420,380,240,50,8,0.55);
+  cumulus(ctx,-60,640,520,170,9,0.95); cumulus(ctx,380,690,520,160,10,0.95); cumulus(ctx,820,650,480,190,11,0.95);
+  // 飛行機雲
+  ctx.strokeStyle="rgba(255,255,255,.6)"; ctx.lineWidth=2; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(120,215); ctx.lineTo(560,120); ctx.stroke();
+  ctx.strokeStyle="rgba(255,255,255,.22)"; ctx.lineWidth=6;
+  ctx.beginPath(); ctx.moveTo(120,218); ctx.lineTo(530,128); ctx.stroke();
+  return c;
+}
+
+// ④ 大自然のジャングル（ジャブローをイメージ）：卓状台地の断崖と滝、霧、木漏れ日、覆いかぶさる樹冠と葉
+function leafFrond(ctx,x,y,ang,len,col,col2,seed){
+  // ヤシ・シダ系の羽状の葉：中肋をカーブで引き、左右に先細りの小葉を並べる
+  const r=mulberry(seed);
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
+  const bend=len*0.25;
+  const pt=t=>[len*t, bend*t*t];           // 中肋（下向きに垂れる放物線）
+  for(let i=2;i<30;i++){
+    const t=i/30, [mx,my]=pt(t), ll=len*0.30*Math.sin(Math.PI*Math.min(1,t*1.1))*(0.85+r()*0.3);
+    for(const side of [-1,1]){
+      const a=side*(0.95-t*0.35)+ (r()-0.5)*0.15;
+      ctx.beginPath(); ctx.moveTo(mx,my);
+      const ex=mx+Math.cos(a)*ll*0.55+ll*0.35, ey=my+Math.sin(a)*ll;
+      ctx.quadraticCurveTo(mx+ll*0.1,my+Math.sin(a)*ll*0.55,ex,ey);
+      ctx.quadraticCurveTo(mx+ll*0.35,my+Math.sin(a)*ll*0.35,mx+2,my);
+      const g=ctx.createLinearGradient(mx,my,ex,ey); g.addColorStop(0,col); g.addColorStop(1,col2);
+      ctx.fillStyle=g; ctx.fill();
+    }
+  }
+  ctx.strokeStyle=col; ctx.lineWidth=2.2; ctx.beginPath(); ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(len*0.5,0,len,bend); ctx.stroke();
+  ctx.restore();
+}
+function crowns(ctx,yBase,count,rMin,rMax,dark,light,haze,seed){
+  // 樹冠：小円の房を横一列に重ねる。上面は明るく、haze分だけ遠景色に寄せる
+  const r=mulberry(seed);
+  for(let i=0;i<count;i++){
+    const cx=(i/count)*W*1.1-40+r()*40, cy=yBase+(r()-0.5)*26, R=rMin+r()*(rMax-rMin);
+    for(let k=0;k<7;k++){
+      const px=cx+(r()-0.5)*R*1.3, py=cy+(r()-0.3)*R*0.7, pr=R*(0.45+r()*0.45);
+      const g=ctx.createRadialGradient(px-pr*0.2,py-pr*0.45,pr*0.1,px,py,pr);
+      g.addColorStop(0,light); g.addColorStop(0.7,dark); g.addColorStop(1,dark);
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(px,py,pr,0,Math.PI*2); ctx.fill();
+    }
+  }
+  if(haze>0){ ctx.fillStyle=`rgba(190,220,205,${haze})`; ctx.fillRect(0,yBase-rMax,W,H); }
+}
+// 密林の基地の設備（特定作品の施設デザインではない汎用表現：コンクリートの大型ゲート、レーダー、通信塔、管制塔）
+function radarDish(ctx,x,y,s){
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.strokeStyle="#3d4a4f"; ctx.lineWidth=2;                 // 格子の鉄塔
+  ctx.beginPath(); ctx.moveTo(-14,0); ctx.lineTo(-4,-70); ctx.moveTo(14,0); ctx.lineTo(4,-70); ctx.stroke();
+  ctx.lineWidth=1; for(let i=0;i<6;i++){ const y0=-i*11, w0=14-i*1.6, w1=14-(i+1)*1.6;
+    ctx.beginPath(); ctx.moveTo(-w0,y0); ctx.lineTo(w1,y0-11); ctx.moveTo(w0,y0); ctx.lineTo(-w1,y0-11); ctx.stroke(); }
+  ctx.save(); ctx.translate(0,-78); ctx.rotate(-0.5);          // パラボラ
+  const dg=ctx.createLinearGradient(-30,0,30,0); dg.addColorStop(0,"#dfe6e8"); dg.addColorStop(1,"#8f9ca2");
+  ctx.fillStyle=dg; ctx.beginPath(); ctx.ellipse(0,0,32,11,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle="#6f7c82"; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-22); ctx.stroke();
+  ctx.restore(); ctx.restore();
+}
+function commMast(ctx,x,y,h){
+  ctx.strokeStyle="#39444a"; ctx.lineWidth=1.6;
+  ctx.beginPath(); ctx.moveTo(x-6,y); ctx.lineTo(x,y-h); ctx.lineTo(x+6,y); ctx.stroke();
+  ctx.lineWidth=0.8; for(let i=1;i<10;i++){ const yy=y-h*i/10, w=6*(1-i/10);
+    ctx.beginPath(); ctx.moveTo(x-w,yy); ctx.lineTo(x+w,yy-h/10); ctx.stroke(); }
+  for(const t of [0,0.5]){ const g=ctx.createRadialGradient(x,y-h*(1-t),0,x,y-h*(1-t),7);   // 航空障害灯
+    g.addColorStop(0,"rgba(255,70,60,1)"); g.addColorStop(1,"rgba(255,70,60,0)");
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y-h*(1-t),7,0,Math.PI*2); ctx.fill(); }
+}
+function blastGate(ctx,x,y,w,h){
+  // 断崖に埋め込まれた大型ゲート：コンクリート枠、左右スライド扉、縁の警戒色、上部の誘導灯
+  const fr=ctx.createLinearGradient(0,y-18,0,y+h); fr.addColorStop(0,"#8d948f"); fr.addColorStop(1,"#5e6661");
+  ctx.fillStyle=fr; ctx.beginPath(); ctx.moveTo(x-22,y+h); ctx.lineTo(x-14,y-18); ctx.lineTo(x+w+14,y-18); ctx.lineTo(x+w+22,y+h); ctx.fill();
+  const dg=ctx.createLinearGradient(x,0,x+w,0); dg.addColorStop(0,"#4a5350"); dg.addColorStop(0.5,"#5d6763"); dg.addColorStop(1,"#434b48");
+  ctx.fillStyle=dg; ctx.fillRect(x,y,w,h);
+  // 扉が少し開き、内部の灯りが漏れている
+  const gw=12, ig=ctx.createLinearGradient(0,y,0,y+h); ig.addColorStop(0,"rgba(255,220,150,.95)"); ig.addColorStop(1,"rgba(255,170,90,.6)");
+  ctx.fillStyle=ig; ctx.fillRect(x+w/2-gw/2,y+8,gw,h-8);
+  const spill=ctx.createRadialGradient(x+w/2,y+h,0,x+w/2,y+h,70); spill.addColorStop(0,"rgba(255,210,140,.45)"); spill.addColorStop(1,"rgba(255,210,140,0)");
+  ctx.fillStyle=spill; ctx.beginPath(); ctx.ellipse(x+w/2,y+h,70,24,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle="rgba(20,26,24,.8)"; ctx.lineWidth=1.2;
+  ctx.lineWidth=0.8; for(let i=1;i<5;i++){ ctx.beginPath(); ctx.moveTo(x,y+h*i/5); ctx.lineTo(x+w/2-gw/2,y+h*i/5); ctx.moveTo(x+w/2+gw/2,y+h*i/5); ctx.lineTo(x+w,y+h*i/5); ctx.stroke(); }
+  ctx.font="bold 11px sans-serif"; ctx.fillStyle="rgba(230,230,220,.75)"; ctx.fillText("GATE 03",x+8,y+h-8);   // 汎用の番号表記
+  ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,7); ctx.clip();                // 警戒色（黄黒の斜線）
+  ctx.fillStyle="#d9b53a"; ctx.fillRect(x,y,w,7); ctx.fillStyle="#1c1f1d";
+  for(let sx=x-10;sx<x+w;sx+=12){ ctx.beginPath(); ctx.moveTo(sx,y+7); ctx.lineTo(sx+6,y+7); ctx.lineTo(sx+13,y); ctx.lineTo(sx+7,y); ctx.fill(); }
+  ctx.restore();
+  for(let i=0;i<7;i++){ const lx=x+6+i*(w-12)/6, g=ctx.createRadialGradient(lx,y-10,0,lx,y-10,6);
+    g.addColorStop(0,"rgba(255,215,130,1)"); g.addColorStop(1,"rgba(255,215,130,0)"); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(lx,y-10,6,0,Math.PI*2); ctx.fill(); }
+}
+function bgJungle(layout){
+  const c=offscreen(W,H), ctx=c.getContext("2d");
+  // 空：上は澄んだ青、地平に向かって霞んだ白緑へ
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,"#2f7fd8"); g.addColorStop(0.22,"#79b6ea"); g.addColorStop(0.42,"#b9d9d4"); g.addColorStop(0.62,"#8fbba0"); g.addColorStop(1,"#1a3f27");
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  const sun=ctx.createRadialGradient(900,40,0,900,40,420);
+  sun.addColorStop(0,"rgba(255,252,230,.85)"); sun.addColorStop(0.25,"rgba(255,248,220,.25)"); sun.addColorStop(1,"rgba(255,248,220,0)");
+  ctx.fillStyle=sun; ctx.fillRect(0,0,W,H);
+  // 青空にわずかな積雲（樹冠の切れ間から見える位置）
+  // 基地設備の配置はテンプレートで変える：カードではパネルに隠れないヘッダー帯（タイトル文字とロゴの間）に設備の上部が見えるようにする
+  const std=(layout==="standard"||layout==="none");
+  const P=std?{top:134,tower:620,mast:705,dish1:[860,0.75],dish2:[935,1.0]}
+             :{top:134,tower:835,mast:895,dish1:[965,0.7],dish2:[1035,0.95]};
+  cumulus(ctx,540,70,200,34,41,0.8); cumulus(ctx,780,58,240,40,42,0.7); cumulus(ctx,1010,90,150,28,43,0.6);
+  const r=mulberry(21);
+  // 遠景の稜線（霞んだ青緑）
+  ctx.fillStyle="rgba(120,165,150,.75)"; ctx.beginPath(); ctx.moveTo(0,H);
+  for(let x=0;x<=W;x+=6) ctx.lineTo(x,305-fbm(x/160,0.5,3.3,4)*110); ctx.lineTo(W,H); ctx.fill();
+  // 卓状台地（テーブルマウンテン）の断崖
+  const mx0=540, mx1=1080, top=P.top;
+  const cliff=ctx.createLinearGradient(mx0,0,mx1,0);
+  cliff.addColorStop(0,"#5f8b78"); cliff.addColorStop(0.5,"#4c7766"); cliff.addColorStop(1,"#3d6555");
+  ctx.fillStyle=cliff; ctx.beginPath(); ctx.moveTo(mx0-40,H);
+  ctx.lineTo(mx0,top+30); ctx.lineTo(mx0+30,top+4);
+  for(let x=mx0+30;x<=mx1-30;x+=8) ctx.lineTo(x,top+(noise3(x/40,1,2)-0.5)*8);
+  ctx.lineTo(mx1-20,top+10); ctx.lineTo(mx1+30,H); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle="rgba(30,60,48,.35)"; ctx.lineWidth=1;
+  for(let i=0;i<60;i++){ const x=mx0+10+r()*(mx1-mx0-20), y0=top+10+r()*40;
+    ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x+(r()-0.5)*6,y0+60+r()*160); ctx.stroke(); }
+  ctx.fillStyle="rgba(70,120,70,.85)";
+  for(let x=mx0+30;x<=mx1-30;x+=10){ ctx.beginPath(); ctx.arc(x,top+2,5+r()*6,0,Math.PI*2); ctx.fill(); }
+  // 台地の上の基地設備：レーダー2基・通信塔・管制塔（ヘッダー帯まで伸びて見える高さ）
+  // 管制塔（多層の塔＋ガラス張りの管制室＋アンテナ）
+  const tx=P.tower;
+  ctx.fillStyle="#5a6460"; ctx.fillRect(tx-13,top-78,26,78); ctx.fillStyle="#4c5552"; for(let i=1;i<5;i++) ctx.fillRect(tx-13,top-78+i*15,26,2);
+  ctx.fillStyle="#6c7672"; ctx.beginPath(); ctx.moveTo(tx-29,top-80); ctx.lineTo(tx+29,top-80); ctx.lineTo(tx+23,top-104); ctx.lineTo(tx-23,top-104); ctx.fill();
+  ctx.fillStyle="rgba(150,220,255,.85)"; ctx.fillRect(tx-23,top-100,46,12);
+  ctx.strokeStyle="#39444a"; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(tx,top-104); ctx.lineTo(tx,top-122); ctx.stroke();
+  // 台地の縁の誘導灯
+  for(let x=mx0+40;x<mx1-30;x+=34){ const lg=ctx.createRadialGradient(x,top-2,0,x,top-2,4); lg.addColorStop(0,"rgba(255,230,160,1)"); lg.addColorStop(1,"rgba(255,230,160,0)"); ctx.fillStyle=lg; ctx.beginPath(); ctx.arc(x,top-2,4,0,Math.PI*2); ctx.fill(); }
+  commMast(ctx,P.mast,top,104);
+  radarDish(ctx,P.dish2[0],top,P.dish2[1]); radarDish(ctx,P.dish1[0],top,P.dish1[1]);
+  // 滝
+  const wx=std?800:760;
+  for(let i=0;i<26;i++){ const x=wx+(r()-0.5)*24, a=0.25+r()*0.5;
+    const wg=ctx.createLinearGradient(0,top,0,470); wg.addColorStop(0,`rgba(255,255,255,${a})`); wg.addColorStop(1,`rgba(255,255,255,${a*0.3})`);
+    ctx.strokeStyle=wg; ctx.lineWidth=1+r()*2.5; ctx.beginPath(); ctx.moveTo(x,top+4); ctx.lineTo(x+(r()-0.5)*6,470); ctx.stroke(); }
+  // 断崖の足元の大型ゲート（密林に隠された基地の入口）
+  blastGate(ctx,585,350,165,108);
+  // 霧の帯
+  const mist=ctx.createLinearGradient(0,390,0,520);
+  mist.addColorStop(0,"rgba(235,245,238,0)"); mist.addColorStop(0.5,"rgba(235,245,238,.5)"); mist.addColorStop(1,"rgba(235,245,238,0)");
+  ctx.fillStyle=mist; ctx.fillRect(0,390,W,130);
+  // 樹冠の層（遠→近）
+  const img=ctx.getImageData(0,0,W,H), d=img.data;
+  const layers=[
+    {base:478,amp:38,sc:60, col:[78,122,92], hl:[150,192,150],haze:.38},
+    {base:548,amp:52,sc:80, col:[42,92,58],  hl:[112,170,104],haze:.16},
+    {base:622,amp:66,sc:105,col:[18,58,32],  hl:[78,140,74],  haze:0}];
+  layers.forEach((L,li)=>{
+    for(let x=0;x<W;x++){
+      const lump=Math.pow(Math.abs(Math.sin(x/(L.sc*0.3)+fbm(x/(L.sc*1.5),li,2,3)*14)),0.5)*(0.6+0.8*fbm(x/(L.sc*0.7),li,4,2));
+      const tp=Math.round(L.base-L.amp*(0.45*fbm(x/L.sc,li,1,3)+0.55*lump));
+      for(let y=Math.max(0,tp);y<H;y++){
+        const dep=y-tp, tex=fbm(x/8,y/8,li+10,3), sh=0.55+0.7*tex*(1-Math.min(0.5,dep/260));
+        const hi=Math.max(0,1-dep/16)*0.85, i=(y*W+x)*4;
+        let cr=L.col[0]*sh+(L.hl[0]-L.col[0])*hi, cg=L.col[1]*sh+(L.hl[1]-L.col[1])*hi, cb=L.col[2]*sh+(L.hl[2]-L.col[2])*hi;
+        cr=cr*(1-L.haze)+205*L.haze; cg=cg*(1-L.haze)+228*L.haze; cb=cb*(1-L.haze)+212*L.haze;
+        d[i]=cr; d[i+1]=cg; d[i+2]=cb;
+      }
+    }
+  });
+  // 上端の樹冠は左右の端に寄せ、中央上部は青空が見えるよう開ける／下端は下草
+  for(let y=0;y<H;y++){
+    const topF=Math.max(0,1-y/170), botF=Math.max(0,(y-560)/115);
+    if(topF<=0 && botF<=0) continue;
+    for(let x=0;x<W;x++){
+      const side=Math.min(1,Math.pow(Math.abs(x-W*0.66)/(W*0.42),1.6));   // 中央やや右（空の見せ場）ほど薄く
+      const n=fbm(x/48,y/48,5.5,5), edge=topF*(0.35+0.95*side)+botF*1.1;
+      let a=(n*1.4+edge-1.25)*4; if(a<=0) continue; a=Math.min(1,a);
+      const tone=fbm(x/22,y/22,9,3), i=(y*W+x)*4;
+      const cr=14+tone*40, cg=40+tone*80, cb=20+tone*36;
+      d[i]=d[i]*(1-a)+cr*a; d[i+1]=d[i+1]*(1-a)+cg*a; d[i+2]=d[i+2]*(1-a)+cb*a;
+    }
+  }
+  ctx.putImageData(img,0,0);
+  // 木漏れ日の光条（空の切れ間から）
+  ctx.save(); ctx.globalCompositeOperation="lighter";
+  for(let i=0;i<5;i++){
+    const x0=600+i*90+r()*40, w0=10+r()*18, x1=x0-120+r()*80, w1=w0*5;
+    const lg=ctx.createLinearGradient(x0,0,x1,H);
+    lg.addColorStop(0,"rgba(255,250,210,.10)"); lg.addColorStop(1,"rgba(255,250,210,0)");
+    ctx.fillStyle=lg; ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0+w0,0); ctx.lineTo(x1+w1,H); ctx.lineTo(x1,H); ctx.fill();
+  }
+  ctx.restore();
+  // 垂れ下がるツル（左右の樹冠から）
+  ctx.strokeStyle="rgba(20,50,28,.8)"; ctx.lineWidth=1.6;
+  for(let i=0;i<8;i++){ const x=i<4?r()*380:W-r()*160, l=60+r()*120;
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.bezierCurveTo(x+14,l*0.3,x-14,l*0.6,x+4,l); ctx.stroke(); }
+  // 手前の大きな葉
+  leafFrond(ctx,-20,700,-0.95,300,"#0f3a1e","#2f6b36",1);
+  leafFrond(ctx,1220,700,Math.PI+0.9,320,"#0d331b","#2a6232",2);
+  leafFrond(ctx,1230,-10,Math.PI-0.55,240,"#10361d","#306a38",3);
+  // 左側（名前・ひとこと）の可読性のため、左端をやや暗くする
+  const vg=ctx.createLinearGradient(0,0,520,0); vg.addColorStop(0,"rgba(6,24,12,.6)"); vg.addColorStop(1,"rgba(6,24,12,0)");
+  ctx.fillStyle=vg; ctx.fillRect(0,0,520,H);
+  return c;
+}
+
+/* テーマ定義：背景＋文字・パネルの配色（明るい大空は濃色文字・白パネルに切替） */
+const THEMES={
+  galaxy:{ label:"宇宙世紀（銀河系）", draw:bgGalaxy, dark:true,
+    panel:"rgba(12,18,28,.62)", line:"rgba(107,224,224,.20)", frame:"#2b3746",
+    text:"#eef3f6", muted:"#9fb0c0", gold:"#dab949", goldDim:"#9a7e2c", cyan:"#6be0e0", violet:"#a58cf0",
+    pillBg:"rgba(155,127,232,.18)", pillText:"#dccfff", shadow:"rgba(0,0,0,.6)", scrim:"rgba(3,5,10,.6)" },
+  earth:{ label:"美しい地球", draw:bgEarth, dark:true,
+    panel:"rgba(6,14,30,.58)", line:"rgba(120,190,255,.24)", frame:"#2a3a52",
+    text:"#f2f7fb", muted:"#a9bdd2", gold:"#e8c45a", goldDim:"#a7883a", cyan:"#7fd0ff", violet:"#a99bff",
+    pillBg:"rgba(120,160,255,.18)", pillText:"#dde6ff", shadow:"rgba(0,0,0,.65)", scrim:"rgba(2,6,16,.72)" },
+  sky:{ label:"青い大空", draw:bgSky, dark:false,
+    panel:"rgba(255,255,255,.80)", line:"rgba(30,100,170,.22)", frame:"#b8cde0",
+    text:"#0f2740", muted:"#46627e", gold:"#b0800a", goldDim:"#c49a2e", cyan:"#0c78b8", violet:"#5f45c2",
+    pillBg:"rgba(95,69,194,.12)", pillText:"#4a33a6", shadow:"rgba(8,40,90,.55)",
+    // 空に直接載る文字（名前・ヘッダー・フッター）は白＋紺の影。パネル内は濃色文字
+    bgText:"#ffffff", bgMuted:"#eef6ff", bgAccent:"#ffffff", headColor:"#fff4c8", rainbow:["#e0314a","#e08a00","#2ea043","#2f6fd6","#9b3fd6"],
+    scrim:"rgba(24,86,160,.42)" },
+  jungle:{ label:"大自然のジャングル", draw:bgJungle, dark:true,
+    panel:"rgba(6,24,14,.54)", line:"rgba(160,230,150,.22)", frame:"#2c4a33",
+    text:"#f1f7ef", muted:"#b0c9b3", gold:"#ecc95c", goldDim:"#ad8f3c", cyan:"#9be6b4", violet:"#b9a2f7",
+    pillBg:"rgba(140,110,230,.22)", pillText:"#e3d9ff", shadow:"rgba(0,10,4,.85)", scrim:"rgba(3,14,7,.62)",
+    bgMuted:"#e4efe2" }
+};
+
+function drawThemeBackground(ctx,T,key,layout){
+  const ck=key+":"+layout;   // テンプレートにより見せ場（銀河の位置など）を変えるためレイアウト別にキャッシュ
+  if(!bgCache[ck]) bgCache[ck]=T.draw(layout);
+  ctx.drawImage(bgCache[ck],0,0,W,H);
+  ctx.strokeStyle=T.frame; ctx.lineWidth=1; ctx.strokeRect(0.5,0.5,W-1,H-1);
+}
+// 背景に直接載せる文字は、テーマの影色で縁取りして可読性を確保
+function shadowText(ctx,T,text,x,y){
+  ctx.save(); ctx.shadowColor=T.shadow; ctx.shadowBlur=T.dark?6:8; ctx.fillText(text,x,y); ctx.restore();
+}
+
+/* ======================= 共通パーツ ======================= */
+function panel(ctx,T,x,y,w,h,label,accent){
+  ctx.save(); ctx.shadowColor=T.dark?"rgba(0,0,0,.35)":"rgba(20,60,110,.18)"; ctx.shadowBlur=12;
+  roundRect(ctx,x,y,w,h,10); ctx.fillStyle=T.panel; ctx.fill(); ctx.restore();
+  roundRect(ctx,x,y,w,h,10); ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.stroke();
+  if(label){
+    ctx.fillStyle=accent; ctx.fillRect(x,y+14,3,18);
+    ctx.fillStyle=T.text; ctx.font=`bold 15px ${FONT}`; ctx.textBaseline="middle"; ctx.textAlign="left";
+    ctx.fillText(label,x+14,y+23); ctx.textBaseline="alphabetic";
+  }
+}
+function subStats(ctx,T,x,y,w,items){
+  const cw=w/items.length;
+  items.forEach((it,i)=>{
+    const cx=x+i*cw+cw/2;
+    ctx.textAlign="center"; ctx.textBaseline="alphabetic";
+    ctx.fillStyle=it.rainbow?rainbow(ctx,cx-30,y-16,cx+30,y):T.cyan;
+    ctx.font=`bold 19px ${FONT}`; ctx.fillText(it.v,cx,y);
+    ctx.fillStyle=T.muted; ctx.font=`11px ${FONT}`; ctx.fillText(it.l,cx,y+17);
+  });
+  ctx.textAlign="left";
+}
+function bigRate(ctx,T,x,y,value,unit,sub,size=50){
+  ctx.textBaseline="alphabetic"; ctx.textAlign="left";
+  ctx.fillStyle=T.gold; ctx.font=`bold ${size}px ${FONT}`; ctx.fillText(value,x,y);
+  const w=ctx.measureText(value).width;
+  ctx.fillStyle=T.muted; ctx.font=`bold 18px ${FONT}`; ctx.fillText(unit,x+w+4,y);
+  if(sub){ ctx.fillStyle=T.text; ctx.font=`13px ${FONT}`; ctx.fillText(sub,x,y+22); }
+}
+async function header(ctx,T,sub){
+  ctx.textBaseline="alphabetic"; ctx.textAlign="left";
+  ctx.fillStyle=T.headColor||T.gold; ctx.font=`bold 13px ${FONT}`;
+  shadowText(ctx,T,"ジージェネレーション エターナル　PLAYER PROFILE"+(sub?`　／　${sub}`:""),36,44);
+  const logo=await loadImage(BASE+"images/logo.png");
+  if(logo){ const lh=46, lw=logo.width*(lh/logo.height);
+    ctx.save(); ctx.shadowColor=T.dark?"rgba(0,0,0,.5)":"rgba(10,40,80,.45)"; ctx.shadowBlur=6;
+    ctx.drawImage(logo,W-36-lw,22,lw,lh); ctx.restore(); }
+}
+// 表示名・称号・ひとこと。戻り値は次に描けるy
+function identity(ctx,T,p,LX,LW,nameMax=38,nameY=98){
+  ctx.fillStyle=T.bgText||T.text;
+  let fs=nameMax; ctx.font=`bold ${fs}px ${FONT}`;
+  // 移植時の変更（㉒8章9）：下限をプロトタイプの22pxから18pxに下げた。左カラムが290pxの「エタロ攻略」「推しユニット」で、
+  // 全角16文字の表示名が省略されずに収まるようにするため（18px×16＝288px）
+  while(fs>18 && ctx.measureText(p.displayName).width>LW){ fs-=2; ctx.font=`bold ${fs}px ${FONT}`; }
+  shadowText(ctx,T,fitText(ctx,p.displayName,LW),LX,nameY);
+  let y=nameY+14;
+  if(p.title){
+    ctx.font=`bold 13px ${FONT}`;
+    const label=fitText(ctx,`称号「${p.title}」`,LW-20), tw=ctx.measureText(label).width+20;
+    roundRect(ctx,LX,y,tw,24,12); ctx.fillStyle=T.dark?"rgba(10,12,24,.55)":"rgba(255,255,255,.75)"; ctx.fill();
+    roundRect(ctx,LX,y,tw,24,12); ctx.fillStyle=T.pillBg; ctx.fill();
+    ctx.strokeStyle=T.violet; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle=T.pillText; ctx.textBaseline="middle"; ctx.fillText(label,LX+10,y+12.5);
+    ctx.textBaseline="alphabetic"; y+=34;
+  } else y+=8;
+  if(p.comment){
+    ctx.fillStyle=T.bgMuted||T.muted; ctx.font=`14px ${FONT}`;
+    const text="“"+p.comment+"”", lines=[""];
+    for(const ch of text){
+      const cur=lines[lines.length-1];
+      if(ctx.measureText(cur+ch).width>LW){ if(lines.length===2){ lines[1]=fitText(ctx,cur+ch+"…",LW); break; } lines.push(ch); }
+      else lines[lines.length-1]=cur+ch;
+    }
+    lines.forEach((ln,i)=>shadowText(ctx,T,ln,LX,y+12+i*20)); y+=6+lines.length*20;
+  }
+  return y;
+}
+function footer(ctx,T,data){
+  // 背景が明るい／賑やかな部分でも読めるよう、フッター帯に薄い下地を敷く
+  const sg=ctx.createLinearGradient(0,H-64,0,H); sg.addColorStop(0,"rgba(0,0,0,0)"); sg.addColorStop(0.55,T.scrim); sg.addColorStop(1,T.scrim);
+  ctx.fillStyle=sg; ctx.fillRect(0,H-64,W,64);
+  ctx.textBaseline="alphabetic"; ctx.textAlign="left";
+  ctx.fillStyle=T.bgAccent||T.cyan; ctx.font=`bold 13px ${FONT}`; shadowText(ctx,T,"#ジージェネエターナル",36,H-22);
+  ctx.textAlign="right"; ctx.fillStyle=T.bgMuted||T.muted; ctx.font=`12px ${FONT}`;
+  shadowText(ctx,T,`${data.siteLabel}　${data.createdAt} 作成`,W-36,H-22);
+  ctx.textAlign="left";
+}
+// 画像の彩度処理（Safari対策でピクセル操作。getImageDataはscaleの影響を受けないため実ピクセルに換算）
+function pixelEffect(ctx,x,y,w,h,mode){
+  const gx=Math.round(x*SCALE), gy=Math.round(y*SCALE), gw=Math.round(w*SCALE), gh=Math.round(h*SCALE);
+  const im=ctx.getImageData(gx,gy,gw,gh), d=im.data;
+  for(let p=0;p<d.length;p+=4){
+    if(mode==="gray"){ const g=(d[p]*0.3+d[p+1]*0.59+d[p+2]*0.11)*0.45; d[p]=d[p+1]=d[p+2]=g; }
+    else { const a=(d[p]+d[p+1]+d[p+2])/3;
+      d[p]=Math.min(255,(a+(d[p]-a)*1.3)*1.08); d[p+1]=Math.min(255,(a+(d[p+1]-a)*1.3)*1.08); d[p+2]=Math.min(255,(a+(d[p+2]-a)*1.3)*1.08); }
+  }
+  ctx.putImageData(im,gx,gy);
+}
+
+// 作品アイコン（ゲーム内「シリーズ絞り込み」画面のロゴ。運営者のスクショから切り出し、320×140・元の薄紫グレー地のまま）
+// 黒文字のロゴもあるため、どのテーマでも読めるよう元の地色の「プレート」として角丸で表示する
+async function workLogo(ctx,T,no,x,y,w,h,radius=6){
+  ctx.save(); ctx.shadowColor=T.dark?"rgba(0,0,0,.35)":"rgba(20,60,110,.18)"; ctx.shadowBlur=6;
+  roundRect(ctx,x,y,w,h,radius); ctx.fillStyle="#c6c7d6"; ctx.fill(); ctx.restore();
+  const im=no?await loadImage(`${BASE}images/series/${no}.png`):null;
+  ctx.save(); roundRect(ctx,x,y,w,h,radius); ctx.clip();
+  const g=ctx.createLinearGradient(0,y,0,y+h); g.addColorStop(0,"#d3d4e1"); g.addColorStop(1,"#bfc1d0");
+  ctx.fillStyle=g; ctx.fillRect(x,y,w,h);
+  if(im){ ctx.imageSmoothingQuality="high"; const s=Math.min(w/im.width,h/im.height), dw=im.width*s, dh=im.height*s;
+    ctx.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh); }
+  ctx.restore();
+  roundRect(ctx,x+0.5,y+0.5,w-1,h-1,radius); ctx.strokeStyle=T.dark?"rgba(255,255,255,.35)":"rgba(15,39,64,.25)"; ctx.lineWidth=1; ctx.stroke();
+}
+/* ======================= テンプレート①：標準（⑰） ======================= */
+async function layoutStandard(ctx,T,data){
+  await header(ctx,T,null);
+  const LX=36, LW=400;
+  const y=identity(ctx,T,data.profile,LX,LW);
+  const favTop=Math.max(y+10,190);
+  panel(ctx,T,LX-8,favTop,LW+16,H-favTop-58,"推し作品",T.gold);
+  const rowH=Math.min(76,(H-favTop-58-48)/5), favs=data.favorites;
+  for(let i=0;i<favs.length;i++){
+    const f=favs[i], ry=favTop+44+i*rowH, icon=rowH-12, ix=LX+36;
+    ctx.fillStyle=T.goldDim; ctx.font=`bold 20px ${FONT}`; ctx.textBaseline="middle";
+    ctx.fillText(String(i+1).padStart(2,"0"),LX+4,ry+icon/2);
+    // 作品アイコン（ロゴ）：高さ=行の高さ、幅は元画像の比率(320:140)
+    const lw=Math.round(icon*320/140);
+    await workLogo(ctx,T,f.iconNo,ix,ry,lw,icon,7);
+    const iconW=lw;
+    const tx=ix+iconW+12, tw=LX+LW-tx+8;
+    ctx.fillStyle=T.text; ctx.font=`bold 14px ${FONT}`; ctx.textBaseline="alphabetic";
+    ctx.fillText(fitText(ctx,f.shortName,tw),tx,ry+icon/2-2);
+    const eraLabel={UC:"宇宙世紀",ALT:"アナザー",ETC:"SD・ビルド他"}[f.era];
+    ctx.font=`bold 11px ${FONT}`; const ew=ctx.measureText(eraLabel).width+12;
+    roundRect(ctx,tx,ry+icon/2+6,ew,18,4);
+    ctx.strokeStyle=f.era==="UC"?T.gold:(f.era==="ALT"?T.cyan:T.violet); ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle=ctx.strokeStyle; ctx.textBaseline="middle"; ctx.fillText(eraLabel,tx+6,ry+icon/2+15.5);
+    if(f.timeline){ ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText(f.timeline,tx+ew+8,ry+icon/2+15.5); }
+    ctx.textBaseline="alphabetic";
+  }
+  const RX=470, RW=W-36-RX; let py=86;
+  const u=data.units, s=data.supporters, e=data.eternalRoad;
+  if(u&&u.registered){
+    const h=186; panel(ctx,T,RX,py,RW,h,"URユニット所持",T.gold);
+    bigRate(ctx,T,RX+18,py+96,String(u.pct),"%",`所持 ${u.owned} / ${u.total}機　平均凸Lv ${u.avgLevel.toFixed(1)}`);
+    subStats(ctx,T,RX+210,py+84,RW-220,[
+      {v:`${u.maxCount}`,l:"完凸",rainbow:u.maxCount>0},{v:`${u.limitedOwned}/${u.limitedTotal}`,l:"期間限定"},
+      {v:`${u.byType["攻撃"].owned}/${u.byType["攻撃"].total}`,l:"攻撃"},
+      {v:`${u.byType["支援"].owned}/${u.byType["支援"].total}`,l:"支援"},
+      {v:`${u.byType["耐久"].owned}/${u.byType["耐久"].total}`,l:"耐久"}]);
+    const cell=28, step=cell+5, fitN=Math.floor((RW-80)/step), show=u.maxUnitIds.slice(0,fitN), sx=RX+18, sy=py+134;
+    for(let i=0;i<show.length;i++){
+      const im=await loadImage(`${BASE}images/units/${show[i]}.jpg`), x=sx+i*step;
+      if(im) drawCover(ctx,im,x,sy,cell,cell);
+      ctx.strokeStyle=rainbow(ctx,x,sy,x+cell,sy+cell); ctx.lineWidth=1.5; ctx.strokeRect(x+.75,sy+.75,cell-1.5,cell-1.5);
+    }
+    if(u.maxUnitIds.length>fitN){ ctx.fillStyle=T.muted; ctx.font=`13px ${FONT}`; ctx.textBaseline="middle";
+      ctx.fillText(`+${u.maxUnitIds.length-fitN}`,sx+fitN*step+2,sy+cell/2); ctx.textBaseline="alphabetic"; }
+    py+=h+12;
+  }
+  if(s&&s.registered){
+    const h=152; panel(ctx,T,RX,py,RW,h,"URサポート所持",T.cyan);
+    bigRate(ctx,T,RX+18,py+98,String(s.pct),"%",`所持 ${s.owned} / ${s.total}体　平均凸Lv ${s.avgLevel.toFixed(1)}`);
+    subStats(ctx,T,RX+210,py+90,RW-220,[
+      {v:`${s.maxCount}`,l:"完凸",rainbow:s.maxCount>0},{v:`${s.limitedOwned}/${s.limitedTotal}`,l:"期間限定"},
+      {v:`${s.byType["HP回復"].owned}/${s.byType["HP回復"].total}`,l:"HP回復"},
+      {v:`${s.byType["EN回復"].owned}/${s.byType["EN回復"].total}`,l:"EN回復"},
+      {v:`${s.byType["複合"].owned}/${s.byType["複合"].total}`,l:"複合"}]);
+    py+=h+12;
+  }
+  if(e&&e.registered){
+    const st=eternalSummary(e);
+    const h=152; panel(ctx,T,RX,py,RW,h,"エタロ攻略 EXPERT",T.violet);
+    bigRate(ctx,T,RX+18,py+98,`${st.stageClear}`,` / ${st.stageTotal}`,`ステージクリア　クリア率 ${st.clearPct}%`);
+    subStats(ctx,T,RX+210,py+90,RW-220,[
+      {v:`${st.perfect}/${st.stageTotal}`,l:"全ミッション達成",rainbow:st.perfect===st.stageTotal},
+      {v:`${st.missions}/${st.missionTotal}`,l:"ミッション達成"},{v:`${st.titles}/${st.titleTotal}`,l:"称号獲得"}]);
+  }
+  footer(ctx,T,data);
+}
+
+/* ======================= テンプレート②：エタロ攻略特化 ======================= */
+// 集計（eternal-road.htmlのサマリーと同じ定義）
+function eternalSummary(e){
+  const cs=new Set(e.clearedStageIds), cm=new Set(e.clearedMissionIds);
+  let perfect=0, missions=0, titles=0, missionTotal=0, titleTotal=0;
+  for(const s of e.stages){
+    const done=s.missions.filter(m=>cm.has(m.id)).length;
+    missionTotal+=s.missions.length; missions+=done;
+    if(done===s.missions.length) perfect++;
+    for(const m of s.missions) if(m.title){ titleTotal++; if(cm.has(m.id)) titles++; }
+  }
+  const stageTotal=e.stages.length, stageClear=e.stages.filter(s=>cs.has(s.id)).length;
+  return {stageClear,stageTotal,clearPct:Math.round(stageClear/stageTotal*100),perfect,missions,missionTotal,titles,titleTotal};
+}
+function progressBar(ctx,T,x,y,w,ratio,isRainbow){
+  roundRect(ctx,x,y,w,6,3); ctx.fillStyle=T.dark?"rgba(255,255,255,.10)":"rgba(15,39,64,.10)"; ctx.fill();
+  if(ratio>0){ roundRect(ctx,x,y,Math.max(6,w*ratio),6,3); ctx.fillStyle=isRainbow?rainbow(ctx,x,y,x+w,y):T.gold; ctx.fill(); }
+}
+// ミッションの短い表示名（ユーザー指定：「開発縛り」「生存10機」「称号獲得」のように文言で表す）
+function missionLabel(m){
+  if(m.title) return "称号獲得";
+  if(m.type==="dev") return "開発縛り";
+  if(m.type==="survive") return "生存10機";
+  if(m.type==="tag") return `${m.tag||"タグ"}縛り`;
+  if(m.type==="sr") return "SR縛り";
+  return "ミッション";
+}
+// ミッション帯：ミッションごとに文言チップを並べる。達成=塗り（称号は紫・他は金）、未達成=枠線のみの薄い文字
+function missionChips(ctx,T,x,y,w,h,missions,cm,stageCleared){
+  const labels=missions.map(missionLabel), gap=3, padX=4;
+  let fs=10, widths;
+  for(;fs>=7.5;fs-=0.5){ ctx.font=`bold ${fs}px ${FONT}`; widths=labels.map(l=>ctx.measureText(l).width+padX*2);
+    if(widths.reduce((a,b)=>a+b,0)+gap*(labels.length-1)<=w) break; }
+  // 余白は均等配分してチップ幅を揃える
+  const extra=Math.max(0,(w-widths.reduce((a,b)=>a+b,0)-gap*(labels.length-1))/labels.length);
+  let cx=x; ctx.textBaseline="middle"; ctx.textAlign="center";
+  missions.forEach((m,i)=>{
+    const cw=widths[i]+extra, done=cm.has(m.id);
+    roundRect(ctx,cx,y,cw,h,3);
+    if(done){ ctx.fillStyle=m.title?T.violet:T.gold; ctx.fill(); ctx.fillStyle=T.dark?"#121019":"#ffffff"; }
+    else { ctx.strokeStyle=T.dark?"rgba(255,255,255,.28)":"rgba(15,39,64,.28)"; ctx.lineWidth=1; ctx.stroke();
+           ctx.fillStyle=stageCleared?(T.dark?"rgba(230,236,242,.72)":"rgba(15,39,64,.6)"):(T.dark?"rgba(200,210,220,.38)":"rgba(15,39,64,.35)"); }
+    ctx.fillText(labels[i],cx+cw/2,y+h/2+0.5);
+    cx+=cw+gap;
+  });
+  ctx.textAlign="left"; ctx.textBaseline="alphabetic";
+}
+async function layoutEternal(ctx,T,data){
+  await header(ctx,T,"ETERNAL ROAD EXPERT");
+  const e=data.eternalRoad, st=eternalSummary(e);
+  const cs=new Set(e.clearedStageIds), cm=new Set(e.clearedMissionIds);
+
+  // ---- 左カラム：プロフィール＋攻略サマリー ----
+  const LX=36, LW=290;
+  let y=identity(ctx,T,data.profile,LX,LW,32,96);
+  const pTop=Math.max(y+8,178), pH=H-pTop-58;
+  panel(ctx,T,LX-8,pTop,LW+16,pH,null,null);
+  let yy=pTop+30;
+  ctx.fillStyle=T.muted; ctx.font=`bold 12px ${FONT}`; ctx.fillText("ステージクリア",LX+8,yy);
+  bigRate(ctx,T,LX+8,yy+52,String(st.stageClear),` / ${st.stageTotal}`,null,56);
+  ctx.fillStyle=T.text; ctx.font=`bold 15px ${FONT}`; ctx.textAlign="right";
+  ctx.fillText(`${st.clearPct}%`,LX+LW-8,yy+52); ctx.textAlign="left";
+  progressBar(ctx,T,LX+8,yy+66,LW-16,st.stageClear/st.stageTotal,st.stageClear===st.stageTotal);
+  yy+=100;
+  const rows=[
+    {l:"全ミッション達成",v:st.perfect,t:st.stageTotal,rb:true},
+    {l:"ミッション達成",v:st.missions,t:st.missionTotal},
+    {l:"称号獲得",v:st.titles,t:st.titleTotal,violet:true}];
+  for(const r of rows){
+    ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText(r.l,LX+8,yy);
+    ctx.fillStyle=r.rb&&r.v===r.t?rainbow(ctx,LX+LW-90,yy-16,LX+LW,yy):(r.violet?T.violet:T.cyan);
+    ctx.font=`bold 18px ${FONT}`; ctx.textAlign="right"; ctx.fillText(`${r.v} / ${r.t}`,LX+LW-8,yy+2); ctx.textAlign="left";
+    progressBar(ctx,T,LX+8,yy+10,LW-16,r.v/r.t,r.rb);
+    yy+=48;
+  }
+  // 推し作品（作品ロゴを3＋2の2段で小さく並べる）
+  if(data.favorites.length){
+    const gap=6, lw=(LW-16-gap*2)/3, lh=lw*140/320, fy=pTop+pH-50-(lh*2+gap)-4;
+    ctx.fillStyle=T.muted; ctx.font=`bold 12px ${FONT}`; ctx.fillText("推し作品",LX+8,fy-7);
+    for(let i=0;i<data.favorites.length;i++){
+      const f=data.favorites[i], x=LX+8+(i%3)*(lw+gap), y=fy+Math.floor(i/3)*(lh+gap);
+      await workLogo(ctx,T,f.iconNo,x,y,lw,lh,5);
+    }
+  }
+  // 他チェッカーの実績は1行の小さなチップで添える（登録済みのみ）
+  const chips=[];
+  if(data.units&&data.units.registered) chips.push(`URユニット ${data.units.pct}%`);
+  if(data.supporters&&data.supporters.registered) chips.push(`URサポート ${data.supporters.pct}%`);
+  let cx=LX+8; const cy=pTop+pH-38;
+  ctx.font=`bold 11px ${FONT}`;
+  for(const c of chips){
+    const w=ctx.measureText(c).width+16;
+    roundRect(ctx,cx,cy,w,22,11); ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle=T.muted; ctx.textBaseline="middle"; ctx.fillText(c,cx+8,cy+11.5); ctx.textBaseline="alphabetic";
+    cx+=w+6;
+  }
+
+  // ---- 右：全29ステージのバナー一覧（5列×6行。30マス目は凡例） ----
+  const GX=352, GY=96, GW=W-36-GX, cols=5, gapX=10, gapY=9;
+  const cw=(GW-(cols-1)*gapX)/cols, ch=cw*234/640, pipH=21, cellH=ch+pipH;
+  const imgs=await Promise.all(e.stages.map(s=>loadImage(`${BASE}images/eternal-road/${s.id}.jpg`)));
+  e.stages.forEach((s,i)=>{
+    const x=GX+(i%cols)*(cw+gapX), yy=GY+Math.floor(i/cols)*(cellH+gapY);
+    const done=s.missions.filter(m=>cm.has(m.id)).length, perfect=done===s.missions.length, clear=cs.has(s.id);
+    const status=perfect?"perfect":(clear?"clear":"none");
+    // ピップ帯の下地
+    roundRect(ctx,x,yy,cw,cellH,6); ctx.fillStyle=T.dark?"rgba(8,12,20,.72)":"rgba(255,255,255,.82)"; ctx.fill();
+    const im=imgs[i];
+    if(im){ ctx.drawImage(im,x,yy,cw,ch); if(status!=="clear") pixelEffect(ctx,x,yy,cw,ch,status==="none"?"gray":"vivid"); }
+    else { ctx.fillStyle="#0d1320"; ctx.fillRect(x,yy,cw,ch); ctx.fillStyle=T.gold; ctx.font=`bold 16px ${FONT}`;
+      ctx.textBaseline="middle"; ctx.fillText(`No.${s.id}`,x+10,yy+ch/2); ctx.textBaseline="alphabetic"; }
+    // 枠：未クリア=細枠／通常クリア=金／全ミッション達成=虹＋白グロー
+    ctx.save();
+    if(status==="perfect"){ ctx.strokeStyle=rainbow(ctx,x,yy,x+cw,yy+cellH); ctx.lineWidth=2.5; ctx.shadowColor="rgba(255,255,255,.6)"; ctx.shadowBlur=4; }
+    else if(status==="clear"){ ctx.strokeStyle=T.gold; ctx.lineWidth=2; }
+    else { ctx.strokeStyle=T.dark?"rgba(140,160,180,.35)":"rgba(15,39,64,.25)"; ctx.lineWidth=1; }
+    roundRect(ctx,x+1,yy+1,cw-2,cellH-2,6); ctx.stroke(); ctx.restore();
+    // ピップ＋達成数
+    missionChips(ctx,T,x+4,yy+ch+3,cw-8,pipH-6,s.missions,cm,clear);
+  });
+  // 凡例（30マス目）
+  {
+    const i=e.stages.length, x=GX+(i%cols)*(cw+gapX), yy=GY+Math.floor(i/cols)*(cellH+gapY);
+    roundRect(ctx,x,yy,cw,cellH,6); ctx.fillStyle=T.dark?"rgba(8,12,20,.55)":"rgba(255,255,255,.7)"; ctx.fill();
+    const items=[["rb","全ミッション達成"],["gold","ステージクリア"],["none","未クリア"]];
+    ctx.font=`10.5px ${FONT}`; ctx.textBaseline="middle";
+    items.forEach(([k,l],j)=>{
+      const ly=yy+10+j*14;
+      ctx.lineWidth=2; ctx.strokeStyle=k==="rb"?rainbow(ctx,x+8,ly-5,x+26,ly+5):(k==="gold"?T.gold:(T.dark?"rgba(140,160,180,.5)":"rgba(15,39,64,.35)"));
+      ctx.strokeRect(x+9,ly-4,16,9); ctx.fillStyle=T.muted; ctx.fillText(l,x+32,ly);
+    });
+    // チップの凡例：達成（金／称号は紫）／未達成（枠のみ）
+    const ly=yy+10+3*14+2, lw=(cw-16-6)/3;
+    [["達成",T.gold,true],["称号達成",T.violet,true],["未達成",null,false]].forEach(([l,col,fill],j)=>{
+      const lx=x+8+j*(lw+3); roundRect(ctx,lx,ly-6,lw,13,3);
+      if(fill){ ctx.fillStyle=col; ctx.fill(); ctx.fillStyle=T.dark?"#121019":"#ffffff"; }
+      else { ctx.strokeStyle=T.dark?"rgba(255,255,255,.28)":"rgba(15,39,64,.28)"; ctx.lineWidth=1; ctx.stroke(); ctx.fillStyle=T.muted; }
+      ctx.font=`bold 9px ${FONT}`; ctx.textAlign="center"; ctx.fillText(l,lx+lw/2,ly+0.5); ctx.textAlign="left";
+    });
+    ctx.textBaseline="alphabetic";
+  }
+  footer(ctx,T,data);
+}
+
+/* ======================= テンプレート③：推しユニット特化 ======================= */
+const LV_LABEL=["無凸","1凸","2凸","完凸"];
+function starPath(ctx,cx,cy,R){
+  ctx.beginPath();
+  for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, rr=i%2?R*0.45:R; ctx.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr); }
+  ctx.closePath();
+}
+// 凸レベルを★3つで表現（既存チェッカーと同じ：完凸は虹色＋白グロー）
+function totsuStars(ctx,T,x,y,R,lv){
+  for(let i=0;i<3;i++){
+    const cx=x+R+i*(R*2.3);
+    starPath(ctx,cx,y,R);
+    if(i<lv){
+      ctx.save();
+      if(lv===3){ ctx.fillStyle=rainbow(ctx,cx-R,y-R,cx+R,y+R); ctx.shadowColor="rgba(255,255,255,.7)"; ctx.shadowBlur=5; }
+      else ctx.fillStyle=T.gold;
+      ctx.fill(); ctx.restore();
+    } else { ctx.strokeStyle=T.dark?"rgba(255,255,255,.35)":"rgba(15,39,64,.35)"; ctx.lineWidth=1.2; ctx.stroke(); }
+  }
+  return x+3*R*2.3;
+}
+const TYPE_COL={dark:{"攻撃":"#ff8a73","支援":"#6cc8ff","耐久":"#8fd870"},light:{"攻撃":"#c9442e","支援":"#1a78b8","耐久":"#3f8a2c"}};
+function chip(ctx,x,y,text,col,fill,fs=11){
+  ctx.font=`bold ${fs}px ${FONT}`; const w=ctx.measureText(text).width+14, h=fs+9;
+  roundRect(ctx,x,y,w,h,h/2);
+  if(fill){ ctx.fillStyle=col; ctx.fill(); ctx.fillStyle="#141008"; }
+  else { ctx.strokeStyle=col; ctx.lineWidth=1.2; ctx.stroke(); ctx.fillStyle=col; }
+  ctx.textBaseline="middle"; ctx.fillText(text,x+7,y+h/2+0.5); ctx.textBaseline="alphabetic";
+  return x+w+6;
+}
+// 名前を最大2行で折り返す（1文字単位）
+function wrap2(ctx,text,maxW){
+  const lines=[""];
+  for(const ch of text){
+    const cur=lines[lines.length-1];
+    // 行頭禁則：閉じ括弧・句読点・長音は前の行に残す（多少のはみ出しは許容）
+    const kinsoku="）)」』】、。・ーｰ".includes(ch);
+    if(!kinsoku && ctx.measureText(cur+ch).width>maxW){ if(lines.length===2){ lines[1]=fitText(ctx,cur+ch+"…",maxW); return lines; } lines.push(ch); }
+    else lines[lines.length-1]=cur+ch;
+  }
+  return lines;
+}
+async function unitImage(ctx,T,u,x,y,size,radius){
+  ctx.save(); if(u.level===3){ ctx.shadowColor=T.dark?"rgba(255,255,255,.35)":"rgba(40,80,140,.35)"; ctx.shadowBlur=14; }
+  roundRect(ctx,x,y,size,size,radius); ctx.fillStyle=T.dark?"#101720":"#e3eef8"; ctx.fill(); ctx.restore();
+  ctx.save(); roundRect(ctx,x,y,size,size,radius); ctx.clip();
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality="high";
+  const im=await loadImage(`${BASE}images/units/${u.unitId}.jpg`); if(im) drawCover(ctx,im,x,y,size,size);
+  ctx.restore();
+  roundRect(ctx,x,y,size,size,radius);
+  ctx.strokeStyle=u.level===3?rainbow(ctx,x,y,x+size,y+size):T.frame; ctx.lineWidth=u.level===3?3:1.2; ctx.stroke();
+  if(u.limited){ // 期間限定バッジ（既存チェッカーと同じ表現）
+    ctx.font=`bold ${Math.max(9,size/14)}px ${FONT}`; const t="期間限定", bw=ctx.measureText(t).width+10, bh=Math.max(15,size/10);
+    roundRect(ctx,x+6,y+6,bw,bh,3); ctx.fillStyle="rgba(10,14,20,.8)"; ctx.fill(); ctx.strokeStyle="#8a7128"; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle="#dab949"; ctx.textBaseline="middle"; ctx.fillText(t,x+11,y+6+bh/2+0.5); ctx.textBaseline="alphabetic";
+  }
+}
+async function layoutUnits(ctx,T,data){
+  await header(ctx,T,"FAVORITE UNITS");
+  const u=data.units, favs=(data.favoriteUnits||[]).slice(0,5);
+  const TC=T.dark?TYPE_COL.dark:TYPE_COL.light;
+  // ---- 左カラム：プロフィール＋UR所持サマリー ----
+  const LX=36, LW=290;
+  let y=identity(ctx,T,data.profile,LX,LW,32,96);
+  const pTop=Math.max(y+8,178), pH=H-pTop-58;
+  panel(ctx,T,LX-8,pTop,LW+16,pH,null,null);
+  let yy=pTop+30;
+  ctx.fillStyle=T.muted; ctx.font=`bold 12px ${FONT}`; ctx.fillText("URユニット所持率",LX+8,yy);
+  bigRate(ctx,T,LX+8,yy+52,String(u.pct),"%",null,56);
+  ctx.fillStyle=T.text; ctx.font=`bold 15px ${FONT}`; ctx.textAlign="right";
+  ctx.fillText(`${u.owned} / ${u.total}機`,LX+LW-8,yy+52); ctx.textAlign="left";
+  progressBar(ctx,T,LX+8,yy+66,LW-16,u.owned/u.total,false);
+  yy+=100;
+  for(const r of [{l:"完凸",v:`${u.maxCount} / ${u.total}`,ratio:u.maxCount/u.total,rb:true},
+                  {l:"平均凸Lv",v:u.avgLevel.toFixed(1),ratio:u.avgLevel/3},
+                  {l:"期間限定所持",v:`${u.limitedOwned} / ${u.limitedTotal}`,ratio:u.limitedOwned/u.limitedTotal}]){
+    ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText(r.l,LX+8,yy);
+    ctx.fillStyle=r.rb&&u.maxCount>0?rainbow(ctx,LX+LW-90,yy-16,LX+LW,yy):T.cyan;
+    ctx.font=`bold 18px ${FONT}`; ctx.textAlign="right"; ctx.fillText(r.v,LX+LW-8,yy+2); ctx.textAlign="left";
+    progressBar(ctx,T,LX+8,yy+10,LW-16,r.ratio,r.rb);
+    yy+=48;
+  }
+  // タイプ別の所持（攻撃・支援・耐久）
+  let tx=LX+8;
+  for(const t of ["攻撃","支援","耐久"]) tx=chip(ctx,tx,yy-6,`${t} ${u.byType[t].owned}/${u.byType[t].total}`,TC[t],false,11);
+  const chips=[];
+  if(data.supporters&&data.supporters.registered) chips.push(`URサポート ${data.supporters.pct}%`);
+  if(data.eternalRoad&&data.eternalRoad.registered){ const st=eternalSummary(data.eternalRoad); chips.push(`エタロ ${st.stageClear}/${st.stageTotal}`); }
+  let cx=LX+8; const cy=pTop+pH-38;
+  for(const c of chips) cx=chip(ctx,cx,cy,c,T.muted,false,11);
+
+  // ---- 右：推しユニット（1位を大きく、2〜5位をリスト） ----
+  const GX=352, GY=90, GW=W-36-GX, GH=H-58-GY-6;
+  if(favs.length===0){
+    ctx.fillStyle=T.bgMuted||T.muted; ctx.font=`15px ${FONT}`; shadowText(ctx,T,"推しユニットが未設定です",GX,GY+40);
+    footer(ctx,T,data); return;
+  }
+  const heroW=favs.length>1?330:GW, heroH=GH;
+  // 1位：ヒーローカード
+  {
+    const f=favs[0], x=GX, y0=GY;
+    panel(ctx,T,x,y0,heroW,heroH,null,null);
+    // 内容の高さを見積もって縦中央に配置（画像は元画像150px幅のため270pxを上限にしてボケを抑える）
+    const size=Math.min(270,heroW-50);
+    ctx.font=`bold 21px ${FONT}`; const nl=wrap2(ctx,f.name,heroW-36).length;
+    const contentH=size+34+nl*26+4+18+26, ix=x+(heroW-size)/2, iy=y0+46+Math.max(0,(heroH-46-contentH-16)/2);
+    ctx.fillStyle=T.gold; ctx.font=`bold 13px ${FONT}`; ctx.fillText("推し No.1",x+18,y0+30);
+    ctx.fillStyle=T.goldDim; ctx.font=`bold 30px ${FONT}`; ctx.textAlign="right"; ctx.fillText("01",x+heroW-18,y0+38); ctx.textAlign="left";
+    await unitImage(ctx,T,f,ix,iy,size,14);
+    let ty=iy+size+34;
+    ctx.fillStyle=T.text; ctx.font=`bold 21px ${FONT}`;
+    const lines=wrap2(ctx,f.name,heroW-36); lines.forEach((ln,i)=>ctx.fillText(ln,x+18,ty+i*26)); ty+=lines.length*26+4;
+    const sx=totsuStars(ctx,T,x+18,ty,9,f.level);
+    ctx.fillStyle=f.level===3?rainbow(ctx,sx+6,ty-8,sx+50,ty+8):T.muted; ctx.font=`bold 14px ${FONT}`; ctx.textBaseline="middle";
+    ctx.fillText(LV_LABEL[f.level],sx+8,ty+1); ctx.textBaseline="alphabetic"; ty+=18;
+    let chx=x+18; chx=chip(ctx,chx,ty,f.type,TC[f.type],false,12); chip(ctx,chx,ty,f.workShort,T.cyan,false,12);
+  }
+  // 2〜5位：横長のリスト
+  const rest=favs.slice(1);
+  if(rest.length){
+    const lx=GX+heroW+12, lw=GW-heroW-12, gap=10, rh=(GH-gap*3)/4;
+    for(let i=0;i<rest.length;i++){
+      const f=rest[i], y0=GY+i*(rh+gap);
+      panel(ctx,T,lx,y0,lw,rh,null,null);
+      const size=rh-20, ix=lx+46, iy=y0+10;
+      ctx.fillStyle=T.goldDim; ctx.font=`bold 22px ${FONT}`; ctx.textBaseline="middle";
+      ctx.fillText(String(i+2).padStart(2,"0"),lx+12,y0+rh/2); ctx.textBaseline="alphabetic";
+      await unitImage(ctx,T,f,ix,iy,size,10);
+      const tx0=ix+size+14, tw=lx+lw-tx0-12;
+      ctx.fillStyle=T.text; ctx.font=`bold 16px ${FONT}`;
+      const lines=wrap2(ctx,f.name,tw); lines.forEach((ln,j)=>ctx.fillText(ln,tx0,iy+18+j*20));
+      const sy=iy+18+lines.length*20+6;
+      const sx=totsuStars(ctx,T,tx0,sy,7,f.level);
+      ctx.fillStyle=f.level===3?rainbow(ctx,sx+4,sy-6,sx+40,sy+6):T.muted; ctx.font=`bold 12px ${FONT}`; ctx.textBaseline="middle";
+      ctx.fillText(LV_LABEL[f.level],sx+6,sy+1); ctx.textBaseline="alphabetic";
+      let chx=tx0; const cyy=sy+12; chx=chip(ctx,chx,cyy,f.type,TC[f.type],false,10); chip(ctx,chx,cyy,f.workShort,T.cyan,false,10);
+    }
+  }
+  footer(ctx,T,data);
+}
+
+/* ======================= エントリポイント ======================= */
+async function drawProfileCard(canvas,data,layout,themeKey){
+  canvas.width=W*SCALE; canvas.height=H*SCALE;
+  const ctx=canvas.getContext("2d"); ctx.scale(SCALE,SCALE);
+  const T=THEMES[themeKey]||THEMES.galaxy;
+  CUR_RAINBOW=T.rainbow||RAINBOW;
+  drawThemeBackground(ctx,T,themeKey,layout);
+  if(layout==="none") return;   // 背景のみ（確認用）
+  if(layout==="eternal") await layoutEternal(ctx,T,data);
+  else if(layout==="units") await layoutUnits(ctx,T,data);
+  else await layoutStandard(ctx,T,data);
+}
+return { drawProfileCard, drawThemeBackground, THEMES, eternalSummary, W, H };
+})();
+</script>
+
+<script>
+(function(){
+"use strict";
+
+const CONFIG = {
+  xHandle: "polarbear148691",
+  siteUrl: "https://ggene-ur-checker.polarbear14869.workers.dev/profile-card.html",
+  hashtags: ["ジージェネエターナル", "GGET自己紹介カード"]
+};
+const DRAFT_KEY = "profilecard_draft_v1";
+const MAX_FAV = 5;
+const ERA_LABEL = { UC: "宇宙世紀", ALT: "アナザー", ETC: "SD・ビルド他" };
+const LV_LABEL = ["無凸", "1凸", "2凸", "完凸"];
+const TEMPLATE_LABEL = { standard: "標準", eternal: "エタロ攻略", units: "推しユニット" };
+
+// ---- 状態 ----
+let api = null;           // GET /api/profile-card の応答
+let works = [];           // GET /api/works
+const worksById = new Map();
+const unitsById = new Map();  // unitId -> {unitId,name,type,limited,workId}
+let erStages = null;      // カード用のエタロ構成 [{id, missions:[{id,type,title,tag}]}]
+const draft = { displayName: "", comment: "", titleMissionId: null, cardTemplate: "standard", cardTheme: "galaxy", favoriteWorks: [], favoriteUnits: [] };
+let savedJson = "";       // 最後にサーバーと一致していた内容（未保存表示の判定用）
+let currentEra = "UC";
+
+const $ = id => document.getElementById(id);
+function el(tag, attrs, children){
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    if (k === "text") e.textContent = attrs[k];
+    else if (k === "class") e.className = attrs[k];
+    else if (k in e && typeof attrs[k] !== "string") e[k] = attrs[k];
+    else e.setAttribute(k, attrs[k]);
+  }
+  (children || []).forEach(c => c && e.appendChild(c));
+  return e;
+}
+
+// ---- トースト ----
+let toastTimer = null;
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+// ---- テンプレートの選択可否 ----
+function eternalAvailable(){ return !!(api && api.eternalRoad && api.eternalRoad.registered && erStages); }
+function unitsAvailable(){ return !!(api && api.units && api.units.registered && api.units.owned > 0); }
+function effectiveTemplate(){
+  if (draft.cardTemplate === "eternal" && !eternalAvailable()) return "standard";
+  if (draft.cardTemplate === "units" && !unitsAvailable()) return "standard";
+  return draft.cardTemplate;
+}
+
+// ---- 入力値の正規化（サーバーと同じ条件で、存在しない・選べない値を落とす） ----
+function ownedUnitIds(){ return new Set(Object.keys((api && api.units && api.units.ownership) || {}).map(Number)); }
+function earnedTitleIds(){ return new Set(((api && api.eternalRoad && api.eternalRoad.earnedTitles) || []).map(t => t.missionId)); }
+function sanitizeDraft(){
+  const owned = ownedUnitIds();
+  draft.favoriteWorks = [...new Set(draft.favoriteWorks)].filter(id => worksById.has(id)).slice(0, MAX_FAV);
+  draft.favoriteUnits = [...new Set(draft.favoriteUnits)].filter(id => owned.has(id)).slice(0, MAX_FAV);
+  if (!earnedTitleIds().has(draft.titleMissionId)) draft.titleMissionId = null;
+  if (!["standard", "eternal", "units"].includes(draft.cardTemplate)) draft.cardTemplate = "standard";
+  if (!["galaxy", "earth", "sky", "jungle"].includes(draft.cardTheme)) draft.cardTheme = "galaxy";
+  draft.displayName = String(draft.displayName || "").slice(0, 32);
+  draft.comment = String(draft.comment || "").slice(0, 80);
+}
+function draftFromProfile(p){
+  const bySlot = arr => (arr || []).slice().sort((a, b) => a.slot - b.slot);
+  return {
+    displayName: p.displayName || "",
+    comment: p.comment || "",
+    titleMissionId: p.titleMissionId == null ? null : p.titleMissionId,
+    cardTemplate: p.cardTemplate || "standard",
+    cardTheme: p.cardTheme || "galaxy",
+    favoriteWorks: bySlot(p.favoriteWorks).map(f => f.workId),
+    favoriteUnits: bySlot(p.favoriteUnits).map(f => f.unitId)
+  };
+}
+function draftJson(){
+  return JSON.stringify({
+    displayName: draft.displayName.trim(), comment: draft.comment.trim(), titleMissionId: draft.titleMissionId,
+    cardTemplate: draft.cardTemplate, cardTheme: draft.cardTheme,
+    favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits
+  });
+}
+
+// ---- 下書き（localStorage）。ユーザーごとに持ち、他のユーザーの下書きは使わない ----
+function saveDraft(){
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ username: api.username, editedAt: new Date().toISOString(), draft })); } catch (e) {}
+}
+function loadDraft(){
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+    if (d && d.username === api.username && d.draft && d.editedAt) return d;
+  } catch (e) {}
+  return null;
+}
+function clearDraft(){ try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+
+function updateDirty(){ $("dirtyMark").hidden = draftJson() === savedJson; }
+
+// 入力が変わったときの共通処理
+function onChange(){
+  saveDraft();
+  updateDirty();
+  schedulePreview();
+}
+
+// ---- カード用データ（㉒6.2） ----
+function jstToday(){
+  const d = new Date(Date.now() + 9 * 3600 * 1000);
+  return d.toISOString().slice(0, 10);
+}
+function buildCardData(){
+  const titles = (api.eternalRoad && api.eternalRoad.earnedTitles) || [];
+  const t = titles.find(x => x.missionId === draft.titleMissionId);
+  const own = (api.units && api.units.ownership) || {};
+  const favorites = draft.favoriteWorks.map(id => worksById.get(id)).filter(Boolean)
+    .map(w => ({ shortName: w.shortName, era: w.era, timeline: w.timeline, iconNo: w.workId }));
+  const favoriteUnits = draft.favoriteUnits.map(id => unitsById.get(id)).filter(u => u && own[String(u.unitId)] !== undefined)
+    .map(u => ({ unitId: u.unitId, name: u.name, type: u.type, limited: u.limited, level: own[String(u.unitId)],
+                 workShort: (worksById.get(u.workId) || {}).shortName || "" }));
+  const units = api.units ? Object.assign({}, api.units, {
+    maxUnitIds: Object.keys(own).filter(k => own[k] === 3).map(Number).sort((a, b) => a - b)
+  }) : null;
+  const er = api.eternalRoad && erStages ? {
+    registered: !!api.eternalRoad.registered, stages: erStages,
+    clearedStageIds: api.eternalRoad.clearedStageIds || [], clearedMissionIds: api.eternalRoad.clearedMissionIds || []
+  } : null;
+  return {
+    profile: { displayName: draft.displayName.trim() || api.username, title: t ? t.titleName : null, comment: draft.comment.trim() || null },
+    favorites, favoriteUnits, units, supporters: api.supporters || null, eternalRoad: er,
+    siteLabel: location.host || "ggene-ur-checker.polarbear14869.workers.dev", createdAt: jstToday()
+  };
+}
+
+// ---- プレビュー（300msデバウンス。描画はオフスクリーンで行い、最新の要求だけを反映する） ----
+let previewTimer = null, renderSeq = 0;
+function schedulePreview(){ clearTimeout(previewTimer); previewTimer = setTimeout(renderPreview, 300); }
+async function renderCard(){
+  const c = document.createElement("canvas");
+  await CardRenderer.drawProfileCard(c, buildCardData(), effectiveTemplate(), draft.cardTheme);
+  return c;
+}
+async function renderPreview(){
+  const seq = ++renderSeq;
+  $("previewBusy").hidden = false;
+  try {
+    const c = await renderCard();
+    if (seq !== renderSeq) return;
+    const pv = $("previewCanvas"), ctx = pv.getContext("2d");
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(c, 0, 0, pv.width, pv.height);
+    window.__previewRendered = (window.__previewRendered || 0) + 1; // テスト用の描画回数
+  } catch (e) {
+    console.error(e);
+  } finally {
+    if (seq === renderSeq) $("previewBusy").hidden = true;
+  }
+}
+
+// 背景サムネイル。重いピクセル処理を含むため、プレビューの描画後に1枚ずつ生成する
+function renderThemeThumbs(){
+  const buttons = [...document.querySelectorAll("#themeButtons button")];
+  let i = 0;
+  (function next(){
+    if (i >= buttons.length) return;
+    const b = buttons[i++], key = b.dataset.theme, cv = b.querySelector("canvas"), ctx = cv.getContext("2d");
+    ctx.save(); ctx.scale(cv.width / CardRenderer.W, cv.height / CardRenderer.H);
+    CardRenderer.drawThemeBackground(ctx, CardRenderer.THEMES[key], key, "standard");
+    ctx.restore();
+    setTimeout(next, 30);
+  })();
+}
+
+// ---- 画面の描画 ----
+function renderDesign(){
+  const tpl = effectiveTemplate();
+  document.querySelectorAll("#tplButtons button").forEach(b => {
+    const k = b.dataset.tpl;
+    b.disabled = (k === "eternal" && !eternalAvailable()) || (k === "units" && !unitsAvailable());
+    b.classList.toggle("active", k === tpl);
+    b.setAttribute("aria-pressed", k === tpl ? "true" : "false");
+  });
+  const hints = [];
+  if (!eternalAvailable()) hints.push("「エタロ攻略」はエタロ攻略チェッカーでデータ登録すると選べます。");
+  if (!unitsAvailable()) hints.push("「推しユニット」はURユニットの所持データを登録すると選べます。");
+  $("tplHint").textContent = hints.join(" ");
+  $("tplHint").hidden = !hints.length;
+  document.querySelectorAll("#themeButtons button").forEach(b => {
+    const on = b.dataset.theme === draft.cardTheme;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+}
+
+function renderRegList(){
+  const list = $("regList"); list.textContent = "";
+  const rows = [
+    { k: "URユニット", st: api.units, href: "/unit" },
+    { k: "URサポート", st: api.supporters, href: "/supporter.html" }
+  ];
+  if (api.eternalRoad) rows.push({ k: "エタロ攻略", st: api.eternalRoad, href: "/eternal-road.html" });
+  for (const r of rows) {
+    const ok = !!(r.st && r.st.registered);
+    list.appendChild(el("div", { class: "regRow" }, [
+      el("span", { class: "k", text: r.k }),
+      ok ? el("span", { class: "ok", text: "✓ 登録済み（カードに表示）" })
+         : el("span", { class: "todo", text: "データ未登録 — チェッカーで所持データを登録すると表示されます" }),
+      ok ? null : el("a", { href: r.href, text: "チェッカーを開く" })
+    ]));
+  }
+}
+
+function renderProfileFields(){
+  $("inName").value = draft.displayName;
+  $("inName").placeholder = api.username;
+  $("inComment").value = draft.comment;
+  updateCommentCounter();
+  const sel = $("inTitle"); sel.textContent = "";
+  sel.appendChild(el("option", { value: "", text: "表示しない" }));
+  const titles = (api.eternalRoad && api.eternalRoad.earnedTitles) || [];
+  for (const t of titles) sel.appendChild(el("option", { value: String(t.missionId), text: `称号「${t.titleName}」` }));
+  sel.disabled = titles.length === 0;
+  $("titleHint").hidden = titles.length > 0;
+  sel.value = draft.titleMissionId == null ? "" : String(draft.titleMissionId);
+}
+function updateCommentCounter(){
+  $("commentCounter").textContent = `残り${Math.max(0, 40 - [...$("inComment").value].length)}文字`;
+}
+
+// 選択済みリスト（推し作品・推しユニット共通）
+function renderPicked(container, ids, makeBody, onMove, onRemove){
+  container.textContent = "";
+  if (!ids.length) { container.appendChild(el("div", { class: "empty", text: "まだ選ばれていません" })); return; }
+  ids.forEach((id, i) => {
+    const up = el("button", { type: "button", text: "▲", "aria-label": "上へ" }); up.disabled = i === 0;
+    const down = el("button", { type: "button", text: "▼", "aria-label": "下へ" }); down.disabled = i === ids.length - 1;
+    const rm = el("button", { type: "button", text: "×", "aria-label": "解除" });
+    up.addEventListener("click", () => onMove(i, -1));
+    down.addEventListener("click", () => onMove(i, 1));
+    rm.addEventListener("click", () => onRemove(i));
+    container.appendChild(el("div", { class: "pickedRow" }, [
+      el("span", { class: "no", text: String(i + 1).padStart(2, "0") }),
+      ...makeBody(id),
+      el("span", { class: "ops" }, [up, down, rm])
+    ]));
+  });
+}
+function moveIn(arr, i, d){ const j = i + d; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; }
+
+function workLogoImg(id, cls){ return el("img", { class: cls, src: `images/series/${id}.png`, alt: "", loading: "lazy" }); }
+
+function renderWorks(){
+  $("workCount").textContent = `${draft.favoriteWorks.length} / ${MAX_FAV}`;
+  renderPicked($("pickedWorks"), draft.favoriteWorks, id => {
+    const w = worksById.get(id);
+    return [workLogoImg(id, "logo"), el("span", { class: "nm" }, [
+      document.createTextNode(w.shortName),
+      el("small", {}, [el("span", { class: "eraChip " + w.era, text: ERA_LABEL[w.era] }), document.createTextNode(w.timeline || "")])
+    ])];
+  }, (i, d) => { moveIn(draft.favoriteWorks, i, d); renderWorks(); onChange(); },
+     i => { draft.favoriteWorks.splice(i, 1); renderWorks(); onChange(); });
+
+  document.querySelectorAll("#workTabs button").forEach(b => {
+    b.classList.toggle("active", b.dataset.era === currentEra);
+    b.setAttribute("aria-selected", b.dataset.era === currentEra ? "true" : "false");
+  });
+  const list = $("workList"), keepScroll = list.scrollTop;
+  list.textContent = "";
+  const full = draft.favoriteWorks.length >= MAX_FAV;
+  let lastUniverse = null;
+  for (const w of works) {
+    if (w.era !== currentEra) continue;
+    if (w.universe !== lastUniverse) { list.appendChild(el("div", { class: "pickHead", text: w.universe })); lastUniverse = w.universe; }
+    const sel = draft.favoriteWorks.includes(w.workId);
+    const b = el("button", { type: "button", class: "pickItem" + (sel ? " sel" : ""), "data-work": String(w.workId),
+                             "aria-pressed": sel ? "true" : "false" }, [
+      workLogoImg(w.workId, "logo"),
+      el("span", { class: "nm" }, [document.createTextNode(w.name), el("small", { text: w.timeline || "" })]),
+      el("span", { class: "mark", text: sel ? "✓" : "" })
+    ]);
+    b.disabled = full && !sel;
+    b.addEventListener("click", () => {
+      const k = draft.favoriteWorks.indexOf(w.workId);
+      if (k >= 0) draft.favoriteWorks.splice(k, 1);
+      else if (draft.favoriteWorks.length < MAX_FAV) draft.favoriteWorks.push(w.workId);
+      renderWorks(); onChange();
+    });
+    list.appendChild(b);
+  }
+  list.scrollTop = keepScroll;
+}
+
+function renderUnits(){
+  const own = (api.units && api.units.ownership) || {};
+  const ownedIds = Object.keys(own).map(Number).filter(id => unitsById.has(id)).sort((a, b) => a - b);
+  $("unitPicker").hidden = ownedIds.length === 0;
+  $("unitEmptyHint").hidden = ownedIds.length > 0;
+  $("unitCount").textContent = `${draft.favoriteUnits.length} / ${MAX_FAV}`;
+  renderPicked($("pickedUnits"), draft.favoriteUnits, id => {
+    const u = unitsById.get(id);
+    return [el("img", { class: "thumb", src: `images/units/${id}.jpg`, alt: "", loading: "lazy" }),
+            el("span", { class: "nm" }, [document.createTextNode(u.name), el("small", { text: `${u.type}・${LV_LABEL[own[String(id)]] || ""}` })])];
+  }, (i, d) => { moveIn(draft.favoriteUnits, i, d); renderUnits(); onChange(); },
+     i => { draft.favoriteUnits.splice(i, 1); renderUnits(); onChange(); });
+
+  // 作品の絞り込み候補は所持ユニットのある作品だけ（作品の並び順）
+  const wf = $("unitWorkFilter"), keep = wf.value;
+  const workIds = new Set(ownedIds.map(id => unitsById.get(id).workId));
+  wf.textContent = "";
+  wf.appendChild(el("option", { value: "", text: "作品：すべて" }));
+  for (const w of works) if (workIds.has(w.workId)) wf.appendChild(el("option", { value: String(w.workId), text: w.shortName }));
+  wf.value = workIds.has(Number(keep)) ? keep : "";
+
+  const type = $("unitTypeFilter").value, work = Number(wf.value) || null;
+  const list = $("unitList"), keepScroll = list.scrollTop;
+  list.textContent = "";
+  const full = draft.favoriteUnits.length >= MAX_FAV;
+  let shown = 0;
+  for (const id of ownedIds) {
+    const u = unitsById.get(id);
+    if (type && u.type !== type) continue;
+    if (work && u.workId !== work) continue;
+    const sel = draft.favoriteUnits.includes(id);
+    const b = el("button", { type: "button", class: "pickItem" + (sel ? " sel" : ""), "data-unit": String(id),
+                             "aria-pressed": sel ? "true" : "false" }, [
+      el("img", { class: "thumb", src: `images/units/${id}.jpg`, alt: "", loading: "lazy" }),
+      el("span", { class: "nm" }, [document.createTextNode(u.name),
+        el("small", { text: `${u.type}・${LV_LABEL[own[String(id)]] || ""}・${(worksById.get(u.workId) || {}).shortName || ""}` })]),
+      el("span", { class: "mark", text: sel ? "✓" : "" })
+    ]);
+    b.disabled = full && !sel;
+    b.addEventListener("click", () => {
+      const k = draft.favoriteUnits.indexOf(id);
+      if (k >= 0) draft.favoriteUnits.splice(k, 1);
+      else if (draft.favoriteUnits.length < MAX_FAV) draft.favoriteUnits.push(id);
+      renderUnits(); onChange();
+    });
+    list.appendChild(b); shown++;
+  }
+  if (!shown && ownedIds.length) list.appendChild(el("div", { class: "stateMsg", text: "条件に一致するユニットがありません" }));
+  list.scrollTop = keepScroll;
+}
+
+function renderAll(){
+  renderDesign(); renderRegList(); renderProfileFields(); renderWorks(); renderUnits(); updateDirty();
+}
+
+// ---- 入力イベント ----
+$("tplButtons").addEventListener("click", e => {
+  const b = e.target.closest("button[data-tpl]"); if (!b || b.disabled) return;
+  draft.cardTemplate = b.dataset.tpl; renderDesign(); onChange();
+});
+$("themeButtons").addEventListener("click", e => {
+  const b = e.target.closest("button[data-theme]"); if (!b) return;
+  draft.cardTheme = b.dataset.theme; renderDesign(); onChange();
+});
+$("inName").addEventListener("input", () => { draft.displayName = $("inName").value; onChange(); });
+$("inComment").addEventListener("input", () => { draft.comment = $("inComment").value; updateCommentCounter(); onChange(); });
+$("inTitle").addEventListener("change", () => { draft.titleMissionId = $("inTitle").value ? Number($("inTitle").value) : null; onChange(); });
+$("workTabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-era]"); if (!b) return;
+  currentEra = b.dataset.era; $("workList").scrollTop = 0; renderWorks();
+});
+$("unitTypeFilter").addEventListener("change", () => { $("unitList").scrollTop = 0; renderUnits(); });
+$("unitWorkFilter").addEventListener("change", () => { $("unitList").scrollTop = 0; renderUnits(); });
+
+// ---- 保存 ----
+function profileBody(){
+  return JSON.stringify({
+    displayName: draft.displayName.trim(), comment: draft.comment.trim(), titleMissionId: draft.titleMissionId,
+    cardTemplate: draft.cardTemplate, cardTheme: draft.cardTheme,
+    favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits
+  });
+}
+const SAVE_ERRORS = {
+  invalid_display_name: "表示名は16文字以内で、改行や制御文字は使えません",
+  invalid_comment: "ひとことは40文字以内で入力してください",
+  invalid_favorites: "推し作品は5つまでです",
+  invalid_favorite_units: "推しユニットは5機までです",
+  invalid_body: "入力内容を送信できませんでした"
+};
+// 戻り値：{ok, message}
+async function saveProfile(keepalive){
+  let res;
+  try {
+    res = await fetch("/api/profile", {
+      method: "POST", credentials: "same-origin", keepalive: !!keepalive,
+      headers: { "Content-Type": "application/json" }, body: profileBody()
+    });
+  } catch (e) {
+    return { ok: false, message: "通信エラーが発生しました。時間をおいて再度お試しください" };
+  }
+  if (res.status === 401) return { ok: false, message: "保存にはログインが必要です" };
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data || !data.ok) {
+    return { ok: false, message: (data && SAVE_ERRORS[data.error]) || "保存に失敗しました。時間をおいて再度お試しください" };
+  }
+  api.profile = data.profile;
+  savedJson = draftJson();
+  clearDraft();
+  updateDirty();
+  return { ok: true, message: "保存しました" };
+}
+
+$("btnProfileSave").addEventListener("click", async () => {
+  const btn = $("btnProfileSave"); btn.disabled = true;
+  const r = await saveProfile(false);
+  toast(r.message);
+  btn.disabled = false;
+});
+
+$("btnSave").addEventListener("click", async () => {
+  const btn = $("btnSave"), label = btn.firstChild.textContent;
+  btn.disabled = true; btn.firstChild.textContent = "生成中...";
+  try {
+    const r = await saveProfile(false);
+    if (!r.ok) toast(r.message);
+    const c = await renderCard();
+    // Blob/ObjectURLは環境によってはimgで表示できないため、data URI方式に統一する（既存チェッカーと同じ）
+    const url = c.toDataURL("image/png");
+    $("previewImg").src = url;
+    $("downloadLink").href = url;
+    $("previewModal").classList.add("show");
+  } catch (e) {
+    console.error(e);
+    toast("画像の生成に失敗しました");
+  } finally {
+    btn.disabled = false; btn.firstChild.textContent = label;
+  }
+});
+$("btnClosePreview").addEventListener("click", () => $("previewModal").classList.remove("show"));
+
+// ---- Xシェア（㉒6.4） ----
+// 全角2・半角1・URLは23で数える
+function tweetWeight(text){
+  let n = 0;
+  for (const line of text.split("\n")) {
+    const parts = line.split(/(https?:\/\/\S+)/);
+    parts.forEach((p, i) => {
+      if (i % 2 === 1) { n += 23; return; }
+      for (const ch of p) n += ch.codePointAt(0) <= 0x7f || (ch >= "｡" && ch <= "ﾟ") ? 1 : 2;
+    });
+  }
+  return n + text.split("\n").length - 1;
+}
+function shareStatsLine(tpl, data){
+  if (tpl === "eternal") {
+    const st = CardRenderer.eternalSummary(data.eternalRoad);
+    return `エタロEXPERT ステージクリア ${st.stageClear}/${st.stageTotal}・全ミッション達成 ${st.perfect}/${st.stageTotal}・称号 ${st.titles}/${st.titleTotal}`;
+  }
+  if (tpl === "units") {
+    const f = data.favoriteUnits;
+    if (!f.length) return null;
+    return f.length > 1 ? `推しユニット：${f[0].name}ほか${f.length - 1}機` : `推しユニット：${f[0].name}`;
+  }
+  const parts = [];
+  if (data.units && data.units.registered) parts.push(`URユニット${data.units.pct}%`);
+  if (data.supporters && data.supporters.registered) parts.push(`URサポート${data.supporters.pct}%`);
+  if (data.eternalRoad && data.eternalRoad.registered) {
+    const st = CardRenderer.eternalSummary(data.eternalRoad);
+    parts.push(`エタロEXPERT ${st.stageClear}/${st.stageTotal}`);
+  }
+  return parts.length ? parts.join("・") : null;
+}
+function buildShareText(){
+  const data = buildCardData(), tpl = effectiveTemplate();
+  const stats = shareStatsLine(tpl, data);
+  const favLine = data.favorites.length ? "推し作品：" + data.favorites.map(f => f.shortName).join("／") : null;
+  const tags = CONFIG.hashtags.map(t => "#" + t).join(" ");
+  const compose = (name, fav) => [`【Gジェネエターナル】${name}の自己紹介カード`, stats, fav, tags, CONFIG.siteUrl].filter(Boolean).join("\n");
+  let name = data.profile.displayName, fav = favLine;
+  let text = compose(name, fav);
+  if (tweetWeight(text) > 280 && fav) { fav = "推し作品5選は画像で！"; text = compose(name, fav); }
+  if (tweetWeight(text) > 280) { name = [...name].slice(0, 10).join(""); text = compose(name, fav); }
+  return text;
+}
+$("btnShare").addEventListener("click", () => {
+  const intent = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(buildShareText()) + "&via=" + encodeURIComponent(CONFIG.xHandle);
+  // ポップアップブロック対策：保存より先に同期的に開く。保存はkeepaliveで並行して送る
+  window.open(intent, "_blank");
+  saveProfile(true).catch(() => {});
+});
+
+// ---- 起動 ----
+function showGuard(){ $("loadingView").hidden = true; $("guardView").hidden = false; }
+$("guardLoginBtn").addEventListener("click", () => { const l = document.getElementById("authOpenLink"); if (l) l.click(); });
+
+async function init(){
+  try {
+    const [cardRes, worksRes, missionsRes] = await Promise.all([
+      fetch("/api/profile-card", { credentials: "same-origin" }),
+      fetch("/api/works").then(r => r.ok ? r.json() : { works: [] }).catch(() => ({ works: [] })),
+      fetch("/api/eternal-road/missions").then(r => r.ok ? r.json() : null).catch(() => null)
+    ]);
+    if (cardRes.status === 401) { showGuard(); return; }
+    if (!cardRes.ok) throw new Error("profile-card " + cardRes.status);
+    api = await cardRes.json();
+    works = (worksRes && worksRes.works) || [];
+    for (const w of works) {
+      worksById.set(w.workId, w);
+      for (const u of w.units || []) unitsById.set(u.unitId, Object.assign({ workId: w.workId }, u));
+    }
+    // エタロの構成（ステージごとのミッション）はマスターAPIから組み立てる（㉒6.2）
+    const ms = (missionsRes && missionsRes.missions) || [];
+    if (ms.length) {
+      const byStage = new Map();
+      for (const m of ms) {
+        if (!byStage.has(m.stage_id)) byStage.set(m.stage_id, { id: m.stage_id, missions: [] });
+        byStage.get(m.stage_id).missions.push({ id: m.mission_id, type: m.mission_type, title: !!m.is_title, tag: m.tag });
+      }
+      erStages = [...byStage.values()];
+    }
+  } catch (e) {
+    console.error(e);
+    $("loadingView").hidden = true; $("errorView").hidden = false;
+    return;
+  }
+
+  const server = draftFromProfile(api.profile || {});
+  Object.assign(draft, server);
+  sanitizeDraft();
+  savedJson = draftJson();
+  // 下書きがあり、サーバーの保存日時より新しければ下書きを使う（サーバーの方が新しければサーバーを優先）
+  const d = loadDraft();
+  const serverTime = api.profile && api.profile.updatedAt ? Date.parse(api.profile.updatedAt) : 0;
+  if (d && Date.parse(d.editedAt) > serverTime) {
+    Object.assign(draft, d.draft);
+    sanitizeDraft();
+  } else if (d) {
+    clearDraft();
+  }
+
+  $("loadingView").hidden = true;
+  $("contentView").hidden = false;
+  $("actionbar").hidden = false;
+  renderAll();
+  await renderPreview();
+  renderThemeThumbs();
+}
+
+// /api/me失敗時は保守的にガード表示に倒し、他のAPIは呼ばない（analytics.htmlと同じ）
+fetch("/api/me", { credentials: "same-origin" })
+  .then(r => r.json())
+  .then(d => { if (d && d.loggedIn) init(); else showGuard(); })
+  .catch(showGuard);
+})();
+</script>
+<script src="auth.js" defer></script>
+</body>
+</html>
