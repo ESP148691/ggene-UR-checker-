@@ -614,6 +614,7 @@ URユニット・URサポート・作品を追加するときに、そろえて�
 - **英字表記**：`top.html`の見出し上の英字「GJENERATION ETERNAL」を「GGENERATION ETERNAL」に修正。同じ誤記があった`eternal-road.html`も合わせて修正（旧プロトタイプ`design-proposal/top-galaxy-prototype.html`は配信対象外のため据え置き）
 - **検証**：APIハーネス62件（`jungle`の保存・読み出しが`galaxy`になる2件を追加）、画面66件（サムネイル3枚・ジャングルの選択肢が無い・保存済み／下書きの`jungle`は宇宙世紀・トップの表記を追加）、トップのアイコン18件、すべて成功
 - `docs/WEBサイト仕様書.md`の2.7節を更新済み
+- commit（`b783423`）・`git push origin main`済み（2026-09-24）
 
 ## 次にやること
 - ㉒：D1適用・push済み。、`/profile-card.html`のテスト運用、iOS Safari実機確認、指示後にトップ導線の`hidden`を外す
