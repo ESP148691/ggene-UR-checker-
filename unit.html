@@ -251,6 +251,77 @@
   .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
   .pageFooter a{color:var(--cyan);text-decoration:none;}
   .pageFooter a:hover{text-decoration:underline;}
+  /* ---- ㉕㉖ スクショ読み取り（2026-09-26本番化。unit-scan.htmlから移植） ---- */
+  .scanIntro{
+    background:linear-gradient(135deg,#132230,#0f1a24);border:1px solid #2f6470;border-left:3px solid var(--cyan);
+    padding:12px 14px;margin-bottom:14px;font-size:12.5px;line-height:1.7;
+  }
+  .scanIntro .t{font-weight:700;color:var(--cyan);}
+  .scanIntro .beta{font-family:'Share Tech Mono',monospace;font-size:10px;color:#1b1503;background:var(--cyan);padding:1px 6px;margin-left:6px;vertical-align:1px;}
+  .scanIntro p{margin:4px 0 10px;color:var(--muted);}
+  .btn-scan{
+    width:100%;font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:14px;
+    background:var(--cyan);color:#06222a;border:1px solid var(--cyan);padding:11px 8px;cursor:pointer;
+  }
+  .scanModal{
+    position:fixed;inset:0;background:rgba(5,7,10,.99);z-index:120;display:none;overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .scanModal.show{display:block;}
+  .scanBox{max-width:560px;margin:0 auto;padding:18px 14px calc(110px + env(safe-area-inset-bottom));}
+  .scanBox h2{font-size:17px;margin:0 0 6px;color:var(--cyan);}
+  .scanBox .how{font-size:12px;color:var(--muted);line-height:1.8;margin:0 0 12px;}
+  .scanBox .how b{color:var(--text);}
+  .scanPick{
+    display:block;border:1px dashed #2f6470;background:#0e1a22;color:var(--text);
+    text-align:center;padding:22px 10px;cursor:pointer;font-size:14px;margin-bottom:10px;
+  }
+  .scanPick input{display:none;}
+  .scanProgress{font-family:'Share Tech Mono',monospace;font-size:12.5px;color:var(--gold);min-height:20px;margin:6px 0 10px;}
+  .scanSummary{font-size:12.5px;line-height:1.8;background:var(--panel);border:1px solid var(--line);padding:10px 12px;margin-bottom:10px;}
+  .scanSummary .n{font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:14px;}
+  .scanErr{color:#e79c9c;font-size:12px;margin:4px 0;}
+  .scanList{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+  .scanRow{display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);padding:6px 8px;}
+  .scanRow.warn{border-color:#8a7128;background:#1d1a10;}
+  .scanRow.off{opacity:.45;}
+  .scanRow img.th{width:41px;height:90px;object-fit:cover;flex:0 0 41px;border:1px solid var(--line);}
+  .scanRow .mid{flex:1;min-width:0;}
+  .scanRow .nm{font-size:13px;line-height:1.35;}
+  .scanRow .meta{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.5;}
+  .scanRow .tag{display:inline-block;font-size:10.5px;padding:0 5px;margin-right:4px;border:1px solid var(--line);}
+  .tag.new{color:#7fd9a0;border-color:#3c7a52;}
+  .tag.up{color:var(--cyan);border-color:#2f6470;}
+  .tag.down{color:#e79c9c;border-color:#6b3b3b;}
+  .tag.same{color:var(--muted);}
+  .tag.chk{color:var(--gold);border-color:#8a7128;}
+  .scanRow select{background:var(--panel-2);color:var(--text);border:1px solid var(--line);font-size:12.5px;padding:4px;max-width:100%;}
+  .scanRow .ctl{display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex:0 0 auto;}
+  .scanRow input[type=checkbox]{width:20px;height:20px;accent-color:var(--gold);}
+  .scanSec{font-size:13px;font-weight:700;margin:14px 0 6px;color:var(--text);}
+  .scanSec small{font-weight:400;color:var(--muted);font-size:11.5px;}
+  .scanBulk{display:flex;gap:6px;margin:0 0 8px;}
+  .scanBulk button{
+    flex:1;font-family:'Noto Sans JP',sans-serif;font-size:12.5px;font-weight:700;
+    background:var(--panel);color:var(--text);border:1px solid var(--line);padding:9px 4px;cursor:pointer;
+  }
+  .scanBulk button:hover{border-color:var(--gold-dim);}
+  .scanBulk button .c{font-family:'Share Tech Mono',monospace;color:var(--gold);margin-left:3px;}
+  details.scanUnknown summary{cursor:pointer;font-size:13px;font-weight:700;margin:14px 0 6px;}
+  details.scanUnknown summary small{font-weight:400;color:var(--muted);}
+  .scanMode{font-size:12.5px;line-height:1.9;background:var(--panel);border:1px solid var(--line);padding:8px 12px;margin:10px 0;}
+  .scanMode label{display:block;cursor:pointer;}
+  .scanBar{
+    position:fixed;left:0;right:0;bottom:0;z-index:121;background:rgba(10,14,20,.96);border-top:1px solid var(--line);
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:none;
+  }
+  .scanModal.show + .scanBar{display:block;}
+  .scanBar .in{max-width:560px;margin:0 auto;display:flex;gap:10px;}
+  .scanBar button{flex:1;font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:14px;padding:12px 6px;cursor:pointer;border:1px solid var(--line);}
+  .scanBar .apply{background:var(--gold);color:#1b1503;border-color:var(--gold);}
+  .scanBar .apply:disabled{opacity:.4;cursor:default;}
+  .scanBar .cancel{background:transparent;color:var(--muted);}
+  .scanDebug{font-family:'Share Tech Mono',monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;background:#05080b;border:1px solid var(--line);padding:8px;color:#9fb3c2;margin-top:10px;}
 </style>
 </head>
 <body>
@@ -264,6 +335,12 @@
   <p class="sub">各ユニットの限界突破（凸）段階をタップして記録してください。所持率が自動計算されます。（全<span id="totalRef">0</span>機収録）アイコンをタップすると入手記録（任意）を付けられます。</p>
 
   <div class="regStatus" id="regStatus" hidden></div>
+
+  <div class="scanIntro">
+    <span class="t">📷 スクショから読み取る</span>
+    <p>ゲームの「強化 &gt; ユニット」一覧のスクショを選ぶと、写っているURユニットと凸（★）を自動で読み取ります。読み取り結果は確認してから反映できます。画像はお使いの端末の中だけで処理され、サーバーには送信されません。</p>
+    <button class="btn-scan" id="btnScanOpen">スクショを選んで読み取る</button>
+  </div>
 
   <div class="hud gauge-card">
     <div class="c2"></div>
@@ -332,6 +409,27 @@
   <div class="row">
     <a id="downloadLink" download="ur_possession_rate.png">ダウンロード</a>
     <button class="btn-secondary" id="btnClosePreview">閉じる</button>
+  </div>
+</div>
+
+<div class="scanModal" id="scanModal" aria-modal="true" role="dialog">
+  <div class="scanBox">
+    <h2>スクショから読み取る</h2>
+    <p class="how">
+      ① ゲームで <b>強化 → ユニット</b> を開き、絞り込みで <b>レアリティ：UR</b> にします（ULT機体が混ざっていても自動で無視します）<br>
+      ② 一覧を上から下までスクロールしながら、<b>画面全体</b>のスクショを撮ります（前の画像と少し重なってOK）<br>
+      ③ 下のボタンから、撮ったスクショを<b>まとめて選択</b>します
+    </p>
+    <label class="scanPick">＋ スクショを選ぶ（複数選択できます）<input type="file" id="scanFiles" accept="image/*" multiple></label>
+    <div class="scanProgress" id="scanProgress"></div>
+    <div id="scanResult"></div>
+    <div id="scanDebug"></div>
+  </div>
+</div>
+<div class="scanBar" id="scanBar">
+  <div class="in">
+    <button class="cancel" id="btnScanClose">閉じる</button>
+    <button class="apply" id="btnScanApply" disabled>チェッカーに反映</button>
   </div>
 </div>
 
@@ -1102,6 +1200,224 @@ document.getElementById("btnShare").addEventListener("click", () => {
 
 render();
 updateStats();
+</script>
+<script src="unit-scan.js"></script>
+<script>
+/* =========================================================
+   ㉕ スクショ読み取りの画面処理（2026-09-26本番化。unit-scan.htmlから移植）
+   判定処理本体は unit-scan.js（window.UnitScan）。ここでは結果の確認・修正・反映だけを扱う
+   ========================================================= */
+(function(){
+  const LV_LABEL = ["無凸", "1凸", "2凸", "完凸"];
+  const DEBUG = /[?&]scandebug=1/.test(location.search);
+  const modal = document.getElementById("scanModal");
+  const progressEl = document.getElementById("scanProgress");
+  const resultEl = document.getElementById("scanResult");
+  const debugEl = document.getElementById("scanDebug");
+  const applyBtn = document.getElementById("btnScanApply");
+  const byId = {}; UNITS.forEach(u => { byId[u.id] = u; });
+
+  let cards = [];          // 判定済みカード
+  let rows = [];           // ユニット単位の集約結果
+  let mode = "merge";      // merge=写っていないユニットはそのまま / replace=写っていないユニットは未所持に
+
+  function esc(s){ return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])); }
+
+  function aggregate(){
+    const map = new Map();
+    cards.forEach((c, idx) => {
+      const id = c.manualId !== undefined ? c.manualId : c.unitId;
+      if (!id) return;
+      if (!map.has(id)) map.set(id, { id, cards: [], level: -1, sure: true, minScore: 1 });
+      const r = map.get(id);
+      r.cards.push(idx);
+      const lv = c.manualLevel !== undefined ? c.manualLevel : c.level;
+      r.level = Math.max(r.level, lv);
+      if (c.manualId === undefined){
+        r.sure = r.sure && c.sure;
+        r.minScore = Math.min(r.minScore, c.score);
+      }
+    });
+    const prev = rows.reduce((o, r) => { o[r.id] = r; return o; }, {});
+    rows = Array.from(map.values()).sort((a, b) => a.id - b.id).map(r => {
+      const old = prev[r.id];
+      if (old && old.userLevel !== undefined) r.userLevel = old.userLevel;
+      if (old && old.userChecked !== undefined) r.userChecked = old.userChecked;
+      return r;
+    });
+  }
+
+  function rowLevel(r){ return r.userLevel !== undefined ? r.userLevel : r.level; }
+  function change(r){
+    const cur = state.hasOwnProperty(r.id) ? state[r.id] : null;
+    const lv = rowLevel(r);
+    if (cur === null) return "new";
+    if (lv > cur) return "up";
+    if (lv < cur) return "down";
+    return "same";
+  }
+  function rowChecked(r){
+    if (r.userChecked !== undefined) return r.userChecked;
+    const ch = change(r);
+    return ch === "new" || ch === "up";
+  }
+
+  function render(){
+    aggregate();
+    const unknown = cards.map((c, i) => [c, i]).filter(([c]) => !c.error && !c.unitId);
+    const errors = cards.filter(c => c.error);
+    const total = cards.filter(c => !c.error).length;
+    const sureN = rows.filter(r => r.sure).length;
+    const willApply = rows.filter(rowChecked).length;
+    const removeN = mode === "replace" ? Object.keys(state).filter(id => !rows.some(r => r.id === Number(id))).length : 0;
+
+    let h = `<div class="scanSummary">カード <span class="n">${total}</span> 枚を読み取り → URユニット <span class="n">${rows.length}</span> 機を判定（確実 ${sureN}・要確認 ${rows.length - sureN}）` +
+      (unknown.length ? `<br>判定できなかったカード <span class="n">${unknown.length}</span> 枚（ULT機体などは無視してOK）` : "") +
+      `<br>反映すると <span class="n">${willApply}</span> 機を更新` + (removeN ? `・<span class="n">${removeN}</span> 機を未所持に` : "") + `</div>`;
+    errors.forEach(c => { h += `<div class="scanErr">${c.file}枚目：${esc(c.error)}</div>`; });
+
+    h += `<div class="scanMode">
+      <label><input type="radio" name="scanMode" value="merge" ${mode === "merge" ? "checked" : ""}> 写っていないユニットはそのまま（おすすめ）</label>
+      <label><input type="radio" name="scanMode" value="replace" ${mode === "replace" ? "checked" : ""}> 写っていないユニットは「未所持」にする（一覧を全部撮った場合）</label>
+    </div>`;
+
+    const changedN = rows.filter(r => change(r) !== "same").length;
+    h += `<div class="scanSec">読み取り結果 <small>… 凸はカード下の★から判定。違っていたら選び直してください</small></div>`;
+    // 一括選択：初回は「全選択」、2回目以降は「変化点のみ」（新規・凸UP・凸DOWN）で選ぶと速い
+    h += `<div class="scanBulk">
+      <button type="button" data-bulk="all">全選択<span class="c">${rows.length}</span></button>
+      <button type="button" data-bulk="none">全解除</button>
+      <button type="button" data-bulk="changed">変化点のみ<span class="c">${changedN}</span></button>
+    </div><div class="scanList">`;
+    rows.forEach(r => {
+      const u = byId[r.id];
+      const ch = change(r);
+      const cur = state.hasOwnProperty(r.id) ? state[r.id] : null;
+      const tagTxt = { new: "新規", up: `凸UP（${LV_LABEL[cur]}→）`, down: `凸DOWN（${cur !== null ? LV_LABEL[cur] : ""}→）`, same: "変更なし" }[ch];
+      const c0 = cards[r.cards[0]];
+      const checked = rowChecked(r);
+      h += `<div class="scanRow ${r.sure ? "" : "warn"} ${checked ? "" : "off"}" data-id="${r.id}">
+        <img class="th" src="${c0.thumb}" alt="">
+        <div class="mid">
+          <div class="nm">${esc(u ? u.name : "No." + r.id)}</div>
+          <div class="meta"><span class="tag ${ch}">${tagTxt}</span>${r.sure ? "" : `<span class="tag chk">要確認</span>`}${r.cards.length > 1 ? `${r.cards.length}枚検出（最大の凸を採用）` : ""}${DEBUG ? ` score ${r.minScore.toFixed(2)}` : ""}</div>
+        </div>
+        <div class="ctl">
+          <input type="checkbox" class="rowChk" ${checked ? "checked" : ""} aria-label="反映する">
+          <select class="rowLv">${LV_LABEL.map((l, i) => `<option value="${i}" ${rowLevel(r) === i ? "selected" : ""}>${l}</option>`).join("")}</select>
+        </div>
+      </div>`;
+    });
+    h += `</div>`;
+
+    if (unknown.length){
+      const opts = `<option value="">（無視する）</option>` + UNITS.map(u => `<option value="${u.id}">${String(u.id).padStart(2, "0")} ${esc(u.name)}</option>`).join("");
+      h += `<details class="scanUnknown" ${unknown.some(([c]) => c.manualId) ? "open" : ""}><summary>判定できなかったカード ${unknown.length}枚 <small>… URユニットが混ざっていたら選んでください</small></summary><div class="scanList">`;
+      unknown.forEach(([c, i]) => {
+        h += `<div class="scanRow" data-card="${i}">
+          <img class="th" src="${c.thumb}" alt="">
+          <div class="mid">
+            <select class="cardUnit">${opts.replace(`value="${c.manualId || ""}"`, `value="${c.manualId || ""}" selected`)}</select>
+            <div class="meta">${c.learnMsg ? esc(c.learnMsg) : ""}${DEBUG ? ` best ${c.guessId}:${c.score.toFixed(2)}` : ""}</div>
+          </div>
+          <div class="ctl"><select class="cardLv">${LV_LABEL.map((l, k) => `<option value="${k}" ${((c.manualLevel !== undefined ? c.manualLevel : c.level) === k) ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+        </div>`;
+      });
+      h += `</div></details>`;
+    }
+    resultEl.innerHTML = h;
+    applyBtn.disabled = !(willApply || removeN);
+
+    if (DEBUG){
+      const learned = UnitScan.loadLearned();
+      debugEl.innerHTML = `<div class="scanDebug">学習した位置合わせ値（SCAN_FITに追記する用）:\n${esc(JSON.stringify(learned))}</div>`;
+    }
+  }
+
+  resultEl.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-bulk]");
+    if (!b) return;
+    const kind = b.dataset.bulk;  // 外側のmode（写っていないユニットの扱い）と名前を分ける
+    rows.forEach(r => {
+      r.userChecked = kind === "all" ? true : kind === "none" ? false : change(r) !== "same";
+    });
+    render();
+  });
+
+  resultEl.addEventListener("change", async (e) => {
+    const t = e.target;
+    if (t.name === "scanMode"){ mode = t.value; render(); return; }
+    const row = t.closest(".scanRow");
+    if (!row) return;
+    if (row.dataset.id){
+      const r = rows.find(x => x.id === Number(row.dataset.id));
+      if (t.classList.contains("rowChk")) r.userChecked = t.checked;
+      if (t.classList.contains("rowLv")) r.userLevel = Number(t.value);
+      render();
+      return;
+    }
+    const c = cards[Number(row.dataset.card)];
+    if (t.classList.contains("cardLv")){ c.manualLevel = Number(t.value); render(); return; }
+    if (t.classList.contains("cardUnit")){
+      if (!t.value){ delete c.manualId; c.learnMsg = ""; render(); return; }
+      c.manualId = Number(t.value);
+      c.learnMsg = "位置を学習中…";
+      render();
+      try {
+        const res = await UnitScan.learnFit(c, byId[c.manualId]);
+        c.learnMsg = res && res.fit ? "この端末で学習しました（次回から自動判定）" : "";
+      } catch (err) { c.learnMsg = ""; }
+      render();
+    }
+  });
+
+  document.getElementById("btnScanOpen").addEventListener("click", () => {
+    modal.classList.add("show");
+    document.body.style.overflow = "hidden";
+  });
+  function close(){
+    modal.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+  document.getElementById("btnScanClose").addEventListener("click", close);
+
+  document.getElementById("scanFiles").addEventListener("change", async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!files.length) return;
+    resultEl.innerHTML = "";
+    applyBtn.disabled = true;
+    cards = []; rows = [];
+    const t0 = performance.now();
+    try {
+      cards = await UnitScan.scanFiles(files, UNITS, msg => { progressEl.textContent = msg; });
+      progressEl.textContent = `読み取り完了（${((performance.now() - t0) / 1000).toFixed(1)}秒）`;
+    } catch (err) {
+      console.error(err);
+      progressEl.textContent = "読み取りに失敗しました：" + err.message;
+      return;
+    }
+    render();
+  });
+
+  applyBtn.addEventListener("click", () => {
+    let n = 0;
+    if (mode === "replace"){
+      // ㉖ 入手記録のあるユニットが未所持になる場合は、他の操作と同じ確認を出す（キャンセルなら反映しない）
+      const removing = Object.keys(state).filter(id => !rows.some(r => r.id === Number(id)));
+      if (!confirmAcqRemoval(removing)) return;
+      Object.keys(state).forEach(id => { if (!rows.some(r => r.id === Number(id))) { delete state[id]; n++; } });
+    }
+    rows.filter(rowChecked).forEach(r => { state[r.id] = rowLevel(r); n++; });
+    userEditedSinceLoad = true;
+    persist();
+    close();
+    // チェッカー本体の再描画（この即時関数内の render は結果画面用なので、本体側は window.render を呼ぶ）
+    window.render();
+    updateStats();
+    showRegisterToast(`${n}機を反映しました。保存するには「データ登録」を押してください`);
+  });
+})();
 </script>
 <script src="auth.js" defer></script>
 </body>
