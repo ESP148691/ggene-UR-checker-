@@ -220,6 +220,8 @@
     <p>自己紹介カードはログインユーザー限定です。<br>ログインすると、登録したデータからカードを作れるようになります。</p>
     <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
   </div>
+  <!-- 運営者専用（試用中）。運営者以外のログインユーザーにはこの案内だけを出す。公開時はこの判定を外す -->
+  <div id="adminOnlyView" class="stateMsg" hidden>自己紹介カードは現在テスト運用中のため、運営者専用ページです。</div>
   <div id="loadingView" class="stateMsg">読み込み中...</div>
   <div id="errorView" class="stateMsg" hidden>データの読み込みに失敗しました。時間をおいて再度お試しください。</div>
 
@@ -1808,9 +1810,19 @@ async function init(){
 }
 
 // /api/me失敗時は保守的にガード表示に倒し、他のAPIは呼ばない（analytics.htmlと同じ）
+// 試用中は運営者専用：ログイン済みでも /api/admin/me が admin:true のときだけ本体を読み込む
+// （unit-scan.html・report.htmlと同じ判定。公開するときは adminGate を外して init() を直接呼ぶ）
+function showAdminOnly(){ $("loadingView").hidden = true; $("adminOnlyView").hidden = false; }
+async function adminGate(){
+  try {
+    const r = await fetch("/api/admin/me", { credentials: "same-origin" });
+    const d = await r.json();
+    if (d && d.admin === true) init(); else showAdminOnly();
+  } catch (e) { showAdminOnly(); }
+}
 fetch("/api/me", { credentials: "same-origin" })
   .then(r => r.json())
-  .then(d => { if (d && d.loggedIn) init(); else showGuard(); })
+  .then(d => { if (d && d.loggedIn) adminGate(); else showGuard(); })
   .catch(showGuard);
 })();
 </script>

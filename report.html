@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
-<title>週間レポート作成（運営者専用） | Gジェネエターナル ファンツール</title>
+<title>レポート作成（運営者専用） | Gジェネエターナル ファンツール</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
@@ -65,6 +65,16 @@
   .count{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--muted);}
   .count.over{color:var(--ng);font-weight:700;}
 
+  .typeRow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+  .typeRow label{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--text);cursor:pointer;
+    background:var(--panel-2);border:1px solid var(--line-strong);padding:7px 12px;}
+  .typeRow input{accent-color:var(--gold);}
+  .badgeRow{margin-top:10px;}
+  .badgeRow input[type=text]{
+    width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line-strong);
+    font-size:15px;padding:7px 9px;font-family:'Noto Sans JP',sans-serif;
+  }
+
   .previewModal{
     position:fixed;inset:0;background:rgba(5,7,10,.94);display:none;align-items:center;justify-content:center;
     flex-direction:column;gap:14px;padding:24px 16px;z-index:100;
@@ -83,19 +93,27 @@
   <div id="guardView" class="stateMsg" hidden>運営者専用ページです</div>
 
   <div id="contentView" hidden>
-    <h1>週間 UR所持率レポート</h1>
-    <p class="sub">毎日JST 4:00に集計したデータ（analytics_daily）から、X投稿用の画像（1200×675）と投稿文を作ります。</p>
+    <h1>X投稿用レポート</h1>
+    <p class="sub">毎日JST 4:00に集計したデータ（analytics_daily）から、X投稿用の画像（1200×675）と投稿文を作ります。最新の状態で作りたいときは、先に下の「今日の集計を今すぐ実行」を押してください。</p>
 
     <section class="section">
       <h2>レポート作成</h2>
+      <div class="typeRow" id="typeRow">
+        <label><input type="radio" name="reportType" value="weekly" checked> 週間 UR所持率</label>
+        <label><input type="radio" name="reportType" value="limited"> 期間限定UR 所持率</label>
+      </div>
       <div class="ctlRow">
         <label for="reportDate">集計日</label>
         <input type="date" id="reportDate">
         <button type="button" class="btn" id="btnMake">画像を作成</button>
       </div>
+      <div class="badgeRow" id="badgeRow" hidden>
+        <label for="badgeText" class="note" style="display:block;margin:0 0 4px;">見出しの横に出す一言（空欄なら出しません）</label>
+        <input type="text" id="badgeText" maxlength="20" placeholder="例：データ登録100人突破！">
+      </div>
       <p class="msg" id="makeMsg"></p>
       <div class="previewBox" id="previewBox" hidden>
-        <img id="previewImg" alt="週間UR所持率レポートの画像">
+        <img id="previewImg" alt="レポートの画像">
         <p class="note">画像をタップすると大きく表示します（長押し・右クリックで保存）。</p>
       </div>
     </section>
@@ -119,7 +137,7 @@
 </main>
 
 <div class="previewModal" id="previewModal">
-  <img id="modalImg" alt="週間UR所持率レポートの画像（拡大）">
+  <img id="modalImg" alt="レポートの画像（拡大）">
   <p class="msg"><b>長押し</b>（PCは右クリック）で画像を保存できます</p>
   <button type="button" class="btn sec" id="btnCloseModal">閉じる</button>
 </div>
@@ -394,12 +412,188 @@ function setMsg(el, text, kind){
   el.className = "msg" + (kind ? " " + kind : "");
 }
 
+
+// =====================================================================
+// 期間限定UR 所持率レポート（週間レポートと同じ見た目。2026-09-25追加）
+// データ：/api/analytics/units（名前・期間限定フラグ）＋ /api/analytics/trend（指定日の所持者数・完凸者数・母数）
+// サーバー側の変更は不要（どちらも既存API）
+// =====================================================================
+function jstToday(){ return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); }
+function daysBetween(a, b){
+  const t = (d) => { const [y, m, dd] = d.split("-").map(Number); return Date.UTC(y, m - 1, dd); };
+  return Math.round((t(b) - t(a)) / 86400000);
+}
+async function fetchLimitedData(date){
+  const master = await fetchJson("/api/analytics/units");
+  if (master.status !== 200 || !master.data) throw new Error("ユニット一覧の取得に失敗しました（" + master.status + "）");
+  const limited = master.data.ranking.filter(r => r.limited);
+  const days = Math.min(365, Math.max(1, daysBetween(date, jstToday()) + 1));
+  const results = await Promise.all(limited.map(async u => {
+    const r = await fetchJson(`/api/analytics/trend?kind=unit&id=${u.unitId}&days=${days}`);
+    const p = r.data && r.data.points ? r.data.points.find(x => x.date === date) : null;
+    return p ? { unitId: u.unitId, name: u.name, ownedCount: p.ownedCount, maxCount: p.maxCount, totalUsers: p.totalUsers } : null;
+  }));
+  const rows = results.filter(Boolean);
+  if (!rows.length) return null;
+  const total = rows[0].totalUsers;
+  rows.forEach(r => {
+    r.ownedRate = total > 0 ? r.ownedCount / total : 0;
+    r.maxRate = total > 0 ? r.maxCount / total : 0;
+  });
+  rows.sort((a, b) => b.ownedRate - a.ownedRate || a.unitId - b.unitId);
+  const avgOwned = total > 0 ? rows.reduce((s, r) => s + r.ownedCount, 0) / total : 0;
+  return { date, totalUsers: total, rows, limitedTotal: limited.length, avgOwned };
+}
+
+async function drawLimitedReport(canvas, data, badge){
+  const ctx = canvas.getContext("2d");
+  if (!bgCanvas) bgCanvas = GalaxyBg.draw("report");
+  ctx.drawImage(bgCanvas, 0, 0, W, H);
+  ctx.fillStyle = "rgba(3,5,10,.35)"; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "#2b3746"; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+
+  const imgs = {};
+  await Promise.all(data.rows.map(async r => { imgs[r.unitId] = await loadImage(`images/units/${r.unitId}.jpg`); }));
+
+  // 上部
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#6be0e0"; ctx.font = `bold 15px ${FONT}`;
+  shadowText(ctx, "ジージェネレーション　エターナル", 40, 46);
+  ctx.fillStyle = "#ffffff"; ctx.font = `bold 38px ${FONT}`;
+  const title = "期間限定UR 所持率レポート";
+  shadowText(ctx, title, 40, 90);
+  const statLine = `期間限定UR ${data.limitedTotal}機｜1人あたり平均 ${data.avgOwned.toFixed(1)}機所持`;
+  if (badge) {
+    const tw = ctx.measureText(title).width;
+    // 右上の2行目（statLine）と重ならないよう、空いている幅に収める（17px→12pxまで縮め、それでも入らなければ「…」で省略）
+    ctx.font = `bold 17px ${FONT}`;
+    const statW = ctx.measureText(statLine).width;
+    const bx = 40 + tw + 16, by = 64, maxBw = (W - 40 - statW - 16) - bx;
+    let fs = 17, text = badge;
+    for (; fs > 12; fs--) { ctx.font = `bold ${fs}px ${FONT}`; if (ctx.measureText(text).width + 24 <= maxBw) break; }
+    ctx.font = `bold ${fs}px ${FONT}`;
+    text = fitText(ctx, text, maxBw - 24);
+    const bw = ctx.measureText(text).width + 24;
+    roundRect(ctx, bx, by, bw, 32, 16); ctx.fillStyle = "#dab949"; ctx.fill();
+    ctx.fillStyle = "#1b1503"; ctx.textBaseline = "middle"; ctx.fillText(text, bx + 12, by + 17); ctx.textBaseline = "alphabetic";
+  }
+  ctx.textAlign = "right"; ctx.fillStyle = "#dab949"; ctx.font = `bold 20px ${MONO}`;
+  shadowText(ctx, `${slashDate(data.date)} 時点｜データ登録 ${data.totalUsers}人`, W - 40, 58);
+  ctx.fillStyle = "#eef3f6"; ctx.font = `bold 17px ${FONT}`;
+  shadowText(ctx, statLine, W - 40, 90);
+
+  // 本体：所持率ランキングを左右2列に分けて全機表示
+  const half = Math.ceil(data.rows.length / 2);
+  const cols = [data.rows.slice(0, half), data.rows.slice(half)];
+  const PY = 116, PH = 500, PW = 550, GAP = 20;
+  const rowH = Math.min(40, Math.floor((PH - 56) / Math.max(1, half)));
+  const MEDAL = ["#e8c45a", "#c9d1d9", "#c58a4a"];
+  cols.forEach((list, ci) => {
+    const PX = 40 + ci * (PW + GAP);
+    const from = ci === 0 ? 1 : half + 1, to = ci === 0 ? half : data.rows.length;
+    panel(ctx, PX, PY, PW, PH, `所持率ランキング ${from}〜${to}位`, ci === 0 ? "#dab949" : "#6be0e0");
+    if (ci === 0) {
+      ctx.textAlign = "right"; ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${FONT}`;
+      ctx.fillText("所持率　（完凸率）", PX + PW - 18, PY + 31);
+    }
+    list.forEach((r, i) => {
+      const rank = (ci === 0 ? 0 : half) + i + 1;
+      const y = PY + 50 + i * rowH, cy = y + rowH / 2;
+      // 所持率に比例した帯
+      const barX = PX + 12, barW = PW - 24;
+      ctx.fillStyle = "rgba(255,255,255,.035)"; ctx.fillRect(barX, y + 2, barW, rowH - 4);
+      ctx.fillStyle = rank <= 3 ? "rgba(218,185,73,.20)" : "rgba(107,224,224,.12)";
+      ctx.fillRect(barX, y + 2, barW * r.ownedRate, rowH - 4);
+      // 順位
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      if (rank <= 3) {
+        ctx.fillStyle = MEDAL[rank - 1]; ctx.beginPath(); ctx.arc(PX + 32, cy, 12, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#1b1503"; ctx.font = `bold 14px ${MONO}`; ctx.fillText(String(rank), PX + 32, cy + 1);
+      } else {
+        ctx.fillStyle = "#9fb0c0"; ctx.font = `bold 15px ${MONO}`; ctx.fillText(String(rank), PX + 32, cy + 1);
+      }
+      const s = rowH - 8;
+      drawSquare(ctx, imgs[r.unitId], PX + 52, cy - s / 2, s);
+      // 所持率・完凸率
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${MONO}`;
+      const maxTxt = `（${pct(r.maxRate)}）`;
+      ctx.fillText(maxTxt, PX + PW - 18, cy + 1);
+      const maxW = ctx.measureText(maxTxt).width;
+      ctx.fillStyle = rank <= 3 ? MEDAL[rank - 1] : "#eef3f6"; ctx.font = `bold 19px ${MONO}`;
+      ctx.fillText(pct(r.ownedRate), PX + PW - 18 - maxW - 4, cy + 1);
+      // 名前
+      ctx.textAlign = "left"; ctx.fillStyle = "#eef3f6"; ctx.font = `15px ${FONT}`;
+      const nameX = PX + 52 + s + 10;
+      ctx.fillText(fitText(ctx, r.name || `No.${r.unitId}`, PX + PW - 18 - 190 - nameX), nameX, cy + 1);
+      ctx.textBaseline = "alphabetic";
+    });
+  });
+
+  // 下部（週間レポートと同じ）
+  const sg = ctx.createLinearGradient(0, H - 56, 0, H); sg.addColorStop(0, "rgba(3,5,10,0)"); sg.addColorStop(0.6, "rgba(3,5,10,.7)");
+  ctx.fillStyle = sg; ctx.fillRect(0, H - 56, W, 56);
+  ctx.textAlign = "left"; ctx.fillStyle = "#c7d2dc"; ctx.font = `14px ${FONT}`;
+  const siteLabel = CONFIG.siteName + "　";
+  shadowText(ctx, siteLabel, 40, H - 24);
+  ctx.fillStyle = "#6be0e0"; ctx.font = `14px ${MONO}`;
+  shadowText(ctx, CONFIG.siteUrl, 40 + (ctx.font = `14px ${FONT}`, ctx.measureText(siteLabel).width), H - 24);
+  ctx.textAlign = "right"; ctx.fillStyle = "#6be0e0"; ctx.font = `bold 15px ${MONO}`;
+  shadowText(ctx, CONFIG.xHandle, W - 40, H - 24);
+  ctx.textAlign = "left";
+}
+
+function buildLimitedPostText(data, badge){
+  const lines = [`【Gジェネエターナル】期間限定UR所持率レポート（${shortDate(data.date)}時点・登録${data.totalUsers}人）`];
+  if (badge) lines.push(`${badge}ありがとうございます！`);
+  lines.push("");
+  data.rows.slice(0, 3).forEach((r, i) => lines.push(`${i + 1}位 ${r.name} ${pct(r.ownedRate)}`));
+  lines.push(`1人あたり平均 ${data.avgOwned.toFixed(1)}機／${data.limitedTotal}機`);
+  lines.push("");
+  lines.push(CONFIG.hashtag);
+  lines.push(CONFIG.siteUrl);
+  let text = lines.join("\n");
+  // 280を超えるときは、3位→2位の順に削って収める
+  for (let k = 2; k >= 1 && tweetWeight(text) > 280; k--) {
+    const tr = data.rows[k];
+    if (tr) text = text.replace(`\n${k + 1}位 ${tr.name} ${pct(tr.ownedRate)}`, "");
+  }
+  return text;
+}
+
+async function makeLimitedReport(date){
+  const data = await fetchLimitedData(date);
+  if (!data) {
+    $("previewBox").hidden = true; $("postSection").hidden = true;
+    setMsg($("makeMsg"), "この日の集計データがありません。", "ng");
+    return;
+  }
+  const badge = $("badgeText").value.trim();
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  await drawLimitedReport(canvas, data, badge);
+  const url = canvas.toDataURL("image/png");
+  $("previewImg").src = url; $("modalImg").src = url;
+  $("previewBox").hidden = false;
+  $("postText").value = buildLimitedPostText(data, badge);
+  $("postSection").hidden = false;
+  updateCount();
+  setMsg($("makeMsg"), `${slashDate(data.date)}時点の期間限定UR ${data.rows.length}機のレポートを作成しました。`, "ok");
+}
+function reportType(){ return document.querySelector('input[name="reportType"]:checked').value; }
+$("typeRow").addEventListener("change", () => { $("badgeRow").hidden = reportType() !== "limited"; });
+
 async function makeReport(){
   const btn = $("btnMake");
   btn.disabled = true;
   setMsg($("makeMsg"), "作成中…");
   try {
     const date = $("reportDate").value;
+    if (reportType() === "limited") {
+      if (!date) { setMsg($("makeMsg"), "集計日を選んでください。", "ng"); return; }
+      await makeLimitedReport(date);
+      return;
+    }
     const r = await fetchJson("/api/admin/report/weekly" + (date ? "?date=" + encodeURIComponent(date) : ""));
     if (r.status !== 200 || !r.data) {
       $("previewBox").hidden = true;
