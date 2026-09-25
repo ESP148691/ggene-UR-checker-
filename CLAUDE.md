@@ -696,6 +696,12 @@ Cowork側の実装依頼書`docs/05_機能拡張_有料プラン/㉖入手記録
 - commit `80f160f`、段階B・Cとあわせて`git push origin main`（2026-09-25）。本番で未ログイン時に`/api/admin/me`が`{admin:false}`、`run-snapshot`・`weekly`・`trend`が401、`/api/my-ownership`が`{loggedIn:false}`、`/report`・`/unit-scan`・`/top`・`/unit`が200で新コード（`adminSection`・`scanLocked`・`acq-panel`）を配信していることを確認（デプロイ直後の1分ほどは旧版が混在した）
 - 運営者を増やすときは`wrangler.jsonc`の`ADMIN_USERNAMES`に追記するだけで、トップの導線・`report.html`・`unit-scan.html`・`/api/admin/*`がすべて連動する
 
+**追加改修：読み取り結果の一括選択ボタン（2026-09-25・ユーザー要望。依頼書㉖末尾「追加改修」）**
+- Coworkが`unit-scan.html`を直接編集（未commit）したものを確認してcommit・push。読み取り結果の見出しの下に「全選択（件数）」「全解除」「変化点のみ（件数）＝新規・凸UP・凸DOWNだけ」の3ボタン。既定のチェック（新規・凸UPのみ）は従来どおりで、ボタンで変えた選択は再描画しても保持（`rows[].userChecked`）
+- 確認時の修正は1点のみ：クリック処理内の`const mode`が外側の`mode`（写っていないユニットの扱い）と同名で紛らわしいため`kind`に改名（ブロックスコープなので動作は同じ）
+- 検証：Playwright・検証用スクショ6枚で12件成功（初回＝既定69・全解除0で反映ボタン無効・全選択69、手動選択が凸変更後も保持、2回目（1機だけ凸を下げた状態）＝既定1・変化点のみ1で該当機のみ、390pxで横スクロールなし、JSエラーなし）
+- **`unit.html`へ統合するときは、このボタンも一緒に移すこと**
+
 **未実施（要対応）**
 - ~~デプロイ手順（段階B・C）~~ → 2026-09-25にユーザーがD1で0013→0014を実行後、push済み
 - push後：運営者（`ESP`）でログインし`/report.html`の「今日の集計を今すぐ実行」→ D1 Consoleで`SELECT COUNT(*) FROM analytics_daily`＝231、`SELECT * FROM analytics_daily_summary`＝1行を確認。翌朝4時以降、定期実行で翌日分が入っていることを確認（ダッシュボード > Workers > ggene-ur-checker の「トリガー」「ログ」でも確認できる）

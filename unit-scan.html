@@ -274,6 +274,13 @@
   .scanRow input[type=checkbox]{width:20px;height:20px;accent-color:var(--gold);}
   .scanSec{font-size:13px;font-weight:700;margin:14px 0 6px;color:var(--text);}
   .scanSec small{font-weight:400;color:var(--muted);font-size:11.5px;}
+  .scanBulk{display:flex;gap:6px;margin:0 0 8px;}
+  .scanBulk button{
+    flex:1;font-family:'Noto Sans JP',sans-serif;font-size:12.5px;font-weight:700;
+    background:var(--panel);color:var(--text);border:1px solid var(--line);padding:9px 4px;cursor:pointer;
+  }
+  .scanBulk button:hover{border-color:var(--gold-dim);}
+  .scanBulk button .c{font-family:'Share Tech Mono',monospace;color:var(--gold);margin-left:3px;}
   details.scanUnknown summary{cursor:pointer;font-size:13px;font-weight:700;margin:14px 0 6px;}
   details.scanUnknown summary small{font-weight:400;color:var(--muted);}
   .scanMode{font-size:12.5px;line-height:1.9;background:var(--panel);border:1px solid var(--line);padding:8px 12px;margin:10px 0;}
@@ -1054,7 +1061,14 @@ updateStats();
       <label><input type="radio" name="scanMode" value="replace" ${mode === "replace" ? "checked" : ""}> 写っていないユニットは「未所持」にする（一覧を全部撮った場合）</label>
     </div>`;
 
-    h += `<div class="scanSec">読み取り結果 <small>… 凸はカード下の★から判定。違っていたら選び直してください</small></div><div class="scanList">`;
+    const changedN = rows.filter(r => change(r) !== "same").length;
+    h += `<div class="scanSec">読み取り結果 <small>… 凸はカード下の★から判定。違っていたら選び直してください</small></div>`;
+    // 一括選択：初回は「全選択」、2回目以降は「変化点のみ」（新規・凸UP・凸DOWN）で選ぶと速い
+    h += `<div class="scanBulk">
+      <button type="button" data-bulk="all">全選択<span class="c">${rows.length}</span></button>
+      <button type="button" data-bulk="none">全解除</button>
+      <button type="button" data-bulk="changed">変化点のみ<span class="c">${changedN}</span></button>
+    </div><div class="scanList">`;
     rows.forEach(r => {
       const u = byId[r.id];
       const ch = change(r);
@@ -1099,6 +1113,16 @@ updateStats();
       debugEl.innerHTML = `<div class="scanDebug">学習した位置合わせ値（SCAN_FITに追記する用）:\n${esc(JSON.stringify(learned))}</div>`;
     }
   }
+
+  resultEl.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-bulk]");
+    if (!b) return;
+    const kind = b.dataset.bulk;  // 外側のmode（写っていないユニットの扱い）と名前を分ける
+    rows.forEach(r => {
+      r.userChecked = kind === "all" ? true : kind === "none" ? false : change(r) !== "same";
+    });
+    render();
+  });
 
   resultEl.addEventListener("change", async (e) => {
     const t = e.target;
