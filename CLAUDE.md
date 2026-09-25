@@ -678,7 +678,7 @@ Cowork側の実装依頼書`docs/05_機能拡張_有料プラン/㉖入手記録
 3. `supporter.html`・`unit-scan.html`・画像出力・Xシェア文は変更なし
 - **検証**：sql.js＋D1互換モックのハーネス（`migrations/0001`〜`0013`の実ファイル）で66件成功（依頼書B-7の1〜5：運用パターン1〜13、不正値、キー85個、変更前の`worker.js`と同じ操作列でサポート・ユニットの保存結果と`/api/analytics/*`・`/api/profile-card`の結果が一致、0013未適用＋新コードでは`acq`付き登録が保存されない＝逆順NGの確認）。画面はAPIモックで53件成功（B-7の6）。320px・390pxのスクリーンショットを目視確認
 
-**段階C：定時分析＋週間レポート（commit は下記。push待ち）**
+**段階C：定時分析＋週間レポート（commit `90763cc`。push待ち）**
 1. **`worker.js`**
    - `handleAnalyticsEternalRoad()`の集計部分を`queryEternalRoadCounts()`に切り出し（既存APIの結果が変わらないことをテストで確認）。ユニット／サポートは`queryOwnershipCounts()`（`handleAnalytics()`と同じ`COUNT(DISTINCT user_uid)`＋完凸者数）
    - `runDailySnapshot(env, snapDate)`：231行＋summary1行を`INSERT OR REPLACE`で1回の`DB.batch()`
