@@ -548,12 +548,8 @@ async function handleLogEternalRoadMissions(request, env) {
 // 母数はエタロでデータ登録済みのユーザー（eternal_road_first_registered_at IS NOT NULL）。
 // 分子も同じ条件のユーザーに限定する（⑬のデプロイギャップのように、フラグ未付与のクリア行があっても
 // 率が100%を超えないようにするため）
-async function handleAnalyticsEternalRoad(request, env) {
-  const sessionUser = await getSessionUser(request, env);
-  if (!sessionUser) {
-    return jsonResponse({ error: "not_logged_in", message: "ログインが必要です" }, 401);
-  }
-
+// エタロ分析の集計部分。/api/analytics/eternal-road と ㉖定時分析（runDailySnapshot）で共用する
+async function queryEternalRoadCounts(env) {
   const REGISTERED_JOIN = "JOIN users u ON u.user_uid = c.user_uid AND u.eternal_road_first_registered_at IS NOT NULL";
 
   const totalRow = await env.DB.prepare(
@@ -588,6 +584,17 @@ async function handleAnalyticsEternalRoad(request, env) {
      WHERE x.n = t.total
      GROUP BY x.stage_id`
   ).all();
+
+  return { REGISTERED_JOIN, totalUsers, missionRows, clearRows, perfectRows };
+}
+
+async function handleAnalyticsEternalRoad(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) {
+    return jsonResponse({ error: "not_logged_in", message: "ログインが必要です" }, 401);
+  }
+
+  const { REGISTERED_JOIN, totalUsers, missionRows, clearRows, perfectRows } = await queryEternalRoadCounts(env);
 
   // 全ステージクリア・全ミッション達成のユーザー数（分母はマスターの件数）
   const stageTotal = new Set(missionRows.map(r => r.stage_id)).size;
@@ -652,6 +659,172 @@ async function handleAnalyticsEternalRoad(request, env) {
       clearedStageIds: myStages.map(r => r.stage_id)
     },
     registered: !!(userRow && userRow.registeredAt)
+  }, 200);
+}
+
+// ================= ㉖ 定時分析（analytics_daily）・運営者用レポート =================
+// 1日1回（Cron Triggers：UTC 19:00＝JST 4:00）、分析APIと同じ定義で集計してD1に積み上げる。
+// snap_dateは「その日のJST 4:00時点の状態」。同じ日付で何度実行しても結果は同じ（INSERT OR REPLACE）
+const SNAPSHOT_KINDS = new Set(["unit", "supporter", "er_stage", "er_mission"]);
+
+// ユニット／サポートの所持者数（handleAnalyticsと同じCOUNT(DISTINCT user_uid)）・完凸者数。マスターの全IDを返す
+async function queryOwnershipCounts(env, isSupporter) {
+  const masterTable = isSupporter ? "supporters_master" : "units_master";
+  const ownershipTable = isSupporter ? "supporters_ownership" : "units_ownership";
+  const idColumn = isSupporter ? "supporter_id" : "unit_id";
+  const registeredColumn = isSupporter ? "supporters_first_registered_at" : "units_first_registered_at";
+  const { results } = await env.DB.prepare(
+    `SELECT m.${idColumn} AS id,
+            COUNT(DISTINCT o.user_uid) AS owned_count,
+            COUNT(DISTINCT CASE WHEN o.level = 3 THEN o.user_uid END) AS max_count
+     FROM ${masterTable} m
+     LEFT JOIN ${ownershipTable} o ON o.${idColumn} = m.${idColumn}
+     GROUP BY m.${idColumn}
+     ORDER BY m.${idColumn} ASC`
+  ).all();
+  const totalRow = await env.DB.prepare(
+    `SELECT COUNT(*) AS c FROM users WHERE ${registeredColumn} IS NOT NULL`
+  ).first();
+  return { rows: results, totalUsers: totalRow ? totalRow.c : 0 };
+}
+
+async function runDailySnapshot(env, snapDate) {
+  const units = await queryOwnershipCounts(env, false);
+  const supporters = await queryOwnershipCounts(env, true);
+  const er = await queryEternalRoadCounts(env);
+  const accountsRow = await env.DB.prepare("SELECT COUNT(*) AS c FROM users").first();
+
+  const rows = [];
+  for (const r of units.rows) rows.push(["unit", r.id, r.owned_count, r.max_count, units.totalUsers]);
+  for (const r of supporters.rows) rows.push(["supporter", r.id, r.owned_count, r.max_count, supporters.totalUsers]);
+  const clearedByStage = new Map(er.clearRows.map(r => [r.stage_id, r.cleared_count]));
+  const perfectByStage = new Map(er.perfectRows.map(r => [r.stage_id, r.perfect_count]));
+  const stageIds = [...new Set(er.missionRows.map(r => r.stage_id))].sort((a, b) => a - b);
+  for (const id of stageIds) rows.push(["er_stage", id, clearedByStage.get(id) || 0, perfectByStage.get(id) || 0, er.totalUsers]);
+  for (const r of er.missionRows) rows.push(["er_mission", r.mission_id, r.achieved_count, 0, er.totalUsers]);
+
+  const insert = "INSERT OR REPLACE INTO analytics_daily (snap_date, kind, item_id, owned_count, max_count, total_users) VALUES (?, ?, ?, ?, ?, ?)";
+  const statements = rows.map(r => env.DB.prepare(insert).bind(snapDate, ...r));
+  statements.push(env.DB.prepare(
+    `INSERT OR REPLACE INTO analytics_daily_summary (snap_date, accounts, unit_users, supporter_users, er_users, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).bind(snapDate, accountsRow ? accountsRow.c : 0, units.totalUsers, supporters.totalUsers, er.totalUsers, toJstIsoString(new Date())));
+  await env.DB.batch(statements);
+  return { snapDate, rows: rows.length };
+}
+
+// 運営者の判定：ログインユーザー名がenv.ADMIN_USERNAMES（カンマ区切り、前後空白除去）に含まれるか
+function isAdminUser(sessionUser, env) {
+  if (!sessionUser || !sessionUser.username) return false;
+  const names = String(env.ADMIN_USERNAMES || "").split(",").map(s => s.trim()).filter(Boolean);
+  return names.includes(sessionUser.username);
+}
+// 運営者専用APIの入口。未ログイン401・運営者でなければ403（Responseを返す）、運営者ならsessionUser
+async function requireAdmin(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) return jsonResponse({ error: "not_logged_in", message: "ログインが必要です" }, 401);
+  if (!isAdminUser(sessionUser, env)) return jsonResponse({ error: "forbidden" }, 403);
+  return sessionUser;
+}
+
+// GET /api/admin/me（report.htmlの表示切り替え用。Cookie任意）
+async function handleAdminMe(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  return jsonResponse({ admin: isAdminUser(sessionUser, env) }, 200);
+}
+
+// POST /api/admin/run-snapshot（運営者のみ）：今日（JST）の日付で集計を実行
+async function handleAdminRunSnapshot(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
+  const result = await runDailySnapshot(env, jstDateString(new Date()));
+  return jsonResponse({ ok: true, snapDate: result.snapDate, rows: result.rows }, 200);
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+function addDays(dateStr, days) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+// GET /api/admin/report/weekly?date=YYYY-MM-DD（運営者のみ）：週間UR所持率レポート（テンプレートA）のデータ
+const WEEKLY_TOP_N = 10;
+const WEEKLY_GAINERS_N = 3;
+const WEEKLY_GAINER_MIN_OWNED = 10; // 少人数で誤解を招く数字を出さないため、今回の所持者数が10人未満のユニットは除外
+async function handleAdminWeeklyReport(request, env, url) {
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
+  let date = url.searchParams.get("date");
+  if (date != null && date !== "" && !DATE_RE.test(date)) return jsonResponse({ error: "invalid_date" }, 400);
+  if (!date) {
+    const latest = await env.DB.prepare("SELECT MAX(snap_date) AS d FROM analytics_daily WHERE kind = 'unit'").first();
+    date = latest && latest.d;
+    if (!date) return jsonResponse({ error: "no_data", message: "集計データがまだありません" }, 404);
+  }
+  const unitRows = async (d) => (await env.DB.prepare(
+    `SELECT a.item_id AS id, a.owned_count, a.total_users, m.name, m.limited
+     FROM analytics_daily a LEFT JOIN units_master m ON m.unit_id = a.item_id
+     WHERE a.snap_date = ? AND a.kind = 'unit'`
+  ).bind(d).all()).results;
+  const cur = await unitRows(date);
+  if (!cur.length) return jsonResponse({ error: "no_data", message: "指定日の集計データがありません" }, 404);
+
+  const prevRow = await env.DB.prepare(
+    "SELECT MAX(snap_date) AS d FROM analytics_daily WHERE kind = 'unit' AND snap_date <= ?"
+  ).bind(addDays(date, -7)).first();
+  const prevDate = prevRow && prevRow.d ? prevRow.d : null;
+  const prev = prevDate ? await unitRows(prevDate) : [];
+
+  const rate = (r) => r.total_users > 0 ? r.owned_count / r.total_users : 0;
+  const top = cur.slice()
+    .sort((a, b) => rate(b) - rate(a) || a.id - b.id)
+    .slice(0, WEEKLY_TOP_N)
+    .map(r => ({ unitId: r.id, name: r.name, limited: !!r.limited, ownedCount: r.owned_count, ownedRate: rate(r) }));
+
+  const prevById = new Map(prev.map(r => [r.id, r]));
+  const gainers = cur
+    .filter(r => r.owned_count >= WEEKLY_GAINER_MIN_OWNED && prevById.has(r.id))
+    .map(r => {
+      const p = prevById.get(r.id);
+      const deltaPt = Math.round((rate(r) - rate(p)) * 1000) / 10;
+      return { unitId: r.id, name: r.name, ownedRate: rate(r), prevRate: rate(p), deltaPt };
+    })
+    .filter(g => g.deltaPt > 0)
+    .sort((a, b) => b.deltaPt - a.deltaPt || a.unitId - b.unitId)
+    .slice(0, WEEKLY_GAINERS_N);
+
+  return jsonResponse({
+    date,
+    prevDate,
+    totalUsers: cur[0].total_users,
+    prevTotalUsers: prev.length ? prev[0].total_users : null,
+    top,
+    gainers
+  }, 200);
+}
+
+// GET /api/analytics/trend?kind=unit&id=12&days=90（ログイン必須）：特定IDの推移（今後のレポート・グラフ用）
+async function handleAnalyticsTrend(request, env, url) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) return jsonResponse({ error: "not_logged_in", message: "ログインが必要です" }, 401);
+  const kind = url.searchParams.get("kind");
+  const idRaw = url.searchParams.get("id");
+  const daysRaw = url.searchParams.get("days");
+  if (!SNAPSHOT_KINDS.has(kind) || !/^\d+$/.test(idRaw || "")) return jsonResponse({ error: "invalid_params" }, 400);
+  let days = 90;
+  if (daysRaw != null && daysRaw !== "") {
+    if (!/^\d+$/.test(daysRaw) || Number(daysRaw) < 1 || Number(daysRaw) > 365) return jsonResponse({ error: "invalid_params" }, 400);
+    days = Number(daysRaw);
+  }
+  const id = Number(idRaw);
+  const since = addDays(jstDateString(new Date()), -(days - 1));
+  const { results } = await env.DB.prepare(
+    `SELECT snap_date, owned_count, max_count, total_users FROM analytics_daily
+     WHERE kind = ? AND item_id = ? AND snap_date >= ? ORDER BY snap_date ASC`
+  ).bind(kind, id, since).all();
+  return jsonResponse({
+    kind, id,
+    points: results.map(r => ({ date: r.snap_date, ownedCount: r.owned_count, maxCount: r.max_count, totalUsers: r.total_users }))
   }, 200);
 }
 
@@ -932,6 +1105,15 @@ async function handleMyEternalRoad(request, env) {
   }, 200);
 }
 
+async function withJsonError(fn, label) {
+  try {
+    return await fn();
+  } catch (e) {
+    console.error(label + " error", e);
+    return jsonResponse({ error: "server_error", message: String(e && e.message || e) }, 500);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -983,6 +1165,20 @@ export default {
     }
 
     // ㉒ 自己紹介カード
+    // ㉖ 定時分析・運営者用レポート（0014未適用などで失敗した場合も500のJSONで返す）
+    if (url.pathname === "/api/admin/me" && request.method === "GET") {
+      return handleAdminMe(request, env);
+    }
+    if (url.pathname === "/api/admin/run-snapshot" && request.method === "POST") {
+      return withJsonError(() => handleAdminRunSnapshot(request, env), "run-snapshot");
+    }
+    if (url.pathname === "/api/admin/report/weekly" && request.method === "GET") {
+      return withJsonError(() => handleAdminWeeklyReport(request, env, url), "weekly-report");
+    }
+    if (url.pathname === "/api/analytics/trend" && request.method === "GET") {
+      return withJsonError(() => handleAnalyticsTrend(request, env, url), "trend");
+    }
+
     if (url.pathname === "/api/works" && request.method === "GET") {
       return handleWorks(request, env);
     }
@@ -1010,5 +1206,13 @@ export default {
 
     // それ以外は静的アセット（unit.html, supporter.html, images/等）をそのまま配信
     return env.ASSETS.fetch(request);
+  },
+
+  // ㉖ 定期実行（wrangler.jsonc の triggers.crons：UTC 19:00＝JST 4:00）。PCの電源とは無関係にCloudflare側で動く
+  async scheduled(controller, env, ctx) {
+    const snapDate = jstDateString(new Date(controller.scheduledTime));
+    ctx.waitUntil(runDailySnapshot(env, snapDate).catch(e => {
+      console.error("daily snapshot error", snapDate, e);
+    }));
   }
 };

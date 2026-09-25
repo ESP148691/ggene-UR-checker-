@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>週間レポート作成（運営者専用） | Gジェネエターナル ファンツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+<style>
+  :root{
+    --void:#05070d;
+    --panel:rgba(16,22,32,.68);
+    --panel-2:#0e141d;
+    --line:rgba(107,224,224,.16);
+    --line-strong:rgba(140,160,180,.28);
+    --gold:#dab949;
+    --cyan:#6be0e0;
+    --text:#eef3f6;
+    --muted:#93a3b3;
+    --ok:#7fd9a0;
+    --ng:#e79c9c;
+  }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  body{
+    margin:0;background:var(--void);color:var(--text);
+    font-family:'Noto Sans JP',sans-serif;-webkit-font-smoothing:antialiased;
+  }
+  main.wrap{max-width:720px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 16px 48px;}
+  .eyebrow{
+    font-family:'Share Tech Mono',monospace;letter-spacing:.16em;font-size:11px;color:var(--cyan);
+    text-transform:uppercase;margin:0 0 14px;
+  }
+  h1{font-size:22px;margin:0 0 8px;}
+  .sub{color:var(--muted);font-size:12.5px;line-height:1.8;margin:0 0 20px;}
+  .stateMsg{color:var(--muted);font-size:14px;padding:28px 0;text-align:center;}
+  .section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:16px;}
+  .section h2{font-size:15px;margin:0 0 12px;}
+  .ctlRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .ctlRow label{font-size:13px;color:var(--muted);}
+  input[type=date]{
+    background:var(--panel-2);color:var(--text);border:1px solid var(--line-strong);
+    font-size:16px;padding:6px 8px;color-scheme:dark;
+  }
+  button.btn{
+    font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:14px;cursor:pointer;
+    background:var(--gold);color:#1b1503;border:1px solid var(--gold);padding:9px 16px;
+  }
+  button.btn.sec{background:transparent;color:var(--cyan);border-color:var(--cyan);}
+  button.btn:disabled{opacity:.45;cursor:default;}
+  .note{font-size:12px;color:var(--muted);line-height:1.8;margin:10px 0 0;}
+  .msg{font-size:12.5px;line-height:1.7;margin:10px 0 0;min-height:1em;}
+  .msg.ok{color:var(--ok);}
+  .msg.ng{color:var(--ng);}
+  .previewBox{margin-top:14px;}
+  .previewBox img{width:100%;height:auto;display:block;border:1px solid var(--line-strong);background:#000;cursor:zoom-in;}
+  textarea{
+    width:100%;min-height:190px;background:var(--panel-2);color:var(--text);border:1px solid var(--line-strong);
+    font-size:14px;line-height:1.7;padding:10px;font-family:'Noto Sans JP',sans-serif;resize:vertical;
+  }
+  .countRow{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:10px;}
+  .count{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--muted);}
+  .count.over{color:var(--ng);font-weight:700;}
+
+  .previewModal{
+    position:fixed;inset:0;background:rgba(5,7,10,.94);display:none;align-items:center;justify-content:center;
+    flex-direction:column;gap:14px;padding:24px 16px;z-index:100;
+  }
+  .previewModal.show{display:flex;}
+  .previewModal img{max-width:96%;max-height:74vh;border:1px solid var(--line-strong);background:#000;}
+  .previewModal .msg{color:var(--muted);text-align:center;max-width:420px;}
+  .previewModal .msg b{color:var(--cyan);}
+</style>
+</head>
+<!-- data-auth-stay: ログインした人をトップへ飛ばさず、このページに戻す（auth.js） -->
+<body data-auth-stay>
+<main class="wrap">
+  <p class="eyebrow">ADMIN REPORT</p>
+  <div id="loadingView" class="stateMsg">読み込み中...</div>
+  <div id="guardView" class="stateMsg" hidden>運営者専用ページです</div>
+
+  <div id="contentView" hidden>
+    <h1>週間 UR所持率レポート</h1>
+    <p class="sub">毎日JST 4:00に集計したデータ（analytics_daily）から、X投稿用の画像（1200×675）と投稿文を作ります。</p>
+
+    <section class="section">
+      <h2>レポート作成</h2>
+      <div class="ctlRow">
+        <label for="reportDate">集計日</label>
+        <input type="date" id="reportDate">
+        <button type="button" class="btn" id="btnMake">画像を作成</button>
+      </div>
+      <p class="msg" id="makeMsg"></p>
+      <div class="previewBox" id="previewBox" hidden>
+        <img id="previewImg" alt="週間UR所持率レポートの画像">
+        <p class="note">画像をタップすると大きく表示します（長押し・右クリックで保存）。</p>
+      </div>
+    </section>
+
+    <section class="section" id="postSection" hidden>
+      <h2>投稿文の下書き</h2>
+      <textarea id="postText" aria-label="投稿文"></textarea>
+      <div class="countRow">
+        <span class="count" id="postCount"></span>
+        <button type="button" class="btn sec" id="btnCopy">コピー</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>集計の手動実行</h2>
+      <button type="button" class="btn sec" id="btnRunSnapshot">今日の集計を今すぐ実行</button>
+      <p class="note">定期実行（毎日JST 4:00）が失敗した日や、動作確認に使います。同じ日に何度実行しても結果は同じです（その時点の状態で上書き）。</p>
+      <p class="msg" id="runMsg"></p>
+    </section>
+  </div>
+</main>
+
+<div class="previewModal" id="previewModal">
+  <img id="modalImg" alt="週間UR所持率レポートの画像（拡大）">
+  <p class="msg"><b>長押し</b>（PCは右クリック）で画像を保存できます</p>
+  <button type="button" class="btn sec" id="btnCloseModal">閉じる</button>
+</div>
+
+<script>
+/* =====================================================================
+ * 背景：自己紹介カード（profile-card.html）の「宇宙世紀（銀河系）」背景の描画コードを
+ * スクリプトでそのままコピーしたもの（㉖C-6）。描画を変えるときはprofile-card.html側と合わせること
+ * ===================================================================== */
+const GalaxyBg = (function(){
+const W = 1200, H = 675;
+function mulberry(seed){ return ()=>{ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* 3Dバリューノイズ＋fBm（地球の大陸・雲、空の雲、星雲に使用） */
+function hash3(x,y,z){ let h=Math.imul(x,374761393)+Math.imul(y,668265263)+Math.imul(z,1274126177);
+  h=Math.imul(h^(h>>>13),1274126177); return ((h^(h>>>16))>>>0)/4294967296; }
+function noise3(x,y,z){
+  const xi=Math.floor(x), yi=Math.floor(y), zi=Math.floor(z);
+  const xf=x-xi, yf=y-yi, zf=z-zi, u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf), w=zf*zf*(3-2*zf);
+  const L=(a,b,t)=>a+(b-a)*t;
+  const c=(dx,dy,dz)=>hash3(xi+dx,yi+dy,zi+dz);
+  return L(L(L(c(0,0,0),c(1,0,0),u),L(c(0,1,0),c(1,1,0),u),v),
+           L(L(c(0,0,1),c(1,0,1),u),L(c(0,1,1),c(1,1,1),u),v),w);
+}
+function fbm(x,y,z,oct){ let a=0.5,f=1,s=0,n=0; for(let i=0;i<oct;i++){ s+=a*noise3(x*f,y*f,z*f); n+=a; a*=0.5; f*=2.03; } return s/n; }
+
+/* 背景は重いピクセル処理を含むため、論理解像度(1200×675)のオフスクリーンに1回だけ描き、テーマごとにキャッシュする */
+const bgCache={};
+function offscreen(w,h){ const c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
+
+/* ======================= 背景テーマ ======================= */
+function stars(ctx,n,seed,maxA){
+  const r=mulberry(seed);
+  for(let i=0;i<n;i++){
+    const x=r()*W, y=r()*H, s=r()<0.04?r()*1.6+1:r()*0.9+0.2, a=0.2+r()*(maxA-0.2);
+    ctx.fillStyle=`rgba(255,255,255,${a})`; ctx.beginPath(); ctx.arc(x,y,s,0,Math.PI*2); ctx.fill();
+    if(s>1.6){ // 明るい星の十字光
+      ctx.strokeStyle=`rgba(200,230,255,${a*0.5})`; ctx.lineWidth=0.6;
+      ctx.beginPath(); ctx.moveTo(x-s*4,y); ctx.lineTo(x+s*4,y); ctx.moveTo(x,y-s*4); ctx.lineTo(x,y+s*4); ctx.stroke();
+    }
+  }
+}
+
+// ① 宇宙世紀：銀河系（渦巻銀河＋星雲＋遠景のスペースコロニー）
+function bgGalaxy(layout){
+  const c=offscreen(W,H), ctx=c.getContext("2d");
+  const bg=ctx.createLinearGradient(0,0,W,H); bg.addColorStop(0,"#070b16"); bg.addColorStop(1,"#03050a");
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  // 星雲（ノイズで濃淡を付けたエメラルド〜バイオレットの霞）
+  const img=ctx.getImageData(0,0,W,H), d=img.data;
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const n=fbm(x/260,y/260,1.7,5), m=Math.max(0,n-0.48)*2.4;
+    const t=x/W, i=(y*W+x)*4;
+    d[i]  += m*(40+80*t);  d[i+1]+= m*(120-60*t); d[i+2]+= m*(110+60*t);
+  }
+  ctx.putImageData(img,0,0);
+  stars(ctx,420,7,0.85);
+  // 渦巻銀河（右上。楕円に傾けた対数螺旋の腕に粒子を配置）
+  // 見せ場の位置：パネルやバナーで隠れないヘッダー帯（タイトル文字とロゴの間）に置く
+  const [gx,gy,gs]=layout!=="standard"?[975,52,0.62]:[800,78,0.85], r=mulberry(42);
+  ctx.save(); ctx.translate(gx,gy); ctx.rotate(-0.30); ctx.scale(1.45*gs,0.5*gs);
+  const core=ctx.createRadialGradient(0,0,0,0,0,260);
+  core.addColorStop(0,"rgba(255,245,215,.9)"); core.addColorStop(0.05,"rgba(255,225,160,.45)");
+  core.addColorStop(0.2,"rgba(52,224,177,.16)"); core.addColorStop(1,"rgba(52,224,177,0)");
+  ctx.fillStyle=core; ctx.beginPath(); ctx.arc(0,0,260,0,Math.PI*2); ctx.fill();
+  ctx.globalCompositeOperation="lighter";
+  for(let arm=0;arm<2;arm++){
+    for(let k=0;k<4200;k++){
+      const t=0.35+r()*3.85, rad=18*Math.exp(0.62*t)+(r()-0.5)*26*(1+t*0.3);
+      const ang=t+arm*Math.PI+(r()-0.5)*0.5;
+      const x=Math.cos(ang)*rad, y=Math.sin(ang)*rad;
+      const hue=r(); const col=hue<0.55?"120,235,205":hue<0.85?"170,150,255":"255,220,160";
+      ctx.fillStyle=`rgba(${col},${0.10+r()*0.35})`;
+      ctx.beginPath(); ctx.arc(x,y,r()*1.6+0.3,0,Math.PI*2); ctx.fill();
+    }
+  }
+  ctx.restore(); ctx.globalCompositeOperation="source-over";
+  // 遠景のスペースコロニー（円筒＋3枚のミラー。シルエットのみの一般的なモチーフ）
+  const [kx,ky]=[600,646];   // フッター帯の中央（左右のフッター文字の間）
+  ctx.save(); ctx.translate(kx,ky); ctx.rotate(-0.12); ctx.scale(0.62,0.62);
+  const cw=150, ch=26;
+  const body=ctx.createLinearGradient(0,-ch/2,0,ch/2);
+  body.addColorStop(0,"#3a4a5e"); body.addColorStop(0.5,"#1c2533"); body.addColorStop(1,"#0c1119");
+  ctx.fillStyle=body; ctx.fillRect(-cw/2,-ch/2,cw,ch);
+  ctx.fillStyle="rgba(140,220,255,.55)";   // 採光窓（縞）
+  for(let i=0;i<3;i++) ctx.fillRect(-cw/2+8,-ch/2+4+i*7,cw-16,1.6);
+  ctx.strokeStyle="rgba(150,180,210,.45)"; ctx.lineWidth=1.2;
+  for(const s of [-1,0,1]){ ctx.beginPath(); ctx.moveTo(cw/2,0); ctx.lineTo(cw/2+70,s*22); ctx.stroke(); }
+  ctx.fillStyle="rgba(255,240,200,.9)"; ctx.beginPath(); ctx.arc(-cw/2,0,2.2,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  return c;
+}
+
+return { draw: bgGalaxy };
+})();
+</script>
+<script>
+const CONFIG = {
+  siteName: "Gジェネエターナル ファンツール",
+  siteUrl: "https://ggene-ur-checker.polarbear14869.workers.dev/",
+  xHandle: "@polarbear148691",
+  hashtag: "#ジージェネエターナル"
+};
+const $ = (id) => document.getElementById(id);
+const W = 1200, H = 675;
+const FONT = "sans-serif";
+const MONO = "monospace";
+
+function loadImage(src){
+  return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+}
+function fitText(ctx, text, maxW){
+  if (ctx.measureText(text).width <= maxW) return text;
+  let t = text;
+  while (t.length > 0 && ctx.measureText(t + "…").width > maxW) t = t.slice(0, -1);
+  return t + "…";
+}
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+// 正方形にトリミングして描く（中央基準）
+function drawSquare(ctx, im, x, y, s){
+  if (!im) { ctx.fillStyle = "#1a2330"; ctx.fillRect(x, y, s, s); return; }
+  const side = Math.min(im.width, im.height);
+  ctx.drawImage(im, (im.width - side) / 2, (im.height - side) / 2, side, side, x, y, s, s);
+  ctx.strokeStyle = "rgba(140,160,180,.45)"; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, s - 1, s - 1);
+}
+function pct(rate){ return (Math.round(rate * 1000) / 10).toFixed(1) + "%"; }
+function slashDate(d){ return d.replace(/-/g, "/"); }
+function shortDate(d){ const [, m, dd] = d.split("-").map(Number); return `${m}/${dd}`; }
+function shadowText(ctx, text, x, y){
+  ctx.save(); ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 6; ctx.fillText(text, x, y); ctx.restore();
+}
+function panel(ctx, x, y, w, h, title, accent){
+  ctx.save(); ctx.shadowColor = "rgba(0,0,0,.4)"; ctx.shadowBlur = 14;
+  roundRect(ctx, x, y, w, h, 10); ctx.fillStyle = "rgba(10,15,24,.72)"; ctx.fill(); ctx.restore();
+  roundRect(ctx, x, y, w, h, 10); ctx.strokeStyle = "rgba(107,224,224,.22)"; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = accent; ctx.fillRect(x, y + 16, 3, 20);
+  ctx.fillStyle = "#eef3f6"; ctx.font = `bold 19px ${FONT}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillText(title, x + 16, y + 26); ctx.textBaseline = "alphabetic";
+}
+
+let bgCanvas = null;
+async function drawReport(canvas, data){
+  const ctx = canvas.getContext("2d");
+  if (!bgCanvas) bgCanvas = GalaxyBg.draw("report");
+  ctx.drawImage(bgCanvas, 0, 0, W, H);
+  ctx.fillStyle = "rgba(3,5,10,.35)"; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "#2b3746"; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+
+  const ids = [...new Set([...data.top.map(t => t.unitId), ...data.gainers.map(g => g.unitId)])];
+  const imgs = {};
+  await Promise.all(ids.map(async id => { imgs[id] = await loadImage(`images/units/${id}.jpg`); }));
+
+  // 上部
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#6be0e0"; ctx.font = `bold 15px ${FONT}`;
+  shadowText(ctx, "ジージェネレーション　エターナル", 40, 46);
+  ctx.fillStyle = "#ffffff"; ctx.font = `bold 38px ${FONT}`;
+  shadowText(ctx, "週間 UR所持率レポート", 40, 90);
+  ctx.textAlign = "right"; ctx.fillStyle = "#dab949"; ctx.font = `bold 20px ${MONO}`;
+  shadowText(ctx, `${slashDate(data.date)} 時点｜データ登録 ${data.totalUsers}人`, W - 40, 90);
+
+  // 左：所持率TOP10
+  const LX = 40, LY = 116, LW = 676, LH = 500;
+  panel(ctx, LX, LY, LW, LH, "所持率 TOP10", "#dab949");
+  const rowH = 44, top0 = LY + 56;
+  const MEDAL = ["#e8c45a", "#c9d1d9", "#c58a4a"];
+  data.top.forEach((t, i) => {
+    const y = top0 + i * rowH, cy = y + rowH / 2 - 2;
+    if (i % 2 === 0) { ctx.fillStyle = "rgba(255,255,255,.035)"; ctx.fillRect(LX + 10, y - 2, LW - 20, rowH - 2); }
+    // 順位（1〜3位は金・銀・銅のメダル）
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    if (i < 3) {
+      ctx.fillStyle = MEDAL[i]; ctx.beginPath(); ctx.arc(LX + 38, cy, 15, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#1b1503"; ctx.font = `bold 17px ${MONO}`; ctx.fillText(String(i + 1), LX + 38, cy + 1);
+    } else {
+      ctx.fillStyle = "#9fb0c0"; ctx.font = `bold 17px ${MONO}`; ctx.fillText(String(i + 1), LX + 38, cy + 1);
+    }
+    drawSquare(ctx, imgs[t.unitId], LX + 64, cy - 18, 36);
+    // 所持率
+    ctx.textAlign = "right"; ctx.fillStyle = i < 3 ? MEDAL[i] : "#eef3f6"; ctx.font = `bold 22px ${MONO}`;
+    ctx.fillText(pct(t.ownedRate), LX + LW - 22, cy + 1);
+    // 名前（＋期間限定の「限」バッジ）
+    const badgeW = t.limited ? 26 : 0;
+    const nameX = LX + 112, nameMax = LW - 112 - 130 - badgeW;
+    ctx.textAlign = "left"; ctx.fillStyle = "#eef3f6"; ctx.font = `17px ${FONT}`;
+    const name = fitText(ctx, t.name || `No.${t.unitId}`, nameMax);
+    ctx.fillText(name, nameX, cy + 1);
+    if (t.limited) {
+      const bx = nameX + ctx.measureText(name).width + 8;
+      roundRect(ctx, bx, cy - 10, 20, 20, 3); ctx.fillStyle = "rgba(218,185,73,.18)"; ctx.fill();
+      ctx.strokeStyle = "#dab949"; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = "#dab949"; ctx.font = `bold 13px ${FONT}`; ctx.textAlign = "center"; ctx.fillText("限", bx + 10, cy + 1);
+    }
+    ctx.textBaseline = "alphabetic";
+  });
+
+  // 右：今週伸びたユニットTOP3
+  const RX = 736, RY = 116, RW = 424, RH = 500;
+  panel(ctx, RX, RY, RW, RH, "今週伸びたユニット", "#7fd9a0");
+  if (!data.gainers.length) {
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#9fb0c0"; ctx.font = `18px ${FONT}`;
+    ctx.fillText("来週から表示します", RX + RW / 2, RY + RH / 2 + 10);
+    ctx.textBaseline = "alphabetic";
+  }
+  data.gainers.forEach((g, i) => {
+    const y = RY + 60 + i * 144;
+    roundRect(ctx, RX + 14, y, RW - 28, 130, 8); ctx.fillStyle = "rgba(255,255,255,.04)"; ctx.fill();
+    drawSquare(ctx, imgs[g.unitId], RX + 26, y + 14, 102);
+    const tx = RX + 142, tmax = RW - 142 - 22;
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#9fb0c0"; ctx.font = `bold 14px ${MONO}`; ctx.fillText(`#${i + 1}`, tx, y + 32);
+    ctx.fillStyle = "#eef3f6"; ctx.font = `bold 18px ${FONT}`; ctx.fillText(fitText(ctx, g.name || `No.${g.unitId}`, tmax), tx, y + 58);
+    ctx.fillStyle = "#c7d2dc"; ctx.font = `16px ${MONO}`; ctx.fillText(`${pct(g.prevRate)} → ${pct(g.ownedRate)}`, tx, y + 88);
+    ctx.fillStyle = "#7fd9a0"; ctx.font = `bold 24px ${MONO}`; ctx.fillText(`+${g.deltaPt.toFixed(1)}pt`, tx, y + 118);
+  });
+
+  // 下部
+  const sg = ctx.createLinearGradient(0, H - 56, 0, H); sg.addColorStop(0, "rgba(3,5,10,0)"); sg.addColorStop(0.6, "rgba(3,5,10,.7)");
+  ctx.fillStyle = sg; ctx.fillRect(0, H - 56, W, 56);
+  ctx.textAlign = "left"; ctx.fillStyle = "#c7d2dc"; ctx.font = `14px ${FONT}`;
+  const siteLabel = CONFIG.siteName + "　";
+  shadowText(ctx, siteLabel, 40, H - 24);
+  ctx.fillStyle = "#6be0e0"; ctx.font = `14px ${MONO}`;
+  shadowText(ctx, CONFIG.siteUrl, 40 + (ctx.font = `14px ${FONT}`, ctx.measureText(siteLabel).width), H - 24);
+  ctx.textAlign = "right"; ctx.fillStyle = "#6be0e0"; ctx.font = `bold 15px ${MONO}`;
+  shadowText(ctx, CONFIG.xHandle, W - 40, H - 24);
+  ctx.textAlign = "left";
+}
+
+// ---- 投稿文 ----
+// 全角2・半角1・URLは23で数える（profile-card.htmlのtweetWeightと同じ）
+function tweetWeight(text){
+  let n = 0;
+  for (const line of text.split("\n")) {
+    const parts = line.split(/(https?:\/\/\S+)/);
+    parts.forEach((p, i) => {
+      if (i % 2 === 1) { n += 23; return; }
+      for (const ch of p) n += ch.codePointAt(0) <= 0x7f || (ch >= "｡" && ch <= "ﾟ") ? 1 : 2;
+    });
+  }
+  return n + text.split("\n").length - 1;
+}
+function buildPostText(data){
+  const lines = [`【Gジェネエターナル】週間UR所持率レポート（${shortDate(data.date)}時点・データ登録${data.totalUsers}人）`];
+  data.top.slice(0, 3).forEach((t, i) => lines.push(`${i + 1}位 ${t.name} ${pct(t.ownedRate)}`));
+  if (data.gainers.length) lines.push(`今週いちばん伸びたのは「${data.gainers[0].name}」（+${data.gainers[0].deltaPt.toFixed(1)}pt）`);
+  lines.push(CONFIG.hashtag);
+  lines.push(CONFIG.siteUrl);
+  return lines.join("\n");
+}
+function updateCount(){
+  const n = tweetWeight($("postText").value);
+  const el = $("postCount");
+  el.textContent = `${n} / 280`;
+  el.classList.toggle("over", n > 280);
+  if (n > 280) el.textContent += "（超過）";
+}
+
+// ---- 画面 ----
+async function fetchJson(url, opts){
+  const res = await fetch(url, Object.assign({ credentials: "same-origin" }, opts || {}));
+  let data = null;
+  try { data = await res.json(); } catch (e) {}
+  return { status: res.status, data };
+}
+function setMsg(el, text, kind){
+  el.textContent = text;
+  el.className = "msg" + (kind ? " " + kind : "");
+}
+
+async function makeReport(){
+  const btn = $("btnMake");
+  btn.disabled = true;
+  setMsg($("makeMsg"), "作成中…");
+  try {
+    const date = $("reportDate").value;
+    const r = await fetchJson("/api/admin/report/weekly" + (date ? "?date=" + encodeURIComponent(date) : ""));
+    if (r.status !== 200 || !r.data) {
+      $("previewBox").hidden = true;
+      $("postSection").hidden = true;
+      setMsg($("makeMsg"), r.data && r.data.error === "no_data" ? "この日の集計データがありません。" : "データの取得に失敗しました（" + r.status + "）。", "ng");
+      return;
+    }
+    const data = r.data;
+    if (!date) $("reportDate").value = data.date;
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    await drawReport(canvas, data);
+    const url = canvas.toDataURL("image/png");
+    $("previewImg").src = url;
+    $("modalImg").src = url;
+    $("previewBox").hidden = false;
+    $("postText").value = buildPostText(data);
+    $("postSection").hidden = false;
+    updateCount();
+    setMsg($("makeMsg"), `${slashDate(data.date)}時点（比較：${data.prevDate ? slashDate(data.prevDate) : "なし"}）のレポートを作成しました。`, "ok");
+  } catch (e) {
+    console.error(e);
+    setMsg($("makeMsg"), "作成に失敗しました：" + e.message, "ng");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$("btnMake").addEventListener("click", makeReport);
+$("previewImg").addEventListener("click", () => $("previewModal").classList.add("show"));
+$("btnCloseModal").addEventListener("click", () => $("previewModal").classList.remove("show"));
+$("postText").addEventListener("input", updateCount);
+$("btnCopy").addEventListener("click", async () => {
+  const text = $("postText").value;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    $("postText").select();
+    document.execCommand("copy");
+  }
+  $("btnCopy").textContent = "コピーしました";
+  setTimeout(() => { $("btnCopy").textContent = "コピー"; }, 1600);
+});
+$("btnRunSnapshot").addEventListener("click", async () => {
+  const btn = $("btnRunSnapshot");
+  btn.disabled = true;
+  setMsg($("runMsg"), "集計中…");
+  try {
+    const r = await fetchJson("/api/admin/run-snapshot", { method: "POST" });
+    if (r.status === 200 && r.data && r.data.ok) {
+      setMsg($("runMsg"), `${slashDate(r.data.snapDate)} の集計を保存しました（${r.data.rows}行）。`, "ok");
+      $("reportDate").value = r.data.snapDate;
+    } else {
+      setMsg($("runMsg"), "集計に失敗しました（" + r.status + (r.data && r.data.message ? "：" + r.data.message : "") + "）。", "ng");
+    }
+  } catch (e) {
+    setMsg($("runMsg"), "通信エラーが発生しました。", "ng");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// 起動：運営者でなければ「運営者専用ページです」とだけ表示して終了（他のAPIは呼ばない）
+(async function init(){
+  let admin = false;
+  try {
+    const r = await fetchJson("/api/admin/me");
+    admin = !!(r.data && r.data.admin);
+  } catch (e) {}
+  $("loadingView").hidden = true;
+  if (!admin) { $("guardView").hidden = false; return; }
+  $("contentView").hidden = false;
+  // 既定の日付は最新の集計日
+  try {
+    const r = await fetchJson("/api/admin/report/weekly");
+    if (r.status === 200 && r.data) $("reportDate").value = r.data.date;
+    else setMsg($("makeMsg"), "集計データがまだありません。下の「今日の集計を今すぐ実行」で作成できます。");
+  } catch (e) {}
+})();
+</script>
+<script src="auth.js" defer></script>
+</body>
+</html>

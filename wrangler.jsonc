@@ -7,6 +7,14 @@
     "binding": "ASSETS",
     "exclude": ["worker.js", "wrangler.jsonc", "migrations/*"]
   },
+  // ㉖ 定時分析：毎日UTC 19:00（JST 4:00）にworker.jsのscheduled()を実行
+  "triggers": {
+    "crons": ["0 19 * * *"]
+  },
+  // ㉖ 運営者（report.html・/api/admin/*を使えるログインユーザー名）。カンマ区切りで複数可
+  "vars": {
+    "ADMIN_USERNAMES": "ESP"
+  },
   "observability": {
     "enabled": true,
     "logs": {
