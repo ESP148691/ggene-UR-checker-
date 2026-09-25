@@ -693,6 +693,7 @@ Cowork側の実装依頼書`docs/05_機能拡張_有料プラン/㉖入手記録
 - `top.html`：「ログイン会員限定」の下に`#adminSection`（「運営者専用」：週間所持率レポート→`/report.html`、スクショ読み取り（試験版）→`/unit-scan.html`）を`hidden`で追加。ログイン中なら`toggleAdminNav()`が`/api/admin/me`を呼び、`admin:true`のときだけ表示
 - `unit-scan.html`：`report.html`と同じく`/api/admin/me`で判定するガードを追加。判定が済むまで`html.scanLocked`で本体（`.wrap`内のauthbar以外・`.actionbar`）を隠し、運営者なら解除、それ以外（未ログイン含む）は「運営者専用ページです」だけを表示。`<body data-auth-stay>`を付けてこのページでログインしたらその場で戻るようにした。**クライアント側の表示制御のみ**（HTML・JS自体は誰でも取得できるが、読み取り処理はブラウザ内で完結しサーバーに運営者用のデータは無いため問題なし）
 - 検証：Playwrightで12件成功（未ログイン・一般ユーザー・ESPの3通りでトップの導線とunit-scanのガード、ESPで読み取り69機、JSエラーなし）
+- commit `80f160f`、段階B・Cとあわせて`git push origin main`（2026-09-25）。本番で未ログイン時に`/api/admin/me`が`{admin:false}`、`run-snapshot`・`weekly`・`trend`が401、`/api/my-ownership`が`{loggedIn:false}`、`/report`・`/unit-scan`・`/top`・`/unit`が200で新コード（`adminSection`・`scanLocked`・`acq-panel`）を配信していることを確認（デプロイ直後の1分ほどは旧版が混在した）
 - 運営者を増やすときは`wrangler.jsonc`の`ADMIN_USERNAMES`に追記するだけで、トップの導線・`report.html`・`unit-scan.html`・`/api/admin/*`がすべて連動する
 
 **未実施（要対応）**
