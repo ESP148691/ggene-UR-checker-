@@ -44,6 +44,11 @@ function toJstIsoString(date) {
   return jst.toISOString().replace("Z", "+09:00");
 }
 
+// JSTの日付 YYYY-MM-DD（㉖ 入手日の上限判定・定時分析のsnap_date）
+function jstDateString(date) {
+  return toJstIsoString(date).slice(0, 10);
+}
+
 async function createSession(env, userUid) {
   const token = crypto.randomUUID() + crypto.randomUUID();
   const now = new Date();
@@ -197,29 +202,104 @@ async function incrementUsageCounter(env, counterKey) {
 }
 
 // 所持データは履歴を積み上げず「最新状態のスナップショット」として保持する。
-// 送信の都度、そのuser_uidの既存行を削除してから現在の所持状態を入れ直す
-// （バッチ処理のため、Workerからのラウンドトリップは1回で済む）
+// ㉖ 入手記録（acquired_on・gasha_pulls・memo）を行に持たせるため、「全削除→入れ直し」から
+// 「差分更新」に変更した（入れ直しだと、acqを送らない登録のたびに入手記録が消えてしまう）。
+//   既存にあって今回も所持 → UPDATE（凸・登録日時。acqMapにIDがあれば入手記録の3列も）
+//   既存に無く今回所持     → INSERT（入手記録はacqMapにあればその値、無ければNULL）
+//   既存にあって今回未所持 → DELETE（入手記録も消える）
+// すべて1回のenv.DB.batch()で実行する（D1のbatchはトランザクションとして扱われる）。
+// acqMapはユニットのみ（サポートはnull）。acqMapに無いIDの入手記録の列には一切触れない
 //
 // ⑬ 補足（2026-09-22時点で懸念、2026-09-23訂正）：所持率100%超え不具合の調査当初、複数端末・
-// 複数タブからの送信競合で同一(user_uid, idColumn)の重複行が残る可能性を懸念し、この関数をON
-// CONFLICTによるUPSERT方式に変更する改善案を検討したが、本番D1で実際に確認した結果、重複行は
-// 存在しなかった。真の原因はmigrations/0006のバックフィル適用とworker.jsデプロイの間の「デプロイ
-// ギャップ」で、これは冪等なバックフィルSQLの再実行のみで解消済み（詳細はdocs/⑬所持率100%超え
-// 不具合_調査と改善設計.md末尾の訂正）。そのため、この関数のUPSERT化・migrations/0007
-// （一意インデックス追加案）は前提が誤りだったとして見送りのまま据え置く（適用しない）
-async function replaceOwnership(env, table, idColumn, userUid, entries) {
+// 複数タブからの送信競合で同一(user_uid, idColumn)の重複行が残る可能性を懸念したが、本番D1で
+// 確認した結果、重複行は存在しなかった（詳細はdocs/01_所持チェッカー・DB登録/⑬所持率100%超え
+// 不具合_調査と改善設計.md末尾の訂正）。差分更新でも(user_uid, idColumn)単位で扱うため、万一重複行が
+// あってもUPDATE/DELETEは全行に効く
+async function syncOwnership(env, table, idColumn, userUid, entries, acqMap) {
   const now = toJstIsoString(new Date()); // ⑪ 表示用のregistered_atはJST表記で保存する
-  const statements = [
-    env.DB.prepare(`DELETE FROM ${table} WHERE user_uid = ?`).bind(userUid)
-  ];
-  for (const entry of entries) {
-    statements.push(
-      env.DB.prepare(
+  const { results } = await env.DB.prepare(
+    `SELECT DISTINCT ${idColumn} AS id FROM ${table} WHERE user_uid = ?`
+  ).bind(userUid).all();
+  const existing = new Set(results.map(r => r.id));
+  // 同じIDが複数回送られた場合は後の値を採用（旧方式は重複行を作り、読み出し側では後の行が残っていた）
+  const levels = new Map();
+  for (const entry of entries) levels.set(entry.id, entry.level);
+  const current = new Set(levels.keys());
+  const statements = [];
+  for (const [id, level] of levels) {
+    const entry = { id, level };
+    const acq = acqMap && acqMap.has(entry.id) ? acqMap.get(entry.id) : undefined;
+    if (existing.has(entry.id)) {
+      if (acq !== undefined) {
+        statements.push(env.DB.prepare(
+          `UPDATE ${table} SET level = ?, registered_at = ?, acquired_on = ?, gasha_pulls = ?, memo = ?
+           WHERE user_uid = ? AND ${idColumn} = ?`
+        ).bind(entry.level, now, acq.d, acq.n, acq.m, userUid, entry.id));
+      } else {
+        statements.push(env.DB.prepare(
+          `UPDATE ${table} SET level = ?, registered_at = ? WHERE user_uid = ? AND ${idColumn} = ?`
+        ).bind(entry.level, now, userUid, entry.id));
+      }
+    } else if (acq !== undefined) {
+      statements.push(env.DB.prepare(
+        `INSERT INTO ${table} (registered_at, user_uid, ${idColumn}, level, acquired_on, gasha_pulls, memo)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind(now, userUid, entry.id, entry.level, acq.d, acq.n, acq.m));
+    } else {
+      statements.push(env.DB.prepare(
         `INSERT INTO ${table} (registered_at, user_uid, ${idColumn}, level) VALUES (?, ?, ?, ?)`
-      ).bind(now, userUid, entry.id, entry.level)
-    );
+      ).bind(now, userUid, entry.id, entry.level));
+    }
   }
-  await env.DB.batch(statements);
+  for (const id of existing) {
+    if (!current.has(id)) {
+      statements.push(env.DB.prepare(
+        `DELETE FROM ${table} WHERE user_uid = ? AND ${idColumn} = ?`
+      ).bind(userUid, id));
+    }
+  }
+  if (statements.length) await env.DB.batch(statements);
+}
+
+// ㉖ 入手記録の入手日。YYYY-MM-DD または YYYY-MM。実在する日付で、2025-01以降かつJSTの今日（YYYY-MMは今月）以前。
+// 不正ならnull（リクエスト全体は失敗させない）
+const ACQ_MIN_MONTH = "2025-01";
+function normalizeAcqDate(value, todayJst) {
+  if (typeof value !== "string") return null;
+  const m = /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/.exec(value);
+  if (!m) return null;
+  const y = Number(m[1]), mo = Number(m[2]);
+  if (m[3]) {
+    const d = Number(m[3]);
+    const dt = new Date(Date.UTC(y, mo - 1, d));
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  }
+  if (value.slice(0, 7) < ACQ_MIN_MONTH) return null;
+  if (m[3] ? value > todayJst : value > todayJst.slice(0, 7)) return null;
+  return value;
+}
+
+// ㉖ リクエストのacq（{ "id": {d,n,m} | null }）を Map(id → {d,n,m}) に正規化する。
+// acqが無い・オブジェクトでない・キー数がMAX_UNIT_IDを超える → null（入手記録には一切触れない）。
+// 値がnull → 3列ともNULL（記録の削除）。各項目は不正ならその項目だけNULL。範囲外IDは読み飛ばす
+function parseAcqMap(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const keys = Object.keys(raw);
+  if (keys.length > MAX_UNIT_ID) return null;
+  const today = jstDateString(new Date());
+  const map = new Map();
+  for (const key of keys) {
+    if (!/^\d+$/.test(key)) continue;
+    const id = Number(key);
+    if (id < 1 || id > MAX_UNIT_ID) continue;
+    const v = raw[key];
+    if (v === null) { map.set(id, { d: null, n: null, m: null }); continue; }
+    if (typeof v !== "object" || Array.isArray(v)) continue;
+    const n = Number.isInteger(v.n) && v.n >= 1 && v.n <= 9999 ? v.n : null;
+    const memo = normalizeProfileText(v.m, 50, false);
+    map.set(id, { d: normalizeAcqDate(v.d, today), n, m: memo === undefined ? null : memo });
+  }
+  return map;
 }
 
 // 所持データのログ収集エンドポイント（機体版・サポート版共通）
@@ -241,12 +321,13 @@ async function handleOwnershipLog(request, env, isSupporter) {
     if (sessionUser && body) {
       const entries = parseCompactOwnershipLog(body.log, isSupporter ? MAX_SUPPORTER_ID : MAX_UNIT_ID);
       await touchUserLastSeenAndMarkRegistered(env, sessionUser.userUid, isSupporter);
-      await replaceOwnership(
+      await syncOwnership(
         env,
         isSupporter ? "supporters_ownership" : "units_ownership",
         isSupporter ? "supporter_id" : "unit_id",
         sessionUser.userUid,
-        entries
+        entries,
+        isSupporter ? null : parseAcqMap(body.acq)
       );
     } else if (!sessionUser) {
       await incrementUsageCounter(env, isSupporter ? "supporter_guest" : "unit_guest");
@@ -338,17 +419,31 @@ async function handleMyOwnership(request, env, isSupporter) {
     `SELECT ${registeredColumn} AS registeredAt FROM users WHERE user_uid = ?`
   ).bind(sessionUser.userUid).first();
 
+  // ㉖ ユニット版のみ入手記録（acq）も返す。3列のどれかがNULLでない行だけ、NULLの項目はキーごと省く
   const { results } = await env.DB.prepare(
-    `SELECT ${idColumn} AS id, level FROM ${table} WHERE user_uid = ?`
+    isSupporter
+      ? `SELECT ${idColumn} AS id, level FROM ${table} WHERE user_uid = ?`
+      : `SELECT ${idColumn} AS id, level, acquired_on, gasha_pulls, memo FROM ${table} WHERE user_uid = ?`
   ).bind(sessionUser.userUid).all();
 
   const ownership = {};
-  for (const row of results) ownership[String(row.id)] = row.level;
-  return jsonResponse({
+  const acq = {};
+  for (const row of results) {
+    ownership[String(row.id)] = row.level;
+    if (isSupporter) continue;
+    const rec = {};
+    if (row.acquired_on != null) rec.d = row.acquired_on;
+    if (row.gasha_pulls != null) rec.n = row.gasha_pulls;
+    if (row.memo != null) rec.m = row.memo;
+    if (Object.keys(rec).length) acq[String(row.id)] = rec;
+  }
+  const data = {
     loggedIn: true,
     registered: !!(userRow && userRow.registeredAt),
     ownership
-  }, 200);
+  };
+  if (!isSupporter) data.acq = acq;
+  return jsonResponse(data, 200);
 }
 
 // ⑩ エタロ攻略チェッカー（エキスパート難易度）。

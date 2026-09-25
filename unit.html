@@ -147,6 +147,34 @@
     border:1px solid var(--gold-dim);padding:1px 5px;flex:0 0 auto;
   }
 
+  .unit .icon{cursor:pointer;}
+  .unit .acq-mark{font-size:12px;margin-left:4px;}
+  /* ㉖ 入手記録（任意）の入力欄。アイコンのタップで開閉する */
+  .acq-panel{
+    margin-top:8px;padding:10px;background:var(--panel-2);border:1px solid var(--line);
+    font-size:12.5px;display:flex;flex-direction:column;gap:8px;
+  }
+  .acq-panel .acq-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .acq-panel .acq-label{color:var(--muted);width:64px;flex:0 0 64px;}
+  .acq-panel select, .acq-panel input{
+    background:var(--panel);color:var(--text);border:1px solid var(--line);
+    font-size:16px;padding:4px 6px;font-family:'Noto Sans JP',sans-serif;
+  }
+  .acq-panel input[type=number]{width:96px;}
+  .acq-panel input[type=text]{flex:1;min-width:0;}
+  .acq-panel .acq-err{color:#e79c9c;font-size:12px;}
+  .acq-panel .acq-err:empty{display:none;}
+  .acq-panel .acq-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .acq-panel .acq-note{color:var(--muted);font-size:11.5px;}
+  .acq-panel .acq-clear{
+    background:transparent;color:var(--muted);border:1px solid var(--line);
+    font-size:11.5px;padding:4px 10px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;flex:0 0 auto;
+  }
+  .acq-panel .acq-empty{color:var(--muted);}
+  @media (max-width:360px){
+    .acq-panel .acq-label{width:100%;flex-basis:100%;}
+  }
+
   .totsu-row{display:flex;gap:5px;}
   .totsu-btn{
     flex:1;
@@ -233,7 +261,7 @@
     <img class="logo" src="images/logo.png" alt="ESP logo">
     <h1>UR所持率チェッカー</h1>
   </div>
-  <p class="sub">各ユニットの限界突破（凸）段階をタップして記録してください。所持率が自動計算されます。（全<span id="totalRef">0</span>機収録）</p>
+  <p class="sub">各ユニットの限界突破（凸）段階をタップして記録してください。所持率が自動計算されます。（全<span id="totalRef">0</span>機収録）アイコンをタップすると入手記録（任意）を付けられます。</p>
 
   <div class="regStatus" id="regStatus" hidden></div>
 
@@ -331,6 +359,41 @@ let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
 // DBによる上書きをスキップして直近の編集を優先するためのフラグ
 let userEditedSinceLoad = false;
 
+/* ㉖ 入手記録（任意）：id -> { d: 入手日 YYYY-MM-DD|YYYY-MM, n: ガシャ回数, m: メモ }。
+   ACQ_DIRTY_KEYは「この端末で編集してまだ登録していないID」。送信時はこのIDだけをacqに入れる
+   （他の端末で付けた記録を、この端末の古い値で上書きしないため） */
+const ACQ_KEY = "urchecker_acq_v1";
+const ACQ_DIRTY_KEY = "urchecker_acq_dirty_v1";
+function loadJson(key, fallback){
+  try { const v = JSON.parse(localStorage.getItem(key) || "null"); return v && typeof v === "object" ? v : fallback; } catch(e) { return fallback; }
+}
+let acq = loadJson(ACQ_KEY, {});
+if (Array.isArray(acq)) acq = {};
+const acqDirtyRaw = loadJson(ACQ_DIRTY_KEY, []);
+let acqDirty = new Set(Array.isArray(acqDirtyRaw) ? acqDirtyRaw.map(String) : []);
+let openAcqId = null; // 入力欄を開いている行のユニットID（render()で作り直しても開いたままにする）
+
+function persistAcq(){
+  try {
+    localStorage.setItem(ACQ_KEY, JSON.stringify(acq));
+    localStorage.setItem(ACQ_DIRTY_KEY, JSON.stringify([...acqDirty]));
+  } catch(e) { console.warn(e); }
+}
+function hasAcq(id){
+  const r = acq[id];
+  return !!(r && (r.d || r.n || r.m));
+}
+// 未所持にする前の確認。入手記録のあるユニットが含まれていればconfirmを出し、OKなら端末内の記録を消して
+// dirtyに加える（サーバー側は行の削除で消える）。キャンセルならfalse
+function confirmAcqRemoval(ids){
+  const hit = ids.map(String).filter(hasAcq);
+  if (!hit.length) return true;
+  if (!confirm("入手記録も削除されます。よろしいですか？")) return false;
+  hit.forEach(id => { delete acq[id]; acqDirty.add(id); });
+  persistAcq();
+  return true;
+}
+
 const listEl = document.getElementById("list");
 document.getElementById("totalRef").textContent = UNITS.length;
 
@@ -357,11 +420,12 @@ function render(){
     const lv = state.hasOwnProperty(u.id) ? state[u.id] : null;
     const row = document.createElement("div");
     row.className = "unit" + (lv !== null ? " lv" + lv : "");
+    row.dataset.uid = u.id;
     row.innerHTML = `
       <div class="unit-top">
-        <img class="icon" src="${u.imageUrl || ''}" alt="${u.name}" loading="lazy">
+        <img class="icon" src="${u.imageUrl || ''}" alt="${u.name}" loading="lazy" role="button" tabindex="0" aria-expanded="${openAcqId === u.id}" title="入手記録（任意）">
         <div class="idx">${String(u.id).padStart(2,"0")}</div>
-        <div class="name">${u.name}</div>
+        <div class="name">${u.name}${lv !== null && hasAcq(u.id) ? '<span class="acq-mark" title="入手記録あり">📝</span>' : ''}</div>
         ${u.limited ? '<div class="badge">期間限定</div>' : ''}
       </div>
       <div class="totsu-row" data-id="${u.id}">
@@ -372,15 +436,147 @@ function render(){
         <div class="totsu-btn ${lv===3 ? 'active lv3' : ''}" data-lv="3">完凸</div>
       </div>
     `;
+    if (openAcqId === u.id) row.appendChild(buildAcqPanel(u.id, lv !== null));
     listEl.appendChild(row);
   });
 }
 
+/* ㉖ 入手記録の入力欄。入力のたびに端末へ保存し、dirtyに加える。
+   入力中はrender()を呼ばない（作り直すとフォーカスが外れるため）。📝の印だけ直接更新する */
+function jstToday(){
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+function buildAcqPanel(id, owned){
+  const panel = document.createElement("div");
+  panel.className = "acq-panel";
+  if (!owned) {
+    panel.innerHTML = `<div class="acq-empty">所持している場合に記録できます</div>`;
+    return panel;
+  }
+  const rec = acq[id] || {};
+  const thisYear = Number(jstToday().slice(0, 4));
+  const [ry, rm, rd] = (rec.d || "").split("-").map(Number);
+  const opt = (v, label, sel) => `<option value="${v}"${sel ? " selected" : ""}>${label}</option>`;
+  let years = opt("", "—", !ry);
+  for (let y = 2025; y <= thisYear; y++) years += opt(y, y + "年", ry === y);
+  let months = opt("", "—", !rm);
+  for (let m = 1; m <= 12; m++) months += opt(m, m + "月", rm === m);
+  let days = opt("", "—", !rd);
+  for (let d = 1; d <= 31; d++) days += opt(d, d + "日", rd === d);
+  panel.innerHTML = `
+    <div class="acq-line"><span class="acq-label">入手日</span>
+      <select class="acq-y" aria-label="入手年">${years}</select>
+      <select class="acq-m" aria-label="入手月">${months}</select>
+      <select class="acq-d" aria-label="入手日">${days}</select>
+    </div>
+    <div class="acq-line"><span class="acq-label">ガシャ回数</span>
+      <input class="acq-n" type="number" inputmode="numeric" min="1" max="9999" step="1" aria-label="ガシャ回数"> 回
+    </div>
+    <div class="acq-line"><span class="acq-label">メモ</span>
+      <input class="acq-memo" type="text" maxlength="50" placeholder="例：天井でお迎え" aria-label="メモ">
+    </div>
+    <div class="acq-err" role="alert"></div>
+    <div class="acq-foot">
+      <span class="acq-note">『データ登録』を押すと保存されます</span>
+      <button type="button" class="acq-clear">記録を消す</button>
+    </div>`;
+  // 保存済みの値はvalue経由で入れる（ユーザー入力をHTML文字列に埋め込まない）
+  panel.querySelector(".acq-n").value = rec.n != null ? rec.n : "";
+  panel.querySelector(".acq-memo").value = rec.m || "";
+  return panel;
+}
+
+// 入力欄の値を読み、正しい項目だけを記録に反映する。不正な項目は赤字で注意を出し、その項目は保存しない（直前の値のまま）。
+// 入手日は年と月がそろったときだけ有効（日が「—」ならYYYY-MM）
+function onAcqInput(panel, id){
+  const prev = acq[id] || {};
+  const next = {};
+  const errs = [];
+  const y = panel.querySelector(".acq-y").value;
+  const mo = panel.querySelector(".acq-m").value;
+  const d = panel.querySelector(".acq-d").value;
+  if (y && mo) {
+    const ym = `${y}-${String(mo).padStart(2, "0")}`;
+    let date = ym;
+    let valid = true;
+    if (d) {
+      date = `${ym}-${String(d).padStart(2, "0")}`;
+      const dt = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
+      if (dt.getUTCMonth() !== Number(mo) - 1) { valid = false; errs.push("存在しない日付です"); }
+    }
+    const today = jstToday();
+    if (valid && (d ? date > today : ym > today.slice(0, 7))) { valid = false; errs.push("未来の日付は記録できません"); }
+    if (valid) next.d = date;
+    else if (prev.d) next.d = prev.d;
+  }
+  const nEl = panel.querySelector(".acq-n");
+  const nRaw = nEl.value.trim();
+  if (nRaw || nEl.validity.badInput) {
+    const n = Number(nRaw);
+    if (nRaw && Number.isInteger(n) && n >= 1 && n <= 9999) next.n = n;
+    else { errs.push("ガシャ回数は1〜9999の整数で入力してください"); if (prev.n) next.n = prev.n; }
+  }
+  const m = panel.querySelector(".acq-memo").value.replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g, "").trim();
+  if (m) next.m = m;
+  panel.querySelector(".acq-err").textContent = errs.join("／");
+  if (next.d || next.n || next.m) acq[id] = next; else delete acq[id];
+  acqDirty.add(String(id));
+  persistAcq();
+  updateAcqMark(id);
+}
+function updateAcqMark(id){
+  const row = listEl.querySelector(`.unit[data-uid="${id}"]`);
+  if (!row) return;
+  const name = row.querySelector(".name");
+  let mark = name.querySelector(".acq-mark");
+  const show = state.hasOwnProperty(id) && hasAcq(id);
+  if (show && !mark) {
+    mark = document.createElement("span");
+    mark.className = "acq-mark";
+    mark.title = "入手記録あり";
+    mark.textContent = "📝";
+    name.appendChild(mark);
+  } else if (!show && mark) {
+    mark.remove();
+  }
+}
+function toggleAcqPanel(id){
+  openAcqId = openAcqId === id ? null : id;
+  render();
+}
+
+listEl.addEventListener("input", (e) => {
+  const panel = e.target.closest(".acq-panel");
+  if (panel && e.target.tagName === "INPUT") onAcqInput(panel, Number(panel.closest(".unit").dataset.uid));
+});
+listEl.addEventListener("change", (e) => {
+  const panel = e.target.closest(".acq-panel");
+  if (panel && e.target.tagName === "SELECT") onAcqInput(panel, Number(panel.closest(".unit").dataset.uid));
+});
+listEl.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("icon")) {
+    e.preventDefault();
+    toggleAcqPanel(Number(e.target.closest(".unit").dataset.uid));
+  }
+});
+
 listEl.addEventListener("click", (e) => {
+  if (e.target.classList.contains("icon")) {
+    toggleAcqPanel(Number(e.target.closest(".unit").dataset.uid));
+    return;
+  }
+  const clear = e.target.closest(".acq-clear");
+  if (clear) {
+    const panel = clear.closest(".acq-panel");
+    panel.querySelectorAll("select, input").forEach(el => { el.value = ""; });
+    onAcqInput(panel, Number(panel.closest(".unit").dataset.uid));
+    return;
+  }
   const btn = e.target.closest(".totsu-btn");
   if (!btn) return;
   const id = Number(btn.closest(".totsu-row").dataset.id);
   const lv = btn.dataset.lv === "none" ? null : Number(btn.dataset.lv);
+  if (lv === null && !confirmAcqRemoval([id])) return;
   setLevel(id, lv);
 });
 
@@ -442,11 +638,14 @@ document.getElementById("btnAllMax").addEventListener("click", () => {
   visibleUnits().forEach(u => state[u.id] = 3); persist(); render(); updateStats();
 });
 document.getElementById("btnLimited").addEventListener("click", () => {
+  const limitedIds = new Set(UNITS.filter(u => u.limited).map(u => String(u.id)));
+  if (!confirmAcqRemoval(Object.keys(state).filter(id => !limitedIds.has(id)))) return;
   state = {};
   UNITS.filter(u => u.limited).forEach(u => state[u.id] = 0);
   persist(); render(); updateStats();
 });
 document.getElementById("btnNone").addEventListener("click", () => {
+  if (!confirmAcqRemoval(Object.keys(state))) return;
   state = {}; persist(); render(); updateStats();
 });
 
@@ -723,6 +922,8 @@ function sendOwnershipLog(){
       avg: Number(s.avg.toFixed(2)),
       log: buildCompactOwnershipLog()
     };
+    const acqPayload = buildAcqPayload();
+    if (acqPayload) payload.acq = acqPayload;
     return fetch("/api/log", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -733,6 +934,22 @@ function sendOwnershipLog(){
     /* 分析用送信の失敗は利用体験に影響させない */
     return Promise.reject(e);
   }
+}
+
+// ㉖ この端末で編集してまだ登録していない入手記録（dirtyのIDのみ）。記録が空になったIDはnull。dirtyが空ならnull
+function buildAcqPayload(){
+  if (!acqDirty.size) return null;
+  const out = {};
+  acqDirty.forEach(id => {
+    const r = acq[id];
+    if (!hasAcq(id)) { out[id] = null; return; }
+    const v = {};
+    if (r.d) v.d = r.d;
+    if (r.n) v.n = r.n;
+    if (r.m) v.m = r.m;
+    out[id] = v;
+  });
+  return out;
 }
 
 let registerToastTimer = null;
@@ -774,12 +991,19 @@ function updateRegStatus(){
 // 送信時点の所持状況を控えておき、ログイン中として保存できたら「登録済み」の表示を更新する
 function sendOwnershipLogAndTrack(){
   const snapshot = Object.assign({}, state);
+  const sentAcq = buildAcqPayload() || {};
   const p = sendOwnershipLog();
   return p.then(res => res.clone().json().catch(() => null).then(data => {
     if (data && data.loggedIn) {
       loggedInForReg = true;
       registeredOwnership = snapshot;
       updateRegStatus();
+      // ㉖ ログイン中として保存できたらdirtyを空にする（送信中に編集されたIDは残す）
+      const now = buildAcqPayload() || {};
+      Object.keys(sentAcq).forEach(id => {
+        if (JSON.stringify(now[id]) === JSON.stringify(sentAcq[id])) acqDirty.delete(id);
+      });
+      persistAcq();
     }
     return res;
   }));
@@ -798,7 +1022,11 @@ function sendOwnershipLogAndTrack(){
     if (data && data.loggedIn && data.ownership && !userEditedSinceLoad) {
       state = {};
       for (const [id, level] of Object.entries(data.ownership)) state[id] = level;
-      persist(); render(); updateStats();
+      // ㉖ 入手記録もサーバーの値で置き換え、この端末で未登録の編集（dirty）だけ端末の値を優先する
+      const local = acq;
+      acq = Object.assign({}, data.acq && typeof data.acq === "object" ? data.acq : {});
+      acqDirty.forEach(id => { if (local[id]) acq[id] = local[id]; else delete acq[id]; });
+      persist(); persistAcq(); render(); updateStats();
     }
     updateRegStatus();
   } catch (e) { /* 失敗時は既存のlocalStorage状態のまま */ }
