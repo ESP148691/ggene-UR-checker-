@@ -20,7 +20,7 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `analytics.html` — データ登録結果レポート（分析ページ。ログインユーザー限定・2026-09-19新設。2026-09-24に「みんなの所持率ランキング」→「全軍戦況レポート」→「ログインユーザーレポート」→「データ登録結果レポート」と改名し、エタロ攻略タブを追加）
 - `eternal-road.html` — エタロ攻略チェッカー（エターナルロード エキスパート難易度。全29ステージ・69ミッション。2026-09-23新設・⑩⑭。同日⑮でバナー画像・通常クリア・3ボタン・フィルタ追加、**ログインユーザー限定**化）
 - `profile-card.html` — 自己紹介カード作成ページ（㉒・2026-09-24新設。ログインユーザー限定。テンプレート3種×背景4種の16:9カードをCanvasで生成。描画は`docs/04_自己紹介カード/試作HTML/㉑自己紹介カード_試作5_プロトタイプ.html`から移植した`CardRenderer`。**トップページの導線`#profileCardNav`は`hidden`のまま**＝テスト運用後にユーザー指示で公開）
-- `unit-scan.html` / `unit-scan.js` — ㉖段階A（㉕案3）：スクショ読み取り試験版（2026-09-25公開）。`unit.html`（2026-09-25時点）のコピー＋ゲームの「強化 > ユニット」一覧のスクショからURユニットと凸を判定する機能。判定はすべてブラウザ内（サーバー送信なし）、保存先は`unit.html`と同じ（同じlocalStorageキー・同じ`/api/log`）。トップページからのリンクなし・`noindex`。**`unit.html`を変更しても自動では反映されない**（試験運用後、別途指示で`unit.html`へ統合予定）
+- `unit-scan.html` / `unit-scan.js` — ㉖段階A（㉕案3）：スクショ読み取り試験版（2026-09-25公開）。`unit.html`（2026-09-25時点）のコピー＋ゲームの「強化 > ユニット」一覧のスクショからURユニットと凸を判定する機能。判定はすべてブラウザ内（サーバー送信なし）、保存先は`unit.html`と同じ（同じlocalStorageキー・同じ`/api/log`）。`noindex`。**運営者専用**（2026-09-25ユーザー指示。`/api/admin/me`で判定し、運営者以外には「運営者専用ページです」だけを表示。トップの「運営者専用」節から遷移）。**`unit.html`を変更しても自動では反映されない**（試験運用後、別途指示で`unit.html`へ統合予定）
 - `report.html` — ㉖段階C：週間UR所持率レポート作成ページ（**運営者専用**。`/api/admin/me`で判定し、運営者以外は「運営者専用ページです」のみ表示。`noindex`・トップからのリンクなし・`data-auth-stay`）。1200×675のレポート画像（背景は`profile-card.html`の銀河背景をスクリプトでコピーした`GalaxyBg`）と投稿文を作る。「今日の集計を今すぐ実行」ボタンあり
 - `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`・`analytics.html`・`eternal-road.html`・`profile-card.html`から読み込む。ログイン成功後は`/top`へ遷移するが、`<body data-auth-stay>`のページ（`eternal-road.html`・`profile-card.html`）はその場でリロード（⑮）
 - `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）、所持データログ収集API（`/api/log`・`/api/log-supporter`。**ログイン済みユーザーのみD1保存、ゲストは匿名カウンタのみ加算＝2026-09-19〜**）、分析API（`/api/analytics/units`・`/api/analytics/supporters`、ログイン必須。2026-09-19新設。`/api/analytics/eternal-road`は2026-09-24新設）、自己紹介カードAPI（`/api/works`・`/api/profile-card`・`/api/profile`。㉒・2026-09-24新設）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
@@ -37,8 +37,8 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `migrations/0010_eternal_road_stage_clears.sql` — ⑮通常クリア用`eternal_road_stage_clears`テーブル新設・`users.eternal_road_first_registered_at`追加・既存ミッション達成からのバックフィル。**適用済み（2026-09-24にユーザー確認）**。INSERT/UPDATEは冪等だが、**`ALTER TABLE`は再実行するとエラーになるため、再実行時はALTER文だけ除いて実行すること**
 - `migrations/0011_profile_card.sql` — ㉒自己紹介カードの5テーブル（`works_master`・`unit_work_map`・`user_profiles`・`user_favorite_works`・`user_favorite_units`）＋`idx_fav_work`。冪等（`CREATE TABLE IF NOT EXISTS`）。**適用済み（2026-09-24）**
 - `migrations/0012_populate_works_master.sql` — 作品マスター106件＋URユニット→作品の対応84件の投入。冪等（`INSERT OR REPLACE`）。**適用済み（2026-09-24）**
-- `migrations/0013_units_ownership_acquisition.sql` — ㉖段階B：`units_ownership`に入手記録の3列（`acquired_on` TEXT・`gasha_pulls` INTEGER・`memo` TEXT）を追加。`docs/05_機能拡張_有料プラン/データ/㉖0013_…sql`とバイト単位で同一。**`ALTER TABLE`のため再実行するとduplicate columnエラー（＝適用済みの意味）**。**コードより先に適用すること**（逆順だと入手記録付きの登録が`handleOwnershipLog()`のtry/catchで握りつぶされ、画面上は成功に見えて保存されない。また`/api/my-ownership`が列不在でエラーになり起動時の復元が止まる）。**未適用（2026-09-25時点）**
-- `migrations/0014_analytics_daily.sql` — ㉖段階C：定時分析の`analytics_daily`・`analytics_daily_summary`（冪等）。`docs/05_…/データ/㉖0014_…sql`と同一。コードより先に適用すること（未適用だと定期実行・`/api/admin/*`がエラー。既存ページには影響なし）。**未適用（2026-09-25時点）**
+- `migrations/0013_units_ownership_acquisition.sql` — ㉖段階B：`units_ownership`に入手記録の3列（`acquired_on` TEXT・`gasha_pulls` INTEGER・`memo` TEXT）を追加。`docs/05_機能拡張_有料プラン/データ/㉖0013_…sql`とバイト単位で同一。**`ALTER TABLE`のため再実行するとduplicate columnエラー（＝適用済みの意味）**。**コードより先に適用すること**（逆順だと入手記録付きの登録が`handleOwnershipLog()`のtry/catchで握りつぶされ、画面上は成功に見えて保存されない。また`/api/my-ownership`が列不在でエラーになり起動時の復元が止まる）。**適用済み（2026-09-25、ユーザーがD1 Consoleで実行）**
+- `migrations/0014_analytics_daily.sql` — ㉖段階C：定時分析の`analytics_daily`・`analytics_daily_summary`（冪等）。`docs/05_…/データ/㉖0014_…sql`と同一。コードより先に適用すること（未適用だと定期実行・`/api/admin/*`がエラー。既存ページには影響なし）。**適用済み（2026-09-25）**
 - `images/eternal-road/1.jpg`〜`29.jpg` — エタロのステージバナー（640×234px。ユーザー撮影のスクショからCoworkが切り出し。⑮）
 - `images/eternal-road/icon/1.jpg`〜`29.jpg` — トップページのエタロ導線用アイコン（136×136px。各バナーの横中央・上端170×170を切り抜き。`scripts/make_eternal_road_icons.py`で生成。**バナーを差し替え・追加したら再実行すること**）
 - `images/series/1.png`〜`106.png` — 作品アイコン（ゲーム内「シリーズ絞り込み」画面のロゴ。運営者のスクショからCoworkが切り出し、320×140。番号＝`works_master.work_id`）
@@ -140,7 +140,7 @@ CREATE TABLE usage_counters (
 
 この2件の適用前は、ゲストの`/api/log`・`/api/log-supporter`送信時に`usage_counters`への書き込みがテーブル不在でエラーになる可能性があるが、`handleOwnershipLog()`はtry/catchで囲まれているためチェッカー本体（画像生成・プレビュー・シェア）の動作には影響しない（利用回数カウンタが記録されないだけ）。適用済みの現在は、カウンタも正常に記録される。
 
-### ㉖入手記録・定時分析（`migrations/0013`・`0014`。2026-09-25追加・要適用）
+### ㉖入手記録・定時分析（`migrations/0013`・`0014`。2026-09-25追加・適用済み）
 ```sql
 -- 0013
 ALTER TABLE units_ownership ADD COLUMN acquired_on TEXT;     -- 入手日 YYYY-MM-DD または YYYY-MM
@@ -654,7 +654,7 @@ URユニット・URサポート・作品を追加するときに、そろえて�
 - `docs/WEBサイト仕様書.md`の2.7節（Xシェア文）を更新済み
 - commit（`460fc1d`）・`git push origin main`済み（2026-09-24）
 
-### ㉖ 入手記録・スクショ読み取り・定時分析（2026-09-25。段階Aは本番公開済み。段階B・Cはcommit済み・**D1への0013・0014の適用待ちでpush未実施**）
+### ㉖ 入手記録・スクショ読み取り・定時分析（2026-09-25。段階A〜Cすべてcommit・push済み。D1の0013・0014はユーザーが適用後にpush）
 Cowork側の実装依頼書`docs/05_機能拡張_有料プラン/㉖入手記録・スクショ読み取り・定時分析_実装依頼書.md`に基づき実装した（㉕と食い違う箇所は㉖を優先）。運営者ユーザーはユーザー指定で`ESP`。
 
 **全段階共通**
@@ -667,7 +667,7 @@ Cowork側の実装依頼書`docs/05_機能拡張_有料プラン/㉖入手記録
 - 「新ユニット・作品の追加手順」に6（`SCAN_FIT`の追加方法）を追記
 - **未確認**：実機（スマホ）でのスクショ読み取り。テスト運用で問題なければ別途指示で`unit.html`へ統合（今回の範囲外）
 
-**段階B：入手記録（commit `8e27cdc`。push待ち）**
+**段階B：入手記録（commit `8e27cdc`。push済み）**
 1. **`worker.js`**
    - `replaceOwnership()`（全削除→入れ直し）を`syncOwnership(env, table, idColumn, userUid, entries, acqMap)`（差分更新）に置き換え、ユニット・サポートの両方で使用。既存IDを`SELECT DISTINCT`で読み、今回も所持→UPDATE（`level`・`registered_at`。`acqMap`にあるIDは入手記録3列も）、新規→INSERT、未所持→DELETE を1回の`DB.batch()`で実行。同じIDが1回のリクエストに複数あるときは後の値を採用（旧方式は重複行を作り、読み出しでは後の行が勝っていたため、それに合わせた。実際のクライアントは重複を送らない）
    - `parseAcqMap()`・`normalizeAcqDate()`：依頼書B-3どおり（キー数84超は全体無視、値`null`は3列NULL、項目単位で不正ならNULL、範囲外IDは読み飛ばし）。メモは既存の`normalizeProfileText(m, 50, false)`
@@ -678,7 +678,7 @@ Cowork側の実装依頼書`docs/05_機能拡張_有料プラン/㉖入手記録
 3. `supporter.html`・`unit-scan.html`・画像出力・Xシェア文は変更なし
 - **検証**：sql.js＋D1互換モックのハーネス（`migrations/0001`〜`0013`の実ファイル）で66件成功（依頼書B-7の1〜5：運用パターン1〜13、不正値、キー85個、変更前の`worker.js`と同じ操作列でサポート・ユニットの保存結果と`/api/analytics/*`・`/api/profile-card`の結果が一致、0013未適用＋新コードでは`acq`付き登録が保存されない＝逆順NGの確認）。画面はAPIモックで53件成功（B-7の6）。320px・390pxのスクリーンショットを目視確認
 
-**段階C：定時分析＋週間レポート（commit `90763cc`。push待ち）**
+**段階C：定時分析＋週間レポート（commit `90763cc`。push済み）**
 1. **`worker.js`**
    - `handleAnalyticsEternalRoad()`の集計部分を`queryEternalRoadCounts()`に切り出し（既存APIの結果が変わらないことをテストで確認）。ユニット／サポートは`queryOwnershipCounts()`（`handleAnalytics()`と同じ`COUNT(DISTINCT user_uid)`＋完凸者数）
    - `runDailySnapshot(env, snapDate)`：231行＋summary1行を`INSERT OR REPLACE`で1回の`DB.batch()`
@@ -689,15 +689,21 @@ Cowork側の実装依頼書`docs/05_機能拡張_有料プラン/㉖入手記録
 - **検証**：ハーネスで50件成功（C-9の1〜6＋trend）。`report.html`はAPIモックで21件成功（C-9の7）。生成画像（通常・gainersなし）を目視確認
 - 既存のエタロ・分析・自己紹介カードAPIの結果が変更前と同じことをハーネスで確認
 
+**運営者専用ページの表示制御（2026-09-25・ユーザーからの直接依頼。D1適用の報告時に「運営者アカウントESPにのみ、レポートとユニットスキャンページを表示」との指示）**
+- `top.html`：「ログイン会員限定」の下に`#adminSection`（「運営者専用」：週間所持率レポート→`/report.html`、スクショ読み取り（試験版）→`/unit-scan.html`）を`hidden`で追加。ログイン中なら`toggleAdminNav()`が`/api/admin/me`を呼び、`admin:true`のときだけ表示
+- `unit-scan.html`：`report.html`と同じく`/api/admin/me`で判定するガードを追加。判定が済むまで`html.scanLocked`で本体（`.wrap`内のauthbar以外・`.actionbar`）を隠し、運営者なら解除、それ以外（未ログイン含む）は「運営者専用ページです」だけを表示。`<body data-auth-stay>`を付けてこのページでログインしたらその場で戻るようにした。**クライアント側の表示制御のみ**（HTML・JS自体は誰でも取得できるが、読み取り処理はブラウザ内で完結しサーバーに運営者用のデータは無いため問題なし）
+- 検証：Playwrightで12件成功（未ログイン・一般ユーザー・ESPの3通りでトップの導線とunit-scanのガード、ESPで読み取り69機、JSエラーなし）
+- 運営者を増やすときは`wrangler.jsonc`の`ADMIN_USERNAMES`に追記するだけで、トップの導線・`report.html`・`unit-scan.html`・`/api/admin/*`がすべて連動する
+
 **未実施（要対応）**
-- **デプロイ手順（段階B・C）**：①Cloudflareダッシュボード（D1 > Console）で`migrations/0013_units_ownership_acquisition.sql`を実行（1回だけ。duplicate columnエラーは適用済みの意味）→ ②`migrations/0014_analytics_daily.sql`を実行（冪等）→ ③直後に`git push origin main`。**①②より先にpushしないこと**
+- ~~デプロイ手順（段階B・C）~~ → 2026-09-25にユーザーがD1で0013→0014を実行後、push済み
 - push後：運営者（`ESP`）でログインし`/report.html`の「今日の集計を今すぐ実行」→ D1 Consoleで`SELECT COUNT(*) FROM analytics_daily`＝231、`SELECT * FROM analytics_daily_summary`＝1行を確認。翌朝4時以降、定期実行で翌日分が入っていることを確認（ダッシュボード > Workers > ggene-ur-checker の「トリガー」「ログ」でも確認できる）
 - 本番で`unit.html`の入手記録（入力→データ登録→別端末・再読み込みで復元）を実機確認
 - `SCAN_FIT`が無い15機（運営者の所持一覧スクショに写っていなかったユニット）の追加（手順は「新ユニット・作品の追加手順」6）
 - `analytics.html`への推移グラフ（データが7日分以上たまってから別途依頼）、テンプレートB〜E、X APIでの自動投稿は今回の範囲外
 
 ## 次にやること
-- ㉖：**D1に0013→0014を適用してもらってからpush**（段階B・Cはcommit済み）。push後の確認手順は上の「㉖」節の「未実施（要対応）」。スクショ読み取り試験版（`/unit-scan.html`）のテスト運用
+- ㉖：push済み。本番での`report.html`の手動集計（231行の確認）・翌朝4時の定期実行の確認・入手記録の実機確認（「㉖」節の「未実施（要対応）」）。スクショ読み取り試験版（運営者専用）のテスト運用
 - ㉒：D1適用・push済み。、`/profile-card.html`のテスト運用、iOS Safari実機確認、指示後にトップ導線の`hidden`を外す
 - ⑮：`migrations/0008`〜`0010`は適用済み、トップページへの導線も2026-09-24に公開済みで完了。`CONFIG.quotePostUrl`も2026-09-24に設定済み
 - ⑬は解決済み（上記訂正参照）。追加対応は不要

@@ -322,6 +322,27 @@
     </a>
   </div>
 
+  <!-- ㉖ 運営者専用の導線。/api/admin/me が admin:true のときだけ表示（toggleAdminNav()） -->
+  <div class="section" id="adminSection" hidden>
+    <p class="sectionLabel">運営者専用</p>
+    <a class="navcard" href="/report.html">
+      <div class="icon analyticsIcon" aria-hidden="true">🗞️</div>
+      <div class="body">
+        <div class="name">週間<wbr>所持率<wbr>レポート</div>
+        <div class="desc">定時集計からX投稿用のレポート画像と投稿文を作成（運営者専用）</div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
+    <a class="navcard" href="/unit-scan.html">
+      <div class="icon analyticsIcon" aria-hidden="true">📷</div>
+      <div class="body">
+        <div class="name">スクショ<wbr>読み取り<wbr>（試験版）</div>
+        <div class="desc">ユニット一覧のスクショから所持URと凸を読み取るUR所持率チェッカー（運営者専用）</div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
+  </div>
+
   <div class="section soonGroup">
     <p class="sectionLabel">今後追加予定</p>
     <!-- 確定時: ROUTE 04 → 「称号獲得チェッカー」のnavcard（route内と同じ構造）に差し替え -->
@@ -590,10 +611,21 @@
         if (data && data.loggedIn) {
           section.hidden = false;
           showRegStatus();
+          toggleAdminNav();
         }
       })
       .catch(function(){ /* 失敗時は非表示のまま（ゲスト表示にフォールバック） */ });
   })();
+
+  /* ---------------- ㉖ 運営者（wrangler.jsoncのADMIN_USERNAMES）にだけ運営者専用の導線を表示 ---------------- */
+  function toggleAdminNav(){
+    var section = document.getElementById('adminSection');
+    if (!section) return;
+    fetch('/api/admin/me', { credentials: 'same-origin' })
+      .then(function(res){ return res.json(); })
+      .then(function(data){ if (data && data.admin === true) section.hidden = false; })
+      .catch(function(){ /* 失敗時は非表示のまま */ });
+  }
 
   /* ---------------- ログイン中のみ、各チェッカーのデータ登録状況を導線カードに表示 ----------------
      登録済みならDBに登録されている所持率、未登録ならデータ登録を促す。取得失敗時は何も表示しない */

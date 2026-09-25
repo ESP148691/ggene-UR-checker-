@@ -289,11 +289,17 @@
   .scanBar .apply:disabled{opacity:.4;cursor:default;}
   .scanBar .cancel{background:transparent;color:var(--muted);}
   .scanDebug{font-family:'Share Tech Mono',monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;background:#05080b;border:1px solid var(--line);padding:8px;color:#9fb3c2;margin-top:10px;}
+  /* ㉖ 運営者専用：判定が済むまで本体を隠し、運営者でなければガードだけを表示する */
+  html.scanLocked .wrap > :not(.authbar):not(#adminGuard), html.scanLocked .actionbar{display:none !important;}
+  #adminGuard{color:var(--muted);font-size:14px;padding:40px 0;text-align:center;}
 </style>
+<script>document.documentElement.classList.add("scanLocked");</script>
 </head>
-<body>
+<!-- data-auth-stay: ログインした人をトップへ飛ばさず、このページに戻す（auth.js） -->
+<body data-auth-stay>
 
 <div class="wrap">
+  <div id="adminGuard">読み込み中...</div>
   <div class="eyebrow">ジージェネレーション　エターナル</div>
   <div class="titlerow">
     <img class="logo" src="images/logo.png" alt="ESP logo">
@@ -1164,6 +1170,24 @@ updateStats();
     updateStats();
     showRegisterToast(`${n}機を反映しました。保存するには「データ登録」を押してください`);
   });
+})();
+</script>
+<script>
+// ㉖ 運営者専用（report.htmlと同じく/api/admin/meで判定）。運営者なら本体を表示し、それ以外は案内だけ
+(async function adminGate(){
+  const guard = document.getElementById("adminGuard");
+  let admin = false;
+  try {
+    const res = await fetch("/api/admin/me", { credentials: "same-origin" });
+    const data = await res.json();
+    admin = !!(data && data.admin === true);
+  } catch (e) {}
+  if (admin) {
+    guard.remove();
+    document.documentElement.classList.remove("scanLocked");
+  } else {
+    guard.textContent = "運営者専用ページです";
+  }
 })();
 </script>
 <script src="auth.js" defer></script>
