@@ -347,6 +347,16 @@ function drawFrame(ctx, d, badge){
   ctx.font = `bold 17px ${FONT}`; const statW = ctx.measureText(statLine).width;
   const titleMax = W - 40 - statW - 40 - 40;
   for (; fs > 28; fs--) { ctx.font = `bold ${fs}px ${FONT}`; if (ctx.measureText(d.type.title).width <= titleMax) break; }
+  // 一言バッジが見出しの横に入らない（12pxでもはみ出す）ときは、見出しを28pxまで縮めて場所を空ける
+  // （期間限定URユニット・サポートは見出しが長く、38pxのままだとバッジを描けなかったため。ユーザー指示 2026-09-26）
+  if (badge) {
+    ctx.font = `bold 12px ${FONT}`; const need = ctx.measureText(badge).width + 24;
+    for (; fs > 28; fs--) {
+      ctx.font = `bold ${fs}px ${FONT}`;
+      if ((W - 40 - statW - 16) - (40 + ctx.measureText(d.type.title).width + 14) >= need) break;
+    }
+    ctx.font = `bold ${fs}px ${FONT}`;
+  }
   ctx.fillStyle = "#ffffff"; shadowText(ctx, d.type.title, 40, 90);
   const tw = ctx.measureText(d.type.title).width;
   if (badge) {

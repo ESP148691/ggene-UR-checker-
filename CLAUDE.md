@@ -760,14 +760,13 @@ Cowork側の実装依頼書`docs/05_機能拡張_有料プラン/㉘ログイン
 - `worker.js`：`GET /api/admin/report/ownership?kind=unit|supporter&date=`（`handleAdminReportOwnership()`。更新後の依頼書3-4の実装の目安どおり。応答は`{ kind, date, totalUsers, items: [{ id, name, limited, ownedCount, maxCount }] }`で、1週間前との比較値（`prevDate`等）は持たない）。`requireAdmin`・`withJsonError(…, "report-ownership")`、ルーティングはweeklyの直後。`/api/admin/report/weekly`は`report.html`から使わなくなったが互換のため残置
 - `report.html`：更新後の試作`docs/05_…/試作HTML/㉗X投稿用レポート_試作.html`の描画エンジンを**スクリプトで移植**（`REPORT_TYPES`（6種類）・`RANK_LIMIT`（30。試作は`let`、本番は`const`）・`MEDAL`・`drawThumb()`・`imgPath()`（`BASE`は外して`images/…`）・`limitedBadge()`・`rankMark()`・`buildReportData()`・`drawFrame()`・`drawFooter()`・`layoutRanking()`・`layoutCards()`・`drawOwnershipReport()`・`buildOwnershipPost()`、`panel()`は試作版に差し替え）。移植した11関数が試作と1文字も違わないことをスクリプトで確認。旧`drawSquare()`・`drawReport()`・`buildPostText()`・期間限定用の`fetchLimitedData()`〜`makeLimitedReport()`・`jstToday()`・`daysBetween()`は削除。ラジオ6択（既定`unit_all`）・一言欄は常時表示・起動時の既定日は新API（`kind=unit`）・完了メッセージ「{集計日}時点の{種類}レポートを作成しました。」
 - `top.html`：運営者欄「X投稿用レポート」の説明文を「定時集計からURユニット・URサポートの所持率レポート画像と投稿文を作成（運営者専用）」に
-- **試作どおりの挙動で要確認の点**：一言バッジは見出しの右の空き幅が60px以下だと描かないため、見出しの長い**期間限定URユニット（空き14px）・期間限定URサポート（37px）では画像にバッジが出ない**（投稿文には「…ありがとうございます！」の行が入る）。モック画像でも同じ。画像にも出したい場合は見出しの縮小下限や2行目への配置などを別途検討
+- **一言バッジ（追加改修）**：試作どおりだと見出しの右の空き幅が60px以下のとき描かないため、見出しの長い期間限定URユニット（空き14px）・期間限定URサポート（37px）では画像にバッジが出なかった。一言バッジが見出しの横に12pxでも入らないときは、見出しを38→28pxの範囲で縮めて場所を空ける（`drawFrame()`。試作からの意図的な変更＝2026-09-26ユーザー指示「一言バッジも期間限定で画像に出るように直して」）。これで6種類とも画像にバッジが出る（例：12文字の「データ登録100人突破！」で見出しは全URユニット・全URサポート38px、恒常35px、期間限定URサポート30px、期間限定URユニット29px。一言なしのときは従来どおり38px）。28pxまで縮めても入らない長い一言（期間限定の2種類で20文字など）は従来どおり「…」で省略。検証：6種類×一言なし／5・12・20文字で57件成功（バッジが描かれる、右上の文字と重ならない、12文字以下は省略なし、一言なしと全URユニット・全URサポートの12文字は見出し38pxのまま）、既存の段階Cテスト74件も再実行して成功。見出し部分を目視確認
 - 検証：Node環境が無いため、`worker.js`をヘッドレスChromium内でESモジュールとしてそのまま読み込み、`env.DB`をPythonのsqlite3（`migrations`の実ファイル＋CLAUDE.mdの基本スキーマで作成、ユーザー40人の所持データ）へ`expose_function`でブリッジするハーネスを作成（本物の`run-snapshot`で231行を生成）。画面は`page.route`でそのハーネスのworkerにつないで74件成功（更新後の依頼書3-6の1〜7：権限200/403/401、`kind`不正・なし・`date`形式不正は400、データ無しは404、`date`省略時は最新日、84件・49件、応答に比較値が無いこと、6種類の件数84・58・26・49・43・6／ランキングに載る件数30・30・26・30・30・カード6／レイアウト、恒常・期間限定の絞り込み、「限」バッジは「全」の種類だけ（描画時の呼び出し回数＝表示中の期間限定の行数、他の種類は0回）、1人あたり平均が対象全件で計算、投稿文280以内（一言あり・なし）で伸びの行なし、**期間限定URユニットの数値が変更前の`report.html`の`fetchLimitedData()`（trend26回方式）と完全一致**、一般ユーザーはガード、weekly APIが引き続き動作、JSエラーなし）。6種類の生成画像を目視確認
 
 **commit**：段階D `f3e2827`／段階A `29f557c`（`git add`のパス指定ミスで`unit-scan.html`の削除だけが先に入った）＋`e249823`（残りの変更）／段階B `b8485ea`／段階C `b047885`（当初版の5種類）→ 6種類化（このcommit）。ほかにログインモーダルの説明文変更 `c12e750`。すべて`git push origin main`済み
 
 **未実施（要対応）**
 - 本番確認：未ログインで`/unit`・`/supporter.html`がガードのみ、ログイン→同じページで本体表示。運営者（`ESP`）で`/report.html`の6種類を作成、`/supporter-scan.html`の読み取り（実機スマホ）
-- 一言バッジが期間限定の2種類で画像に出ない件の扱い（上記）
 - `supporter-scan.js`の`SCAN_FIT`が無い18体の学習（「新ユニット・作品の追加手順」7）。試用で問題なければ別途指示で`supporter.html`へ統合
 
 ## 次にやること
