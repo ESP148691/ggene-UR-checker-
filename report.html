@@ -100,6 +100,7 @@
       <h2>レポート作成</h2>
       <div class="typeRow" id="typeRow">
         <label><input type="radio" name="reportType" value="unit_all" checked> 全URユニット 所持率</label>
+        <label><input type="radio" name="reportType" value="unit_permanent"> 恒常URユニット 所持率</label>
         <label><input type="radio" name="reportType" value="unit_limited"> 期間限定URユニット 所持率</label>
         <label><input type="radio" name="reportType" value="sup_all"> 全URサポート 所持率</label>
         <label><input type="radio" name="reportType" value="sup_permanent"> 恒常URサポート 所持率</label>
@@ -252,14 +253,15 @@ const MONO = "monospace";
 // ㉘ レポートの種類（docs/05_…/試作HTML/㉗X投稿用レポート_試作.html から移植）
 const REPORT_TYPES = {
   unit_all:      { kind: "unit",      scope: "all",       title: "全URユニット 所持率レポート",       label: "URユニット",       noun: "機", post: "全URユニット所持率" },
+  unit_permanent:{ kind: "unit",      scope: "permanent", title: "恒常URユニット 所持率レポート",     label: "恒常URユニット",     noun: "機", post: "恒常URユニット所持率" },
   unit_limited:  { kind: "unit",      scope: "limited",   title: "期間限定URユニット 所持率レポート", label: "期間限定URユニット", noun: "機", post: "期間限定URユニット所持率" },
   sup_all:       { kind: "supporter", scope: "all",       title: "全URサポート 所持率レポート",       label: "URサポート",       noun: "体", post: "全URサポート所持率" },
   sup_permanent: { kind: "supporter", scope: "permanent", title: "恒常URサポート 所持率レポート",     label: "恒常URサポート",     noun: "体", post: "恒常URサポート所持率" },
   sup_limited:   { kind: "supporter", scope: "limited",   title: "期間限定URサポート 所持率レポート", label: "期間限定URサポート", noun: "体", post: "期間限定URサポート所持率" }
 };
-const GAINER_MIN_OWNED = 10;   // 既存の週間レポートと同じ（少人数の誤解を招く数字を出さない）
+// 2列ランキングに載せる上位の件数（左列1〜15位・右列16〜30位）
+const RANK_LIMIT = 30;
 const MEDAL = ["#e8c45a", "#c9d1d9", "#c58a4a"];
-
 
 function loadImage(src){
   return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
@@ -316,22 +318,18 @@ function rankMark(ctx, rank, cx, cy, r){
 }
 
 /* ---------- データの整形（APIの応答 → レポート用） ---------- */
-// resp: { date, prevDate, totalUsers, prevTotalUsers, items:[{id,name,limited,ownedCount,maxCount,prevOwnedCount|null}] }
+// resp: { date, totalUsers, items:[{id,name,limited,ownedCount,maxCount}] }
 function buildReportData(resp, typeKey){
   const t = REPORT_TYPES[typeKey];
   const items = resp.items.filter(i => t.scope === "all" || (t.scope === "limited" ? i.limited : !i.limited));
-  const total = resp.totalUsers, ptotal = resp.prevTotalUsers;
+  const total = resp.totalUsers;
   const rows = items.map(i => ({
     id: i.id, name: i.name, limited: i.limited, ownedCount: i.ownedCount,
-    ownedRate: total > 0 ? i.ownedCount / total : 0, maxRate: total > 0 ? i.maxCount / total : 0,
-    prevRate: resp.prevDate && ptotal > 0 && i.prevOwnedCount != null ? i.prevOwnedCount / ptotal : null
+    ownedRate: total > 0 ? i.ownedCount / total : 0, maxRate: total > 0 ? i.maxCount / total : 0
   })).sort((a, b) => b.ownedRate - a.ownedRate || a.id - b.id);
-  const gainers = rows.filter(r => r.prevRate != null && r.ownedCount >= GAINER_MIN_OWNED)
-    .map(r => Object.assign({}, r, { deltaPt: Math.round((r.ownedRate - r.prevRate) * 1000) / 10 }))
-    .filter(r => r.deltaPt > 0).sort((a, b) => b.deltaPt - a.deltaPt || a.id - b.id).slice(0, 3);
   const avgOwned = total > 0 ? rows.reduce((s, r) => s + r.ownedCount, 0) / total : 0;
-  const layout = rows.length >= 27 ? "top" : (rows.length >= 9 ? "full" : "cards");
-  return { type: t, typeKey, kind: t.kind, date: resp.date, prevDate: resp.prevDate, totalUsers: total, rows, gainers, avgOwned, layout };
+  const layout = rows.length >= 9 ? "ranking" : "cards";
+  return { type: t, typeKey, kind: t.kind, date: resp.date, totalUsers: total, rows, avgOwned, layout };
 }
 
 /* ---------- 共通：背景・見出し・フッター ---------- */
@@ -376,72 +374,26 @@ function drawFooter(ctx){
   ctx.textAlign = "left";
 }
 
-/* ---------- レイアウトA：TOP10＋伸びTOP3（27件以上：全URユニット・全サポート・恒常サポート） ---------- */
-async function layoutTop(ctx, d){
+/* ---------- レイアウトA：2列ランキング（9件以上。上位RANK_LIMIT位まで。左列が前半・右列が後半） ---------- */
+async function layoutRanking(ctx, d){
   const isSup = d.kind === "supporter";
-  const top = d.rows.slice(0, 10);
+  const show = d.rows.slice(0, RANK_LIMIT);
   const imgs = {};
-  await Promise.all([...top, ...d.gainers].map(async r => { imgs[r.id] = await loadImage(imgPath(d.kind, r.id)); }));
-  const LX = 40, LY = 116, LW = 676, LH = 500;
-  panel(ctx, LX, LY, LW, LH, "所持率 TOP10", "#dab949");
-  ctx.textAlign = "right"; ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${FONT}`; ctx.fillText("所持率　（完凸率）", LX + LW - 22, LY + 31); ctx.textAlign = "left";
-  const rowH = 44, top0 = LY + 56;
-  top.forEach((t, i) => {
-    const y = top0 + i * rowH, cy = y + rowH / 2 - 2;
-    if (i % 2 === 0) { ctx.fillStyle = "rgba(255,255,255,.035)"; ctx.fillRect(LX + 10, y - 2, LW - 20, rowH - 2); }
-    rankMark(ctx, i + 1, LX + 38, cy, 15);
-    const tw = isSup ? 60 : 36;
-    drawThumb(ctx, imgs[t.id], LX + 64, cy - 18, tw, 36, d.kind);
-    ctx.textAlign = "right"; ctx.textBaseline = "middle";
-    ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${MONO}`; const mt = `（${pct(t.maxRate)}）`; ctx.fillText(mt, LX + LW - 22, cy + 1);
-    const mw = ctx.measureText(mt).width;
-    ctx.fillStyle = i < 3 ? MEDAL[i] : "#eef3f6"; ctx.font = `bold 22px ${MONO}`; ctx.fillText(pct(t.ownedRate), LX + LW - 22 - mw - 4, cy + 1);
-    const nameX = LX + 64 + tw + 12, nameMax = LW - (nameX - LX) - 200 - (t.limited ? 26 : 0);
-    ctx.textAlign = "left"; ctx.fillStyle = "#eef3f6"; ctx.font = `17px ${FONT}`;
-    const name = fitText(ctx, t.name, nameMax); ctx.fillText(name, nameX, cy + 1);
-    ctx.textBaseline = "alphabetic";
-    if (t.limited && d.type.scope === "all") limitedBadge(ctx, nameX + ctx.measureText(name).width + 8, cy);
-  });
-  const RX = 736, RY = 116, RW = 424, RH = 500;
-  panel(ctx, RX, RY, RW, RH, "この1週間で伸びた" + (isSup ? "サポート" : "ユニット"), "#7fd9a0");
-  if (!d.gainers.length) {
-    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#9fb0c0"; ctx.font = `18px ${FONT}`;
-    ctx.fillText(d.prevDate ? "今週は大きな変化がありませんでした" : "比較できる1週間前のデータがありません", RX + RW / 2, RY + RH / 2 + 10);
-    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-  }
-  d.gainers.forEach((g, i) => {
-    const y = RY + 60 + i * 144;
-    roundRect(ctx, RX + 14, y, RW - 28, 130, 8); ctx.fillStyle = "rgba(255,255,255,.04)"; ctx.fill();
-    const iw = isSup ? 150 : 102;
-    drawThumb(ctx, imgs[g.id], RX + 26, y + 14, iw, 102, d.kind);
-    const tx = RX + 26 + iw + 16, tmax = RX + RW - 22 - tx;
-    ctx.textAlign = "left";
-    ctx.fillStyle = "#9fb0c0"; ctx.font = `bold 14px ${MONO}`; ctx.fillText(`#${i + 1}`, tx, y + 32);
-    ctx.fillStyle = "#eef3f6"; ctx.font = `bold 18px ${FONT}`; ctx.fillText(fitText(ctx, g.name, tmax), tx, y + 58);
-    ctx.fillStyle = "#c7d2dc"; ctx.font = `16px ${MONO}`; ctx.fillText(fitText(ctx, `${pct(g.prevRate)} → ${pct(g.ownedRate)}`, tmax), tx, y + 88);
-    ctx.fillStyle = "#7fd9a0"; ctx.font = `bold 24px ${MONO}`; ctx.fillText(`+${g.deltaPt.toFixed(1)}pt`, tx, y + 118);
-  });
-}
-
-/* ---------- レイアウトB：全件2列ランキング（9〜26件：期間限定URユニット） ---------- */
-async function layoutFull(ctx, d){
-  const isSup = d.kind === "supporter";
-  const imgs = {};
-  await Promise.all(d.rows.map(async r => { imgs[r.id] = await loadImage(imgPath(d.kind, r.id)); }));
-  const half = Math.ceil(d.rows.length / 2), cols = [d.rows.slice(0, half), d.rows.slice(half)];
+  await Promise.all(show.map(async r => { imgs[r.id] = await loadImage(imgPath(d.kind, r.id)); }));
+  const half = Math.ceil(show.length / 2), cols = [show.slice(0, half), show.slice(half)];
   const PY = 116, PH = 500, PW = 550, GAP = 20;
   const rowH = Math.min(40, Math.floor((PH - 56) / Math.max(1, half)));
   cols.forEach((list, ci) => {
     const PX = 40 + ci * (PW + GAP);
-    const from = ci === 0 ? 1 : half + 1, to = ci === 0 ? half : d.rows.length;
+    const from = ci === 0 ? 1 : half + 1, to = ci === 0 ? half : show.length;
     panel(ctx, PX, PY, PW, PH, `所持率ランキング ${from}〜${to}位`, ci === 0 ? "#dab949" : "#6be0e0");
-    if (ci === 0) { ctx.textAlign = "right"; ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${FONT}`; ctx.fillText("所持率　（完凸率）", PX + PW - 18, PY + 31); ctx.textAlign = "left"; }
+    ctx.textAlign = "right"; ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${FONT}`; ctx.fillText("所持率　（完凸率）", PX + PW - 18, PY + 31); ctx.textAlign = "left";
     list.forEach((r, i) => {
       const rank = (ci === 0 ? 0 : half) + i + 1, y = PY + 50 + i * rowH, cy = y + rowH / 2;
       const barX = PX + 12, barW = PW - 24;
       ctx.fillStyle = "rgba(255,255,255,.035)"; ctx.fillRect(barX, y + 2, barW, rowH - 4);
       ctx.fillStyle = rank <= 3 ? "rgba(218,185,73,.20)" : "rgba(107,224,224,.12)"; ctx.fillRect(barX, y + 2, barW * r.ownedRate, rowH - 4);
-      rankMark(ctx, rank, PX + 32, cy, 12);
+      rankMark(ctx, rank, PX + 32, cy, Math.min(12, rowH / 2 - 2));
       const s = rowH - 8, tw = isSup ? Math.round(s * 1.6) : s;
       drawThumb(ctx, imgs[r.id], PX + 52, cy - s / 2, tw, s, d.kind);
       ctx.textAlign = "right"; ctx.textBaseline = "middle";
@@ -449,13 +401,17 @@ async function layoutFull(ctx, d){
       const mw = ctx.measureText(mt).width;
       ctx.fillStyle = rank <= 3 ? MEDAL[rank - 1] : "#eef3f6"; ctx.font = `bold 19px ${MONO}`; ctx.fillText(pct(r.ownedRate), PX + PW - 18 - mw - 4, cy + 1);
       ctx.textAlign = "left"; ctx.fillStyle = "#eef3f6"; ctx.font = `15px ${FONT}`;
-      const nameX = PX + 52 + tw + 10; ctx.fillText(fitText(ctx, r.name, PX + PW - 18 - 190 - nameX), nameX, cy + 1);
+      // 「全」のレポートでは期間限定に「限」バッジ（恒常・期間限定のレポートでは付けない）
+      const badge = r.limited && d.type.scope === "all";
+      const nameX = PX + 52 + tw + 10, name = fitText(ctx, r.name, PX + PW - 18 - 190 - nameX - (badge ? 26 : 0));
+      ctx.fillText(name, nameX, cy + 1);
       ctx.textBaseline = "alphabetic";
+      if (badge) limitedBadge(ctx, nameX + ctx.measureText(name).width + 6, cy);
     });
   });
 }
 
-/* ---------- レイアウトC：大きなカード（8件以下：期間限定URサポート6体） ---------- */
+/* ---------- レイアウトB：大きなカード（8件以下：期間限定URサポート6体） ---------- */
 async function layoutCards(ctx, d){
   const isSup = d.kind === "supporter";
   const imgs = {};
@@ -487,8 +443,7 @@ async function layoutCards(ctx, d){
 async function drawOwnershipReport(canvas, d, badge){
   const ctx = canvas.getContext("2d");
   drawFrame(ctx, d, badge);
-  if (d.layout === "top") await layoutTop(ctx, d);
-  else if (d.layout === "full") await layoutFull(ctx, d);
+  if (d.layout === "ranking") await layoutRanking(ctx, d);
   else await layoutCards(ctx, d);
   drawFooter(ctx);
 }
@@ -512,19 +467,16 @@ function buildOwnershipPost(d, badge){
   lines.push("");
   d.rows.slice(0, 3).forEach((r, i) => lines.push(`${i + 1}位 ${r.name} ${pct(r.ownedRate)}`));
   lines.push(`1人あたり平均 ${d.avgOwned.toFixed(1)}${d.type.noun}／${d.rows.length}${d.type.noun}`);
-  if (d.layout === "top" && d.gainers.length) lines.push(`今週の伸び1位 ${d.gainers[0].name}（+${d.gainers[0].deltaPt.toFixed(1)}pt）`);
   lines.push("");
   lines.push(CONFIG.hashtag);
   lines.push(CONFIG.siteUrl);
   let text = lines.join("\n");
-  // 280を超えるときは「伸び」の行→3位→2位の順に削る
+  // 280を超えるときは3位→2位の順に削る
   const drop = [];
-  if (d.layout === "top" && d.gainers.length) drop.push(`\n今週の伸び1位 ${d.gainers[0].name}（+${d.gainers[0].deltaPt.toFixed(1)}pt）`);
   for (let k = 2; k >= 1; k--) if (d.rows[k]) drop.push(`\n${k + 1}位 ${d.rows[k].name} ${pct(d.rows[k].ownedRate)}`);
   for (const s of drop) { if (tweetWeight(text) <= 280) break; text = text.replace(s, ""); }
   return text;
 }
-
 function updateCount(){
   const n = tweetWeight($("postText").value);
   const el = $("postCount");
@@ -548,7 +500,7 @@ function setMsg(el, text, kind){
 
 function reportType(){ return document.querySelector('input[name="reportType"]:checked').value; }
 
-// ㉘ 5種類とも GET /api/admin/report/ownership を1回呼び、対象の絞り込み・並べ替え・レイアウト選択は buildReportData() で行う
+// ㉘ 6種類とも GET /api/admin/report/ownership を1回呼び、対象の絞り込み・並べ替え・レイアウト選択は buildReportData() で行う
 async function makeReport(){
   const btn = $("btnMake");
   btn.disabled = true;
@@ -578,7 +530,7 @@ async function makeReport(){
     $("postSection").hidden = false;
     updateCount();
     const label = document.querySelector(`input[name="reportType"][value="${typeKey}"]`).parentElement.textContent.trim();
-    setMsg($("makeMsg"), `${slashDate(data.date)}時点（比較：${data.prevDate ? slashDate(data.prevDate) : "なし"}）の${label}レポートを作成しました。`, "ok");
+    setMsg($("makeMsg"), `${slashDate(data.date)}時点の${label}レポートを作成しました。`, "ok");
   } catch (e) {
     console.error(e);
     setMsg($("makeMsg"), "作成に失敗しました：" + e.message, "ng");

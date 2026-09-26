@@ -804,9 +804,9 @@ async function handleAdminWeeklyReport(request, env, url) {
 }
 
 // GET /api/admin/report/ownership?kind=unit|supporter&date=YYYY-MM-DD（運営者のみ）
-// ㉘ X投稿用レポート（report.html）の共通データ。analytics_dailyの1日分を全件と、1週間前との比較用の所持者数を返す。
-// 対象の絞り込み（全／期間限定／恒常）・並べ替え・伸びの計算は画面側（buildReportData）で行う。
-// prevDateの選び方はweeklyと同じ（7日前、無ければそれより前で最も新しい日、無ければnull）
+// ㉘ X投稿用レポート（report.html）の共通データ。analytics_dailyの1日分を全件返す。
+// 対象の絞り込み（全／恒常／期間限定）・並べ替え・上位30位の切り出しは画面側（buildReportData）で行う。
+// 伸び率（1週間前との比較）はユーザー指示で廃止したため、比較用の値は返さない
 async function handleAdminReportOwnership(request, env, url) {
   const admin = await requireAdmin(request, env);
   if (admin instanceof Response) return admin;
@@ -820,27 +820,18 @@ async function handleAdminReportOwnership(request, env, url) {
     if (!date) return jsonResponse({ error: "no_data", message: "集計データがまだありません" }, 404);
   }
   const join = kind === "unit" ? "units_master m ON m.unit_id = a.item_id" : "supporters_master m ON m.supporter_id = a.item_id";
-  const load = async (d) => (await env.DB.prepare(
+  const { results } = await env.DB.prepare(
     `SELECT a.item_id AS id, a.owned_count, a.max_count, a.total_users, m.name, m.limited
      FROM analytics_daily a LEFT JOIN ${join}
      WHERE a.snap_date = ? AND a.kind = ? ORDER BY a.item_id`
-  ).bind(d, kind).all()).results;
-  const cur = await load(date);
-  if (!cur.length) return jsonResponse({ error: "no_data", message: "指定日の集計データがありません" }, 404);
-  const prevRow = await env.DB.prepare(
-    "SELECT MAX(snap_date) AS d FROM analytics_daily WHERE kind = ? AND snap_date <= ?"
-  ).bind(kind, addDays(date, -7)).first();
-  const prevDate = prevRow && prevRow.d ? prevRow.d : null;
-  const prev = prevDate ? await load(prevDate) : [];
-  const prevById = new Map(prev.map(r => [r.id, r]));
+  ).bind(date, kind).all();
+  if (!results.length) return jsonResponse({ error: "no_data", message: "指定日の集計データがありません" }, 404);
   return jsonResponse({
-    kind, date, prevDate,
-    totalUsers: cur[0].total_users,
-    prevTotalUsers: prev.length ? prev[0].total_users : null,
-    items: cur.map(r => ({
+    kind, date,
+    totalUsers: results[0].total_users,
+    items: results.map(r => ({
       id: r.id, name: r.name || `No.${r.id}`, limited: !!r.limited,
-      ownedCount: r.owned_count, maxCount: r.max_count,
-      prevOwnedCount: prevById.has(r.id) ? prevById.get(r.id).owned_count : null
+      ownedCount: r.owned_count, maxCount: r.max_count
     }))
   }, 200);
 }
@@ -1217,7 +1208,7 @@ export default {
     if (url.pathname === "/api/admin/report/weekly" && request.method === "GET") {
       return withJsonError(() => handleAdminWeeklyReport(request, env, url), "weekly-report");
     }
-    // ㉘ X投稿用レポート（5種類）の共通データ。weeklyはreport.htmlから使わなくなったが互換のため残す
+    // ㉘ X投稿用レポート（6種類）の共通データ。weeklyはreport.htmlから使わなくなったが互換のため残す
     if (url.pathname === "/api/admin/report/ownership" && request.method === "GET") {
       return withJsonError(() => handleAdminReportOwnership(request, env, url), "report-ownership");
     }
