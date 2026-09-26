@@ -15,16 +15,16 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 ## リポジトリ構成
 このリポジトリのルートには以下を配置する:
 - `top.html` — ログイン後トップページ（ルートURL `/` で配信）。ログイン状態表示、機体版/サポート版/エタロ攻略チェッカーへの導線、今後のチェッカー（ROUTE 04）のComing Soon表示、ログイン中のみ表示される分析ページ導線
-- `unit.html` — UR機体所持率チェッカー（84機収録）。2026-09-26からスクショ読み取り（`unit-scan.js`）を統合＝本番化（誰でも利用可）
-- `supporter.html` — URサポート所持率チェッカー（49体収録）
+- `unit.html` — UR機体所持率チェッカー（84機収録）。2026-09-26からスクショ読み取り（`unit-scan.js`）を統合＝本番化。**2026-09-26（㉘）からログイン必須**（未ログインはガードのみ表示）
+- `supporter.html` — URサポート所持率チェッカー（49体収録）。**2026-09-26（㉘）からログイン必須**
 - `analytics.html` — データ登録結果レポート（分析ページ。ログインユーザー限定・2026-09-19新設。2026-09-24に「みんなの所持率ランキング」→「全軍戦況レポート」→「ログインユーザーレポート」→「データ登録結果レポート」と改名し、エタロ攻略タブを追加）
 - `eternal-road.html` — エタロ攻略チェッカー（エターナルロード エキスパート難易度。全29ステージ・69ミッション。2026-09-23新設・⑩⑭。同日⑮でバナー画像・通常クリア・3ボタン・フィルタ追加、**ログインユーザー限定**化）
 - `profile-card.html` — 自己紹介カード作成ページ（㉒・2026-09-24新設。ログインユーザー限定。テンプレート3種×背景4種の16:9カードをCanvasで生成。描画は`docs/04_自己紹介カード/試作HTML/㉑自己紹介カード_試作5_プロトタイプ.html`から移植した`CardRenderer`。**トップページの導線`#profileCardNav`は`hidden`のまま**＝テスト運用後にユーザー指示で公開）
 - `unit-scan.js` — スクショ読み取りの判定処理（`window.UnitScan`。`SCAN_FIT`＝ユニットごとの位置合わせ値）。2026-09-26から`unit.html`が読み込む
-- `unit-scan.html` — ㉖段階A（㉕案3）：スクショ読み取り試験版（2026-09-25公開）。**2026-09-26に`unit.html`へ統合済みで、導線はどこにも無い（運営者専用のまま残置。削除はユーザー確認待ち）**。`unit.html`（2026-09-25時点）のコピー＋ゲームの「強化 > ユニット」一覧のスクショからURユニットと凸を判定する機能。判定はすべてブラウザ内（サーバー送信なし）、保存先は`unit.html`と同じ（同じlocalStorageキー・同じ`/api/log`）。`noindex`。**運営者専用**（2026-09-25ユーザー指示。`/api/admin/me`で判定し、運営者以外には「運営者専用ページです」だけを表示。トップの「運営者専用」節から遷移）。**`unit.html`を変更しても自動では反映されない**（試験運用後、別途指示で`unit.html`へ統合予定）
+- ~~`unit-scan.html`~~ — ㉖段階Aのスクショ読み取り試験版。`unit.html`へ統合済みのため**2026-09-26（㉘段階A）に削除**（ユーザー承認済み）。学習用の`?scandebug=1`は`/unit?scandebug=1`で使う
 - `supporter-scan.html` / `supporter-scan.js` — ㉗・㉘段階D：URサポートのスクショ読み取り（**運営者試用**。2026-09-26追加）。`supporter.html`のコピー＋「強化 > サポーター」一覧のスクショからURサポートと凸を判定（`window.SupporterScan`。`SCAN_FIT`は31体分）。`noindex`・`/api/admin/me`で運営者判定（`scanLocked`）・`data-auth-stay`。保存先は`supporter.html`と同じ。トップの運営者欄から遷移。**`supporter.html`を変更しても自動では反映されない**（試用後、別途指示で`supporter.html`へ統合予定）
 - `report.html` — ㉖段階C：週間UR所持率レポート作成ページ（**運営者専用**。`/api/admin/me`で判定し、運営者以外は「運営者専用ページです」のみ表示。`noindex`・トップからのリンクなし・`data-auth-stay`）。1200×675のレポート画像（背景は`profile-card.html`の銀河背景をスクリプトでコピーした`GalaxyBg`）と投稿文を作る。「今日の集計を今すぐ実行」ボタンあり
-- `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`・`analytics.html`・`eternal-road.html`・`profile-card.html`から読み込む。ログイン成功後は`/top`へ遷移するが、`<body data-auth-stay>`のページ（`eternal-road.html`・`profile-card.html`）はその場でリロード（⑮）
+- `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`・`analytics.html`・`eternal-road.html`・`profile-card.html`から読み込む。ログイン成功後は`/top`へ遷移するが、`<body data-auth-stay>`のページ（`eternal-road.html`・`profile-card.html`・㉘から`unit.html`・`supporter.html`も）はその場でリロード（⑮）
 - `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）、所持データログ収集API（`/api/log`・`/api/log-supporter`。**ログイン済みユーザーのみD1保存、ゲストは匿名カウンタのみ加算＝2026-09-19〜**）、分析API（`/api/analytics/units`・`/api/analytics/supporters`、ログイン必須。2026-09-19新設。`/api/analytics/eternal-road`は2026-09-24新設）、自己紹介カードAPI（`/api/works`・`/api/profile-card`・`/api/profile`。㉒・2026-09-24新設）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
 - `wrangler.jsonc` — プロジェクト名 `ggene-ur-checker`、assetsのdirectoryは`./`、D1バインディング`DB`（`ggene-ur-checker-db`）設定済み。㉖で定期実行`triggers.crons: ["0 19 * * *"]`（UTC 19:00＝JST 4:00）と運営者ユーザー名`vars.ADMIN_USERNAMES`（カンマ区切り。**現在`ESP`**。運営者を増やすときはここに追記してpush）を追加
 - `migrations/0001_add_user_auth.sql` — `users`テーブルへの`username`/`password`カラム追加、`sessions`テーブル新設。Cloudflareダッシュボード（D1 > Console）で手動適用済み
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS analytics_daily_summary (
 - `units_ownership`の保存は2026-09-25から差分更新（`syncOwnership()`）。行を消さずにUPDATEするので`id`も保たれる
 
 ## 確定済みの設計方針（変更不可）
-- **ログインは任意**。ログインなしでもチェッカーは従来通り使える（ゲスト利用を維持）。理由: Xからの流入で「すぐ使える」ことが拡散の原動力になっているため、入口に関門を作らない
+- ~~**ログインは任意**。ログインなしでもチェッカーは従来通り使える（ゲスト利用を維持）。理由: Xからの流入で「すぐ使える」ことが拡散の原動力になっているため、入口に関門を作らない~~ → **2026-09-26（㉘）にログイン必須へ転換（ユーザー判断）**。ユニット・サポート・エタロの全チェッカーが未ログインではログイン案内（ガード）のみ表示。トップの導線は未ログインでも表示し、ガードから登録へつなげる
 - ログインの価値は「自己紹介カードの作成・保存」「端末をまたいだデータ引き継ぎ」「みんなの所持率ランキング（分析ページ）の閲覧」（④で追加・2026-09-19）
 - 認証はユーザー名＋パスワードのみ（メールアドレス不要、個人情報は保存しない）
 - コスト方針: **Workers Paid（月5ドル）の枠内で運用。上限を超えると停止ではなく従量課金になる**（2026-09-25にユーザーが有料プランへ移行。それまでは完全無料運用＝上限到達時は停止、だった）
@@ -739,6 +739,15 @@ Cowork側の実装依頼書`docs/05_機能拡張_有料プラン/㉘ログイン
 - 確認時の変更1点：`supporter-scan.html`の`<body>`に`data-auth-stay`を追加（`unit-scan.html`と同じく、このページでログインしたらトップへ飛ばずその場に戻す）
 - 「新ユニット・作品の追加手順」に7（サポートの`SCAN_FIT`の学習手順）を追記
 - 検証：Playwright（APIモック・390px）で11件成功（未ログイン・一般ユーザーは「運営者専用ページです」のみ、運営者は検証用スクショ`docs/05_…/画像/㉗サポーター一覧１・２.png`でカード32枚→URサポート31体（確実25・要確認6）・反映で`state`に31体、トップの運営者欄に導線、JSエラーなし）
+
+**段階A：チェッカーのログイン必須化**
+- `unit.html`・`supporter.html`：依頼書1-2の「CSSで隠す」方式。`<body data-auth-stay>`、`html.loginLocked`（`<head>`で付与）で`.wrap`内のauthbar・`#loginGuard`以外と`.actionbar`を非表示、`/api/me`が`loggedIn:true`なら解除（失敗時はガードのまま）。ガード`#loginGuard`には任意とされていた見出し（`.eyebrow`・ロゴ付き`.titlerow`）も入れた。`.guardCard`のCSSは`eternal-road.html`からコピー＋`#loginGuard .guardCard{margin-top:18px;}`。本体スクリプトの初期化順序は変更なし（隠れているだけ）
+- **復元不具合の修正（1-3）**：`restoreOwnershipFromServer()`の条件に`data.registered`を追加。新規登録直後（`registered:false`）は端末のゲスト時代の所持状況（ユニットは入手記録も）を消さない
+- `top.html`：`.sub`を「…新規登録・ログインすることで各種機能を利用できます。」に、エタロの説明文から「（ログイン会員限定）」を削除、導線直前のコメントを更新。チェッカー3つの導線は未ログインでも表示のまま
+- `auth.js`：冒頭コメントのみ更新（コード変更なし）。**ログインモーダルのヒント文「（任意機能。未登録でもチェッカーは今まで通り使えます）」は依頼書の範囲外のため未変更＝ログイン必須化と矛盾する。文言はユーザー／Cowork確認待ち**
+- `unit-scan.html`を削除（`git rm`。ユーザー承認済み）。`unit-scan.js`は`unit.html`が使うので残置
+- 確定済みの設計方針「ログインは任意」を「2026-09-26（㉘）にログイン必須へ転換」に更新
+- 検証：Playwright（APIモック・390px）で47件成功（依頼書1-7の1〜8：ユニット・サポートそれぞれで未ログイン時はガードのみ＋横スクロールなし、ガードのボタン→共通モーダル→新規登録→同じページに戻り本体表示、ゲスト時代の所持状況が新規登録後も残る、登録済みはDB内容（ユニットは入手記録も）で置換、所持0件で登録済みは空、`/api/me`が500ならガードのまま、`/unit-scan.html`は404、`unit.html`のスクショ読み取りは検証用スクショ6枚で69機、トップの文言と未ログイン時の導線、JSエラーなし）
 
 ## 次にやること
 - ㉖：push済み。本番での`report.html`の手動集計（231行の確認）・翌朝4時の定期実行の確認・入手記録の実機確認（「㉖」節の「未実施（要対応）」）。スクショ読み取り試験版（運営者専用）のテスト運用

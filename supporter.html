@@ -223,11 +223,42 @@
   .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
   .pageFooter a{color:var(--cyan);text-decoration:none;}
   .pageFooter a:hover{text-decoration:underline;}
+  /* ㉘ ログイン必須化：ログインを確認できるまで本体を隠す（auth.jsのログインバーとガードだけ見せる） */
+  html.loginLocked .wrap > :not(.authbar):not(#loginGuard), html.loginLocked .actionbar{display:none !important;}
+  #loginGuard{display:none;}
+  html.loginLocked #loginGuard{display:block;}
+  #loginGuard .guardCard{margin-top:18px;}
+  /* ガードの見た目はeternal-road.htmlの.guardCardと同じ */
+  .guardCard{
+    background:var(--panel);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);
+    border:1px solid var(--line);border-radius:6px;padding:28px 22px;text-align:center;
+  }
+  .guardCard p{color:var(--muted);font-size:13px;line-height:1.8;margin:0 0 18px;}
+  .guardCard button{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.03em;
+    background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;
+    border:1px solid var(--gold);border-radius:3px;padding:10px 26px;cursor:pointer;
+  }
 </style>
+<script>document.documentElement.classList.add("loginLocked");</script>
 </head>
-<body>
+<body data-auth-stay>
 
 <div class="wrap">
+  <!-- ㉘ ログイン必須化：未ログインではこのガードだけを表示する -->
+  <div id="loginGuard">
+    <div class="eyebrow">ジージェネレーション　エターナル</div>
+    <div class="titlerow">
+      <img class="logo" src="images/logo.png" alt="ESP logo">
+      <h1>URサポート所持率チェッカー</h1>
+    </div>
+    <div class="guardCard" id="guardView">
+      <p>URサポート所持率チェッカーは、新規登録・ログインしてご利用いただけます。<br>
+         （無料・メールアドレス不要。ユーザー名とパスワードだけで登録できます）<br>
+         ログインすると所持状況がサーバーに保存され、機種変更や別の端末でも引き継げます。</p>
+      <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
+    </div>
+  </div>
   <div class="eyebrow">ジージェネレーション　エターナル</div>
   <div class="titlerow">
     <img class="logo" src="images/logo.png" alt="ESP logo">
@@ -796,7 +827,7 @@ function sendOwnershipLogAndTrack(){
       loggedInForReg = true;
       registeredOwnership = data.registered ? Object.assign({}, data.ownership || {}) : null;
     }
-    if (data && data.loggedIn && data.ownership && !userEditedSinceLoad) {
+    if (data && data.loggedIn && data.registered && data.ownership && !userEditedSinceLoad) {   // ㉘1-3：未登録（新規登録直後）は、端末に残っているゲスト時代の所持状況を消さない
       state = {};
       for (const [id, level] of Object.entries(data.ownership)) state[id] = level;
       persist(); render(); updateStats();
@@ -875,6 +906,17 @@ document.getElementById("btnShare").addEventListener("click", () => {
 
 render();
 updateStats();
+</script>
+<script>
+// ㉘ ログイン必須化。/api/me失敗時は保守的にガード表示のまま（eternal-road.html・analytics.htmlと同じ）
+document.getElementById("guardLoginBtn").addEventListener("click", () => {
+  const link = document.getElementById("authOpenLink");   // auth.jsが生成するログインリンク経由で共通モーダルを開く
+  if (link) link.click();
+});
+fetch("/api/me", { credentials: "same-origin" })
+  .then(res => res.json())
+  .then(data => { if (data && data.loggedIn) document.documentElement.classList.remove("loginLocked"); })
+  .catch(() => {});
 </script>
 <script src="auth.js" defer></script>
 </body>
