@@ -99,15 +99,18 @@
     <section class="section">
       <h2>レポート作成</h2>
       <div class="typeRow" id="typeRow">
-        <label><input type="radio" name="reportType" value="weekly" checked> 週間 UR所持率</label>
-        <label><input type="radio" name="reportType" value="limited"> 期間限定UR 所持率</label>
+        <label><input type="radio" name="reportType" value="unit_all" checked> 全URユニット 所持率</label>
+        <label><input type="radio" name="reportType" value="unit_limited"> 期間限定URユニット 所持率</label>
+        <label><input type="radio" name="reportType" value="sup_all"> 全URサポート 所持率</label>
+        <label><input type="radio" name="reportType" value="sup_permanent"> 恒常URサポート 所持率</label>
+        <label><input type="radio" name="reportType" value="sup_limited"> 期間限定URサポート 所持率</label>
       </div>
       <div class="ctlRow">
         <label for="reportDate">集計日</label>
         <input type="date" id="reportDate">
         <button type="button" class="btn" id="btnMake">画像を作成</button>
       </div>
-      <div class="badgeRow" id="badgeRow" hidden>
+      <div class="badgeRow" id="badgeRow">
         <label for="badgeText" class="note" style="display:block;margin:0 0 4px;">見出しの横に出す一言（空欄なら出しません）</label>
         <input type="text" id="badgeText" maxlength="20" placeholder="例：データ登録100人突破！">
       </div>
@@ -246,6 +249,17 @@ const $ = (id) => document.getElementById(id);
 const W = 1200, H = 675;
 const FONT = "sans-serif";
 const MONO = "monospace";
+// ㉘ レポートの種類（docs/05_…/試作HTML/㉗X投稿用レポート_試作.html から移植）
+const REPORT_TYPES = {
+  unit_all:      { kind: "unit",      scope: "all",       title: "全URユニット 所持率レポート",       label: "URユニット",       noun: "機", post: "全URユニット所持率" },
+  unit_limited:  { kind: "unit",      scope: "limited",   title: "期間限定URユニット 所持率レポート", label: "期間限定URユニット", noun: "機", post: "期間限定URユニット所持率" },
+  sup_all:       { kind: "supporter", scope: "all",       title: "全URサポート 所持率レポート",       label: "URサポート",       noun: "体", post: "全URサポート所持率" },
+  sup_permanent: { kind: "supporter", scope: "permanent", title: "恒常URサポート 所持率レポート",     label: "恒常URサポート",     noun: "体", post: "恒常URサポート所持率" },
+  sup_limited:   { kind: "supporter", scope: "limited",   title: "期間限定URサポート 所持率レポート", label: "期間限定URサポート", noun: "体", post: "期間限定URサポート所持率" }
+};
+const GAINER_MIN_OWNED = 10;   // 既存の週間レポートと同じ（少人数の誤解を招く数字を出さない）
+const MEDAL = ["#e8c45a", "#c9d1d9", "#c58a4a"];
+
 
 function loadImage(src){
   return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
@@ -260,115 +274,223 @@ function roundRect(ctx, x, y, w, h, r){
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
-// 正方形にトリミングして描く（中央基準）
-function drawSquare(ctx, im, x, y, s){
-  if (!im) { ctx.fillStyle = "#1a2330"; ctx.fillRect(x, y, s, s); return; }
-  const side = Math.min(im.width, im.height);
-  ctx.drawImage(im, (im.width - side) / 2, (im.height - side) / 2, side, side, x, y, s, s);
-  ctx.strokeStyle = "rgba(140,160,180,.45)"; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, s - 1, s - 1);
+// 画像を枠いっぱいにトリミングして描く。サポート画像（横長240×約145）は、チェッカーと同じく右寄り（78%）を基準に切り出す
+function drawThumb(ctx, im, x, y, w, h, kind){
+  if (!im) { ctx.fillStyle = "#1a2330"; ctx.fillRect(x, y, w, h); return; }
+  const s = Math.max(w / im.width, h / im.height), sw = w / s, sh = h / s;
+  const fx = kind === "supporter" ? 0.78 : 0.5;
+  const sx = Math.max(0, Math.min(im.width - sw, im.width * fx - sw / 2)), sy = (im.height - sh) / 2;
+  ctx.drawImage(im, sx, sy, sw, sh, x, y, w, h);
+  ctx.strokeStyle = "rgba(140,160,180,.45)"; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
 }
+function imgPath(kind, id){ return `images/${kind === "supporter" ? "supporters" : "units"}/${id}.jpg`; }
 function pct(rate){ return (Math.round(rate * 1000) / 10).toFixed(1) + "%"; }
 function slashDate(d){ return d.replace(/-/g, "/"); }
 function shortDate(d){ const [, m, dd] = d.split("-").map(Number); return `${m}/${dd}`; }
 function shadowText(ctx, text, x, y){
   ctx.save(); ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 6; ctx.fillText(text, x, y); ctx.restore();
 }
+// ㉘ panel()はタイトル無し（カード型）でも呼ぶため試作版（if (!title) return;）に差し替え
 function panel(ctx, x, y, w, h, title, accent){
   ctx.save(); ctx.shadowColor = "rgba(0,0,0,.4)"; ctx.shadowBlur = 14;
   roundRect(ctx, x, y, w, h, 10); ctx.fillStyle = "rgba(10,15,24,.72)"; ctx.fill(); ctx.restore();
   roundRect(ctx, x, y, w, h, 10); ctx.strokeStyle = "rgba(107,224,224,.22)"; ctx.lineWidth = 1; ctx.stroke();
+  if (!title) return;
   ctx.fillStyle = accent; ctx.fillRect(x, y + 16, 3, 20);
   ctx.fillStyle = "#eef3f6"; ctx.font = `bold 19px ${FONT}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
   ctx.fillText(title, x + 16, y + 26); ctx.textBaseline = "alphabetic";
 }
+function limitedBadge(ctx, x, cy){
+  roundRect(ctx, x, cy - 10, 20, 20, 3); ctx.fillStyle = "rgba(218,185,73,.18)"; ctx.fill();
+  ctx.strokeStyle = "#dab949"; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = "#dab949"; ctx.font = `bold 13px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("限", x + 10, cy + 1);
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+}
+function rankMark(ctx, rank, cx, cy, r){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  if (rank <= 3) { ctx.fillStyle = MEDAL[rank - 1]; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#1b1503"; ctx.font = `bold ${Math.round(r * 1.1)}px ${MONO}`; ctx.fillText(String(rank), cx, cy + 1); }
+  else { if (r >= 16) { ctx.fillStyle = "rgba(8,12,20,.78)"; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = "#9fb0c0"; ctx.font = `bold ${Math.round(r * 1.1)}px ${MONO}`; ctx.fillText(String(rank), cx, cy + 1); }
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+}
 
+/* ---------- データの整形（APIの応答 → レポート用） ---------- */
+// resp: { date, prevDate, totalUsers, prevTotalUsers, items:[{id,name,limited,ownedCount,maxCount,prevOwnedCount|null}] }
+function buildReportData(resp, typeKey){
+  const t = REPORT_TYPES[typeKey];
+  const items = resp.items.filter(i => t.scope === "all" || (t.scope === "limited" ? i.limited : !i.limited));
+  const total = resp.totalUsers, ptotal = resp.prevTotalUsers;
+  const rows = items.map(i => ({
+    id: i.id, name: i.name, limited: i.limited, ownedCount: i.ownedCount,
+    ownedRate: total > 0 ? i.ownedCount / total : 0, maxRate: total > 0 ? i.maxCount / total : 0,
+    prevRate: resp.prevDate && ptotal > 0 && i.prevOwnedCount != null ? i.prevOwnedCount / ptotal : null
+  })).sort((a, b) => b.ownedRate - a.ownedRate || a.id - b.id);
+  const gainers = rows.filter(r => r.prevRate != null && r.ownedCount >= GAINER_MIN_OWNED)
+    .map(r => Object.assign({}, r, { deltaPt: Math.round((r.ownedRate - r.prevRate) * 1000) / 10 }))
+    .filter(r => r.deltaPt > 0).sort((a, b) => b.deltaPt - a.deltaPt || a.id - b.id).slice(0, 3);
+  const avgOwned = total > 0 ? rows.reduce((s, r) => s + r.ownedCount, 0) / total : 0;
+  const layout = rows.length >= 27 ? "top" : (rows.length >= 9 ? "full" : "cards");
+  return { type: t, typeKey, kind: t.kind, date: resp.date, prevDate: resp.prevDate, totalUsers: total, rows, gainers, avgOwned, layout };
+}
+
+/* ---------- 共通：背景・見出し・フッター ---------- */
 let bgCanvas = null;
-async function drawReport(canvas, data){
-  const ctx = canvas.getContext("2d");
+function drawFrame(ctx, d, badge){
   if (!bgCanvas) bgCanvas = GalaxyBg.draw("report");
   ctx.drawImage(bgCanvas, 0, 0, W, H);
   ctx.fillStyle = "rgba(3,5,10,.35)"; ctx.fillRect(0, 0, W, H);
   ctx.strokeStyle = "#2b3746"; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
-
-  const ids = [...new Set([...data.top.map(t => t.unitId), ...data.gainers.map(g => g.unitId)])];
-  const imgs = {};
-  await Promise.all(ids.map(async id => { imgs[id] = await loadImage(`images/units/${id}.jpg`); }));
-
-  // 上部
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "#6be0e0"; ctx.font = `bold 15px ${FONT}`;
-  shadowText(ctx, "ジージェネレーション　エターナル", 40, 46);
-  ctx.fillStyle = "#ffffff"; ctx.font = `bold 38px ${FONT}`;
-  shadowText(ctx, "週間 UR所持率レポート", 40, 90);
-  ctx.textAlign = "right"; ctx.fillStyle = "#dab949"; ctx.font = `bold 20px ${MONO}`;
-  shadowText(ctx, `${slashDate(data.date)} 時点｜データ登録 ${data.totalUsers}人`, W - 40, 90);
-
-  // 左：所持率TOP10
-  const LX = 40, LY = 116, LW = 676, LH = 500;
-  panel(ctx, LX, LY, LW, LH, "所持率 TOP10", "#dab949");
-  const rowH = 44, top0 = LY + 56;
-  const MEDAL = ["#e8c45a", "#c9d1d9", "#c58a4a"];
-  data.top.forEach((t, i) => {
-    const y = top0 + i * rowH, cy = y + rowH / 2 - 2;
-    if (i % 2 === 0) { ctx.fillStyle = "rgba(255,255,255,.035)"; ctx.fillRect(LX + 10, y - 2, LW - 20, rowH - 2); }
-    // 順位（1〜3位は金・銀・銅のメダル）
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    if (i < 3) {
-      ctx.fillStyle = MEDAL[i]; ctx.beginPath(); ctx.arc(LX + 38, cy, 15, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#1b1503"; ctx.font = `bold 17px ${MONO}`; ctx.fillText(String(i + 1), LX + 38, cy + 1);
-    } else {
-      ctx.fillStyle = "#9fb0c0"; ctx.font = `bold 17px ${MONO}`; ctx.fillText(String(i + 1), LX + 38, cy + 1);
-    }
-    drawSquare(ctx, imgs[t.unitId], LX + 64, cy - 18, 36);
-    // 所持率
-    ctx.textAlign = "right"; ctx.fillStyle = i < 3 ? MEDAL[i] : "#eef3f6"; ctx.font = `bold 22px ${MONO}`;
-    ctx.fillText(pct(t.ownedRate), LX + LW - 22, cy + 1);
-    // 名前（＋期間限定の「限」バッジ）
-    const badgeW = t.limited ? 26 : 0;
-    const nameX = LX + 112, nameMax = LW - 112 - 130 - badgeW;
-    ctx.textAlign = "left"; ctx.fillStyle = "#eef3f6"; ctx.font = `17px ${FONT}`;
-    const name = fitText(ctx, t.name || `No.${t.unitId}`, nameMax);
-    ctx.fillText(name, nameX, cy + 1);
-    if (t.limited) {
-      const bx = nameX + ctx.measureText(name).width + 8;
-      roundRect(ctx, bx, cy - 10, 20, 20, 3); ctx.fillStyle = "rgba(218,185,73,.18)"; ctx.fill();
-      ctx.strokeStyle = "#dab949"; ctx.lineWidth = 1; ctx.stroke();
-      ctx.fillStyle = "#dab949"; ctx.font = `bold 13px ${FONT}`; ctx.textAlign = "center"; ctx.fillText("限", bx + 10, cy + 1);
-    }
-    ctx.textBaseline = "alphabetic";
-  });
-
-  // 右：今週伸びたユニットTOP3
-  const RX = 736, RY = 116, RW = 424, RH = 500;
-  panel(ctx, RX, RY, RW, RH, "今週伸びたユニット", "#7fd9a0");
-  if (!data.gainers.length) {
-    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#9fb0c0"; ctx.font = `18px ${FONT}`;
-    ctx.fillText("来週から表示します", RX + RW / 2, RY + RH / 2 + 10);
-    ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#6be0e0"; ctx.font = `bold 15px ${FONT}`; shadowText(ctx, "ジージェネレーション　エターナル", 40, 46);
+  ctx.fillStyle = "#ffffff";
+  let fs = 38; ctx.font = `bold ${fs}px ${FONT}`;
+  const statLine = `${d.type.label} ${d.rows.length}${d.type.noun}｜1人あたり平均 ${d.avgOwned.toFixed(1)}${d.type.noun}所持`;
+  ctx.font = `bold 17px ${FONT}`; const statW = ctx.measureText(statLine).width;
+  const titleMax = W - 40 - statW - 40 - 40;
+  for (; fs > 28; fs--) { ctx.font = `bold ${fs}px ${FONT}`; if (ctx.measureText(d.type.title).width <= titleMax) break; }
+  ctx.fillStyle = "#ffffff"; shadowText(ctx, d.type.title, 40, 90);
+  const tw = ctx.measureText(d.type.title).width;
+  if (badge) {
+    const bx = 40 + tw + 14, by = 64, maxBw = (W - 40 - statW - 16) - bx;
+    let bfs = 17, text = badge;
+    for (; bfs > 12; bfs--) { ctx.font = `bold ${bfs}px ${FONT}`; if (ctx.measureText(text).width + 24 <= maxBw) break; }
+    ctx.font = `bold ${bfs}px ${FONT}`; text = fitText(ctx, text, Math.max(20, maxBw - 24));
+    const bw = ctx.measureText(text).width + 24;
+    if (maxBw > 60) { roundRect(ctx, bx, by, bw, 32, 16); ctx.fillStyle = "#dab949"; ctx.fill();
+      ctx.fillStyle = "#1b1503"; ctx.textBaseline = "middle"; ctx.fillText(text, bx + 12, by + 17); ctx.textBaseline = "alphabetic"; }
   }
-  data.gainers.forEach((g, i) => {
-    const y = RY + 60 + i * 144;
-    roundRect(ctx, RX + 14, y, RW - 28, 130, 8); ctx.fillStyle = "rgba(255,255,255,.04)"; ctx.fill();
-    drawSquare(ctx, imgs[g.unitId], RX + 26, y + 14, 102);
-    const tx = RX + 142, tmax = RW - 142 - 22;
-    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-    ctx.fillStyle = "#9fb0c0"; ctx.font = `bold 14px ${MONO}`; ctx.fillText(`#${i + 1}`, tx, y + 32);
-    ctx.fillStyle = "#eef3f6"; ctx.font = `bold 18px ${FONT}`; ctx.fillText(fitText(ctx, g.name || `No.${g.unitId}`, tmax), tx, y + 58);
-    ctx.fillStyle = "#c7d2dc"; ctx.font = `16px ${MONO}`; ctx.fillText(`${pct(g.prevRate)} → ${pct(g.ownedRate)}`, tx, y + 88);
-    ctx.fillStyle = "#7fd9a0"; ctx.font = `bold 24px ${MONO}`; ctx.fillText(`+${g.deltaPt.toFixed(1)}pt`, tx, y + 118);
-  });
-
-  // 下部
+  ctx.textAlign = "right"; ctx.fillStyle = "#dab949"; ctx.font = `bold 20px ${MONO}`;
+  shadowText(ctx, `${slashDate(d.date)} 時点｜データ登録 ${d.totalUsers}人`, W - 40, 58);
+  ctx.fillStyle = "#eef3f6"; ctx.font = `bold 17px ${FONT}`; shadowText(ctx, statLine, W - 40, 90);
+  ctx.textAlign = "left";
+}
+function drawFooter(ctx){
   const sg = ctx.createLinearGradient(0, H - 56, 0, H); sg.addColorStop(0, "rgba(3,5,10,0)"); sg.addColorStop(0.6, "rgba(3,5,10,.7)");
   ctx.fillStyle = sg; ctx.fillRect(0, H - 56, W, 56);
   ctx.textAlign = "left"; ctx.fillStyle = "#c7d2dc"; ctx.font = `14px ${FONT}`;
-  const siteLabel = CONFIG.siteName + "　";
-  shadowText(ctx, siteLabel, 40, H - 24);
-  ctx.fillStyle = "#6be0e0"; ctx.font = `14px ${MONO}`;
-  shadowText(ctx, CONFIG.siteUrl, 40 + (ctx.font = `14px ${FONT}`, ctx.measureText(siteLabel).width), H - 24);
-  ctx.textAlign = "right"; ctx.fillStyle = "#6be0e0"; ctx.font = `bold 15px ${MONO}`;
-  shadowText(ctx, CONFIG.xHandle, W - 40, H - 24);
+  const siteLabel = CONFIG.siteName + "　"; shadowText(ctx, siteLabel, 40, H - 24);
+  const lw = ctx.measureText(siteLabel).width;
+  ctx.fillStyle = "#6be0e0"; ctx.font = `14px ${MONO}`; shadowText(ctx, CONFIG.siteUrl, 40 + lw, H - 24);
+  ctx.textAlign = "right"; ctx.fillStyle = "#6be0e0"; ctx.font = `bold 15px ${MONO}`; shadowText(ctx, CONFIG.xHandle, W - 40, H - 24);
   ctx.textAlign = "left";
+}
+
+/* ---------- レイアウトA：TOP10＋伸びTOP3（27件以上：全URユニット・全サポート・恒常サポート） ---------- */
+async function layoutTop(ctx, d){
+  const isSup = d.kind === "supporter";
+  const top = d.rows.slice(0, 10);
+  const imgs = {};
+  await Promise.all([...top, ...d.gainers].map(async r => { imgs[r.id] = await loadImage(imgPath(d.kind, r.id)); }));
+  const LX = 40, LY = 116, LW = 676, LH = 500;
+  panel(ctx, LX, LY, LW, LH, "所持率 TOP10", "#dab949");
+  ctx.textAlign = "right"; ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${FONT}`; ctx.fillText("所持率　（完凸率）", LX + LW - 22, LY + 31); ctx.textAlign = "left";
+  const rowH = 44, top0 = LY + 56;
+  top.forEach((t, i) => {
+    const y = top0 + i * rowH, cy = y + rowH / 2 - 2;
+    if (i % 2 === 0) { ctx.fillStyle = "rgba(255,255,255,.035)"; ctx.fillRect(LX + 10, y - 2, LW - 20, rowH - 2); }
+    rankMark(ctx, i + 1, LX + 38, cy, 15);
+    const tw = isSup ? 60 : 36;
+    drawThumb(ctx, imgs[t.id], LX + 64, cy - 18, tw, 36, d.kind);
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${MONO}`; const mt = `（${pct(t.maxRate)}）`; ctx.fillText(mt, LX + LW - 22, cy + 1);
+    const mw = ctx.measureText(mt).width;
+    ctx.fillStyle = i < 3 ? MEDAL[i] : "#eef3f6"; ctx.font = `bold 22px ${MONO}`; ctx.fillText(pct(t.ownedRate), LX + LW - 22 - mw - 4, cy + 1);
+    const nameX = LX + 64 + tw + 12, nameMax = LW - (nameX - LX) - 200 - (t.limited ? 26 : 0);
+    ctx.textAlign = "left"; ctx.fillStyle = "#eef3f6"; ctx.font = `17px ${FONT}`;
+    const name = fitText(ctx, t.name, nameMax); ctx.fillText(name, nameX, cy + 1);
+    ctx.textBaseline = "alphabetic";
+    if (t.limited && d.type.scope === "all") limitedBadge(ctx, nameX + ctx.measureText(name).width + 8, cy);
+  });
+  const RX = 736, RY = 116, RW = 424, RH = 500;
+  panel(ctx, RX, RY, RW, RH, "この1週間で伸びた" + (isSup ? "サポート" : "ユニット"), "#7fd9a0");
+  if (!d.gainers.length) {
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#9fb0c0"; ctx.font = `18px ${FONT}`;
+    ctx.fillText(d.prevDate ? "今週は大きな変化がありませんでした" : "比較できる1週間前のデータがありません", RX + RW / 2, RY + RH / 2 + 10);
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  }
+  d.gainers.forEach((g, i) => {
+    const y = RY + 60 + i * 144;
+    roundRect(ctx, RX + 14, y, RW - 28, 130, 8); ctx.fillStyle = "rgba(255,255,255,.04)"; ctx.fill();
+    const iw = isSup ? 150 : 102;
+    drawThumb(ctx, imgs[g.id], RX + 26, y + 14, iw, 102, d.kind);
+    const tx = RX + 26 + iw + 16, tmax = RX + RW - 22 - tx;
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#9fb0c0"; ctx.font = `bold 14px ${MONO}`; ctx.fillText(`#${i + 1}`, tx, y + 32);
+    ctx.fillStyle = "#eef3f6"; ctx.font = `bold 18px ${FONT}`; ctx.fillText(fitText(ctx, g.name, tmax), tx, y + 58);
+    ctx.fillStyle = "#c7d2dc"; ctx.font = `16px ${MONO}`; ctx.fillText(fitText(ctx, `${pct(g.prevRate)} → ${pct(g.ownedRate)}`, tmax), tx, y + 88);
+    ctx.fillStyle = "#7fd9a0"; ctx.font = `bold 24px ${MONO}`; ctx.fillText(`+${g.deltaPt.toFixed(1)}pt`, tx, y + 118);
+  });
+}
+
+/* ---------- レイアウトB：全件2列ランキング（9〜26件：期間限定URユニット） ---------- */
+async function layoutFull(ctx, d){
+  const isSup = d.kind === "supporter";
+  const imgs = {};
+  await Promise.all(d.rows.map(async r => { imgs[r.id] = await loadImage(imgPath(d.kind, r.id)); }));
+  const half = Math.ceil(d.rows.length / 2), cols = [d.rows.slice(0, half), d.rows.slice(half)];
+  const PY = 116, PH = 500, PW = 550, GAP = 20;
+  const rowH = Math.min(40, Math.floor((PH - 56) / Math.max(1, half)));
+  cols.forEach((list, ci) => {
+    const PX = 40 + ci * (PW + GAP);
+    const from = ci === 0 ? 1 : half + 1, to = ci === 0 ? half : d.rows.length;
+    panel(ctx, PX, PY, PW, PH, `所持率ランキング ${from}〜${to}位`, ci === 0 ? "#dab949" : "#6be0e0");
+    if (ci === 0) { ctx.textAlign = "right"; ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${FONT}`; ctx.fillText("所持率　（完凸率）", PX + PW - 18, PY + 31); ctx.textAlign = "left"; }
+    list.forEach((r, i) => {
+      const rank = (ci === 0 ? 0 : half) + i + 1, y = PY + 50 + i * rowH, cy = y + rowH / 2;
+      const barX = PX + 12, barW = PW - 24;
+      ctx.fillStyle = "rgba(255,255,255,.035)"; ctx.fillRect(barX, y + 2, barW, rowH - 4);
+      ctx.fillStyle = rank <= 3 ? "rgba(218,185,73,.20)" : "rgba(107,224,224,.12)"; ctx.fillRect(barX, y + 2, barW * r.ownedRate, rowH - 4);
+      rankMark(ctx, rank, PX + 32, cy, 12);
+      const s = rowH - 8, tw = isSup ? Math.round(s * 1.6) : s;
+      drawThumb(ctx, imgs[r.id], PX + 52, cy - s / 2, tw, s, d.kind);
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${MONO}`; const mt = `（${pct(r.maxRate)}）`; ctx.fillText(mt, PX + PW - 18, cy + 1);
+      const mw = ctx.measureText(mt).width;
+      ctx.fillStyle = rank <= 3 ? MEDAL[rank - 1] : "#eef3f6"; ctx.font = `bold 19px ${MONO}`; ctx.fillText(pct(r.ownedRate), PX + PW - 18 - mw - 4, cy + 1);
+      ctx.textAlign = "left"; ctx.fillStyle = "#eef3f6"; ctx.font = `15px ${FONT}`;
+      const nameX = PX + 52 + tw + 10; ctx.fillText(fitText(ctx, r.name, PX + PW - 18 - 190 - nameX), nameX, cy + 1);
+      ctx.textBaseline = "alphabetic";
+    });
+  });
+}
+
+/* ---------- レイアウトC：大きなカード（8件以下：期間限定URサポート6体） ---------- */
+async function layoutCards(ctx, d){
+  const isSup = d.kind === "supporter";
+  const imgs = {};
+  await Promise.all(d.rows.map(async r => { imgs[r.id] = await loadImage(imgPath(d.kind, r.id)); }));
+  const n = d.rows.length, cols = n <= 3 ? n : (n <= 6 ? 3 : 4), rows = Math.ceil(n / cols);
+  const X0 = 40, Y0 = 116, AW = W - 80, AH = 500, G = 18;
+  const cw = (AW - G * (cols - 1)) / cols, chh = (AH - G * (rows - 1)) / rows;
+  d.rows.forEach((r, i) => {
+    const x = X0 + (i % cols) * (cw + G), y = Y0 + Math.floor(i / cols) * (chh + G), rank = i + 1;
+    panel(ctx, x, y, cw, chh, null, null);
+    if (rank <= 3) { roundRect(ctx, x + 1, y + 1, cw - 2, chh - 2, 10); ctx.strokeStyle = MEDAL[rank - 1]; ctx.lineWidth = 2; ctx.stroke(); }
+    // 画像（上半分）
+    const ih = Math.round(chh * 0.48), ix = x + 12, iy = y + 12, iw = cw - 24;
+    ctx.save(); roundRect(ctx, ix, iy, iw, ih, 8); ctx.clip(); drawThumb(ctx, imgs[r.id], ix, iy, iw, ih, d.kind); ctx.restore();
+    rankMark(ctx, rank, ix + 24, iy + 24, 17);
+    // 名前・所持率・帯
+    ctx.textAlign = "left"; ctx.fillStyle = "#eef3f6"; ctx.font = `bold 17px ${FONT}`;
+    ctx.fillText(fitText(ctx, r.name, cw - 28), x + 14, iy + ih + 30);
+    ctx.fillStyle = rank <= 3 ? MEDAL[rank - 1] : "#eef3f6"; ctx.font = `bold 40px ${MONO}`;
+    const rt = pct(r.ownedRate); ctx.fillText(rt, x + 14, y + chh - 38);
+    const rw = ctx.measureText(rt).width;
+    ctx.fillStyle = "#9fb0c0"; ctx.font = `14px ${FONT}`; ctx.fillText(`所持（完凸 ${pct(r.maxRate)}）`, x + 14 + rw + 10, y + chh - 40);
+    const bx = x + 14, by = y + chh - 24, bw = cw - 28;
+    roundRect(ctx, bx, by, bw, 8, 4); ctx.fillStyle = "rgba(255,255,255,.10)"; ctx.fill();
+    if (r.ownedRate > 0) { roundRect(ctx, bx, by, Math.max(8, bw * r.ownedRate), 8, 4); ctx.fillStyle = rank <= 3 ? "#dab949" : "#6be0e0"; ctx.fill(); }
+  });
+}
+
+async function drawOwnershipReport(canvas, d, badge){
+  const ctx = canvas.getContext("2d");
+  drawFrame(ctx, d, badge);
+  if (d.layout === "top") await layoutTop(ctx, d);
+  else if (d.layout === "full") await layoutFull(ctx, d);
+  else await layoutCards(ctx, d);
+  drawFooter(ctx);
 }
 
 // ---- 投稿文 ----
@@ -384,14 +506,25 @@ function tweetWeight(text){
   }
   return n + text.split("\n").length - 1;
 }
-function buildPostText(data){
-  const lines = [`【Gジェネエターナル】週間UR所持率レポート（${shortDate(data.date)}時点・データ登録${data.totalUsers}人）`];
-  data.top.slice(0, 3).forEach((t, i) => lines.push(`${i + 1}位 ${t.name} ${pct(t.ownedRate)}`));
-  if (data.gainers.length) lines.push(`今週いちばん伸びたのは「${data.gainers[0].name}」（+${data.gainers[0].deltaPt.toFixed(1)}pt）`);
+function buildOwnershipPost(d, badge){
+  const lines = [`【Gジェネエターナル】${d.type.post}レポート（${shortDate(d.date)}時点・登録${d.totalUsers}人）`];
+  if (badge) lines.push(`${badge}ありがとうございます！`);
+  lines.push("");
+  d.rows.slice(0, 3).forEach((r, i) => lines.push(`${i + 1}位 ${r.name} ${pct(r.ownedRate)}`));
+  lines.push(`1人あたり平均 ${d.avgOwned.toFixed(1)}${d.type.noun}／${d.rows.length}${d.type.noun}`);
+  if (d.layout === "top" && d.gainers.length) lines.push(`今週の伸び1位 ${d.gainers[0].name}（+${d.gainers[0].deltaPt.toFixed(1)}pt）`);
+  lines.push("");
   lines.push(CONFIG.hashtag);
   lines.push(CONFIG.siteUrl);
-  return lines.join("\n");
+  let text = lines.join("\n");
+  // 280を超えるときは「伸び」の行→3位→2位の順に削る
+  const drop = [];
+  if (d.layout === "top" && d.gainers.length) drop.push(`\n今週の伸び1位 ${d.gainers[0].name}（+${d.gainers[0].deltaPt.toFixed(1)}pt）`);
+  for (let k = 2; k >= 1; k--) if (d.rows[k]) drop.push(`\n${k + 1}位 ${d.rows[k].name} ${pct(d.rows[k].ownedRate)}`);
+  for (const s of drop) { if (tweetWeight(text) <= 280) break; text = text.replace(s, ""); }
+  return text;
 }
+
 function updateCount(){
   const n = tweetWeight($("postText").value);
   const el = $("postCount");
@@ -413,207 +546,39 @@ function setMsg(el, text, kind){
 }
 
 
-// =====================================================================
-// 期間限定UR 所持率レポート（週間レポートと同じ見た目。2026-09-25追加）
-// データ：/api/analytics/units（名前・期間限定フラグ）＋ /api/analytics/trend（指定日の所持者数・完凸者数・母数）
-// サーバー側の変更は不要（どちらも既存API）
-// =====================================================================
-function jstToday(){ return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); }
-function daysBetween(a, b){
-  const t = (d) => { const [y, m, dd] = d.split("-").map(Number); return Date.UTC(y, m - 1, dd); };
-  return Math.round((t(b) - t(a)) / 86400000);
-}
-async function fetchLimitedData(date){
-  const master = await fetchJson("/api/analytics/units");
-  if (master.status !== 200 || !master.data) throw new Error("ユニット一覧の取得に失敗しました（" + master.status + "）");
-  const limited = master.data.ranking.filter(r => r.limited);
-  const days = Math.min(365, Math.max(1, daysBetween(date, jstToday()) + 1));
-  const results = await Promise.all(limited.map(async u => {
-    const r = await fetchJson(`/api/analytics/trend?kind=unit&id=${u.unitId}&days=${days}`);
-    const p = r.data && r.data.points ? r.data.points.find(x => x.date === date) : null;
-    return p ? { unitId: u.unitId, name: u.name, ownedCount: p.ownedCount, maxCount: p.maxCount, totalUsers: p.totalUsers } : null;
-  }));
-  const rows = results.filter(Boolean);
-  if (!rows.length) return null;
-  const total = rows[0].totalUsers;
-  rows.forEach(r => {
-    r.ownedRate = total > 0 ? r.ownedCount / total : 0;
-    r.maxRate = total > 0 ? r.maxCount / total : 0;
-  });
-  rows.sort((a, b) => b.ownedRate - a.ownedRate || a.unitId - b.unitId);
-  const avgOwned = total > 0 ? rows.reduce((s, r) => s + r.ownedCount, 0) / total : 0;
-  return { date, totalUsers: total, rows, limitedTotal: limited.length, avgOwned };
-}
-
-async function drawLimitedReport(canvas, data, badge){
-  const ctx = canvas.getContext("2d");
-  if (!bgCanvas) bgCanvas = GalaxyBg.draw("report");
-  ctx.drawImage(bgCanvas, 0, 0, W, H);
-  ctx.fillStyle = "rgba(3,5,10,.35)"; ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = "#2b3746"; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
-
-  const imgs = {};
-  await Promise.all(data.rows.map(async r => { imgs[r.unitId] = await loadImage(`images/units/${r.unitId}.jpg`); }));
-
-  // 上部
-  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "#6be0e0"; ctx.font = `bold 15px ${FONT}`;
-  shadowText(ctx, "ジージェネレーション　エターナル", 40, 46);
-  ctx.fillStyle = "#ffffff"; ctx.font = `bold 38px ${FONT}`;
-  const title = "期間限定UR 所持率レポート";
-  shadowText(ctx, title, 40, 90);
-  const statLine = `期間限定UR ${data.limitedTotal}機｜1人あたり平均 ${data.avgOwned.toFixed(1)}機所持`;
-  if (badge) {
-    const tw = ctx.measureText(title).width;
-    // 右上の2行目（statLine）と重ならないよう、空いている幅に収める（17px→12pxまで縮め、それでも入らなければ「…」で省略）
-    ctx.font = `bold 17px ${FONT}`;
-    const statW = ctx.measureText(statLine).width;
-    const bx = 40 + tw + 16, by = 64, maxBw = (W - 40 - statW - 16) - bx;
-    let fs = 17, text = badge;
-    for (; fs > 12; fs--) { ctx.font = `bold ${fs}px ${FONT}`; if (ctx.measureText(text).width + 24 <= maxBw) break; }
-    ctx.font = `bold ${fs}px ${FONT}`;
-    text = fitText(ctx, text, maxBw - 24);
-    const bw = ctx.measureText(text).width + 24;
-    roundRect(ctx, bx, by, bw, 32, 16); ctx.fillStyle = "#dab949"; ctx.fill();
-    ctx.fillStyle = "#1b1503"; ctx.textBaseline = "middle"; ctx.fillText(text, bx + 12, by + 17); ctx.textBaseline = "alphabetic";
-  }
-  ctx.textAlign = "right"; ctx.fillStyle = "#dab949"; ctx.font = `bold 20px ${MONO}`;
-  shadowText(ctx, `${slashDate(data.date)} 時点｜データ登録 ${data.totalUsers}人`, W - 40, 58);
-  ctx.fillStyle = "#eef3f6"; ctx.font = `bold 17px ${FONT}`;
-  shadowText(ctx, statLine, W - 40, 90);
-
-  // 本体：所持率ランキングを左右2列に分けて全機表示
-  const half = Math.ceil(data.rows.length / 2);
-  const cols = [data.rows.slice(0, half), data.rows.slice(half)];
-  const PY = 116, PH = 500, PW = 550, GAP = 20;
-  const rowH = Math.min(40, Math.floor((PH - 56) / Math.max(1, half)));
-  const MEDAL = ["#e8c45a", "#c9d1d9", "#c58a4a"];
-  cols.forEach((list, ci) => {
-    const PX = 40 + ci * (PW + GAP);
-    const from = ci === 0 ? 1 : half + 1, to = ci === 0 ? half : data.rows.length;
-    panel(ctx, PX, PY, PW, PH, `所持率ランキング ${from}〜${to}位`, ci === 0 ? "#dab949" : "#6be0e0");
-    if (ci === 0) {
-      ctx.textAlign = "right"; ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${FONT}`;
-      ctx.fillText("所持率　（完凸率）", PX + PW - 18, PY + 31);
-    }
-    list.forEach((r, i) => {
-      const rank = (ci === 0 ? 0 : half) + i + 1;
-      const y = PY + 50 + i * rowH, cy = y + rowH / 2;
-      // 所持率に比例した帯
-      const barX = PX + 12, barW = PW - 24;
-      ctx.fillStyle = "rgba(255,255,255,.035)"; ctx.fillRect(barX, y + 2, barW, rowH - 4);
-      ctx.fillStyle = rank <= 3 ? "rgba(218,185,73,.20)" : "rgba(107,224,224,.12)";
-      ctx.fillRect(barX, y + 2, barW * r.ownedRate, rowH - 4);
-      // 順位
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      if (rank <= 3) {
-        ctx.fillStyle = MEDAL[rank - 1]; ctx.beginPath(); ctx.arc(PX + 32, cy, 12, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#1b1503"; ctx.font = `bold 14px ${MONO}`; ctx.fillText(String(rank), PX + 32, cy + 1);
-      } else {
-        ctx.fillStyle = "#9fb0c0"; ctx.font = `bold 15px ${MONO}`; ctx.fillText(String(rank), PX + 32, cy + 1);
-      }
-      const s = rowH - 8;
-      drawSquare(ctx, imgs[r.unitId], PX + 52, cy - s / 2, s);
-      // 所持率・完凸率
-      ctx.textAlign = "right";
-      ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${MONO}`;
-      const maxTxt = `（${pct(r.maxRate)}）`;
-      ctx.fillText(maxTxt, PX + PW - 18, cy + 1);
-      const maxW = ctx.measureText(maxTxt).width;
-      ctx.fillStyle = rank <= 3 ? MEDAL[rank - 1] : "#eef3f6"; ctx.font = `bold 19px ${MONO}`;
-      ctx.fillText(pct(r.ownedRate), PX + PW - 18 - maxW - 4, cy + 1);
-      // 名前
-      ctx.textAlign = "left"; ctx.fillStyle = "#eef3f6"; ctx.font = `15px ${FONT}`;
-      const nameX = PX + 52 + s + 10;
-      ctx.fillText(fitText(ctx, r.name || `No.${r.unitId}`, PX + PW - 18 - 190 - nameX), nameX, cy + 1);
-      ctx.textBaseline = "alphabetic";
-    });
-  });
-
-  // 下部（週間レポートと同じ）
-  const sg = ctx.createLinearGradient(0, H - 56, 0, H); sg.addColorStop(0, "rgba(3,5,10,0)"); sg.addColorStop(0.6, "rgba(3,5,10,.7)");
-  ctx.fillStyle = sg; ctx.fillRect(0, H - 56, W, 56);
-  ctx.textAlign = "left"; ctx.fillStyle = "#c7d2dc"; ctx.font = `14px ${FONT}`;
-  const siteLabel = CONFIG.siteName + "　";
-  shadowText(ctx, siteLabel, 40, H - 24);
-  ctx.fillStyle = "#6be0e0"; ctx.font = `14px ${MONO}`;
-  shadowText(ctx, CONFIG.siteUrl, 40 + (ctx.font = `14px ${FONT}`, ctx.measureText(siteLabel).width), H - 24);
-  ctx.textAlign = "right"; ctx.fillStyle = "#6be0e0"; ctx.font = `bold 15px ${MONO}`;
-  shadowText(ctx, CONFIG.xHandle, W - 40, H - 24);
-  ctx.textAlign = "left";
-}
-
-function buildLimitedPostText(data, badge){
-  const lines = [`【Gジェネエターナル】期間限定UR所持率レポート（${shortDate(data.date)}時点・登録${data.totalUsers}人）`];
-  if (badge) lines.push(`${badge}ありがとうございます！`);
-  lines.push("");
-  data.rows.slice(0, 3).forEach((r, i) => lines.push(`${i + 1}位 ${r.name} ${pct(r.ownedRate)}`));
-  lines.push(`1人あたり平均 ${data.avgOwned.toFixed(1)}機／${data.limitedTotal}機`);
-  lines.push("");
-  lines.push(CONFIG.hashtag);
-  lines.push(CONFIG.siteUrl);
-  let text = lines.join("\n");
-  // 280を超えるときは、3位→2位の順に削って収める
-  for (let k = 2; k >= 1 && tweetWeight(text) > 280; k--) {
-    const tr = data.rows[k];
-    if (tr) text = text.replace(`\n${k + 1}位 ${tr.name} ${pct(tr.ownedRate)}`, "");
-  }
-  return text;
-}
-
-async function makeLimitedReport(date){
-  const data = await fetchLimitedData(date);
-  if (!data) {
-    $("previewBox").hidden = true; $("postSection").hidden = true;
-    setMsg($("makeMsg"), "この日の集計データがありません。", "ng");
-    return;
-  }
-  const badge = $("badgeText").value.trim();
-  const canvas = document.createElement("canvas");
-  canvas.width = W; canvas.height = H;
-  await drawLimitedReport(canvas, data, badge);
-  const url = canvas.toDataURL("image/png");
-  $("previewImg").src = url; $("modalImg").src = url;
-  $("previewBox").hidden = false;
-  $("postText").value = buildLimitedPostText(data, badge);
-  $("postSection").hidden = false;
-  updateCount();
-  setMsg($("makeMsg"), `${slashDate(data.date)}時点の期間限定UR ${data.rows.length}機のレポートを作成しました。`, "ok");
-}
 function reportType(){ return document.querySelector('input[name="reportType"]:checked').value; }
-$("typeRow").addEventListener("change", () => { $("badgeRow").hidden = reportType() !== "limited"; });
 
+// ㉘ 5種類とも GET /api/admin/report/ownership を1回呼び、対象の絞り込み・並べ替え・レイアウト選択は buildReportData() で行う
 async function makeReport(){
   const btn = $("btnMake");
   btn.disabled = true;
   setMsg($("makeMsg"), "作成中…");
   try {
     const date = $("reportDate").value;
-    if (reportType() === "limited") {
-      if (!date) { setMsg($("makeMsg"), "集計日を選んでください。", "ng"); return; }
-      await makeLimitedReport(date);
-      return;
-    }
-    const r = await fetchJson("/api/admin/report/weekly" + (date ? "?date=" + encodeURIComponent(date) : ""));
+    const typeKey = reportType();
+    const t = REPORT_TYPES[typeKey];
+    const r = await fetchJson(`/api/admin/report/ownership?kind=${t.kind}` + (date ? "&date=" + encodeURIComponent(date) : ""));
     if (r.status !== 200 || !r.data) {
       $("previewBox").hidden = true;
       $("postSection").hidden = true;
       setMsg($("makeMsg"), r.data && r.data.error === "no_data" ? "この日の集計データがありません。" : "データの取得に失敗しました（" + r.status + "）。", "ng");
       return;
     }
-    const data = r.data;
+    const data = buildReportData(r.data, typeKey);
     if (!date) $("reportDate").value = data.date;
+    const badge = $("badgeText").value.trim();
     const canvas = document.createElement("canvas");
     canvas.width = W; canvas.height = H;
-    await drawReport(canvas, data);
+    await drawOwnershipReport(canvas, data, badge);
     const url = canvas.toDataURL("image/png");
     $("previewImg").src = url;
     $("modalImg").src = url;
     $("previewBox").hidden = false;
-    $("postText").value = buildPostText(data);
+    $("postText").value = buildOwnershipPost(data, badge);
     $("postSection").hidden = false;
     updateCount();
-    setMsg($("makeMsg"), `${slashDate(data.date)}時点（比較：${data.prevDate ? slashDate(data.prevDate) : "なし"}）のレポートを作成しました。`, "ok");
+    const label = document.querySelector(`input[name="reportType"][value="${typeKey}"]`).parentElement.textContent.trim();
+    setMsg($("makeMsg"), `${slashDate(data.date)}時点（比較：${data.prevDate ? slashDate(data.prevDate) : "なし"}）の${label}レポートを作成しました。`, "ok");
   } catch (e) {
     console.error(e);
     setMsg($("makeMsg"), "作成に失敗しました：" + e.message, "ng");
@@ -668,7 +633,7 @@ $("btnRunSnapshot").addEventListener("click", async () => {
   $("contentView").hidden = false;
   // 既定の日付は最新の集計日
   try {
-    const r = await fetchJson("/api/admin/report/weekly");
+    const r = await fetchJson("/api/admin/report/ownership?kind=unit");
     if (r.status === 200 && r.data) $("reportDate").value = r.data.date;
     else setMsg($("makeMsg"), "集計データがまだありません。下の「今日の集計を今すぐ実行」で作成できます。");
   } catch (e) {}

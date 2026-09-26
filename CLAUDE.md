@@ -23,9 +23,9 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `unit-scan.js` — スクショ読み取りの判定処理（`window.UnitScan`。`SCAN_FIT`＝ユニットごとの位置合わせ値）。2026-09-26から`unit.html`が読み込む
 - ~~`unit-scan.html`~~ — ㉖段階Aのスクショ読み取り試験版。`unit.html`へ統合済みのため**2026-09-26（㉘段階A）に削除**（ユーザー承認済み）。学習用の`?scandebug=1`は`/unit?scandebug=1`で使う
 - `supporter-scan.html` / `supporter-scan.js` — ㉗・㉘段階D：URサポートのスクショ読み取り（**運営者試用**。2026-09-26追加）。`supporter.html`のコピー＋「強化 > サポーター」一覧のスクショからURサポートと凸を判定（`window.SupporterScan`。`SCAN_FIT`は31体分）。`noindex`・`/api/admin/me`で運営者判定（`scanLocked`）・`data-auth-stay`。保存先は`supporter.html`と同じ。トップの運営者欄から遷移。**`supporter.html`を変更しても自動では反映されない**（試用後、別途指示で`supporter.html`へ統合予定）
-- `report.html` — ㉖段階C：週間UR所持率レポート作成ページ（**運営者専用**。`/api/admin/me`で判定し、運営者以外は「運営者専用ページです」のみ表示。`noindex`・トップからのリンクなし・`data-auth-stay`）。1200×675のレポート画像（背景は`profile-card.html`の銀河背景をスクリプトでコピーした`GalaxyBg`）と投稿文を作る。「今日の集計を今すぐ実行」ボタンあり
+- `report.html` — ㉖段階C：X投稿用レポート作成ページ（**運営者専用**。`/api/admin/me`で判定し、運営者以外は「運営者専用ページです」のみ表示。`noindex`・`data-auth-stay`。トップの運営者欄から遷移）。**2026-09-26（㉘）から5種類**（全URユニット／期間限定URユニット／全URサポート／恒常URサポート／期間限定URサポート。`REPORT_TYPES`に1行足せば種類を追加できる）で、データは`GET /api/admin/report/ownership`の1回取得。レイアウトは対象の件数で自動選択（27件以上＝TOP10＋伸びTOP3、9〜26件＝全件2列、8件以下＝カード）。1200×675の画像（背景は`profile-card.html`の銀河背景をコピーした`GalaxyBg`）と投稿文を作る。「今日の集計を今すぐ実行」ボタンあり
 - `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`・`analytics.html`・`eternal-road.html`・`profile-card.html`から読み込む。ログイン成功後は`/top`へ遷移するが、`<body data-auth-stay>`のページ（`eternal-road.html`・`profile-card.html`・㉘から`unit.html`・`supporter.html`も）はその場でリロード（⑮）
-- `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）、所持データログ収集API（`/api/log`・`/api/log-supporter`。**ログイン済みユーザーのみD1保存、ゲストは匿名カウンタのみ加算＝2026-09-19〜**）、分析API（`/api/analytics/units`・`/api/analytics/supporters`、ログイン必須。2026-09-19新設。`/api/analytics/eternal-road`は2026-09-24新設）、自己紹介カードAPI（`/api/works`・`/api/profile-card`・`/api/profile`。㉒・2026-09-24新設）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
+- `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）、所持データログ収集API（`/api/log`・`/api/log-supporter`。**ログイン済みユーザーのみD1保存、ゲストは匿名カウンタのみ加算＝2026-09-19〜**）、運営者API（`/api/admin/me`・`/api/admin/run-snapshot`・`/api/admin/report/weekly`・㉘の`/api/admin/report/ownership`）、分析API（`/api/analytics/units`・`/api/analytics/supporters`、ログイン必須。2026-09-19新設。`/api/analytics/eternal-road`は2026-09-24新設）、自己紹介カードAPI（`/api/works`・`/api/profile-card`・`/api/profile`。㉒・2026-09-24新設）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
 - `wrangler.jsonc` — プロジェクト名 `ggene-ur-checker`、assetsのdirectoryは`./`、D1バインディング`DB`（`ggene-ur-checker-db`）設定済み。㉖で定期実行`triggers.crons: ["0 19 * * *"]`（UTC 19:00＝JST 4:00）と運営者ユーザー名`vars.ADMIN_USERNAMES`（カンマ区切り。**現在`ESP`**。運営者を増やすときはここに追記してpush）を追加
 - `migrations/0001_add_user_auth.sql` — `users`テーブルへの`username`/`password`カラム追加、`sessions`テーブル新設。Cloudflareダッシュボード（D1 > Console）で手動適用済み
 - `migrations/0002_populate_master_data.sql` — `units_master`/`supporters_master`への実データ投入（機体84件・サポート49件）。Cloudflareダッシュボード（D1 > Console）で手動適用済み（2026-09-19）
@@ -755,7 +755,23 @@ Cowork側の実装依頼書`docs/05_機能拡張_有料プラン/㉘ログイン
 - 推しユニットの選択欄のヒントに「『標準』『推しユニット』のカードに表示されます。」を追加
 - 検証：Playwright（APIモック。マスターは`migrations/0002`・`0009`・`0012`をsqlite3で読み込んで組み立て）で標準×銀河・地球・大空×推しあり／なし、登録状況5通り（ユニットのみ・サポートなし・エタロなし・ユニットなし・サポートのみ）を描画して目視確認（はみ出し・重なりなし）。エタロ攻略・推しユニットのテンプレートは変更前のページと比較し、銀河・大空はピクセル完全一致、地球は月の位置（990,48付近）だけが異なることを確認。「画像で保存」のプレビュー表示、JSエラーなし
 
+**段階C：X投稿用レポートの5種類化＋API追加**
+- `worker.js`：`GET /api/admin/report/ownership?kind=unit|supporter&date=`（`handleAdminReportOwnership()`。依頼書3-3の実装の目安どおり。`requireAdmin`・`withJsonError(…, "report-ownership")`、ルーティングはweeklyの直後）。`/api/admin/report/weekly`は`report.html`から使わなくなったが互換のため残置
+- `report.html`：試作`docs/05_…/試作HTML/㉗X投稿用レポート_試作.html`の描画エンジンを**スクリプトで移植**（`REPORT_TYPES`・`GAINER_MIN_OWNED`・`MEDAL`・`drawThumb()`・`imgPath()`（`BASE`は外して`images/…`）・`limitedBadge()`・`rankMark()`・`buildReportData()`・`drawFrame()`・`drawFooter()`・`layoutTop/Full/Cards()`・`drawOwnershipReport()`・`buildOwnershipPost()`、`panel()`は試作版に差し替え）。旧`drawSquare()`・`drawReport()`・`buildPostText()`・期間限定用の`fetchLimitedData()`〜`makeLimitedReport()`・`jstToday()`・`daysBetween()`は削除。ラジオ5択（既定`unit_all`）・一言欄は常時表示・起動時の既定日は新API（`kind=unit`）・完了メッセージに種類の表示名
+- `top.html`：運営者欄「X投稿用レポート」の説明文を「定時集計からURユニット・URサポートの所持率レポート画像と投稿文を作成（運営者専用）」に
+- **試作どおりの挙動で要確認の点**：一言バッジは見出しの右の空き幅が60px以下だと描かないため、見出しの長い**期間限定URユニット（空き14px）・期間限定URサポート（37px）では画像にバッジが出ない**（投稿文には「…ありがとうございます！」の行が入る）。㉗のモック画像でも同じ。旧期間限定レポート（見出し「期間限定UR 所持率レポート」）では出ていたので、画像にも出したい場合は見出しの縮小下限や2行目への配置などを別途検討
+- 検証：Node環境が無いため、`worker.js`をヘッドレスChromium内でESモジュールとしてそのまま読み込み、`env.DB`をPythonのsqlite3（`migrations`の実ファイル＋CLAUDE.mdの基本スキーマで作成、ユーザー40人の所持データ）へ`expose_function`でブリッジするハーネスを作成（本物の`run-snapshot`で231行を生成し、7日前・9日前・前日の履歴を追加）。画面は`page.route`でそのハーネスのworkerにつないで72件成功（依頼書3-5の1〜7：権限200/403/401、`kind`不正・なし・`date`形式不正は400、データ無しは404、`date`省略時は最新日、`prevDate`のちょうど7日前／無ければそれ以前の最新／無ければnull、84件・49件、5種類の件数84・26・49・43・6とレイアウトA・B・A・A・C、伸びTOP3の条件と並び、1人あたり平均、投稿文280以内（一言あり・なし）、比較データ無し・伸びなしで伸びの行なし、**期間限定URユニットの数値が変更前の`report.html`の`fetchLimitedData()`（trend26回方式）と完全一致**、一般ユーザーはガード、weekly APIが引き続き動作、トップの説明文、JSエラーなし）。5種類の生成画像を目視確認
+
+**commit**：段階D `f3e2827`／段階A `29f557c`（`git add`のパス指定ミスで`unit-scan.html`の削除だけが先に入った）＋`e249823`（残りの変更）／段階B `b8485ea`／段階C（このcommit）。すべて`git push origin main`済み
+
+**未実施（要対応）**
+- 本番確認：未ログインで`/unit`・`/supporter.html`がガードのみ、ログイン→同じページで本体表示。運営者（`ESP`）で`/report.html`の5種類を作成（集計データが7日分以上たまるまでは伸びTOP3は「比較できる1週間前のデータがありません」）、`/supporter-scan.html`の読み取り（実機スマホ）
+- `auth.js`のログインモーダルのヒント文「（任意機能。未登録でもチェッカーは今まで通り使えます）」の見直し（ログイン必須化と矛盾。文言はユーザー／Cowork確認待ち）
+- 一言バッジが期間限定の2種類で画像に出ない件の扱い（上記）
+- `supporter-scan.js`の`SCAN_FIT`が無い18体の学習（「新ユニット・作品の追加手順」7）。試用で問題なければ別途指示で`supporter.html`へ統合
+
 ## 次にやること
+- ㉘：段階D・A・B・Cすべてpush済み。本番確認と、上記「㉘」節の「未実施（要対応）」（ログインモーダルの文言・一言バッジ・サポートの`SCAN_FIT`）
 - ㉖：push済み。本番での`report.html`の手動集計（231行の確認）・翌朝4時の定期実行の確認・入手記録の実機確認（「㉖」節の「未実施（要対応）」）。スクショ読み取り試験版（運営者専用）のテスト運用
 - ㉒：D1適用・push済み。、`/profile-card.html`のテスト運用、iOS Safari実機確認、指示後にトップ導線の`hidden`を外す
 - ⑮：`migrations/0008`〜`0010`は適用済み、トップページへの導線も2026-09-24に公開済みで完了。`CONFIG.quotePostUrl`も2026-09-24に設定済み
