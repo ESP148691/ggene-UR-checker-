@@ -297,7 +297,7 @@
             <select id="unitWorkFilter" aria-label="作品で絞り込み"><option value="">作品：すべて</option></select>
           </div>
           <div class="pickList" id="unitList"></div>
-          <p class="hint">登録済みの所持URユニットから最大5機まで選べます。</p>
+          <p class="hint">登録済みの所持URユニットから最大5機まで選べます。『標準』『推しユニット』のカードに表示されます。</p>
         </div>
         <p class="hint" id="unitEmptyHint" hidden>URユニット所持率チェッカーで所持データを登録すると選べます。</p>
       </section>
@@ -331,6 +331,7 @@
 <script>
 /* =====================================================================
  * カード描画：docs/㉑自己紹介カード_試作5_プロトタイプ.html の描画コードをそのまま移植（㉒6.1）。
+ * ㉗試作6：layoutStandard（推しユニットを大きく）・bgEarth（月の削除）を変更。layoutEternalは変更なし（ユーザー判断 2026-09-26）。
  * 変更点は BASE を "" にしたこと（ページがサイトルート直下のため）と、名前の衝突を避けるため
  * 即時関数で包んで CardRenderer として公開したことのみ。描画仕様の変更はプロトタイプ側で検討してから移すこと
  * ===================================================================== */
@@ -495,11 +496,7 @@ function bgEarth(layout){
   lg.addColorStop(0,"rgba(255,240,220,0)"); lg.addColorStop(0.5,"rgba(255,240,220,.5)"); lg.addColorStop(1,"rgba(255,240,220,0)");
   ctx.strokeStyle=lg; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(fx-lx*500,fy-ly*500); ctx.lineTo(fx+lx*500,fy+ly*500); ctx.stroke();
   ctx.restore();
-  // 遠くの月
-  const [mx,my]=[990,48];   // ヘッダーのタイトルとロゴの間（どちらのテンプレートでも文字と重ならない位置）
-  const mg=ctx.createRadialGradient(mx-4,my-4,0,mx,my,18);
-  mg.addColorStop(0,"#eeebe2"); mg.addColorStop(0.85,"#a8a59c"); mg.addColorStop(1,"rgba(120,118,110,0)");
-  ctx.fillStyle=mg; ctx.beginPath(); ctx.arc(mx,my,15,0,Math.PI*2); ctx.fill();
+  // ㉗ 遠くの月は削除（ユーザー指示 2026-09-26）
   if(layout==="eternal"){ /* エタロ版は右側がバナーで埋まるため、見え方は左カラムと下辺が中心になる */ }
   return c;
 }
@@ -892,7 +889,9 @@ async function workLogo(ctx,T,no,x,y,w,h,radius=6){
   ctx.restore();
   roundRect(ctx,x+0.5,y+0.5,w-1,h-1,radius); ctx.strokeStyle=T.dark?"rgba(255,255,255,.35)":"rgba(15,39,64,.25)"; ctx.lineWidth=1; ctx.stroke();
 }
-/* ======================= テンプレート①：標準（⑰） ======================= */
+/* ======================= テンプレート①：標準（⑰ → ㉗で右カラムを再配置） ======================= */
+// ㉗ 右カラムを「上・中段＝URユニット（推しユニット5機を大きく）／下段＝URサポートとエタロを左右半分ずつ」に変更。
+// 推しユニットが未設定のときは、所持ユニットを凸Lvの高い順（同じならID順）に5機並べ、見出しを「所持ユニット」にする
 async function layoutStandard(ctx,T,data){
   await header(ctx,T,null);
   const LX=36, LW=400;
@@ -904,11 +903,9 @@ async function layoutStandard(ctx,T,data){
     const f=favs[i], ry=favTop+44+i*rowH, icon=rowH-12, ix=LX+36;
     ctx.fillStyle=T.goldDim; ctx.font=`bold 20px ${FONT}`; ctx.textBaseline="middle";
     ctx.fillText(String(i+1).padStart(2,"0"),LX+4,ry+icon/2);
-    // 作品アイコン（ロゴ）：高さ=行の高さ、幅は元画像の比率(320:140)
     const lw=Math.round(icon*320/140);
     await workLogo(ctx,T,f.iconNo,ix,ry,lw,icon,7);
-    const iconW=lw;
-    const tx=ix+iconW+12, tw=LX+LW-tx+8;
+    const tx=ix+lw+12, tw=LX+LW-tx+8;
     ctx.fillStyle=T.text; ctx.font=`bold 14px ${FONT}`; ctx.textBaseline="alphabetic";
     ctx.fillText(fitText(ctx,f.shortName,tw),tx,ry+icon/2-2);
     const eraLabel={UC:"宇宙世紀",ALT:"アナザー",ETC:"SD・ビルド他"}[f.era];
@@ -919,44 +916,86 @@ async function layoutStandard(ctx,T,data){
     if(f.timeline){ ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText(f.timeline,tx+ew+8,ry+icon/2+15.5); }
     ctx.textBaseline="alphabetic";
   }
-  const RX=470, RW=W-36-RX; let py=86;
+
+  const RX=470, RW=W-36-RX, TOP=86, BOTTOM=H-60, GAP=12;
   const u=data.units, s=data.supporters, e=data.eternalRoad;
-  if(u&&u.registered){
-    const h=186; panel(ctx,T,RX,py,RW,h,"URユニット所持",T.gold);
-    bigRate(ctx,T,RX+18,py+96,String(u.pct),"%",`所持 ${u.owned} / ${u.total}機　平均凸Lv ${u.avgLevel.toFixed(1)}`);
-    subStats(ctx,T,RX+210,py+84,RW-220,[
+  const hasU=!!(u&&u.registered), hasS=!!(s&&s.registered), hasE=!!(e&&e.registered);
+  const lowerN=(hasS?1:0)+(hasE?1:0);
+  const LOWER_H=176;
+  let py=TOP;
+
+  // ---- 上・中段：URユニット所持（統計＋推しユニット5機） ----
+  if(hasU){
+    const h=lowerN?(BOTTOM-TOP-GAP-LOWER_H):(BOTTOM-TOP);
+    panel(ctx,T,RX,py,RW,h,"URユニット所持",T.gold);
+    bigRate(ctx,T,RX+18,py+88,String(u.pct),"%",`所持 ${u.owned} / ${u.total}機　平均凸Lv ${u.avgLevel.toFixed(1)}`,48);
+    subStats(ctx,T,RX+230,py+78,RW-240,[
       {v:`${u.maxCount}`,l:"完凸",rainbow:u.maxCount>0},{v:`${u.limitedOwned}/${u.limitedTotal}`,l:"期間限定"},
       {v:`${u.byType["攻撃"].owned}/${u.byType["攻撃"].total}`,l:"攻撃"},
       {v:`${u.byType["支援"].owned}/${u.byType["支援"].total}`,l:"支援"},
       {v:`${u.byType["耐久"].owned}/${u.byType["耐久"].total}`,l:"耐久"}]);
-    const cell=28, step=cell+5, fitN=Math.floor((RW-80)/step), show=u.maxUnitIds.slice(0,fitN), sx=RX+18, sy=py+134;
-    for(let i=0;i<show.length;i++){
-      const im=await loadImage(`${BASE}images/units/${show[i]}.jpg`), x=sx+i*step;
-      if(im) drawCover(ctx,im,x,sy,cell,cell);
-      ctx.strokeStyle=rainbow(ctx,x,sy,x+cell,sy+cell); ctx.lineWidth=1.5; ctx.strokeRect(x+.75,sy+.75,cell-1.5,cell-1.5);
+    // 推しユニット（未設定なら所持ユニットの凸Lv順）
+    const picked=(data.favoriteUnits||[]).slice(0,5);
+    const list=picked.length?picked:(u.topOwned||[]).slice(0,5);
+    const label=picked.length?"推しユニット":"所持ユニット";
+    const rowTop=py+122, rowH=py+h-14-rowTop;
+    ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(RX+16,rowTop-8); ctx.lineTo(RX+RW-16,rowTop-8); ctx.stroke();
+    ctx.fillStyle=T.gold; ctx.font=`bold 12px ${FONT}`; ctx.textBaseline="alphabetic"; ctx.fillText(label,RX+18,rowTop+10);
+    const n=5, gapX=12, slotW=(RW-36-gapX*(n-1))/n;
+    const size=Math.min(slotW, rowH-18-40);   // 画像の下に名前・タイプ｜作品の2行
+    const iy0=rowTop+18+Math.max(0,(rowH-18-size-40)/2);   // 余白は上下に均等配分
+    for(let i=0;i<list.length;i++){
+      const f=list[i], sx=RX+18+i*(slotW+gapX), ix=sx+(slotW-size)/2, iy=iy0;
+      await unitImage(ctx,T,f,ix,iy,size,10);
+      // 順位（推しのときだけ）
+      if(picked.length){
+        ctx.font=`bold 13px ${FONT}`; const t=String(i+1).padStart(2,"0"), bw=ctx.measureText(t).width+10;
+        roundRect(ctx,ix+size-bw-5,iy+5,bw,19,4); ctx.fillStyle="rgba(10,14,20,.78)"; ctx.fill();
+        ctx.fillStyle=i===0?T.gold:"#e6edf3"; ctx.textBaseline="middle"; ctx.fillText(t,ix+size-bw,iy+15); ctx.textBaseline="alphabetic";
+      }
+      // ★（凸）を画像の下端に重ねる
+      const R=6.5, starsW=3*R*2.3, stx=ix+(size-starsW)/2, sty=iy+size-11;
+      ctx.save(); roundRect(ctx,stx-6,sty-10,starsW+10,20,10); ctx.fillStyle="rgba(8,10,16,.72)"; ctx.fill(); ctx.restore();
+      totsuStars(ctx,{...T,dark:true},stx,sty,R,f.level);
+      // 名前（1行・省略）
+      ctx.fillStyle=T.text; ctx.font=`bold 12px ${FONT}`; ctx.textAlign="center";
+      ctx.fillText(fitText(ctx,f.name,slotW),sx+slotW/2,iy+size+16);
+      const sub=[f.type,f.workShort].filter(Boolean).join("｜");
+      if(sub){ ctx.fillStyle=T.muted; ctx.font=`11px ${FONT}`; ctx.fillText(fitText(ctx,sub,slotW),sx+slotW/2,iy+size+33); }
+      ctx.textAlign="left";
     }
-    if(u.maxUnitIds.length>fitN){ ctx.fillStyle=T.muted; ctx.font=`13px ${FONT}`; ctx.textBaseline="middle";
-      ctx.fillText(`+${u.maxUnitIds.length-fitN}`,sx+fitN*step+2,sy+cell/2); ctx.textBaseline="alphabetic"; }
-    py+=h+12;
+    py+=h+GAP;
   }
-  if(s&&s.registered){
-    const h=152; panel(ctx,T,RX,py,RW,h,"URサポート所持",T.cyan);
-    bigRate(ctx,T,RX+18,py+98,String(s.pct),"%",`所持 ${s.owned} / ${s.total}体　平均凸Lv ${s.avgLevel.toFixed(1)}`);
-    subStats(ctx,T,RX+210,py+90,RW-220,[
-      {v:`${s.maxCount}`,l:"完凸",rainbow:s.maxCount>0},{v:`${s.limitedOwned}/${s.limitedTotal}`,l:"期間限定"},
-      {v:`${s.byType["HP回復"].owned}/${s.byType["HP回復"].total}`,l:"HP回復"},
-      {v:`${s.byType["EN回復"].owned}/${s.byType["EN回復"].total}`,l:"EN回復"},
-      {v:`${s.byType["複合"].owned}/${s.byType["複合"].total}`,l:"複合"}]);
-    py+=h+12;
-  }
-  if(e&&e.registered){
-    const st=eternalSummary(e);
-    const h=152; panel(ctx,T,RX,py,RW,h,"エタロ攻略 EXPERT",T.violet);
-    bigRate(ctx,T,RX+18,py+98,`${st.stageClear}`,` / ${st.stageTotal}`,`ステージクリア　クリア率 ${st.clearPct}%`);
-    subStats(ctx,T,RX+210,py+90,RW-220,[
-      {v:`${st.perfect}/${st.stageTotal}`,l:"全ミッション達成",rainbow:st.perfect===st.stageTotal},
-      {v:`${st.missions}/${st.missionTotal}`,l:"ミッション達成"},{v:`${st.titles}/${st.titleTotal}`,l:"称号獲得"}]);
-  }
+
+  // ---- 下段：URサポートとエタロを左右半分ずつ（片方だけなら全幅） ----
+  const lowerY=hasU?py:TOP, lowerH=hasU?LOWER_H:(lowerN===2?LOWER_H:LOWER_H);
+  const cols=[]; if(hasS) cols.push("s"); if(hasE) cols.push("e");
+  const cw=cols.length===2?(RW-GAP)/2:RW;
+  cols.forEach((k,i)=>{
+    const x=RX+i*(cw+GAP);
+    if(k==="s"){
+      panel(ctx,T,x,lowerY,cw,lowerH,"URサポート所持",T.cyan);
+      bigRate(ctx,T,x+16,lowerY+84,String(s.pct),"%",null,40);
+      ctx.fillStyle=T.text; ctx.font=`12px ${FONT}`; ctx.textAlign="right";
+      ctx.fillText(`所持 ${s.owned} / ${s.total}体`,x+cw-16,lowerY+62);
+      ctx.fillText(`平均凸Lv ${s.avgLevel.toFixed(1)}`,x+cw-16,lowerY+82); ctx.textAlign="left";
+      subStats(ctx,T,x+8,lowerY+134,cw-16,[
+        {v:`${s.maxCount}`,l:"完凸",rainbow:s.maxCount>0},{v:`${s.limitedOwned}/${s.limitedTotal}`,l:"期間限定"},
+        {v:`${s.byType["HP回復"].owned}/${s.byType["HP回復"].total}`,l:"HP回復"},
+        {v:`${s.byType["EN回復"].owned}/${s.byType["EN回復"].total}`,l:"EN回復"},
+        {v:`${s.byType["複合"].owned}/${s.byType["複合"].total}`,l:"複合"}]);
+    } else {
+      const st=eternalSummary(e);
+      panel(ctx,T,x,lowerY,cw,lowerH,"エタロ攻略 EXPERT",T.violet);
+      bigRate(ctx,T,x+16,lowerY+84,`${st.stageClear}`,` / ${st.stageTotal}`,null,40);
+      ctx.fillStyle=T.text; ctx.font=`12px ${FONT}`; ctx.textAlign="right";
+      ctx.fillText("ステージクリア",x+cw-16,lowerY+62);
+      ctx.fillText(`クリア率 ${st.clearPct}%`,x+cw-16,lowerY+82); ctx.textAlign="left";
+      subStats(ctx,T,x+8,lowerY+134,cw-16,[
+        {v:`${st.perfect}/${st.stageTotal}`,l:"全ミッション達成",rainbow:st.perfect===st.stageTotal},
+        {v:`${st.missions}/${st.missionTotal}`,l:"ミッション"},{v:`${st.titles}/${st.titleTotal}`,l:"称号"}]);
+    }
+  });
   footer(ctx,T,data);
 }
 
@@ -1387,7 +1426,13 @@ function buildCardData(){
     .map(u => ({ unitId: u.unitId, name: u.name, type: u.type, limited: u.limited, level: own[String(u.unitId)],
                  workShort: (worksById.get(u.workId) || {}).shortName || "" }));
   const units = api.units ? Object.assign({}, api.units, {
-    maxUnitIds: Object.keys(own).filter(k => own[k] === 3).map(Number).sort((a, b) => a - b)
+    maxUnitIds: Object.keys(own).filter(k => own[k] === 3).map(Number).sort((a, b) => a - b),   // ㉘ 新レイアウトでは未使用（残置）
+    // ㉘ 標準カードで推しユニット未設定のときに並べる所持ユニット：凸Lvの高い順、同じならID順に5機（形はfavoriteUnitsと同じ）
+    topOwned: Object.keys(own).map(Number).filter(id => unitsById.has(id))
+      .sort((a, b) => own[String(b)] - own[String(a)] || a - b).slice(0, 5)
+      .map(id => { const u = unitsById.get(id);
+        return { unitId: id, name: u.name, type: u.type, limited: u.limited, level: own[String(id)],
+                 workShort: (worksById.get(u.workId) || {}).shortName || "" }; })
   }) : null;
   const er = api.eternalRoad && erStages ? {
     registered: !!api.eternalRoad.registered, stages: erStages,
