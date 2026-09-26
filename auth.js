@@ -26,7 +26,7 @@
         <button type="button" data-tab="register">新規登録</button>
       </div>
       <h2 id="authTitle">ログイン</h2>
-      <p class="hint">登録すると自己紹介カードの保存・端末をまたいだデータ引き継ぎが利用できます（任意機能。未登録でもチェッカーは今まで通り使えます）。</p>
+      <p class="hint">各チェッカーは新規登録・ログインしてご利用いただけます（無料・メールアドレス不要。ユーザー名とパスワードだけで登録できます）。登録したデータはサーバーに保存され、機種変更や別の端末でも引き継げます。</p>
       <form id="authForm">
         <input type="text" id="authUsername" placeholder="ユーザー名（英数字・_、3〜20文字）" autocomplete="username" required>
         <input type="password" id="authPassword" placeholder="パスワード（6文字以上）" autocomplete="current-password" required style="margin-top:8px;">
