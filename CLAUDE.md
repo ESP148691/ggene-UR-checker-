@@ -15,7 +15,8 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 ## リポジトリ構成
 このリポジトリのルートには以下を配置する:
 - `top.html` — ログイン後トップページ（ルートURL `/` で配信）。ログイン状態表示、機体版/サポート版/エタロ攻略チェッカーへの導線、今後のチェッカー（ROUTE 04）のComing Soon表示、ログイン中のみ表示される分析ページ導線
-- `unit.html` — UR機体所持率チェッカー（84機収録）。2026-09-26からスクショ読み取り（`unit-scan.js`）を統合＝本番化。**2026-09-26（㉘）からログイン必須**（未ログインはガードのみ表示）
+- `unit.html` — UR機体所持率チェッカー（84機収録）。2026-09-26からスクショ読み取り（`unit-scan.js`）を統合＝本番化。**2026-09-26（㉘）からログイン必須**（未ログインはガードのみ表示）。**㉚（2026-09-27）からユニットのデータ本体は`ur-units.js`**（`const UNITS = window.UR_UNITS || [];`）
+- `ur-units.js` — ㉚：URユニットのマスター（画面側の正本。`window.UR_UNITS`・1機1行）。`unit.html`と`profile-card.html`が読み込む。要素は`id`・`name`・`limited`・`type`・`imageUrl`・`released`（必須）・`wrap`（任意）。**このファイルが無いとユニットチェッカーが空になる**
 - `supporter.html` — URサポート所持率チェッカー（49体収録）。**2026-09-26（㉘）からログイン必須**。2026-09-27からスクショ読み取り（`supporter-scan.js`）を統合＝本番化
 - `analytics.html` — データ登録結果レポート（分析ページ。ログインユーザー限定・2026-09-19新設。2026-09-24に「みんなの所持率ランキング」→「全軍戦況レポート」→「ログインユーザーレポート」→「データ登録結果レポート」と改名し、エタロ攻略タブを追加）
 - `eternal-road.html` — エタロ攻略チェッカー（エターナルロード エキスパート難易度。全29ステージ・69ミッション。2026-09-23新設・⑩⑭。同日⑮でバナー画像・通常クリア・3ボタン・フィルタ追加、**ログインユーザー限定**化）
@@ -42,11 +43,14 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `migrations/0013_units_ownership_acquisition.sql` — ㉖段階B：`units_ownership`に入手記録の3列（`acquired_on` TEXT・`gasha_pulls` INTEGER・`memo` TEXT）を追加。`docs/05_機能拡張_有料プラン/データ/㉖0013_…sql`とバイト単位で同一。**`ALTER TABLE`のため再実行するとduplicate columnエラー（＝適用済みの意味）**。**コードより先に適用すること**（逆順だと入手記録付きの登録が`handleOwnershipLog()`のtry/catchで握りつぶされ、画面上は成功に見えて保存されない。また`/api/my-ownership`が列不在でエラーになり起動時の復元が止まる）。**適用済み（2026-09-25、ユーザーがD1 Consoleで実行）**
 - `migrations/0014_analytics_daily.sql` — ㉖段階C：定時分析の`analytics_daily`・`analytics_daily_summary`（冪等）。`docs/05_…/データ/㉖0014_…sql`と同一。コードより先に適用すること（未適用だと定期実行・`/api/admin/*`がエラー。既存ページには影響なし）。**適用済み（2026-09-25）**
 - `migrations/0015_move_turn_a_and_g_reco.sql` — ㉙：`works_master`の2行（∀ガンダム65→`UC`・510、Gのレコンギスタ85→`ALT`・1315）を更新するUPDATE 2行。冪等・構造変更なし。`0012`の該当2行も同じ値に書き換え済み。**適用済み（2026-09-27、ユーザーがD1 Consoleで実行）**
+- `migrations/0016_profile_card_options.sql` — ㉚：`ALTER TABLE user_profiles ADD COLUMN card_options TEXT;`の1行。**再実行するとduplicate columnエラー（＝適用済みの意味）**。未適用でもコードは動く（表示設定が保存されず既定値で表示）
+- `migrations/0017_normalize_names.sql` — ㉚：ユニット11件・サポート2件・作品1件の名前を表記ルールに合わせるUPDATE 14行。冪等・構造変更なし。`0012`の作品44（Ζ-MSV）も同じ値に書き換え済み
 - `images/eternal-road/1.jpg`〜`29.jpg` — エタロのステージバナー（640×234px。ユーザー撮影のスクショからCoworkが切り出し。⑮）
 - `images/eternal-road/icon/1.jpg`〜`29.jpg` — トップページのエタロ導線用アイコン（136×136px。各バナーの横中央・上端170×170を切り抜き。`scripts/make_eternal_road_icons.py`で生成。**バナーを差し替え・追加したら再実行すること**）
 - `images/series/1.png`〜`106.png` — 作品アイコン（ゲーム内「シリーズ絞り込み」画面のロゴ。運営者のスクショからCoworkが切り出し、320×140。番号＝`works_master.work_id`）
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
+- `scripts/card_check/` — ㉚：自己紹介カードの回帰チェック（Cowork作成）。`server.mjs`（`worker.js`をNode 22.5以上＋`node:sqlite`で動かし、`migrations/`を番号順に適用＋`seed.sql`を投入。`SKIP_MIG=0016`で未適用環境を再現）と`card_check.py`（Playwrightで9通り＋表示オプション2通りを描画し、JSエラー・12px未満の文字・フッターのコントラスト4.5以上・フォント読み込み後の描画・機体名の泣き別れを確認）。使い方は`card_check.py`冒頭。**本番の動作には無関係**。この開発PCにはNodeもNoto Sans CJKも無いため、実行時はスクラッチパッドにポータブル版Node（nodejs.orgの`node-v22.x-win-x64.zip`）とフォント（`notofonts/noto-cjk`の`Sans/SubsetOTF/JP/NotoSansJP-Regular.otf`・`-Bold.otf`を`NotoJP-Regular.otf`・`NotoJP-Bold.otf`にリネーム）を置き、環境変数`CARD_CHECK_FONT_DIR`でフォントの場所を指定する（`PYTHONIOENCODING=utf-8`も指定）
 
 **インフラ**: GitHub → Cloudflare Workers 自動デプロイ（このリポジトリにpushすると自動ビルド・公開）。
 本番URL: `https://ggene-ur-checker.polarbear14869.workers.dev/`
@@ -162,6 +166,12 @@ CREATE TABLE IF NOT EXISTS analytics_daily_summary (
 ```
 - `analytics_daily`の`kind`：`unit`／`supporter`（所持者数・完凸者数・該当種別の登録者数）、`er_stage`（クリア人数・**全ミッション達成人数**を`max_count`に流用・エタロ登録者数）、`er_mission`（達成人数・0・エタロ登録者数）。1日231行
 - `units_ownership`の保存は2026-09-25から差分更新（`syncOwnership()`）。行を消さずにUPDATEするので`id`も保たれる
+
+### ㉚自己紹介カードの表示設定（`migrations/0016`。2026-09-27追加）
+```sql
+ALTER TABLE user_profiles ADD COLUMN card_options TEXT;   -- JSON文字列 {"acq":true,"memo":false}
+```
+- `acq`＝推しユニットカードに入手日・ガシャ回数を出す（既定true）、`memo`＝メモを出す（既定false）。`worker.js`は別クエリで読み書きし、列が無い・失敗時は既定値（`loadCardOptions()`・`normalizeCardOptions()`）
 
 ## 確定済みの設計方針（変更不可）
 - ~~**ログインは任意**。ログインなしでもチェッカーは従来通り使える（ゲスト利用を維持）。理由: Xからの流入で「すぐ使える」ことが拡散の原動力になっているため、入口に関門を作らない~~ → **2026-09-26（㉘）にログイン必須へ転換（ユーザー判断）**。ユニット・サポート・エタロの全チェッカーが未ログインではログイン案内（ガード）のみ表示。トップの導線は未ログインでも表示し、ガードから登録へつなげる
@@ -624,8 +634,12 @@ Cowork側の実装依頼書`docs/04_自己紹介カード/㉒自己紹介カー�
 URユニット・URサポート・作品を追加するときに、そろえて更新する箇所の一覧（各節に散らばっていた内容を2026-09-24に集約）。
 
 **URユニット（URサポートも同様）を追加するとき**
-1. `unit.html`（`supporter.html`）の`UNITS`（`SUPPORTERS`）配列に追加し、画像を`images/units/{id}.jpg`（`images/supporters/{id}.jpg`）に置く（既存IDは振り直さない）
-   - **URユニットのみ：`UNITS`の要素に`released: "YYYY-MM-DD"`（ゲーム内の実装日＝ガシャ初登場日・JST）を必ず入れる**（㉙・2026-09-27〜。2026-09-30実装予定のV2アサルトバスターガンダム・ザンスパインから対象）。入手記録の入力欄を開いたときに入手日として自動記録される値で、無いと初期値が入らないだけでエラーにはならない。実装日が未来の日付なら、その日が来るまでは記録されない
+1. 画面側のデータに1件追加し、画像を`images/units/{id}.jpg`（`images/supporters/{id}.jpg`）に置く（既存IDは振り直さない）
+   - **URユニット：㉚（2026-09-27）から`unit.html`ではなく`ur-units.js`の`window.UR_UNITS`に1行追加する**（`unit.html`と`profile-card.html`が共有。**2026-09-30実装予定のV2アサルトバスターガンダム・ザンスパインからこの手順**）。例：`{"id": 85, "name": "…", "limited": true, "type": "攻撃", "imageUrl": "images/units/85.jpg", "released": "2026-09-30"},`
+     - **`released: "YYYY-MM-DD"`（ゲーム内の実装日＝ガシャ初登場日・JST）は必須**（㉙）。入手記録の入力欄を開いたときに入手日として自動記録され、自己紹介カードでは入手日がこの日と同じなら「実装日」と表示する。無いと初期値が入らないだけでエラーにはならない。実装日が未来の日付なら、その日が来るまでは記録されない
+     - `wrap`（任意）：自己紹介カードで機体名を2行に折り返す位置を「|」で指定（例：`"wrap": "インフィニット|ジャスティスガンダム"`）。空白・括弧・「・」・「ガンダム」の前後で自然に切れる名前には不要。「|」を除いて`name`と一字一句同じでないと無視される
+   - URサポート：`supporter.html`の`const UNITS`に追加（**`supporter.html`は改行コードCRLF**。CRLFのまま編集する）
+   - **名前は下記「名前の表記ルール」に従う（末尾の「(EX)」は付けない）**。D1の`units_master.name`（`supporters_master.name`）と同じ文字列にする
 2. `top.html`の`UNIT_IMAGES`（`SUPPORTER_IMAGES`）の件数を更新
 3. `worker.js`の`MAX_UNIT_ID`（`MAX_SUPPORTER_ID`）を更新
 4. D1の`units_master`（`supporters_master`）に1行追加（`migrations/0002`と同じ形式のINSERTをCloudflareダッシュボードで実行）
@@ -639,6 +653,12 @@ URユニット・URサポート・作品を追加するときに、そろえて�
 
 **作品（推し作品の選択肢）を追加するとき**
 - **`works_master`（D1への`INSERT OR REPLACE`）・`worker.js`の`WORK_IDS`・`images/series/{work_id}.png`の3点を必ずそろえる**。`work_id`はゲーム内「シリーズ絞り込み」の並び順＝アイコン画像の番号。`WORK_IDS`に無いIDは`POST /api/profile`で読み飛ばされ、画像が無いとアイコンが空のプレートになる
+
+**名前の表記ルール（㉚・2026-09-27ユーザー決定）**
+- **ユニット名・サポート名＝ゲーム内の表記**（運営の公式X・お知らせの表記）：括弧は**半角「()」**、Ζ・ΖΖは**半角英字「Z」「ZZ」**（例：`フルアーマーZZガンダム`・`キュベレイ(ZZ版)`）、つなぎは**半角「&」**
+- **ゲーム内の名前の末尾に付く「(EX)」は付けない**（画像でURと分かるため）。公式Xで「スサノオ(EX)」と書かれていても登録名は「スサノオ」
+- **作品名（`works_master`）＝アニメの公式タイトル**：「機動戦士Ζガンダム」「Ζ-MSV」のようにギリシャ文字「Ζ」
+- 画面側（`ur-units.js`・`supporter.html`）とD1（`units_master`・`supporters_master`・`works_master`）は同じ文字列にそろえる。既存データは`migrations/0017`で統一済み
 
 ### 自己紹介カードのジャングル背景削除・トップの英字表記修正（2026-09-24・ユーザーからの直接依頼）
 「ジャングルの背景は不要。選択肢から削除し、画像はdocsに保管」「トップページの英字はGJENEではなくGGENE」との指示。
@@ -800,7 +820,31 @@ Cowork側の実装依頼書`docs/04_自己紹介カード/㉙入手日の初期�
 - **検証**：Playwright（APIモック）26件成功（未ログインはガードのみ、ログインユーザーで導入ブロックの位置・試用表記なし・noindexなし、検証用スクショ2枚でカード32枚→31体（確実25・要確認6）＝試用版と同じ、一括選択、反映・統計更新、データ登録で32体送信、未所持にするモード、320/390pxで横スクロールなし、`?scandebug=1`、トップの運営者欄2つ・一般は非表示、JSエラーなし）。読み取り画面のスクリーンショットを目視確認
 - `docs/WEBサイト仕様書.md`の1章・2.2節・2.8.1節（新規）・3.1節・5.-12節を更新済み
 
+### ㉚ 自己紹介カード本実装前の改善（2026-09-27）
+Cowork側の実装依頼書`docs/04_自己紹介カード/㉚自己紹介カード本実装前の改善_実装依頼書.md`（ユーザー承認済み）に基づき、**Coworkが直接編集した未commitの差分**（変更：`profile-card.html`・`worker.js`・`unit.html`・`supporter.html`・`migrations/0012`、新規：`ur-units.js`・`migrations/0016`・`0017`・`scripts/card_check/`3ファイル）を差分確認して取り込んだ。仕様全体は同時にCoworkが作った`docs/04_自己紹介カード/㉛自己紹介カード_現行仕様（統合版）.md`が正本。
+
+**変更内容（詳細は依頼書2章）**
+- **E1 フォント待ち**：`drawProfileCard()`を2段階化（`drawCardOnce()`）。1回目に`fillText`・`measureText`へ渡された文字を集め、`document.fonts.check()`で未読込なら`document.fonts.load()`（400・700。最大5秒＝`FONT_TIMEOUT_MS`）後に描き直す。`init()`で`document.fonts`の`loadingdone`に`schedulePreview()`を登録
+- **E3 入手記録の表示設定**：フォームに`#optAcq`（入手日・ガシャ回数。既定ON）・`#optMemo`（メモ。既定OFF）。`draft.cardOptions`として下書き・未保存判定・`POST /api/profile`に含める。`cardAcq()`で許可された項目だけカードへ。**入手日が`ur-units.js`の`released`と同じなら「実装日」ラベル**（`rec.dl`）。`worker.js`：`CARD_OPTIONS_DEFAULT`・`normalizeCardOptions()`・`loadCardOptions()`（別クエリ・失敗時既定値）、`GET /api/profile-card`の`profile.cardOptions`、`POST /api/profile`は`cardOptions`がオブジェクトのときだけバッチの後に別UPDATE（失敗は無視。送られてこなければ保存済みの値を変えない）
+- **`ur-units.js`新設**：`unit.html`の`const UNITS`を切り出し（`unit.html`は`<script src="ur-units.js">`＋`const UNITS = window.UR_UNITS || [];`のみの変更）。旧配列との差は名前11件と`wrap`8件だけであることをスクリプトで確認
+- **E4 読みやすさ**：カード内の文字は論理12px以上（例外：エタロのバナー内チップ・凡例）、フッター右をbold 13px・空中は白、空中の太陽を(1030,70)→(880,46)、フッターの下地`.42`→`.76`、明るい背景のロゴ影を強化（`logoShadow`・2回描き）
+- **O1 機体名の改行**：`wrapName()`（区切り優先度：`wrap`指定＞空白＞「(」の前＞「・」「/」の後＞「ガンダム」の前後。最大3px縮小、泣き別れ防止）を推しユニットカードの1位・2〜5位に適用。`ur-units.js`に`wrap`を8機（29・30・34・40・51・53・71・80）
+- **O3 表記統一**：「名前の表記ルール」（「新ユニット・作品の追加手順」内）を新設。ユニット11件（括弧半角化・ΖΖ→ZZ・83/84の「(EX)」削除）・サポート2件（39「プロスぺラ」→「プロスペラ」、49「＆」→「&」）・作品44（Z-MSV→Ζ-MSV）。`migrations/0017`（冪等UPDATE 14行）・`ur-units.js`・`supporter.html`（CRLFのまま1行）・`0012`の該当行
+- 取り込み時の変更：`profile-card.html`の`buildCardData()`内の余分な空行1行を削除のみ
+
+**検証**：`scripts/card_check/`の回帰チェックで**「すべて成功」**（11枚：3テンプレート×3背景＋メモON・入手記録OFF。JSエラーなし・12px未満なし・フッターのコントラスト4.5以上・フォント読み込み後に初回描画・84機×3幅で泣き別れなし）。ハーネス起動時のマイグレーション0001〜0017（0007除く）の適用エラーなし。推しユニット×空中の画像を目視確認（「実装日」表示・改行位置・ロゴ・フッター）。`worker.js`は`node --check`で構文OK。この開発PCにはNodeが無いため、スクラッチパッドのポータブル版Node 22.23.3とNoto Sans JP（SubsetOTF）で実行（「リポジトリ構成」の`scripts/card_check/`参照）
+
+**docs**：`docs/WEBサイト仕様書.md`（最終更新・1.2節（`unit.html`・`ur-units.js`・0016・0017・`scripts/card_check/`）・2.7節（入手記録の表示設定・描画品質）・3章（`/api/profile-card`・`POST /api/profile`の`cardOptions`）・4.1節（`user_profiles.card_options`）・4.1.1節（名前の表記ルール・新設）・5.-13節・6章）を更新。`㉛自己紹介カード_現行仕様（統合版）.md`は実装と突き合わせて食い違いなし（シェア文・幅・フォントサイズ・APIの入力チェック・保存順・下書き・`adminGate`などを確認）。10章の新ユニットの項に、全手順（`UNIT_IMAGES`・`MAX_UNIT_ID`・`SCAN_FIT`）への参照を1文追加
+
+**D1・commit・push**：ユーザーがD1に0016・0017を適用した後にcommit・`git push origin main`（下の「次にやること」の㉚の行で状況を管理）
+
+**未実施（要対応）**
+- iOS Safari実機でのフォント読み込み待ちと描き直しの時間、本番の実データでの表示
+- 実装日CSV（`docs/01_所持チェッカー・DB登録/データ/㉚URユニット実装日一覧_再作成.csv`）の「未確認」71機の出典確認（Cowork側）
+- `missionLabel()`が3か所にある技術的負債は未対応
+
 ## 次にやること
+- ㉚：D1への0016・0017適用 → commit・push（**`ur-units.js`を必ず含める**）。その後、本番で自己紹介カードの表示設定の保存・「実装日」表示・ランキングの新表記を確認。**2026-09-30の新UR2機（V2アサルトバスターガンダム・ザンスパイン）は`ur-units.js`に追加**（「新ユニット・作品の追加手順」）
 - サポートのスクショ読み取り本番化：push済み・実機確認済み・`supporter-scan.html`削除済み。残りは`SCAN_FIT`が無い18体の学習（「新ユニット・作品の追加手順」7）
 - ㉙：0015適用・push済み。本番で推しユニットカードの入手記録表示を確認
 - ㉘：段階D・A・B・Cすべてpush済み。本番確認と、上記「㉘」節の「未実施（要対応）」（一言バッジ・サポートの`SCAN_FIT`）
@@ -821,5 +865,7 @@ Cowork側の実装依頼書`docs/04_自己紹介カード/㉙入手日の初期�
 - 日本語で応答すること
 - ファイル削除時は必ず確認することを原則とする
 - **ミッションの短い表示名`missionLabel()`は`eternal-road.html`（㉔）・自己紹介カード（㉒）・`analytics.html`（`erMissionLabel()`。APIがキャメルケースのため引数の形だけ異なる）の3か所（自己紹介カードは`profile-card.html`の`CardRenderer`内）で別々に持っている。ミッション種別を追加・変更するときは3か所とも同時に直すこと**
+- **自己紹介カードの表示設定の既定値`CARD_OPTIONS_DEFAULT`（現在`{ acq: true, memo: false }`）は`profile-card.html`と`worker.js`の2か所にある。変えるときは必ず両方を同じ値にすること**（㉚）
+- 自己紹介カードの描画を変えたら`scripts/card_check/`の回帰チェックを実行すること（㉚。手順は「リポジトリ構成」の`scripts/card_check/`）。仕様の正本は`../docs/04_自己紹介カード/㉛自己紹介カード_現行仕様（統合版）.md`
 - **作業を閉じる前に、その回で実装・変更した内容を必ずこのCLAUDE.md（「完了済みの作業」セクション）に追記してからセッションを終えること。今回、新規UR3件追加とログインモーダルのデザイン統一の2件が未記載のままクローズされ、事後追記が必要になった**
 - Cowork側（claude.ai）との役割分担・橋渡しルール（`../docs/`の新規資料確認、`../docs/WEBサイト仕様書.md`との内容同期など）は`../README.md`に正本があるので、作業開始前と作業を閉じる前に確認すること

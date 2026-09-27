@@ -82,6 +82,9 @@
   .section h2::before{content:"";width:3px;height:15px;background:var(--gold);display:inline-block;}
   .section h2 .cnt{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted);font-weight:400;margin-left:auto;}
   .hint{font-size:11.5px;color:var(--muted);line-height:1.6;margin:6px 0 0;}
+  .acqOpts{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);}
+  .acqOpts .chk{display:inline-flex;align-items:center;gap:6px;margin:4px 16px 0 0;font-size:13px;cursor:pointer;}
+  .acqOpts .chk input{width:16px;height:16px;accent-color:var(--gold);}
   .fieldLabel{display:block;font-size:12px;color:var(--muted);margin:0 0 5px;}
   .field{margin:0 0 14px;}
   .field:last-child{margin-bottom:0;}
@@ -294,6 +297,13 @@
           </div>
           <div class="pickList" id="unitList"></div>
           <p class="hint">登録済みの所持URユニットから最大5機まで選べます。『標準』『推しユニット』のカードに表示されます。</p>
+          <!-- ㉚ 入手記録（ユニットチェッカーの📝）をカードに出すかどうか。メモは本人用に書かれることが多いため既定では出さない -->
+          <div class="acqOpts" id="acqOpts">
+            <div class="fieldLabel">『推しユニット』カードに表示する入手記録</div>
+            <label class="chk"><input type="checkbox" id="optAcq"> 入手日・ガシャ回数</label>
+            <label class="chk"><input type="checkbox" id="optMemo"> メモ</label>
+            <p class="hint">入手記録はユニットチェッカーで『データ登録』した内容です。メモもカード画像に載るため、公開してよい内容か確認してください。入手日が実装日と同じ日のときは「実装日」と表示します。</p>
+          </div>
         </div>
         <p class="hint" id="unitEmptyHint" hidden>URユニット所持率チェッカーで所持データを登録すると選べます。</p>
       </section>
@@ -324,6 +334,7 @@
   </div>
 </div>
 
+<script src="ur-units.js"></script>
 <script>
 /* =====================================================================
  * カード描画：docs/㉑自己紹介カード_試作5_プロトタイプ.html の描画コードをそのまま移植（㉒6.1）。
@@ -517,7 +528,8 @@ function bgSky(layout){
   const g=ctx.createLinearGradient(0,0,0,H);
   g.addColorStop(0,"#1766d0"); g.addColorStop(0.5,"#4aa2ef"); g.addColorStop(1,"#bfe7ff");
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  const sx=1030, sy=70;
+  // ㉚ 太陽の位置を右上のESPロゴの真下（1030,70）からヘッダー帯の中ほどへ移した（ロゴが白飛びして読めなかったため）
+  const sx=880, sy=46;
   ctx.save(); ctx.globalCompositeOperation="lighter";
   const sun=ctx.createRadialGradient(sx,sy,0,sx,sy,440);
   sun.addColorStop(0,"rgba(255,255,245,1)"); sun.addColorStop(0.05,"rgba(255,255,230,.85)");
@@ -761,7 +773,7 @@ const THEMES={
     pillBg:"rgba(95,69,194,.12)", pillText:"#4a33a6", shadow:"rgba(8,40,90,.55)",
     // 空に直接載る文字（名前・ヘッダー・フッター）は白＋紺の影。パネル内は濃色文字
     bgText:"#ffffff", bgMuted:"#eef6ff", bgAccent:"#ffffff", headColor:"#fff4c8", rainbow:["#e0314a","#e08a00","#2ea043","#2f6fd6","#9b3fd6"],
-    scrim:"rgba(24,86,160,.42)" },
+    scrim:"rgba(12,56,120,.76)", logoShadow:"rgba(6,30,70,.75)" },   // ㉚ フッターの下地を濃くした（.42→.76。白文字のコントラスト比4.5以上）
   // ジャングル（jungle）は2026-09-24に選択肢から削除。描画コードはプロトタイプとの対応を保つため残している（復活時はボタン・sanitizeDraft・worker.jsのCARD_THEMESに戻す）
   jungle:{ label:"大自然のジャングル", draw:bgJungle, dark:true,
     panel:"rgba(6,24,14,.54)", line:"rgba(160,230,150,.22)", frame:"#2c4a33",
@@ -799,7 +811,7 @@ function subStats(ctx,T,x,y,w,items){
     ctx.textAlign="center"; ctx.textBaseline="alphabetic";
     ctx.fillStyle=it.rainbow?rainbow(ctx,cx-30,y-16,cx+30,y):T.cyan;
     ctx.font=`bold 19px ${FONT}`; ctx.fillText(it.v,cx,y);
-    ctx.fillStyle=T.muted; ctx.font=`11px ${FONT}`; ctx.fillText(it.l,cx,y+17);
+    ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText(it.l,cx,y+17);   // ㉚ 11→12px
   });
   ctx.textAlign="left";
 }
@@ -816,8 +828,10 @@ async function header(ctx,T,sub){
   shadowText(ctx,T,"ジージェネレーション エターナル　PLAYER PROFILE"+(sub?`　／　${sub}`:""),36,44);
   const logo=await loadImage(BASE+"images/logo.png");
   if(logo){ const lh=46, lw=logo.width*(lh/logo.height);
-    ctx.save(); ctx.shadowColor=T.dark?"rgba(0,0,0,.5)":"rgba(10,40,80,.45)"; ctx.shadowBlur=6;
-    ctx.drawImage(logo,W-36-lw,22,lw,lh); ctx.restore(); }
+    ctx.save(); ctx.shadowColor=T.logoShadow||(T.dark?"rgba(0,0,0,.5)":"rgba(10,40,80,.45)"); ctx.shadowBlur=T.dark?6:12;
+    ctx.drawImage(logo,W-36-lw,22,lw,lh);
+    if(!T.dark) ctx.drawImage(logo,W-36-lw,22,lw,lh);   // ㉚ 明るい背景では影を2回重ねて輪郭を強める
+    ctx.restore(); }
 }
 // 表示名・ひとこと。戻り値は次に描けるy
 // 2026-09-27：称号のピルを廃止し、空いた高さをひとことに回した（最大60文字・最大3行。17pxから、3行に収まるまで13pxまで縮める）
@@ -860,7 +874,7 @@ function footer(ctx,T,data){
   ctx.fillStyle=sg; ctx.fillRect(0,H-64,W,64);
   ctx.textBaseline="alphabetic"; ctx.textAlign="left";
   ctx.fillStyle=T.bgAccent||T.cyan; ctx.font=`bold 13px ${FONT}`; shadowText(ctx,T,"#ジージェネエターナル",36,H-22);
-  ctx.textAlign="right"; ctx.fillStyle=T.bgMuted||T.muted; ctx.font=`12px ${FONT}`;
+  ctx.textAlign="right"; ctx.fillStyle=T.bgText||T.bgMuted||T.muted; ctx.font=`bold 13px ${FONT}`;   // ㉚ 12→bold 13px
   shadowText(ctx,T,`${data.siteLabel}　${data.createdAt} 作成`,W-36,H-22);
   ctx.textAlign="left";
 }
@@ -910,7 +924,7 @@ async function layoutStandard(ctx,T,data){
     ctx.fillStyle=T.text; ctx.font=`bold 14px ${FONT}`; ctx.textBaseline="alphabetic";
     ctx.fillText(fitText(ctx,f.shortName,tw),tx,ry+icon/2-2);
     const eraLabel={UC:"宇宙世紀",ALT:"オルタナ",ETC:"SD・ビルド他"}[f.era];   // カード内は幅を抑えるため略称「オルタナ」
-    ctx.font=`bold 11px ${FONT}`; const ew=ctx.measureText(eraLabel).width+12;
+    ctx.font=`bold 12px ${FONT}`; const ew=ctx.measureText(eraLabel).width+12;   // ㉚ 11→12px
     roundRect(ctx,tx,ry+icon/2+6,ew,18,4);
     ctx.strokeStyle=f.era==="UC"?T.gold:(f.era==="ALT"?T.cyan:T.violet); ctx.lineWidth=1; ctx.stroke();
     ctx.fillStyle=ctx.strokeStyle; ctx.textBaseline="middle"; ctx.fillText(eraLabel,tx+6,ry+icon/2+15.5);
@@ -1084,7 +1098,7 @@ async function layoutEternal(ctx,T,data){
   if(data.units&&data.units.registered) chips.push(`URユニット ${data.units.pct}%`);
   if(data.supporters&&data.supporters.registered) chips.push(`URサポート ${data.supporters.pct}%`);
   let cx=LX+8; const cy=pTop+pH-38;
-  ctx.font=`bold 11px ${FONT}`;
+  ctx.font=`bold 12px ${FONT}`;   // ㉚ 11→12px
   for(const c of chips){
     const w=ctx.measureText(c).width+16;
     roundRect(ctx,cx,cy,w,22,11); ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.stroke();
@@ -1120,7 +1134,7 @@ async function layoutEternal(ctx,T,data){
     const i=e.stages.length, x=GX+(i%cols)*(cw+gapX), yy=GY+Math.floor(i/cols)*(cellH+gapY);
     roundRect(ctx,x,yy,cw,cellH,6); ctx.fillStyle=T.dark?"rgba(8,12,20,.55)":"rgba(255,255,255,.7)"; ctx.fill();
     const items=[["rb","全ミッション達成"],["gold","ステージクリア"],["none","未クリア"]];
-    ctx.font=`10.5px ${FONT}`; ctx.textBaseline="middle";
+    ctx.font=`11px ${FONT}`; ctx.textBaseline="middle";   // ㉚ 10.5→11px（凡例は30マス目の狭い枠内のため例外的に12px未満）
     items.forEach(([k,l],j)=>{
       const ly=yy+10+j*14;
       ctx.lineWidth=2; ctx.strokeStyle=k==="rb"?rainbow(ctx,x+8,ly-5,x+26,ly+5):(k==="gold"?T.gold:(T.dark?"rgba(140,160,180,.5)":"rgba(15,39,64,.35)"));
@@ -1132,7 +1146,7 @@ async function layoutEternal(ctx,T,data){
       const lx=x+8+j*(lw+3); roundRect(ctx,lx,ly-6,lw,13,3);
       if(fill){ ctx.fillStyle=col; ctx.fill(); ctx.fillStyle=T.dark?"#121019":"#ffffff"; }
       else { ctx.strokeStyle=T.dark?"rgba(255,255,255,.28)":"rgba(15,39,64,.28)"; ctx.lineWidth=1; ctx.stroke(); ctx.fillStyle=T.muted; }
-      ctx.font=`bold 9px ${FONT}`; ctx.textAlign="center"; ctx.fillText(l,lx+lw/2,ly+0.5); ctx.textAlign="left";
+      ctx.font=`bold 10px ${FONT}`; ctx.textAlign="center"; ctx.fillText(l,lx+lw/2,ly+0.5); ctx.textAlign="left";   // ㉚ 9→10px
     });
     ctx.textBaseline="alphabetic";
   }
@@ -1181,6 +1195,63 @@ function wrap2(ctx,text,maxW){
   }
   return lines;
 }
+// ㉚ 機体名の折り返し（最大2行）。wrap2は1文字単位のため「バルバト／スルプスレクス」「ゼ／ロ（EW）」「エアリア／ル」のような
+// 単語の途中での改行や、2行目が1文字だけの泣き別れが起きていた。優先順：
+//   1) 1行に収まるなら1行（base〜base-2pxまで縮めて試す）
+//   2) 区切りの良い位置で2行に収まるならそこで改行（base〜base-3px）。区切りの候補：ur-units.jsのwrap指定（「|」の位置）＞空白＞括弧の前＞
+//      「・」「/」の後＞「ガンダム」の前後。同じ優先度なら2行の長さが釣り合う方
+//   3) 2行に収まる区切りが無ければ、1行目が収まる区切りで切って2行目を「…」で省略（base-3px）
+//   4) 区切りが使えないときだけ1文字単位で折り返し、2行目が2文字以下にならないよう前の行から送る（2行に収まらなければ末尾を「…」）
+// 戻り値 {lines, size}。fontFn(size)はctx.fontに入れる文字列を返す
+const UNIT_WRAP_HINT={};   // unitId → "前半|後半"（ur-units.jsのwrap）。ページ側がsetWrapHintsで設定する
+function nameBreaks(chars,hint){
+  const pts=new Map(), add=(i,p)=>{ if(i>0&&i<chars.length) pts.set(i,Math.max(pts.get(i)||0,p)); };
+  if(hint&&hint.includes("|")&&hint.replace("|","")===chars.join("")) add([...hint.split("|")[0]].length,9);   // 名前が一字一句同じときだけ使う
+  chars.forEach((c,i)=>{
+    if(c===" "||c==="　") add(i+1,6);
+    if(c==="（"||c==="(") add(i,5);
+    if(c==="・"||c==="/"||c==="／") add(i+1,4);
+  });
+  const str=chars.join(""); let k=-1;
+  while((k=str.indexOf("ガンダム",k+1))>=0){ const ci=[...str.slice(0,k)].length; add(ci,2); add(ci+4,2); }
+  return pts;
+}
+function wrapName(ctx,text,maxW,fontFn,base,unitId){
+  const chars=[...text];
+  const width=(t,sz)=>{ ctx.font=fontFn(sz); return ctx.measureText(t).width; };
+  for(let sz=base;sz>=base-2;sz--) if(width(text,sz)<=maxW) return {lines:[text],size:sz};
+  const pts=nameBreaks(chars,UNIT_WRAP_HINT[unitId]);
+  const cands=[...pts.entries()].map(([i,p])=>({p,l1:chars.slice(0,i).join("").trimEnd(),l2:chars.slice(i).join("").trimStart()}))
+    .filter(c=>c.l1&&c.l2&&[...c.l2].length>=2);
+  for(let sz=base;sz>=base-3;sz--){
+    const ok=cands.map(c=>({...c,w1:width(c.l1,sz),w2:width(c.l2,sz)})).filter(c=>c.w1<=maxW&&c.w2<=maxW);
+    if(ok.length){ ok.sort((a,b)=>b.p-a.p||Math.abs(a.w1-a.w2)-Math.abs(b.w1-b.w2)); return {lines:[ok[0].l1,ok[0].l2],size:sz}; }
+  }
+  // 2行に収まる区切りが無い：1行目が収まる区切りのうち優先度の高いもの（同じなら1行目が長い方）で切り、2行目を「…」で省略
+  { const sz=base-3;
+    const ok=cands.map(c=>({...c,w1:width(c.l1,sz)})).filter(c=>c.w1<=maxW);
+    if(ok.length){ ok.sort((a,b)=>b.p-a.p||b.w1-a.w1); ctx.font=fontFn(sz); return {lines:[ok[0].l1,fitText(ctx,ok[0].l2,maxW)],size:sz}; } }
+  // 区切りが1つも使えない：1文字単位（行頭禁則つき）
+  ctx.font=fontFn(base);
+  const KIN="）)」』】、。・ーｰ";
+  let lines=[""];
+  for(const ch of chars){
+    const cur=lines[lines.length-1];
+    if(!KIN.includes(ch)&&ctx.measureText(cur+ch).width>maxW&&cur){ lines.push(ch); if(lines.length>2) break; }
+    else lines[lines.length-1]=cur+ch;
+  }
+  if(lines.length>2){ // 2行に収まらない：2行目を「…」で省略
+    const l1=lines[0], rest=chars.slice([...l1].length).join("");
+    return {lines:[l1,fitText(ctx,rest,maxW)],size:base};
+  }
+  if(lines.length===2){ // 泣き別れ防止：2行目が2文字以下なら、前の行の末尾を送る
+    let a=[...lines[0]], b=[...lines[1]];
+    while(b.length<3&&a.length>3&&!KIN.includes(a[a.length-1])&&ctx.measureText(a[a.length-1]+b.join("")).width<=maxW){ b.unshift(a.pop()); }
+    lines=[a.join(""),b.join("")];
+  }
+  return {lines,size:base};
+}
+function setWrapHints(map){ Object.assign(UNIT_WRAP_HINT,map||{}); }
 async function unitImage(ctx,T,u,x,y,size,radius){
   ctx.save(); if(u.level===3){ ctx.shadowColor=T.dark?"rgba(255,255,255,.35)":"rgba(40,80,140,.35)"; ctx.shadowBlur=14; }
   roundRect(ctx,x,y,size,size,radius); ctx.fillStyle=T.dark?"#101720":"#e3eef8"; ctx.fill(); ctx.restore();
@@ -1191,7 +1262,7 @@ async function unitImage(ctx,T,u,x,y,size,radius){
   roundRect(ctx,x,y,size,size,radius);
   ctx.strokeStyle=u.level===3?rainbow(ctx,x,y,x+size,y+size):T.frame; ctx.lineWidth=u.level===3?3:1.2; ctx.stroke();
   if(u.limited){ // 期間限定バッジ（既存チェッカーと同じ表現）
-    ctx.font=`bold ${Math.max(9,size/14)}px ${FONT}`; const t="期間限定", bw=ctx.measureText(t).width+10, bh=Math.max(15,size/10);
+    ctx.font=`bold ${Math.max(12,size/14)}px ${FONT}`; const t="期間限定", bw=ctx.measureText(t).width+10, bh=Math.max(18,size/10);   // ㉚ 最小9→12px
     roundRect(ctx,x+6,y+6,bw,bh,3); ctx.fillStyle="rgba(10,14,20,.8)"; ctx.fill(); ctx.strokeStyle="#8a7128"; ctx.lineWidth=1; ctx.stroke();
     ctx.fillStyle="#dab949"; ctx.textBaseline="middle"; ctx.fillText(t,x+11,y+6+bh/2+0.5); ctx.textBaseline="alphabetic";
   }
@@ -1221,9 +1292,9 @@ function miniBlock(ctx,T,x,y,w,title,accent,big,bigSub,rows,wide){
   if(bigSub){ ctx.fillStyle=T.muted; ctx.font=`bold 12px ${FONT}`; ctx.fillText(bigSub,x+bw+5,y+32); }
   const cols=wide?2:1, cw=(w-(cols-1)*14)/cols;
   rows.forEach(([l,v],i)=>{
-    const cx=x+(i%cols)*(cw+14), cy=y+52+Math.floor(i/cols)*17;
-    ctx.fillStyle=T.muted; ctx.font=`11px ${FONT}`; ctx.textAlign="left"; ctx.fillText(l,cx,cy);
-    ctx.fillStyle=T.text; ctx.font=`bold 12px ${FONT}`; ctx.textAlign="right"; ctx.fillText(v,cx+cw,cy);
+    const cx=x+(i%cols)*(cw+14), cy=y+52+Math.floor(i/cols)*18;   // ㉚ 行間17→18、文字11/12→12/13px
+    ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.textAlign="left"; ctx.fillText(l,cx,cy);
+    ctx.fillStyle=T.text; ctx.font=`bold 13px ${FONT}`; ctx.textAlign="right"; ctx.fillText(v,cx+cw,cy);
   });
   ctx.textAlign="left";
 }
@@ -1255,7 +1326,7 @@ async function layoutUnits(ctx,T,data){
   }
   // タイプ別の所持（攻撃・支援・耐久）
   let tx=LX+8;
-  for(const t of ["攻撃","支援","耐久"]) tx=chip(ctx,tx,yy-8,`${t} ${u.byType[t].owned}/${u.byType[t].total}`,TC[t],false,11);
+  for(const t of ["攻撃","支援","耐久"]) tx=chip(ctx,tx,yy-8,`${t} ${u.byType[t].owned}/${u.byType[t].total}`,TC[t],false,12);   // ㉚ 11→12px
   // ㉙ URサポート・エタロ：チップ1行だった表示を、所持率・凸・ステージクリアなどの小ブロックに拡充（登録済みのものだけ。2つなら左右半分ずつ）
   const blocks=[];
   const s=data.supporters;
@@ -1294,7 +1365,7 @@ async function layoutUnits(ctx,T,data){
     const memoLines=hasA&&rec.m?wrapLines(ctx,rec.m,heroW-36-40,2):[];
     const acqH=hasA?(22+((rec.d||rec.n)?22:0)+memoLines.length*19+4):0;
     // 内容の高さを見積もって縦中央に配置（画像は元画像150px幅のため270pxを上限にしてボケを抑える）
-    ctx.font=`bold 21px ${FONT}`; const nl=wrap2(ctx,f.name,heroW-36).length;
+    const heroName=wrapName(ctx,f.name,heroW-36,sz=>`bold ${sz}px ${FONT}`,21,f.unitId), nl=heroName.lines.length;   // ㉚ wrap2→wrapName
     const fixedH=34+nl*26+4+18+26+acqH;
     const size=Math.max(150,Math.min(270,heroW-50,heroH-46-20-fixedH));
     const contentH=size+fixedH, ix=x+(heroW-size)/2, iy=y0+46+Math.max(0,(heroH-46-contentH-16)/2);
@@ -1302,8 +1373,8 @@ async function layoutUnits(ctx,T,data){
     ctx.fillStyle=T.goldDim; ctx.font=`bold 30px ${FONT}`; ctx.textAlign="right"; ctx.fillText("01",x+heroW-18,y0+38); ctx.textAlign="left";
     await unitImage(ctx,T,f,ix,iy,size,14);
     let ty=iy+size+34;
-    ctx.fillStyle=T.text; ctx.font=`bold 21px ${FONT}`;
-    const lines=wrap2(ctx,f.name,heroW-36); lines.forEach((ln,i)=>ctx.fillText(ln,x+18,ty+i*26)); ty+=lines.length*26+4;
+    ctx.fillStyle=T.text; ctx.font=`bold ${heroName.size}px ${FONT}`;
+    const lines=heroName.lines; lines.forEach((ln,i)=>ctx.fillText(ln,x+18,ty+i*26)); ty+=lines.length*26+4;
     const sx=totsuStars(ctx,T,x+18,ty,9,f.level);
     ctx.fillStyle=f.level===3?rainbow(ctx,sx+6,ty-8,sx+50,ty+8):T.muted; ctx.font=`bold 14px ${FONT}`; ctx.textBaseline="middle";
     ctx.fillText(LV_LABEL[f.level],sx+8,ty+1); ctx.textBaseline="alphabetic"; ty+=18;
@@ -1316,7 +1387,7 @@ async function layoutUnits(ctx,T,data){
         let ax=x+18;
         const item=(l,v)=>{ ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText(l,ax,ay); ax+=ctx.measureText(l).width+6;
           ctx.fillStyle=T.text; ctx.font=`bold 14px ${FONT}`; ctx.fillText(v,ax,ay); ax+=ctx.measureText(v).width+16; };
-        if(rec.d) item("入手日",acqDateLabel(rec.d));
+        if(rec.d) item(rec.dl||"入手日",acqDateLabel(rec.d));   // ㉚ 実装日と同じ日付なら「実装日」
         if(rec.n) item("ガシャ",`${rec.n}回`);
         ay+=22;
       }
@@ -1339,24 +1410,26 @@ async function layoutUnits(ctx,T,data){
       await unitImage(ctx,T,f,ix,iy,size,10);
       const tx0=ix+size+14, tRight=lx+lw-12-(hasA?ACQW+14:0), tw=tRight-tx0;
       // 入手記録の欄があるときは名前の幅が狭くなるため15pxに（2行で全角約18文字）
-      ctx.fillStyle=T.text; ctx.font=`bold ${hasA?15:16}px ${FONT}`;
-      const lines=wrap2(ctx,f.name,tw); lines.forEach((ln,j)=>ctx.fillText(ln,tx0,iy+18+j*20));
+      // ㉚ wrap2→wrapName（区切りの良い位置で改行。必要なら最大3px縮める）
+      const nm=wrapName(ctx,f.name,tw,sz=>`bold ${sz}px ${FONT}`,hasA?15:16,f.unitId);
+      ctx.fillStyle=T.text; ctx.font=`bold ${nm.size}px ${FONT}`;
+      const lines=nm.lines; lines.forEach((ln,j)=>ctx.fillText(ln,tx0,iy+18+j*20));
       const sy=iy+18+lines.length*20+6;
       const sx=totsuStars(ctx,T,tx0,sy,7,f.level);
       ctx.fillStyle=f.level===3?rainbow(ctx,sx+4,sy-6,sx+40,sy+6):T.muted; ctx.font=`bold 12px ${FONT}`; ctx.textBaseline="middle";
       ctx.fillText(LV_LABEL[f.level],sx+6,sy+1); ctx.textBaseline="alphabetic";
-      let chx=tx0; const cyy=sy+12; chx=chip(ctx,chx,cyy,f.type,TC[f.type],false,10);
-      ctx.font=`bold 10px ${FONT}`; chip(ctx,chx,cyy,fitText(ctx,f.workShort,Math.max(30,tRight-chx-14)),T.cyan,false,10);
+      let chx=tx0; const cyy=sy+12; chx=chip(ctx,chx,cyy,f.type,TC[f.type],false,12);   // ㉚ 10→12px
+      ctx.font=`bold 12px ${FONT}`; chip(ctx,chx,cyy,fitText(ctx,f.workShort,Math.max(30,tRight-chx-14)),T.cyan,false,12);
       if(hasA){
         const ax=lx+lw-12-ACQW;
         ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(ax-8,y0+14); ctx.lineTo(ax-8,y0+rh-14); ctx.stroke();
         let ay=y0+26;
-        const row=(l,v)=>{ ctx.fillStyle=T.muted; ctx.font=`11px ${FONT}`; ctx.fillText(l,ax,ay);
+        const row=(l,v)=>{ ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText(l,ax,ay);   // ㉚ 11→12px
           ctx.fillStyle=T.text; ctx.font=`bold 13px ${FONT}`; ctx.fillText(v,ax+44,ay); ay+=20; };
-        if(rec.d) row("入手日",acqDateLabel(rec.d));
+        if(rec.d) row(rec.dl||"入手日",acqDateLabel(rec.d));
         if(rec.n) row("ガシャ",`${rec.n}回`);
         if(rec.m){
-          ctx.fillStyle=T.muted; ctx.font=`11px ${FONT}`; ctx.fillText("メモ",ax,ay);
+          ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("メモ",ax,ay);
           ctx.fillStyle=T.text; ctx.font=`12px ${FONT}`;
           const ml=wrapLines(ctx,rec.m,ACQW-44,Math.max(1,Math.floor((y0+rh-10-ay)/17)+1));
           ml.forEach((ln,j)=>ctx.fillText(ln,ax+44,ay+j*17));
@@ -1368,9 +1441,35 @@ async function layoutUnits(ctx,T,data){
 }
 
 /* ======================= エントリポイント ======================= */
+// ㉚ Webフォント（Noto Sans JP）の読み込みを待ってから描く。
+// Google Fontsの日本語フォントは文字の範囲ごとに分割配信され、Canvasで描いただけでは読み込みが始まらない。
+// 未読込のまま描くと代替フォント（Hiragino・游ゴシック等）で描かれ、measureTextの幅も変わって縮小・折り返しの計算がずれる。
+// そこで、1回目の描画でカードに使う文字を集め、その文字のフォントが未読込なら読み込んでから描き直す（読込済みなら1回で終わる）
+const FONT_FAMILY="Noto Sans JP", FONT_WEIGHTS=["400","700"], FONT_TIMEOUT_MS=5000;
+function fontsReady(text){
+  if(!document.fonts||!document.fonts.check) return true;
+  try { return FONT_WEIGHTS.every(w=>document.fonts.check(`${w} 16px "${FONT_FAMILY}"`,text)); } catch(e){ return true; }
+}
+async function ensureFonts(text){
+  if(!document.fonts||!document.fonts.load) return;
+  const loads=FONT_WEIGHTS.map(w=>document.fonts.load(`${w} 16px "${FONT_FAMILY}"`,text).catch(()=>null));
+  // 回線が遅い・フォントが取得できない場合でもカードは描く（タイムアウト後は代替フォント）
+  await Promise.race([Promise.all(loads),new Promise(r=>setTimeout(r,FONT_TIMEOUT_MS))]);
+}
 async function drawProfileCard(canvas,data,layout,themeKey){
+  const used=new Set();
+  await drawCardOnce(canvas,data,layout,themeKey,used);
+  const text=[...used].join("");
+  if(text&&!fontsReady(text)){ await ensureFonts(text); await drawCardOnce(canvas,data,layout,themeKey,null); }
+}
+async function drawCardOnce(canvas,data,layout,themeKey,used){
   canvas.width=W*SCALE; canvas.height=H*SCALE;
-  const ctx=canvas.getContext("2d"); ctx.scale(SCALE,SCALE);
+  const ctx=canvas.getContext("2d"); delete ctx.fillText; delete ctx.measureText; ctx.scale(SCALE,SCALE);
+  if(used){ // 描画に使う文字を集める（fillText・measureTextに渡された文字列）
+    const ft=ctx.fillText.bind(ctx), mt=ctx.measureText.bind(ctx);
+    ctx.fillText=(t,...a)=>{ for(const ch of String(t)) used.add(ch); return ft(t,...a); };
+    ctx.measureText=t=>{ for(const ch of String(t)) used.add(ch); return mt(t); };
+  }
   const T=THEMES[themeKey]||THEMES.galaxy;
   CUR_RAINBOW=T.rainbow||RAINBOW;
   drawThemeBackground(ctx,T,themeKey,layout);
@@ -1379,7 +1478,7 @@ async function drawProfileCard(canvas,data,layout,themeKey){
   else if(layout==="units") await layoutUnits(ctx,T,data);
   else await layoutStandard(ctx,T,data);
 }
-return { drawProfileCard, drawThemeBackground, THEMES, eternalSummary, W, H };
+return { drawProfileCard, drawThemeBackground, THEMES, eternalSummary, wrapName, setWrapHints, W, H };
 })();
 </script>
 
@@ -1406,7 +1505,13 @@ let works = [];           // GET /api/works
 const worksById = new Map();
 const unitsById = new Map();  // unitId -> {unitId,name,type,limited,workId}
 let erStages = null;      // カード用のエタロ構成 [{id, missions:[{id,type,title,tag}]}]
-const draft = { displayName: "", comment: "", titleMissionId: null, cardTemplate: "standard", cardTheme: "galaxy", favoriteWorks: [], favoriteUnits: [] };
+// ㉚ cardOptions：推しユニットカードに出す入手記録（acq＝入手日・ガシャ回数、memo＝メモ）。worker.jsのCARD_OPTIONS_DEFAULTと同じ既定値
+const CARD_OPTIONS_DEFAULT = { acq: true, memo: false };
+const draft = { displayName: "", comment: "", titleMissionId: null, cardTemplate: "standard", cardTheme: "galaxy", favoriteWorks: [], favoriteUnits: [],
+                cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT) };
+// ㉚ ur-units.js（unit.htmlと共有するURユニットのマスター）から実装日と改行位置の指定を読む
+const UR_UNITS_BY_ID = new Map((window.UR_UNITS || []).map(u => [u.id, u]));
+CardRenderer.setWrapHints(Object.fromEntries((window.UR_UNITS || []).filter(u => u.wrap).map(u => [u.id, u.wrap])));
 let savedJson = "";       // 最後にサーバーと一致していた内容（未保存表示の判定用）
 let currentEra = "UC";
 
@@ -1450,6 +1555,8 @@ function sanitizeDraft(){
   if (!["standard", "eternal", "units"].includes(draft.cardTemplate)) draft.cardTemplate = "standard";
   // ジャングル背景は2026-09-24に選択肢から削除（ユーザー指示）。保存済み・下書きの"jungle"は宇宙世紀で描く
   if (!["galaxy", "earth", "sky"].includes(draft.cardTheme)) draft.cardTheme = "galaxy";
+  const o = draft.cardOptions && typeof draft.cardOptions === "object" ? draft.cardOptions : {};
+  draft.cardOptions = { acq: typeof o.acq === "boolean" ? o.acq : CARD_OPTIONS_DEFAULT.acq, memo: typeof o.memo === "boolean" ? o.memo : CARD_OPTIONS_DEFAULT.memo };
   draft.displayName = String(draft.displayName || "").slice(0, 32);
   draft.comment = String(draft.comment || "").slice(0, 120);
 }
@@ -1462,14 +1569,15 @@ function draftFromProfile(p){
     cardTemplate: p.cardTemplate || "standard",
     cardTheme: p.cardTheme || "galaxy",
     favoriteWorks: bySlot(p.favoriteWorks).map(f => f.workId),
-    favoriteUnits: bySlot(p.favoriteUnits).map(f => f.unitId)
+    favoriteUnits: bySlot(p.favoriteUnits).map(f => f.unitId),
+    cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT, p.cardOptions || {})
   };
 }
 function draftJson(){
   return JSON.stringify({
     displayName: draft.displayName.trim(), comment: draft.comment.trim(), titleMissionId: draft.titleMissionId,
     cardTemplate: draft.cardTemplate, cardTheme: draft.cardTheme,
-    favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits
+    favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits, cardOptions: draft.cardOptions
   });
 }
 
@@ -1500,6 +1608,20 @@ function jstToday(){
   const d = new Date(Date.now() + 9 * 3600 * 1000);
   return d.toISOString().slice(0, 10);
 }
+// ㉚ カードに出す入手記録。表示オプション（入手日・ガシャ回数／メモ）で項目を絞る。
+// 入手日が実装日（ur-units.jsのreleased）と同じなら、ラベルを「実装日」にする（ユニットチェッカーが欄を開いた時点で実装日を自動記録するため、
+// 入手日として表示すると事実と違う可能性がある。実装日と同じ日付なら「実装日」と書いても常に正しい）
+function cardAcq(){
+  const src = (api.units && api.units.acq) || {}, out = {}, opt = draft.cardOptions;
+  for (const [id, r] of Object.entries(src)) {
+    const rec = {};
+    if (opt.acq && r.d) { rec.d = r.d; const u = UR_UNITS_BY_ID.get(Number(id)); if (u && u.released === r.d) rec.dl = "実装日"; }
+    if (opt.acq && r.n) rec.n = r.n;
+    if (opt.memo && r.m) rec.m = r.m;
+    if (rec.d || rec.n || rec.m) out[id] = rec;
+  }
+  return out;
+}
 function buildCardData(){
   const own = (api.units && api.units.ownership) || {};
   const favorites = draft.favoriteWorks.map(id => worksById.get(id)).filter(Boolean)
@@ -1524,7 +1646,7 @@ function buildCardData(){
     // 称号はカードに表示しない（2026-09-27 表示称号欄を削除）。titleMissionIdは保存データの互換のためAPIへはそのまま送る
     profile: { displayName: draft.displayName.trim() || api.username, title: null, comment: draft.comment.trim() || null },
     favorites, favoriteUnits, units, supporters: api.supporters || null, eternalRoad: er,
-    unitAcq: (api.units && api.units.acq) || {},   // ㉙ 推しユニットカードの入手記録（DB登録済みの値）
+    unitAcq: cardAcq(),   // ㉙ 推しユニットカードの入手記録（DB登録済みの値）。㉚ 表示オプションで絞り、実装日と同じ日付には「実装日」の印
     siteLabel: "@" + CONFIG.xHandle, createdAt: jstToday()   // 2026-09-27 サイトURLからXアカウントIDに変更（ユーザー指示）
   };
 }
@@ -1731,8 +1853,9 @@ function renderUnits(){
   list.scrollTop = keepScroll;
 }
 
+function renderAcqOpts(){ $("optAcq").checked = !!draft.cardOptions.acq; $("optMemo").checked = !!draft.cardOptions.memo; }
 function renderAll(){
-  renderDesign(); renderRegList(); renderProfileFields(); renderWorks(); renderUnits(); updateDirty();
+  renderDesign(); renderRegList(); renderProfileFields(); renderWorks(); renderUnits(); renderAcqOpts(); updateDirty();
 }
 
 // ---- 入力イベント ----
@@ -1752,13 +1875,15 @@ $("workTabs").addEventListener("click", e => {
 });
 $("unitTypeFilter").addEventListener("change", () => { $("unitList").scrollTop = 0; renderUnits(); });
 $("unitWorkFilter").addEventListener("change", () => { $("unitList").scrollTop = 0; renderUnits(); });
+$("optAcq").addEventListener("change", () => { draft.cardOptions = Object.assign({}, draft.cardOptions, { acq: $("optAcq").checked }); onChange(); });
+$("optMemo").addEventListener("change", () => { draft.cardOptions = Object.assign({}, draft.cardOptions, { memo: $("optMemo").checked }); onChange(); });
 
 // ---- 保存 ----
 function profileBody(){
   return JSON.stringify({
     displayName: draft.displayName.trim(), comment: draft.comment.trim(), titleMissionId: draft.titleMissionId,
     cardTemplate: draft.cardTemplate, cardTheme: draft.cardTheme,
-    favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits
+    favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits, cardOptions: draft.cardOptions
   });
 }
 const SAVE_ERRORS = {
@@ -1928,6 +2053,8 @@ async function init(){
   renderAll();
   await renderPreview();
   renderThemeThumbs();
+  // ㉚ フォントの読み込みがタイムアウト（5秒）より遅れて終わった場合も、読み込み完了時にプレビューを描き直す
+  if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", () => schedulePreview());
 }
 
 // /api/me失敗時は保守的にガード表示に倒し、他のAPIは呼ばない（analytics.htmlと同じ）

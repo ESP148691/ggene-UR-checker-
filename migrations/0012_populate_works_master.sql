@@ -28,7 +28,7 @@ INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, s
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (42, 'UC', '宇宙世紀', 280, '機動戦士Ζガンダム', '機動戦士Ζガンダム', 'U.C.0087');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (2, 'UC', '宇宙世紀', 290, '機動戦士Ζガンダム A New Translation', 'Ζ A New Translation', 'U.C.0087');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (43, 'UC', '宇宙世紀', 300, '機動戦士Ζガンダム Define', 'Ζガンダム Define', 'U.C.0087');
-INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (44, 'UC', '宇宙世紀', 310, 'Z-MSV', 'Z-MSV', 'U.C.0087');
+INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (44, 'UC', '宇宙世紀', 310, 'Ζ-MSV', 'Ζ-MSV', 'U.C.0087');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (45, 'UC', '宇宙世紀', 320, 'ガンダム新体験0087 グリーンダイバーズ', 'グリーンダイバーズ', 'U.C.0087');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (46, 'UC', '宇宙世紀', 330, 'GUNDAM SENTINEL', 'ガンダム・センチネル', 'U.C.0088');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (3, 'UC', '宇宙世紀', 340, '機動戦士ガンダムΖΖ', '機動戦士ガンダムΖΖ', 'U.C.0088-0089');

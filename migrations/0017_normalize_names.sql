@@ -1,0 +1,14 @@
+UPDATE units_master SET name = 'ユニコーンガンダム(デストロイモード)' WHERE unit_id = 7;
+UPDATE units_master SET name = 'ガンダム・バルバトス(第6形態)' WHERE unit_id = 12;
+UPDATE units_master SET name = 'フェニックスガンダム(能力解放)' WHERE unit_id = 14;
+UPDATE units_master SET name = 'バンシィ・ノルン(デストロイモード)' WHERE unit_id = 27;
+UPDATE units_master SET name = 'フルアーマーZZガンダム' WHERE unit_id = 31;
+UPDATE units_master SET name = 'ユニコーンガンダム(デストロイモード/覚醒)' WHERE unit_id = 35;
+UPDATE units_master SET name = 'ダブルオーライザー(最終決戦仕様)' WHERE unit_id = 61;
+UPDATE units_master SET name = 'νガンダム(ダブル・フィン・ファンネル装備型)' WHERE unit_id = 70;
+UPDATE units_master SET name = 'ガンダムF91(ツイン・ヴェスバー装備)' WHERE unit_id = 73;
+UPDATE units_master SET name = 'ガンダムアヴァランチアストレア タイプFダッシュ' WHERE unit_id = 83;
+UPDATE units_master SET name = 'スサノオ' WHERE unit_id = 84;
+UPDATE supporters_master SET name = 'プロスペラ&クワイエット・ゼロ' WHERE supporter_id = 39;
+UPDATE supporters_master SET name = 'シェリリン・ハイド&エウクレイデス' WHERE supporter_id = 49;
+UPDATE works_master SET name = 'Ζ-MSV', short_name = 'Ζ-MSV' WHERE work_id = 44;

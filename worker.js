@@ -983,7 +983,8 @@ async function loadProfile(env, userUid, earnedTitles) {
   const empty = {
     displayName: null, comment: null, titleMissionId: null,
     cardTemplate: "standard", cardTheme: "galaxy",
-    favoriteWorks: [], favoriteUnits: [], updatedAt: null
+    favoriteWorks: [], favoriteUnits: [], updatedAt: null,
+    cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT)
   };
   let row, works, units;
   try {
@@ -1013,8 +1014,30 @@ async function loadProfile(env, userUid, earnedTitles) {
     cardTheme: row && CARD_THEMES.has(row.card_theme) ? row.card_theme : "galaxy",
     favoriteWorks: works.map(r => ({ slot: r.slot, workId: r.work_id })),
     favoriteUnits: units.map(r => ({ slot: r.slot, unitId: r.unit_id })),
-    updatedAt: row ? row.updated_at : null
+    updatedAt: row ? row.updated_at : null,
+    cardOptions: row ? await loadCardOptions(env, userUid) : Object.assign({}, CARD_OPTIONS_DEFAULT)
   };
+}
+
+// ㉚ カードの表示オプション（user_profiles.card_options。JSON文字列）。
+// migrations/0016未適用（列が無い）でもプロフィールの読み書きが壊れないよう、この列だけ別のクエリで読み、失敗したら既定値にする
+//   acq  : 推しユニットカードに入手日・ガシャ回数を出す（既定 true）
+//   memo : 推しユニットカードに入手記録のメモを出す（既定 false。チェッカーのメモは本人用に書かれることが多く、画像で公開される前提ではないため）
+const CARD_OPTIONS_DEFAULT = { acq: true, memo: false };
+function normalizeCardOptions(value) {
+  const out = Object.assign({}, CARD_OPTIONS_DEFAULT);
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    for (const k of Object.keys(CARD_OPTIONS_DEFAULT)) if (typeof value[k] === "boolean") out[k] = value[k];
+  }
+  return out;
+}
+async function loadCardOptions(env, userUid) {
+  try {
+    const r = await env.DB.prepare("SELECT card_options FROM user_profiles WHERE user_uid = ?").bind(userUid).first();
+    return normalizeCardOptions(r && r.card_options ? JSON.parse(r.card_options) : null);
+  } catch (e) {
+    return Object.assign({}, CARD_OPTIONS_DEFAULT);
+  }
 }
 
 // GET /api/profile-card（ログイン必須）
@@ -1125,6 +1148,14 @@ async function handleSaveProfile(request, env) {
     env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(new Date().toISOString(), uid)
   ];
   await env.DB.batch(statements);
+  // ㉚ 表示オプションは0016未適用でも保存全体が失敗しないよう、バッチの外で別に更新する（失敗は無視＝既定値で表示される）。
+  // cardOptionsを送ってこない（㉚より前の画面を開いたままの）保存では、保存済みの値を変えない
+  if (body.cardOptions && typeof body.cardOptions === "object" && !Array.isArray(body.cardOptions)) {
+    try {
+      await env.DB.prepare("UPDATE user_profiles SET card_options = ? WHERE user_uid = ?")
+        .bind(JSON.stringify(normalizeCardOptions(body.cardOptions)), uid).run();
+    } catch (e) { /* migrations/0016 未適用 */ }
+  }
 
   const profile = await loadProfile(env, uid, eternalRoad ? eternalRoad.earnedTitles : []);
   return jsonResponse({ ok: true, profile }, 200);
