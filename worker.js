@@ -1029,6 +1029,21 @@ async function handleProfileCard(request, env) {
     loadEternalRoadForCard(env, uid)
   ]);
   delete supporters.ownership; // サポートの所持内訳はカードで使わない
+  // ㉙ 推しユニットカードに入手記録（入手日・ガシャ回数・メモ）を出すため、ユニットの入手記録を添える（/api/my-ownershipのacqと同じ形）
+  units.acq = {};
+  try {
+    const { results: acqRows } = await env.DB.prepare(
+      `SELECT unit_id, acquired_on, gasha_pulls, memo FROM units_ownership
+       WHERE user_uid = ? AND (acquired_on IS NOT NULL OR gasha_pulls IS NOT NULL OR memo IS NOT NULL)`
+    ).bind(uid).all();
+    for (const r of acqRows) {
+      const rec = {};
+      if (r.acquired_on != null) rec.d = r.acquired_on;
+      if (r.gasha_pulls != null) rec.n = r.gasha_pulls;
+      if (r.memo != null) rec.m = r.memo;
+      units.acq[String(r.unit_id)] = rec;
+    }
+  } catch (e) { /* 0013未適用などで失敗しても、カードは入手記録なしで描く */ }
   const profile = await loadProfile(env, uid, eternalRoad ? eternalRoad.earnedTitles : []);
 
   return jsonResponse({ username: sessionUser.username, profile, units, supporters, eternalRoad, titles: null }, 200);
@@ -1075,7 +1090,7 @@ async function handleSaveProfile(request, env) {
 
   const displayName = normalizeProfileText(body.displayName, 16, false);
   if (displayName === undefined) return jsonResponse({ error: "invalid_display_name" }, 400);
-  const comment = normalizeProfileText(body.comment, 40, true);
+  const comment = normalizeProfileText(body.comment, 60, true);   // 2026-09-27に40→60（profile-card.htmlのCOMMENT_MAXと合わせる）
   if (comment === undefined) return jsonResponse({ error: "invalid_comment" }, 400);
 
   const favoriteWorks = normalizeFavoriteIds(body.favoriteWorks, WORK_IDS);

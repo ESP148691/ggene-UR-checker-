@@ -41,6 +41,7 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `migrations/0012_populate_works_master.sql` — 作品マスター106件＋URユニット→作品の対応84件の投入。冪等（`INSERT OR REPLACE`）。**適用済み（2026-09-24）**
 - `migrations/0013_units_ownership_acquisition.sql` — ㉖段階B：`units_ownership`に入手記録の3列（`acquired_on` TEXT・`gasha_pulls` INTEGER・`memo` TEXT）を追加。`docs/05_機能拡張_有料プラン/データ/㉖0013_…sql`とバイト単位で同一。**`ALTER TABLE`のため再実行するとduplicate columnエラー（＝適用済みの意味）**。**コードより先に適用すること**（逆順だと入手記録付きの登録が`handleOwnershipLog()`のtry/catchで握りつぶされ、画面上は成功に見えて保存されない。また`/api/my-ownership`が列不在でエラーになり起動時の復元が止まる）。**適用済み（2026-09-25、ユーザーがD1 Consoleで実行）**
 - `migrations/0014_analytics_daily.sql` — ㉖段階C：定時分析の`analytics_daily`・`analytics_daily_summary`（冪等）。`docs/05_…/データ/㉖0014_…sql`と同一。コードより先に適用すること（未適用だと定期実行・`/api/admin/*`がエラー。既存ページには影響なし）。**適用済み（2026-09-25）**
+- `migrations/0015_move_turn_a_and_g_reco.sql` — ㉙：`works_master`の2行（∀ガンダム65→`UC`・510、Gのレコンギスタ85→`ALT`・1315）を更新するUPDATE 2行。冪等・構造変更なし。`0012`の該当2行も同じ値に書き換え済み。**適用済み（2026-09-27、ユーザーがD1 Consoleで実行）**
 - `images/eternal-road/1.jpg`〜`29.jpg` — エタロのステージバナー（640×234px。ユーザー撮影のスクショからCoworkが切り出し。⑮）
 - `images/eternal-road/icon/1.jpg`〜`29.jpg` — トップページのエタロ導線用アイコン（136×136px。各バナーの横中央・上端170×170を切り抜き。`scripts/make_eternal_road_icons.py`で生成。**バナーを差し替え・追加したら再実行すること**）
 - `images/series/1.png`〜`106.png` — 作品アイコン（ゲーム内「シリーズ絞り込み」画面のロゴ。運営者のスクショからCoworkが切り出し、320×140。番号＝`works_master.work_id`）
@@ -624,6 +625,7 @@ URユニット・URサポート・作品を追加するときに、そろえて�
 
 **URユニット（URサポートも同様）を追加するとき**
 1. `unit.html`（`supporter.html`）の`UNITS`（`SUPPORTERS`）配列に追加し、画像を`images/units/{id}.jpg`（`images/supporters/{id}.jpg`）に置く（既存IDは振り直さない）
+   - **URユニットのみ：`UNITS`の要素に`released: "YYYY-MM-DD"`（ゲーム内の実装日＝ガシャ初登場日・JST）を必ず入れる**（㉙・2026-09-27〜。2026-09-30実装予定のV2アサルトバスターガンダム・ザンスパインから対象）。入手記録の入力欄を開いたときに入手日として自動記録される値で、無いと初期値が入らないだけでエラーにはならない。実装日が未来の日付なら、その日が来るまでは記録されない
 2. `top.html`の`UNIT_IMAGES`（`SUPPORTER_IMAGES`）の件数を更新
 3. `worker.js`の`MAX_UNIT_ID`（`MAX_SUPPORTER_ID`）を更新
 4. D1の`units_master`（`supporters_master`）に1行追加（`migrations/0002`と同じ形式のINSERTをCloudflareダッシュボードで実行）
@@ -769,7 +771,27 @@ Cowork側の実装依頼書`docs/05_機能拡張_有料プラン/㉘ログイン
 - 本番確認：未ログインで`/unit`・`/supporter.html`がガードのみ、ログイン→同じページで本体表示。運営者（`ESP`）で`/report.html`の6種類を作成、`/supporter-scan.html`の読み取り（実機スマホ）
 - `supporter-scan.js`の`SCAN_FIT`が無い18体の学習（「新ユニット・作品の追加手順」7）。試用で問題なければ別途指示で`supporter.html`へ統合
 
+### ㉙ 入手日の初期値・自己紹介カード改善（2026-09-27）
+Cowork側の実装依頼書`docs/04_自己紹介カード/㉙入手日の初期値・自己紹介カード改善_実装依頼書.md`（1〜5章＋6章「追加改修：推しユニットカードの空白活用」）に基づき、**Coworkが直接編集した未commitの5ファイル**（`unit.html`・`profile-card.html`・`worker.js`・`migrations/0012`・`migrations/0015`（新規））を差分確認して取り込んだ。
+
+**変更内容（詳細は依頼書2章・6章、`docs/WEBサイト仕様書.md`の2.1・2.7節）**
+- `unit.html`：`UNITS`84機に`released`（実装日）を追加。`applyDefaultAcqDate(u)`を`render()`の行組み立て前に呼び、入手日が未記録の所持ユニットの入力欄を**開いた時点で**実装日を入手日として記録（dirty・`persistAcq()`・📝・注記`.acq-default`）。既存の入手日は上書きしない、未所持は記録しない。メモの例文を「例：天井でお迎え😭」に。「記録を消す」で消しても次に開くと再記録される（仕様として許容）
+- `profile-card.html`：推し作品の区分名「アナザー」→「オルタナティブ」（タブ・選択済みリスト。カード内チップは略称「オルタナ」。`era`の値は`ALT`のまま）、「プロフィール保存」→「プロフ保存」、背景名「宇宙／地球／空中」（内部キー不変）、表示称号の欄を削除しカードの称号ピルを廃止（`titleMissionId`は保存・送信を継続＝DBの`title_mission_id`は残す）、ひとこと60文字（`COMMENT_MAX`）・カード上は17px・最大3行・13pxまで縮小・行頭禁則（`identity()`＝3テンプレート共通）、フッター右を`@polarbear148691`に、「標準」の推しユニット見出し12→16px・画像下の名前等2行を削除。6章：推しユニットカードの右側に入手記録（1位は下部に入手日・ガシャ・メモ2行、2〜5位は右端142pxの欄）、左カラムにURサポート・エタロEXPERTの小ブロック（`miniBlock()`。従来の最下部チップは廃止）。補助関数`acqDateLabel()`・`hasAcqRec()`・`wrapLines()`
+- `worker.js`：`handleSaveProfile()`のひとこと上限40→60。`handleProfileCard()`に`units.acq`（`units_ownership`の入手記録3列のどれかがNULLでない行。NULLの項目はキーごと省く。失敗時は`{}`）
+- `migrations/0015`：∀ガンダム（65）を`era='UC'`・`sort_order=510`（Vガンダムの次）、Gのレコンギスタ（85）を`era='ALT'`・`sort_order=1315`（AGE EXA-LOGと鉄血の間）。`0012`の該当2行も同じ値に。**確認時の変更1点：Cowork版にあった`--`コメント4行を削除**（2026-09-23の教訓＝D1コンソールにコピペで実行できないため。SQL本体は同じ）
+
+**検証**：`worker.js`をChromium内で動かしD1をsqlite3（`migrations`の実ファイル0001〜0015）にブリッジするハーネス（㉘段階Cと同じ方式）で**105件成功**。D1（0012変更前＋0015×2＝0012変更後、変化は2行のみ、コメントなし）、API（`units.acq`の形・NULL省略・`/api/my-ownership`と一致・他ユーザー混入なし・記録なし`{}`・0013未適用でも200で`{}`・401、ひとこと60文字／絵文字60個OK・61文字400、`/api/works`の並び）、`unit.html`（390/1100px。依頼書4章の各項目＋回数だけの記録に入手日を補う・データ登録でDBに保存）、`profile-card.html`（390/1100px。依頼書4章の各項目＋保存で60文字とtitleMissionIdを送る）、カード描画（標準・推しユニット・エタロ攻略×3背景の9通り＋推しユニットのサポートのみ／エタロのみ／入手記録なし／1機のみ）を目視確認しはみ出し・重なりなし、JSエラーなし。依頼書6-5の「`handleProfileCard()`の追加クエリを実D1（0013適用済み）相当で確認」も上記ハーネスで実施済み
+- 補足：依頼書が出典として挙げている`docs/04_自己紹介カード/データ/㉙URユニット実装日一覧.csv`はフォルダに存在しなかった（`released`の値はIDの順に非減少であることのみ確認）
+
+**commit・push**：ユーザーがD1に0015を適用（2026-09-27）した後にcommit・`git push origin main`
+
+**未実施（要対応）**
+- 本番で、入手記録を登録済みのユーザーの推しユニットカードに入手日・ガシャ回数・メモが出ること（依頼書6-5）
+- `/api/works`は`max-age=3600`のため、0015適用後最大1時間は古い区分が見えることがある
+- 2026-09-30の新UR（V2アサルトバスターガンダム・ザンスパイン）追加時に`released`を入れる（「新ユニット・作品の追加手順」）
+
 ## 次にやること
+- ㉙：0015適用・push済み。本番で推しユニットカードの入手記録表示を確認
 - ㉘：段階D・A・B・Cすべてpush済み。本番確認と、上記「㉘」節の「未実施（要対応）」（一言バッジ・サポートの`SCAN_FIT`）
 - ㉖：push済み。本番での`report.html`の手動集計（231行の確認）・翌朝4時の定期実行の確認・入手記録の実機確認（「㉖」節の「未実施（要対応）」）。スクショ読み取り試験版（運営者専用）のテスト運用
 - ㉒：D1適用・push済み。、`/profile-card.html`のテスト運用、iOS Safari実機確認、指示後にトップ導線の`hidden`を外す

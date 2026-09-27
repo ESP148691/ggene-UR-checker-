@@ -244,9 +244,9 @@
         </div>
         <p class="hint" id="tplHint" hidden></p>
         <div class="themes" id="themeButtons" role="group" aria-label="背景">
-          <button type="button" data-theme="galaxy"><canvas width="240" height="135"></canvas><span>宇宙世紀</span></button>
+          <button type="button" data-theme="galaxy"><canvas width="240" height="135"></canvas><span>宇宙</span></button>
           <button type="button" data-theme="earth"><canvas width="240" height="135"></canvas><span>地球</span></button>
-          <button type="button" data-theme="sky"><canvas width="240" height="135"></canvas><span>大空</span></button>
+          <button type="button" data-theme="sky"><canvas width="240" height="135"></canvas><span>空中</span></button>
         </div>
       </section>
 
@@ -262,15 +262,11 @@
           <input type="text" id="inName" maxlength="16" autocomplete="off">
         </div>
         <div class="field">
-          <label class="fieldLabel" for="inComment">ひとこと（40文字まで）</label>
-          <input type="text" id="inComment" maxlength="40" autocomplete="off">
-          <div class="counter" id="commentCounter">残り40文字</div>
+          <label class="fieldLabel" for="inComment">ひとこと（60文字まで）</label>
+          <input type="text" id="inComment" maxlength="60" autocomplete="off">
+          <div class="counter" id="commentCounter">残り60文字</div>
         </div>
-        <div class="field">
-          <label class="fieldLabel" for="inTitle">表示称号</label>
-          <select id="inTitle"></select>
-          <p class="hint" id="titleHint" hidden>エタロ攻略チェッカーで称号を獲得すると選べます</p>
-        </div>
+        <!-- 表示称号の欄は2026-09-27に削除（ユーザー指示）。空いたスペースはカードのひとことに回した -->
       </section>
 
       <section class="section">
@@ -278,7 +274,7 @@
         <div class="picked" id="pickedWorks"></div>
         <div class="pickTabs" id="workTabs" role="tablist">
           <button type="button" data-era="UC">宇宙世紀</button>
-          <button type="button" data-era="ALT">アナザー</button>
+          <button type="button" data-era="ALT">オルタナティブ</button>
           <button type="button" data-era="ETC">SD・ビルド・その他</button>
         </div>
         <div class="pickList" id="workList"></div>
@@ -313,7 +309,7 @@
 </main>
 
 <div class="actionbar" id="actionbar" hidden>
-  <button type="button" class="btn-register" id="btnProfileSave">プロフィール保存<span class="dirtyMark" id="dirtyMark" hidden>●未保存</span></button>
+  <button type="button" class="btn-register" id="btnProfileSave">プロフ保存<span class="dirtyMark" id="dirtyMark" hidden>●未保存</span></button>
   <button type="button" class="btn-save" id="btnSave">画像で保存</button>
   <button type="button" class="btn-share" id="btnShare">Xでシェア</button>
 </div>
@@ -751,7 +747,7 @@ function bgJungle(layout){
 
 /* テーマ定義：背景＋文字・パネルの配色（明るい大空は濃色文字・白パネルに切替） */
 const THEMES={
-  galaxy:{ label:"宇宙世紀（銀河系）", draw:bgGalaxy, dark:true,
+  galaxy:{ label:"宇宙（銀河系）", draw:bgGalaxy, dark:true,
     panel:"rgba(12,18,28,.62)", line:"rgba(107,224,224,.20)", frame:"#2b3746",
     text:"#eef3f6", muted:"#9fb0c0", gold:"#dab949", goldDim:"#9a7e2c", cyan:"#6be0e0", violet:"#a58cf0",
     pillBg:"rgba(155,127,232,.18)", pillText:"#dccfff", shadow:"rgba(0,0,0,.6)", scrim:"rgba(3,5,10,.6)" },
@@ -759,7 +755,7 @@ const THEMES={
     panel:"rgba(6,14,30,.58)", line:"rgba(120,190,255,.24)", frame:"#2a3a52",
     text:"#f2f7fb", muted:"#a9bdd2", gold:"#e8c45a", goldDim:"#a7883a", cyan:"#7fd0ff", violet:"#a99bff",
     pillBg:"rgba(120,160,255,.18)", pillText:"#dde6ff", shadow:"rgba(0,0,0,.65)", scrim:"rgba(2,6,16,.72)" },
-  sky:{ label:"青い大空", draw:bgSky, dark:false,
+  sky:{ label:"空中（青い大空）", draw:bgSky, dark:false,
     panel:"rgba(255,255,255,.80)", line:"rgba(30,100,170,.22)", frame:"#b8cde0",
     text:"#0f2740", muted:"#46627e", gold:"#b0800a", goldDim:"#c49a2e", cyan:"#0c78b8", violet:"#5f45c2",
     pillBg:"rgba(95,69,194,.12)", pillText:"#4a33a6", shadow:"rgba(8,40,90,.55)",
@@ -823,7 +819,8 @@ async function header(ctx,T,sub){
     ctx.save(); ctx.shadowColor=T.dark?"rgba(0,0,0,.5)":"rgba(10,40,80,.45)"; ctx.shadowBlur=6;
     ctx.drawImage(logo,W-36-lw,22,lw,lh); ctx.restore(); }
 }
-// 表示名・称号・ひとこと。戻り値は次に描けるy
+// 表示名・ひとこと。戻り値は次に描けるy
+// 2026-09-27：称号のピルを廃止し、空いた高さをひとことに回した（最大60文字・最大3行。17pxから、3行に収まるまで13pxまで縮める）
 function identity(ctx,T,p,LX,LW,nameMax=38,nameY=98){
   ctx.fillStyle=T.bgText||T.text;
   let fs=nameMax; ctx.font=`bold ${fs}px ${FONT}`;
@@ -831,25 +828,29 @@ function identity(ctx,T,p,LX,LW,nameMax=38,nameY=98){
   // 全角16文字の表示名が省略されずに収まるようにするため（18px×16＝288px）
   while(fs>18 && ctx.measureText(p.displayName).width>LW){ fs-=2; ctx.font=`bold ${fs}px ${FONT}`; }
   shadowText(ctx,T,fitText(ctx,p.displayName,LW),LX,nameY);
-  let y=nameY+14;
-  if(p.title){
-    ctx.font=`bold 13px ${FONT}`;
-    const label=fitText(ctx,`称号「${p.title}」`,LW-20), tw=ctx.measureText(label).width+20;
-    roundRect(ctx,LX,y,tw,24,12); ctx.fillStyle=T.dark?"rgba(10,12,24,.55)":"rgba(255,255,255,.75)"; ctx.fill();
-    roundRect(ctx,LX,y,tw,24,12); ctx.fillStyle=T.pillBg; ctx.fill();
-    ctx.strokeStyle=T.violet; ctx.lineWidth=1; ctx.stroke();
-    ctx.fillStyle=T.pillText; ctx.textBaseline="middle"; ctx.fillText(label,LX+10,y+12.5);
-    ctx.textBaseline="alphabetic"; y+=34;
-  } else y+=8;
+  let y=nameY+22;
   if(p.comment){
-    ctx.fillStyle=T.bgMuted||T.muted; ctx.font=`14px ${FONT}`;
-    const text="“"+p.comment+"”", lines=[""];
-    for(const ch of text){
-      const cur=lines[lines.length-1];
-      if(ctx.measureText(cur+ch).width>LW){ if(lines.length===2){ lines[1]=fitText(ctx,cur+ch+"…",LW); break; } lines.push(ch); }
-      else lines[lines.length-1]=cur+ch;
+    const text="“"+p.comment+"”", MAXL=3, KINSOKU="、。，．,.！？!?）)」』】〉》ーｰ…～〜”’";
+    const wrapLines=()=>{ const lines=[""];
+      for(const ch of text){
+        const cur=lines[lines.length-1];
+        // 行頭禁則：句読点・閉じ括弧・感嘆符などは前の行に残す（はみ出しは1文字まで許容）
+        const kinsoku=KINSOKU.includes(ch) && ctx.measureText(cur+ch).width<=LW+cs;
+        if(!kinsoku && ctx.measureText(cur+ch).width>LW){ if(lines.length===MAXL) return null; lines.push(ch); }
+        else lines[lines.length-1]=cur+ch;
+      }
+      return lines; };
+    let cs=17, lines;
+    for(;;){ ctx.font=`bold ${cs}px ${FONT}`; lines=wrapLines(); if(lines||cs<=13) break; cs-=1; }
+    if(!lines){ // 13pxでも3行に収まらない（通常は起きない）：3行目を省略
+      lines=[""];
+      for(const ch of text){ const cur=lines[lines.length-1];
+        if(ctx.measureText(cur+ch).width>LW){ if(lines.length===MAXL){ lines[MAXL-1]=fitText(ctx,cur+ch+"…",LW); break; } lines.push(ch); }
+        else lines[lines.length-1]=cur+ch; }
     }
-    lines.forEach((ln,i)=>shadowText(ctx,T,ln,LX,y+12+i*20)); y+=6+lines.length*20;
+    const lh=Math.round(cs*1.38);
+    ctx.fillStyle=T.bgMuted||T.muted;
+    lines.forEach((ln,i)=>shadowText(ctx,T,ln,LX,y+cs+i*lh)); y+=cs+(lines.length-1)*lh+10;
   }
   return y;
 }
@@ -908,7 +909,7 @@ async function layoutStandard(ctx,T,data){
     const tx=ix+lw+12, tw=LX+LW-tx+8;
     ctx.fillStyle=T.text; ctx.font=`bold 14px ${FONT}`; ctx.textBaseline="alphabetic";
     ctx.fillText(fitText(ctx,f.shortName,tw),tx,ry+icon/2-2);
-    const eraLabel={UC:"宇宙世紀",ALT:"アナザー",ETC:"SD・ビルド他"}[f.era];
+    const eraLabel={UC:"宇宙世紀",ALT:"オルタナ",ETC:"SD・ビルド他"}[f.era];   // カード内は幅を抑えるため略称「オルタナ」
     ctx.font=`bold 11px ${FONT}`; const ew=ctx.measureText(eraLabel).width+12;
     roundRect(ctx,tx,ry+icon/2+6,ew,18,4);
     ctx.strokeStyle=f.era==="UC"?T.gold:(f.era==="ALT"?T.cyan:T.violet); ctx.lineWidth=1; ctx.stroke();
@@ -940,10 +941,11 @@ async function layoutStandard(ctx,T,data){
     const label=picked.length?"推しユニット":"所持ユニット";
     const rowTop=py+122, rowH=py+h-14-rowTop;
     ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(RX+16,rowTop-8); ctx.lineTo(RX+RW-16,rowTop-8); ctx.stroke();
-    ctx.fillStyle=T.gold; ctx.font=`bold 12px ${FONT}`; ctx.textBaseline="alphabetic"; ctx.fillText(label,RX+18,rowTop+10);
-    const n=5, gapX=12, slotW=(RW-36-gapX*(n-1))/n;
-    const size=Math.min(slotW, rowH-18-40);   // 画像の下に名前・タイプ｜作品の2行
-    const iy0=rowTop+18+Math.max(0,(rowH-18-size-40)/2);   // 余白は上下に均等配分
+    // 2026-09-27：見出しを12→16pxに拡大。その分、画像の下の機体名・タイプ｜作品の2行は表示しない（ユーザー指示）
+    ctx.fillStyle=T.gold; ctx.font=`bold 16px ${FONT}`; ctx.textBaseline="alphabetic"; ctx.fillText(label,RX+18,rowTop+14);
+    const n=5, gapX=12, slotW=(RW-36-gapX*(n-1))/n, HEAD=26;
+    const size=Math.min(slotW, rowH-HEAD);
+    const iy0=rowTop+HEAD+Math.max(0,(rowH-HEAD-size)/2);   // 余白は上下に均等配分
     for(let i=0;i<list.length;i++){
       const f=list[i], sx=RX+18+i*(slotW+gapX), ix=sx+(slotW-size)/2, iy=iy0;
       await unitImage(ctx,T,f,ix,iy,size,10);
@@ -957,12 +959,6 @@ async function layoutStandard(ctx,T,data){
       const R=6.5, starsW=3*R*2.3, stx=ix+(size-starsW)/2, sty=iy+size-11;
       ctx.save(); roundRect(ctx,stx-6,sty-10,starsW+10,20,10); ctx.fillStyle="rgba(8,10,16,.72)"; ctx.fill(); ctx.restore();
       totsuStars(ctx,{...T,dark:true},stx,sty,R,f.level);
-      // 名前（1行・省略）
-      ctx.fillStyle=T.text; ctx.font=`bold 12px ${FONT}`; ctx.textAlign="center";
-      ctx.fillText(fitText(ctx,f.name,slotW),sx+slotW/2,iy+size+16);
-      const sub=[f.type,f.workShort].filter(Boolean).join("｜");
-      if(sub){ ctx.fillStyle=T.muted; ctx.font=`11px ${FONT}`; ctx.fillText(fitText(ctx,sub,slotW),sx+slotW/2,iy+size+33); }
-      ctx.textAlign="left";
     }
     py+=h+GAP;
   }
@@ -1200,11 +1196,42 @@ async function unitImage(ctx,T,u,x,y,size,radius){
     ctx.fillStyle="#dab949"; ctx.textBaseline="middle"; ctx.fillText(t,x+11,y+6+bh/2+0.5); ctx.textBaseline="alphabetic";
   }
 }
+// ㉙ 入手記録（入手日・ガシャ回数・メモ）の表示用。rec = {d:"YYYY-MM-DD"|"YYYY-MM", n:回数, m:メモ}
+function acqDateLabel(d){ return d ? d.replace(/-/g,"/") : ""; }
+function hasAcqRec(r){ return !!(r&&(r.d||r.n||r.m)); }
+// 文字列を最大maxLines行で折り返す（収まらなければ最終行を「…」で省略）。1文字単位（絵文字を分割しない）
+function wrapLines(ctx,text,maxW,maxLines){
+  const lines=[""];
+  for(const ch of [...text]){
+    const cur=lines[lines.length-1];
+    if(ctx.measureText(cur+ch).width>maxW){
+      if(lines.length===maxLines){ let t=[...cur]; while(t.length&&ctx.measureText(t.join("")+"…").width>maxW) t.pop(); lines[maxLines-1]=t.join("")+"…"; return lines; }
+      lines.push(ch);
+    } else lines[lines.length-1]=cur+ch;
+  }
+  return lines;
+}
+// 左カラム下部の小さな実績ブロック（URサポート／エタロ）。rowsは[ラベル,値]。wideなら行を2列に並べる
+function miniBlock(ctx,T,x,y,w,title,accent,big,bigSub,rows,wide){
+  ctx.textBaseline="alphabetic"; ctx.textAlign="left";
+  ctx.fillStyle=accent; ctx.fillRect(x,y-10,3,12);
+  ctx.fillStyle=T.muted; ctx.font=`bold 12px ${FONT}`; ctx.fillText(title,x+8,y);
+  ctx.fillStyle=T.gold; ctx.font=`bold 26px ${FONT}`; ctx.fillText(big,x,y+32);
+  const bw=ctx.measureText(big).width;
+  if(bigSub){ ctx.fillStyle=T.muted; ctx.font=`bold 12px ${FONT}`; ctx.fillText(bigSub,x+bw+5,y+32); }
+  const cols=wide?2:1, cw=(w-(cols-1)*14)/cols;
+  rows.forEach(([l,v],i)=>{
+    const cx=x+(i%cols)*(cw+14), cy=y+52+Math.floor(i/cols)*17;
+    ctx.fillStyle=T.muted; ctx.font=`11px ${FONT}`; ctx.textAlign="left"; ctx.fillText(l,cx,cy);
+    ctx.fillStyle=T.text; ctx.font=`bold 12px ${FONT}`; ctx.textAlign="right"; ctx.fillText(v,cx+cw,cy);
+  });
+  ctx.textAlign="left";
+}
 async function layoutUnits(ctx,T,data){
   await header(ctx,T,"FAVORITE UNITS");
   const u=data.units, favs=(data.favoriteUnits||[]).slice(0,5);
   const TC=T.dark?TYPE_COL.dark:TYPE_COL.light;
-  // ---- 左カラム：プロフィール＋UR所持サマリー ----
+  // ---- 左カラム：プロフィール＋UR所持サマリー＋（㉙）URサポート・エタロの実績 ----
   const LX=36, LW=290;
   let y=identity(ctx,T,data.profile,LX,LW,32,96);
   const pTop=Math.max(y+8,178), pH=H-pTop-58;
@@ -1215,7 +1242,8 @@ async function layoutUnits(ctx,T,data){
   ctx.fillStyle=T.text; ctx.font=`bold 15px ${FONT}`; ctx.textAlign="right";
   ctx.fillText(`${u.owned} / ${u.total}機`,LX+LW-8,yy+52); ctx.textAlign="left";
   progressBar(ctx,T,LX+8,yy+66,LW-16,u.owned/u.total,false);
-  yy+=100;
+  yy+=96;
+  // ㉙ 行間を48→40pxに詰めて、下にURサポート・エタロのブロックを置く場所を作る
   for(const r of [{l:"完凸",v:`${u.maxCount} / ${u.total}`,ratio:u.maxCount/u.total,rb:true},
                   {l:"平均凸Lv",v:u.avgLevel.toFixed(1),ratio:u.avgLevel/3},
                   {l:"期間限定所持",v:`${u.limitedOwned} / ${u.limitedTotal}`,ratio:u.limitedOwned/u.limitedTotal}]){
@@ -1223,16 +1251,31 @@ async function layoutUnits(ctx,T,data){
     ctx.fillStyle=r.rb&&u.maxCount>0?rainbow(ctx,LX+LW-90,yy-16,LX+LW,yy):T.cyan;
     ctx.font=`bold 18px ${FONT}`; ctx.textAlign="right"; ctx.fillText(r.v,LX+LW-8,yy+2); ctx.textAlign="left";
     progressBar(ctx,T,LX+8,yy+10,LW-16,r.ratio,r.rb);
-    yy+=48;
+    yy+=40;
   }
   // タイプ別の所持（攻撃・支援・耐久）
   let tx=LX+8;
-  for(const t of ["攻撃","支援","耐久"]) tx=chip(ctx,tx,yy-6,`${t} ${u.byType[t].owned}/${u.byType[t].total}`,TC[t],false,11);
-  const chips=[];
-  if(data.supporters&&data.supporters.registered) chips.push(`URサポート ${data.supporters.pct}%`);
-  if(data.eternalRoad&&data.eternalRoad.registered){ const st=eternalSummary(data.eternalRoad); chips.push(`エタロ ${st.stageClear}/${st.stageTotal}`); }
-  let cx=LX+8; const cy=pTop+pH-38;
-  for(const c of chips) cx=chip(ctx,cx,cy,c,T.muted,false,11);
+  for(const t of ["攻撃","支援","耐久"]) tx=chip(ctx,tx,yy-8,`${t} ${u.byType[t].owned}/${u.byType[t].total}`,TC[t],false,11);
+  // ㉙ URサポート・エタロ：チップ1行だった表示を、所持率・凸・ステージクリアなどの小ブロックに拡充（登録済みのものだけ。2つなら左右半分ずつ）
+  const blocks=[];
+  const s=data.supporters;
+  if(s&&s.registered) blocks.push({title:"URサポート",accent:T.cyan,big:`${s.pct}%`,bigSub:`${s.owned}/${s.total}体`,
+    rows:[["完凸",`${s.maxCount}`],["平均凸Lv",s.avgLevel.toFixed(1)],["期間限定",`${s.limitedOwned}/${s.limitedTotal}`],
+          ["HP/EN/複合",`${s.byType["HP回復"].owned}/${s.byType["EN回復"].owned}/${s.byType["複合"].owned}`]]});
+  if(data.eternalRoad&&data.eternalRoad.registered){ const st=eternalSummary(data.eternalRoad);
+    blocks.push({title:"エタロEXPERT",accent:T.violet,big:`${st.stageClear}`,bigSub:`/ ${st.stageTotal} クリア`,
+      rows:[["クリア率",`${st.clearPct}%`],["全達成",`${st.perfect}/${st.stageTotal}`],["ミッション",`${st.missions}/${st.missionTotal}`],["称号",`${st.titles}/${st.titleTotal}`]]}); }
+  if(blocks.length){
+    // ブロックの高さは約105px。パネルの下端に揃える（上のタイプ別チップとの間が詰まらないよう、最低でもチップの下28px）
+    const by=Math.max(yy+40,pTop+pH-118);
+    ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(LX+8,by-24); ctx.lineTo(LX+LW-8,by-24); ctx.stroke();
+    const bw=blocks.length===2?(LW-16-16)/2:LW-16;
+    blocks.forEach((bk,i)=>{
+      const bx=LX+8+i*(bw+16);
+      if(i===1){ ctx.strokeStyle=T.line; ctx.beginPath(); ctx.moveTo(bx-8,by-10); ctx.lineTo(bx-8,by+112); ctx.stroke(); }
+      miniBlock(ctx,T,bx,by,bw,bk.title,bk.accent,bk.big,bk.bigSub,bk.rows,blocks.length===1);
+    });
+  }
 
   // ---- 右：推しユニット（1位を大きく、2〜5位をリスト） ----
   const GX=352, GY=90, GW=W-36-GX, GH=H-58-GY-6;
@@ -1240,15 +1283,21 @@ async function layoutUnits(ctx,T,data){
     ctx.fillStyle=T.bgMuted||T.muted; ctx.font=`15px ${FONT}`; shadowText(ctx,T,"推しユニットが未設定です",GX,GY+40);
     footer(ctx,T,data); return;
   }
+  const acqOf=f=>(data.unitAcq||{})[String(f.unitId)]||null;
   const heroW=favs.length>1?330:GW, heroH=GH;
   // 1位：ヒーローカード
   {
-    const f=favs[0], x=GX, y0=GY;
+    const f=favs[0], x=GX, y0=GY, rec=acqOf(f), hasA=hasAcqRec(rec);
     panel(ctx,T,x,y0,heroW,heroH,null,null);
+    // ㉙ 入手記録ブロック（入手日・ガシャ回数の1行＋メモ最大2行）の高さを先に見積もる
+    ctx.font=`13px ${FONT}`;
+    const memoLines=hasA&&rec.m?wrapLines(ctx,rec.m,heroW-36-40,2):[];
+    const acqH=hasA?(22+((rec.d||rec.n)?22:0)+memoLines.length*19+4):0;
     // 内容の高さを見積もって縦中央に配置（画像は元画像150px幅のため270pxを上限にしてボケを抑える）
-    const size=Math.min(270,heroW-50);
     ctx.font=`bold 21px ${FONT}`; const nl=wrap2(ctx,f.name,heroW-36).length;
-    const contentH=size+34+nl*26+4+18+26, ix=x+(heroW-size)/2, iy=y0+46+Math.max(0,(heroH-46-contentH-16)/2);
+    const fixedH=34+nl*26+4+18+26+acqH;
+    const size=Math.max(150,Math.min(270,heroW-50,heroH-46-20-fixedH));
+    const contentH=size+fixedH, ix=x+(heroW-size)/2, iy=y0+46+Math.max(0,(heroH-46-contentH-16)/2);
     ctx.fillStyle=T.gold; ctx.font=`bold 13px ${FONT}`; ctx.fillText("推し No.1",x+18,y0+30);
     ctx.fillStyle=T.goldDim; ctx.font=`bold 30px ${FONT}`; ctx.textAlign="right"; ctx.fillText("01",x+heroW-18,y0+38); ctx.textAlign="left";
     await unitImage(ctx,T,f,ix,iy,size,14);
@@ -1259,26 +1308,60 @@ async function layoutUnits(ctx,T,data){
     ctx.fillStyle=f.level===3?rainbow(ctx,sx+6,ty-8,sx+50,ty+8):T.muted; ctx.font=`bold 14px ${FONT}`; ctx.textBaseline="middle";
     ctx.fillText(LV_LABEL[f.level],sx+8,ty+1); ctx.textBaseline="alphabetic"; ty+=18;
     let chx=x+18; chx=chip(ctx,chx,ty,f.type,TC[f.type],false,12); chip(ctx,chx,ty,f.workShort,T.cyan,false,12);
+    if(hasA){
+      let ay=ty+21+14;
+      ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+18,ay-6); ctx.lineTo(x+heroW-18,ay-6); ctx.stroke();
+      ay+=16;
+      if(rec.d||rec.n){
+        let ax=x+18;
+        const item=(l,v)=>{ ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText(l,ax,ay); ax+=ctx.measureText(l).width+6;
+          ctx.fillStyle=T.text; ctx.font=`bold 14px ${FONT}`; ctx.fillText(v,ax,ay); ax+=ctx.measureText(v).width+16; };
+        if(rec.d) item("入手日",acqDateLabel(rec.d));
+        if(rec.n) item("ガシャ",`${rec.n}回`);
+        ay+=22;
+      }
+      if(memoLines.length){
+        ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("メモ",x+18,ay);
+        ctx.fillStyle=T.text; ctx.font=`13px ${FONT}`; memoLines.forEach((ln,i)=>ctx.fillText(ln,x+18+40,ay+i*19));
+      }
+    }
   }
-  // 2〜5位：横長のリスト
+  // 2〜5位：横長のリスト（㉙ 入手記録があれば右端に入手日・ガシャ回数・メモの欄）
   const rest=favs.slice(1);
   if(rest.length){
-    const lx=GX+heroW+12, lw=GW-heroW-12, gap=10, rh=(GH-gap*3)/4;
+    const lx=GX+heroW+12, lw=GW-heroW-12, gap=10, rh=(GH-gap*3)/4, ACQW=142;
     for(let i=0;i<rest.length;i++){
-      const f=rest[i], y0=GY+i*(rh+gap);
+      const f=rest[i], y0=GY+i*(rh+gap), rec=acqOf(f), hasA=hasAcqRec(rec);
       panel(ctx,T,lx,y0,lw,rh,null,null);
       const size=rh-20, ix=lx+46, iy=y0+10;
       ctx.fillStyle=T.goldDim; ctx.font=`bold 22px ${FONT}`; ctx.textBaseline="middle";
       ctx.fillText(String(i+2).padStart(2,"0"),lx+12,y0+rh/2); ctx.textBaseline="alphabetic";
       await unitImage(ctx,T,f,ix,iy,size,10);
-      const tx0=ix+size+14, tw=lx+lw-tx0-12;
-      ctx.fillStyle=T.text; ctx.font=`bold 16px ${FONT}`;
+      const tx0=ix+size+14, tRight=lx+lw-12-(hasA?ACQW+14:0), tw=tRight-tx0;
+      // 入手記録の欄があるときは名前の幅が狭くなるため15pxに（2行で全角約18文字）
+      ctx.fillStyle=T.text; ctx.font=`bold ${hasA?15:16}px ${FONT}`;
       const lines=wrap2(ctx,f.name,tw); lines.forEach((ln,j)=>ctx.fillText(ln,tx0,iy+18+j*20));
       const sy=iy+18+lines.length*20+6;
       const sx=totsuStars(ctx,T,tx0,sy,7,f.level);
       ctx.fillStyle=f.level===3?rainbow(ctx,sx+4,sy-6,sx+40,sy+6):T.muted; ctx.font=`bold 12px ${FONT}`; ctx.textBaseline="middle";
       ctx.fillText(LV_LABEL[f.level],sx+6,sy+1); ctx.textBaseline="alphabetic";
-      let chx=tx0; const cyy=sy+12; chx=chip(ctx,chx,cyy,f.type,TC[f.type],false,10); chip(ctx,chx,cyy,f.workShort,T.cyan,false,10);
+      let chx=tx0; const cyy=sy+12; chx=chip(ctx,chx,cyy,f.type,TC[f.type],false,10);
+      ctx.font=`bold 10px ${FONT}`; chip(ctx,chx,cyy,fitText(ctx,f.workShort,Math.max(30,tRight-chx-14)),T.cyan,false,10);
+      if(hasA){
+        const ax=lx+lw-12-ACQW;
+        ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(ax-8,y0+14); ctx.lineTo(ax-8,y0+rh-14); ctx.stroke();
+        let ay=y0+26;
+        const row=(l,v)=>{ ctx.fillStyle=T.muted; ctx.font=`11px ${FONT}`; ctx.fillText(l,ax,ay);
+          ctx.fillStyle=T.text; ctx.font=`bold 13px ${FONT}`; ctx.fillText(v,ax+44,ay); ay+=20; };
+        if(rec.d) row("入手日",acqDateLabel(rec.d));
+        if(rec.n) row("ガシャ",`${rec.n}回`);
+        if(rec.m){
+          ctx.fillStyle=T.muted; ctx.font=`11px ${FONT}`; ctx.fillText("メモ",ax,ay);
+          ctx.fillStyle=T.text; ctx.font=`12px ${FONT}`;
+          const ml=wrapLines(ctx,rec.m,ACQW-44,Math.max(1,Math.floor((y0+rh-10-ay)/17)+1));
+          ml.forEach((ln,j)=>ctx.fillText(ln,ax+44,ay+j*17));
+        }
+      }
     }
   }
   footer(ctx,T,data);
@@ -1312,7 +1395,8 @@ const CONFIG = {
 };
 const DRAFT_KEY = "profilecard_draft_v1";
 const MAX_FAV = 5;
-const ERA_LABEL = { UC: "宇宙世紀", ALT: "アナザー", ETC: "SD・ビルド他" };
+const COMMENT_MAX = 60;   // ひとことの上限（2026-09-27に40→60。worker.jsのhandleSaveProfile()と合わせる）
+const ERA_LABEL = { UC: "宇宙世紀", ALT: "オルタナティブ", ETC: "SD・ビルド他" };   // 2026-09-27「アナザー」から改称（略称は「オルタナ」）
 const LV_LABEL = ["無凸", "1凸", "2凸", "完凸"];
 const TEMPLATE_LABEL = { standard: "標準", eternal: "エタロ攻略", units: "推しユニット" };
 
@@ -1367,7 +1451,7 @@ function sanitizeDraft(){
   // ジャングル背景は2026-09-24に選択肢から削除（ユーザー指示）。保存済み・下書きの"jungle"は宇宙世紀で描く
   if (!["galaxy", "earth", "sky"].includes(draft.cardTheme)) draft.cardTheme = "galaxy";
   draft.displayName = String(draft.displayName || "").slice(0, 32);
-  draft.comment = String(draft.comment || "").slice(0, 80);
+  draft.comment = String(draft.comment || "").slice(0, 120);
 }
 function draftFromProfile(p){
   const bySlot = arr => (arr || []).slice().sort((a, b) => a.slot - b.slot);
@@ -1417,8 +1501,6 @@ function jstToday(){
   return d.toISOString().slice(0, 10);
 }
 function buildCardData(){
-  const titles = (api.eternalRoad && api.eternalRoad.earnedTitles) || [];
-  const t = titles.find(x => x.missionId === draft.titleMissionId);
   const own = (api.units && api.units.ownership) || {};
   const favorites = draft.favoriteWorks.map(id => worksById.get(id)).filter(Boolean)
     .map(w => ({ shortName: w.shortName, era: w.era, timeline: w.timeline, iconNo: w.workId }));
@@ -1439,9 +1521,11 @@ function buildCardData(){
     clearedStageIds: api.eternalRoad.clearedStageIds || [], clearedMissionIds: api.eternalRoad.clearedMissionIds || []
   } : null;
   return {
-    profile: { displayName: draft.displayName.trim() || api.username, title: t ? t.titleName : null, comment: draft.comment.trim() || null },
+    // 称号はカードに表示しない（2026-09-27 表示称号欄を削除）。titleMissionIdは保存データの互換のためAPIへはそのまま送る
+    profile: { displayName: draft.displayName.trim() || api.username, title: null, comment: draft.comment.trim() || null },
     favorites, favoriteUnits, units, supporters: api.supporters || null, eternalRoad: er,
-    siteLabel: location.host || "ggene-ur-checker.polarbear14869.workers.dev", createdAt: jstToday()
+    unitAcq: (api.units && api.units.acq) || {},   // ㉙ 推しユニットカードの入手記録（DB登録済みの値）
+    siteLabel: "@" + CONFIG.xHandle, createdAt: jstToday()   // 2026-09-27 サイトURLからXアカウントIDに変更（ユーザー指示）
   };
 }
 
@@ -1528,16 +1612,9 @@ function renderProfileFields(){
   $("inName").placeholder = api.username;
   $("inComment").value = draft.comment;
   updateCommentCounter();
-  const sel = $("inTitle"); sel.textContent = "";
-  sel.appendChild(el("option", { value: "", text: "表示しない" }));
-  const titles = (api.eternalRoad && api.eternalRoad.earnedTitles) || [];
-  for (const t of titles) sel.appendChild(el("option", { value: String(t.missionId), text: `称号「${t.titleName}」` }));
-  sel.disabled = titles.length === 0;
-  $("titleHint").hidden = titles.length > 0;
-  sel.value = draft.titleMissionId == null ? "" : String(draft.titleMissionId);
 }
 function updateCommentCounter(){
-  $("commentCounter").textContent = `残り${Math.max(0, 40 - [...$("inComment").value].length)}文字`;
+  $("commentCounter").textContent = `残り${Math.max(0, COMMENT_MAX - [...$("inComment").value].length)}文字`;
 }
 
 // 選択済みリスト（推し作品・推しユニット共通）
@@ -1669,7 +1746,6 @@ $("themeButtons").addEventListener("click", e => {
 });
 $("inName").addEventListener("input", () => { draft.displayName = $("inName").value; onChange(); });
 $("inComment").addEventListener("input", () => { draft.comment = $("inComment").value; updateCommentCounter(); onChange(); });
-$("inTitle").addEventListener("change", () => { draft.titleMissionId = $("inTitle").value ? Number($("inTitle").value) : null; onChange(); });
 $("workTabs").addEventListener("click", e => {
   const b = e.target.closest("button[data-era]"); if (!b) return;
   currentEra = b.dataset.era; $("workList").scrollTop = 0; renderWorks();
@@ -1687,7 +1763,7 @@ function profileBody(){
 }
 const SAVE_ERRORS = {
   invalid_display_name: "表示名は16文字以内で、改行や制御文字は使えません",
-  invalid_comment: "ひとことは40文字以内で入力してください",
+  invalid_comment: "ひとことは60文字以内で入力してください",
   invalid_favorites: "推し作品は5つまでです",
   invalid_favorite_units: "推しユニットは5機までです",
   invalid_body: "入力内容を送信できませんでした"

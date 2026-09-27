@@ -48,7 +48,7 @@ INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, s
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (59, 'UC', '宇宙世紀', 480, '機動戦士ガンダム シルエットフォーミュラ91', 'シルエットフォーミュラ91', 'U.C.0123');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (60, 'UC', '宇宙世紀', 490, '機動戦士クロスボーン・ガンダム', 'クロスボーン・ガンダム', 'U.C.0133');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (61, 'UC', '宇宙世紀', 500, '機動戦士Vガンダム', '機動戦士Vガンダム', 'U.C.0153');
-INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (85, 'UC', 'リギルド・センチュリー', 510, 'ガンダム Gのレコンギスタ', 'Gのレコンギスタ', 'R.G.1014');
+INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (85, 'ALT', 'リギルド・センチュリー', 1315, 'ガンダム Gのレコンギスタ', 'Gのレコンギスタ', 'R.G.1014');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (9, 'ALT', '未来世紀', 1010, '機動武闘伝Gガンダム', '機動武闘伝Gガンダム', 'F.C.60');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (10, 'ALT', 'アフターコロニー', 1020, '新機動戦記ガンダムW', '新機動戦記ガンダムW', 'A.C.195');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (62, 'ALT', 'アフターコロニー', 1030, '新機動戦記ガンダムW Endless Waltz 敗者たちの栄光', 'EW 敗者たちの栄光', 'A.C.195');
@@ -56,7 +56,7 @@ INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, s
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (11, 'ALT', 'アフターコロニー', 1050, '新機動戦記ガンダムW Endless Waltz', 'ガンダムW EW', 'A.C.196');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (63, 'ALT', 'アフターコロニー', 1060, '新機動戦記ガンダムW BATTLEFIELD OF PACIFIST', 'BATTLEFIELD OF PACIFIST', 'A.C.197');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (12, 'ALT', 'アフターウォー', 1070, '機動新世紀ガンダムX', '機動新世紀ガンダムX', 'A.W.0015');
-INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (65, 'ALT', '正暦', 1080, '∀ガンダム', '∀ガンダム', '正暦2343');
+INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (65, 'UC', '正暦', 510, '∀ガンダム', '∀ガンダム', '正暦2343');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (13, 'ALT', 'コズミック・イラ', 1090, '機動戦士ガンダムSEED', 'ガンダムSEED', 'C.E.71');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (71, 'ALT', 'コズミック・イラ', 1100, '機動戦士ガンダムSEED Recollection', 'SEED Recollection', 'C.E.71');
 INSERT OR REPLACE INTO works_master (work_id, era, universe, sort_order, name, short_name, timeline_label) VALUES (66, 'ALT', 'コズミック・イラ', 1110, '機動戦士ガンダムSEED MSV', 'SEED MSV', 'C.E.71');
