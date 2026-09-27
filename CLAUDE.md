@@ -44,7 +44,7 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `migrations/0014_analytics_daily.sql` — ㉖段階C：定時分析の`analytics_daily`・`analytics_daily_summary`（冪等）。`docs/05_…/データ/㉖0014_…sql`と同一。コードより先に適用すること（未適用だと定期実行・`/api/admin/*`がエラー。既存ページには影響なし）。**適用済み（2026-09-25）**
 - `migrations/0015_move_turn_a_and_g_reco.sql` — ㉙：`works_master`の2行（∀ガンダム65→`UC`・510、Gのレコンギスタ85→`ALT`・1315）を更新するUPDATE 2行。冪等・構造変更なし。`0012`の該当2行も同じ値に書き換え済み。**適用済み（2026-09-27、ユーザーがD1 Consoleで実行）**
 - `migrations/0016_profile_card_options.sql` — ㉚：`ALTER TABLE user_profiles ADD COLUMN card_options TEXT;`の1行。**再実行するとduplicate columnエラー（＝適用済みの意味）**。未適用でもコードは動く（表示設定が保存されず既定値で表示）
-- `migrations/0017_normalize_names.sql` — ㉚：ユニット11件・サポート2件・作品1件の名前を表記ルールに合わせるUPDATE 14行。冪等・構造変更なし。`0012`の作品44（Ζ-MSV）も同じ値に書き換え済み
+- `migrations/0017_normalize_names.sql` — ㉚：ユニット11件・サポート2件・作品1件の名前を表記ルールに合わせるUPDATE 14行。冪等・構造変更なし。`0012`の作品44（Ζ-MSV）も同じ値に書き換え済み。**0016・0017とも適用済み（2026-09-27、ユーザーがD1 Consoleで実行）**
 - `images/eternal-road/1.jpg`〜`29.jpg` — エタロのステージバナー（640×234px。ユーザー撮影のスクショからCoworkが切り出し。⑮）
 - `images/eternal-road/icon/1.jpg`〜`29.jpg` — トップページのエタロ導線用アイコン（136×136px。各バナーの横中央・上端170×170を切り抜き。`scripts/make_eternal_road_icons.py`で生成。**バナーを差し替え・追加したら再実行すること**）
 - `images/series/1.png`〜`106.png` — 作品アイコン（ゲーム内「シリーズ絞り込み」画面のロゴ。運営者のスクショからCoworkが切り出し、320×140。番号＝`works_master.work_id`）
@@ -836,7 +836,7 @@ Cowork側の実装依頼書`docs/04_自己紹介カード/㉚自己紹介カー�
 
 **docs**：`docs/WEBサイト仕様書.md`（最終更新・1.2節（`unit.html`・`ur-units.js`・0016・0017・`scripts/card_check/`）・2.7節（入手記録の表示設定・描画品質）・3章（`/api/profile-card`・`POST /api/profile`の`cardOptions`）・4.1節（`user_profiles.card_options`）・4.1.1節（名前の表記ルール・新設）・5.-13節・6章）を更新。`㉛自己紹介カード_現行仕様（統合版）.md`は実装と突き合わせて食い違いなし（シェア文・幅・フォントサイズ・APIの入力チェック・保存順・下書き・`adminGate`などを確認）。10章の新ユニットの項に、全手順（`UNIT_IMAGES`・`MAX_UNIT_ID`・`SCAN_FIT`）への参照を1文追加
 
-**D1・commit・push**：ユーザーがD1に0016・0017を適用した後にcommit・`git push origin main`（下の「次にやること」の㉚の行で状況を管理）
+**D1・commit・push**：ユーザーがD1に0016・0017を適用（2026-09-27）した後にcommit・`git push origin main`（コミット`27f9f74`）
 
 **未実施（要対応）**
 - iOS Safari実機でのフォント読み込み待ちと描き直しの時間、本番の実データでの表示
@@ -844,7 +844,7 @@ Cowork側の実装依頼書`docs/04_自己紹介カード/㉚自己紹介カー�
 - `missionLabel()`が3か所にある技術的負債は未対応
 
 ## 次にやること
-- ㉚：D1への0016・0017適用 → commit・push（**`ur-units.js`を必ず含める**）。その後、本番で自己紹介カードの表示設定の保存・「実装日」表示・ランキングの新表記を確認。**2026-09-30の新UR2機（V2アサルトバスターガンダム・ザンスパイン）は`ur-units.js`に追加**（「新ユニット・作品の追加手順」）
+- ㉚：0016・0017適用・push済み（`27f9f74`）。本番で自己紹介カードの表示設定の保存・「実装日」表示・ランキングの新表記を確認。**2026-09-30の新UR2機（V2アサルトバスターガンダム・ザンスパイン）は`ur-units.js`に追加**（「新ユニット・作品の追加手順」）
 - サポートのスクショ読み取り本番化：push済み・実機確認済み・`supporter-scan.html`削除済み。残りは`SCAN_FIT`が無い18体の学習（「新ユニット・作品の追加手順」7）
 - ㉙：0015適用・push済み。本番で推しユニットカードの入手記録表示を確認
 - ㉘：段階D・A・B・Cすべてpush済み。本番確認と、上記「㉘」節の「未実施（要対応）」（一言バッジ・サポートの`SCAN_FIT`）
