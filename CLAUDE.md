@@ -22,7 +22,7 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `profile-card.html` — 自己紹介カード作成ページ（㉒・2026-09-24新設。ログインユーザー限定。テンプレート3種×背景4種の16:9カードをCanvasで生成。描画は`docs/04_自己紹介カード/試作HTML/㉑自己紹介カード_試作5_プロトタイプ.html`から移植した`CardRenderer`（2026-09-26（㉘）に「標準」と地球背景を`㉗…試作6_プロトタイプ.html`から再移植）。**トップページの導線`#profileCardNav`は`hidden`のまま**＝テスト運用後にユーザー指示で公開）
 - `unit-scan.js` — スクショ読み取りの判定処理（`window.UnitScan`。`SCAN_FIT`＝ユニットごとの位置合わせ値）。2026-09-26から`unit.html`が読み込む
 - ~~`unit-scan.html`~~ — ㉖段階Aのスクショ読み取り試験版。`unit.html`へ統合済みのため**2026-09-26（㉘段階A）に削除**（ユーザー承認済み）。学習用の`?scandebug=1`は`/unit?scandebug=1`で使う
-- `supporter-scan.html` / `supporter-scan.js` — ㉗・㉘段階D：URサポートのスクショ読み取り（**運営者試用**。2026-09-26追加）。`supporter.html`のコピー＋「強化 > サポーター」一覧のスクショからURサポートと凸を判定（`window.SupporterScan`。`SCAN_FIT`は31体分）。`noindex`・`/api/admin/me`で運営者判定（`scanLocked`）・`data-auth-stay`。保存先は`supporter.html`と同じ。~~トップの運営者欄から遷移~~。**2026-09-27に読み取り機能を`supporter.html`へ統合**（`supporter-scan.js`は`supporter.html`が読み込む）。`supporter-scan.html`は導線を外し運営者専用のまま残置（削除はユーザー確認待ち）
+- `supporter-scan.html` / `supporter-scan.js` — ㉗・㉘段階D：URサポートのスクショ読み取り（**運営者試用**。2026-09-26追加）。`supporter.html`のコピー＋「強化 > サポーター」一覧のスクショからURサポートと凸を判定（`window.SupporterScan`。`SCAN_FIT`は31体分）。`noindex`・`/api/admin/me`で運営者判定（`scanLocked`）・`data-auth-stay`。保存先は`supporter.html`と同じ。~~トップの運営者欄から遷移~~。**2026-09-27に読み取り機能を`supporter.html`へ統合**（`supporter-scan.js`は`supporter.html`が読み込む）。`supporter-scan.html`は**2026-09-27に削除**（`git rm`。ユーザー承認済み）。`supporter-scan.js`は`supporter.html`が使うので残置
 - `report.html` — ㉖段階C：X投稿用レポート作成ページ（**運営者専用**。`/api/admin/me`で判定し、運営者以外は「運営者専用ページです」のみ表示。`noindex`・`data-auth-stay`。トップの運営者欄から遷移）。**2026-09-26（㉘）から6種類**（全・恒常・期間限定URユニット／全・恒常・期間限定URサポート。`REPORT_TYPES`に1行足せば種類を追加できる）で、データは`GET /api/admin/report/ownership`の1回取得。レイアウトは対象の件数で自動選択（9件以上＝上位`RANK_LIMIT`＝30位までの2列ランキング、8件以下＝カード）。伸び率（1週間前との比較）は廃止。1200×675の画像（背景は`profile-card.html`の銀河背景をコピーした`GalaxyBg`）と投稿文を作る。「今日の集計を今すぐ実行」ボタンあり
 - `auth.css` / `auth.js` — ログイン・新規登録UIの共通部品。`top.html`・`unit.html`・`supporter.html`・`analytics.html`・`eternal-road.html`・`profile-card.html`から読み込む。ログイン成功後は`/top`へ遷移するが、`<body data-auth-stay>`のページ（`eternal-road.html`・`profile-card.html`・㉘から`unit.html`・`supporter.html`も）はその場でリロード（⑮）
 - `worker.js` — Cloudflare Workers。認証API（`/api/register`・`/api/login`・`/api/logout`・`/api/me`）、所持データログ収集API（`/api/log`・`/api/log-supporter`。**ログイン済みユーザーのみD1保存、ゲストは匿名カウンタのみ加算＝2026-09-19〜**）、運営者API（`/api/admin/me`・`/api/admin/run-snapshot`・`/api/admin/report/weekly`・㉘の`/api/admin/report/ownership`）、分析API（`/api/analytics/units`・`/api/analytics/supporters`、ログイン必須。2026-09-19新設。`/api/analytics/eternal-road`は2026-09-24新設）、自己紹介カードAPI（`/api/works`・`/api/profile-card`・`/api/profile`。㉒・2026-09-24新設）を処理し、それ以外は静的配信。ルートアクセス（`/`）は`top.html`を直接配信（旧`/unit`への301リダイレクトは廃止。`/index.html`の特別扱いも廃止済み＝2026-09-19、詳細後述）
@@ -795,13 +795,13 @@ Cowork側の実装依頼書`docs/04_自己紹介カード/㉙入手日の初期�
 
 - **`supporter.html`**：`supporter-scan.html`から読み取り機能を**スクリプトで移植**（手での書き写しなし）。移植したのは、CSS（一括選択ボタン含む。㉘ログイン必須化のCSSの前）・導入ブロック`.scanIntro`（データ登録状況の下、所持率ゲージの上）・読み取り画面`#scanModal`／`#scanBar`・`<script src="supporter-scan.js">`と結果の確認・反映の即時関数（本体スクリプトの後ろ、㉘ログインガードのスクリプトの前）。移植しなかったのは、運営者ガード（`adminGate`・`scanLocked`・`#adminGuard`）・`noindex`・タイトル。「運営者試用」バッジと見出しの「・試用」も外した。移植後、`supporter.html`と`supporter-scan.html`の差分が「移植しなかった部分」とコメント数行だけであることを確認。チェッカー自体が㉘でログイン必須なので、読み取りもログインユーザーのみ
 - **`top.html`**：運営者欄から「サポート スクショ読み取り（試用）」を削除（運営者欄は「X投稿用レポート」「自己紹介カード（試用）」の2つ）
-- **`supporter-scan.html`は削除していない**（導線なし・運営者専用のまま残置）。削除するかはユーザー確認待ち（ファイル削除は確認する原則のため）
+- **`supporter-scan.html`は削除**（2026-09-27、ユーザー承認後に`git rm`。ユニット版の`unit-scan.html`と同じ扱い）。`supporter-scan.js`は残置。本番では実機スマホでの読み取りもユーザーが確認済み
 - 新しいURサポートの位置合わせ値の学習は`/supporter?scandebug=1`で行う（「新ユニット・作品の追加手順」7を更新）。`SCAN_FIT`が無い18体は、一般ユーザーの画面では「判定できなかったカード」に入る（手動で選べば、その端末でだけ学習される）
 - **検証**：Playwright（APIモック）26件成功（未ログインはガードのみ、ログインユーザーで導入ブロックの位置・試用表記なし・noindexなし、検証用スクショ2枚でカード32枚→31体（確実25・要確認6）＝試用版と同じ、一括選択、反映・統計更新、データ登録で32体送信、未所持にするモード、320/390pxで横スクロールなし、`?scandebug=1`、トップの運営者欄2つ・一般は非表示、JSエラーなし）。読み取り画面のスクリーンショットを目視確認
 - `docs/WEBサイト仕様書.md`の1章・2.2節・2.8.1節（新規）・3.1節・5.-12節を更新済み
 
 ## 次にやること
-- サポートのスクショ読み取り本番化：push済み。実機スマホでの読み取り確認、`supporter-scan.html`を削除するかユーザー確認、`SCAN_FIT`が無い18体の学習
+- サポートのスクショ読み取り本番化：push済み・実機確認済み・`supporter-scan.html`削除済み。残りは`SCAN_FIT`が無い18体の学習（「新ユニット・作品の追加手順」7）
 - ㉙：0015適用・push済み。本番で推しユニットカードの入手記録表示を確認
 - ㉘：段階D・A・B・Cすべてpush済み。本番確認と、上記「㉘」節の「未実施（要対応）」（一言バッジ・サポートの`SCAN_FIT`）
 - ㉖：push済み。本番での`report.html`の手動集計（231行の確認）・翌朝4時の定期実行の確認・入手記録の実機確認（「㉖」節の「未実施（要対応）」）。スクショ読み取り試験版（運営者専用）のテスト運用
