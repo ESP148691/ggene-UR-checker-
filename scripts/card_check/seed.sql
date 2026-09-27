@@ -4,7 +4,7 @@ INSERT INTO units_ownership (registered_at,user_uid,unit_id,level,acquired_on,ga
 INSERT INTO units_ownership (registered_at,user_uid,unit_id,level,acquired_on,gasha_pulls,memo) VALUES ('2026-09-27','u1',60,3,'2026-04-01',NULL,NULL);
 INSERT INTO units_ownership (registered_at,user_uid,unit_id,level,acquired_on,gasha_pulls,memo) VALUES ('2026-09-27','u1',5,2,NULL,NULL,NULL);
 INSERT INTO units_ownership (registered_at,user_uid,unit_id,level,acquired_on,gasha_pulls,memo) VALUES ('2026-09-27','u1',13,1,'2025-04-16',NULL,'初期からの相棒');
-INSERT INTO units_ownership (registered_at,user_uid,unit_id,level,acquired_on,gasha_pulls,memo) VALUES ('2026-09-27','u1',23,3,'2025-06-30',200,'天井でお迎え😭ずっと欲しかった機体。完凸まで頑張りました！最高です');
+INSERT INTO units_ownership (registered_at,user_uid,unit_id,level,acquired_on,gasha_pulls,memo) VALUES ('2026-09-27','u1',23,3,'2025-07-02',200,'天井でお迎え😭ずっと欲しかった機体。完凸まで頑張りました！最高です');
 INSERT INTO units_ownership (registered_at,user_uid,unit_id,level,acquired_on,gasha_pulls,memo) VALUES ('2026-09-27','u1',7,3,NULL,NULL,NULL);
 INSERT INTO units_ownership (registered_at,user_uid,unit_id,level,acquired_on,gasha_pulls,memo) VALUES ('2026-09-27','u1',70,1,NULL,NULL,NULL);
 INSERT INTO units_ownership (registered_at,user_uid,unit_id,level,acquired_on,gasha_pulls,memo) VALUES ('2026-09-27','u1',83,0,NULL,NULL,NULL);

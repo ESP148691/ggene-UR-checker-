@@ -302,7 +302,7 @@
             <div class="fieldLabel">『推しユニット』カードに表示する入手記録</div>
             <label class="chk"><input type="checkbox" id="optAcq"> 入手日・ガシャ回数</label>
             <label class="chk"><input type="checkbox" id="optMemo"> メモ</label>
-            <p class="hint">入手記録はユニットチェッカーで『データ登録』した内容です。メモもカード画像に載るため、公開してよい内容か確認してください。入手日が実装日と同じ日のときは「実装日」と表示します。</p>
+            <p class="hint">入手記録はユニットチェッカーで『データ登録』した内容です。メモもカード画像に載るため、公開してよい内容か確認してください。各ユニットの実装日は常に表示します（入手日が実装日と同じ日のときは入手日を省きます）。</p>
           </div>
         </div>
         <p class="hint" id="unitEmptyHint" hidden>URユニット所持率チェッカーで所持データを登録すると選べます。</p>
@@ -1269,7 +1269,7 @@ async function unitImage(ctx,T,u,x,y,size,radius){
 }
 // ㉙ 入手記録（入手日・ガシャ回数・メモ）の表示用。rec = {d:"YYYY-MM-DD"|"YYYY-MM", n:回数, m:メモ}
 function acqDateLabel(d){ return d ? d.replace(/-/g,"/") : ""; }
-function hasAcqRec(r){ return !!(r&&(r.d||r.n||r.m)); }
+function hasAcqRec(r){ return !!(r&&(r.r||r.d||r.n||r.m)); }   // r＝実装日（2026-09-27〜。入手記録が無くても出す）
 // 文字列を最大maxLines行で折り返す（収まらなければ最終行を「…」で省略）。1文字単位（絵文字を分割しない）
 function wrapLines(ctx,text,maxW,maxLines){
   const lines=[""];
@@ -1363,7 +1363,7 @@ async function layoutUnits(ctx,T,data){
     // ㉙ 入手記録ブロック（入手日・ガシャ回数の1行＋メモ最大2行）の高さを先に見積もる
     ctx.font=`13px ${FONT}`;
     const memoLines=hasA&&rec.m?wrapLines(ctx,rec.m,heroW-36-40,2):[];
-    const acqH=hasA?(22+((rec.d||rec.n)?22:0)+memoLines.length*19+4):0;
+    const acqH=hasA?(22+(rec.r?22:0)+((rec.d||rec.n)?22:0)+memoLines.length*19+4):0;
     // 内容の高さを見積もって縦中央に配置（画像は元画像150px幅のため270pxを上限にしてボケを抑える）
     const heroName=wrapName(ctx,f.name,heroW-36,sz=>`bold ${sz}px ${FONT}`,21,f.unitId), nl=heroName.lines.length;   // ㉚ wrap2→wrapName
     const fixedH=34+nl*26+4+18+26+acqH;
@@ -1383,11 +1383,13 @@ async function layoutUnits(ctx,T,data){
       let ay=ty+21+14;
       ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+18,ay-6); ctx.lineTo(x+heroW-18,ay-6); ctx.stroke();
       ay+=16;
+      let ax=x+18;
+      const item=(l,v)=>{ ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText(l,ax,ay); ax+=ctx.measureText(l).width+6;
+        ctx.fillStyle=T.text; ctx.font=`bold 14px ${FONT}`; ctx.fillText(v,ax,ay); ax+=ctx.measureText(v).width+16; };
+      // 2026-09-27 実装日を常に1行目に（ユーザー依頼）。入手日は実装日と違うときだけ2行目に出る（cardAcq()）
+      if(rec.r){ item("実装日",acqDateLabel(rec.r)); ay+=22; ax=x+18; }
       if(rec.d||rec.n){
-        let ax=x+18;
-        const item=(l,v)=>{ ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText(l,ax,ay); ax+=ctx.measureText(l).width+6;
-          ctx.fillStyle=T.text; ctx.font=`bold 14px ${FONT}`; ctx.fillText(v,ax,ay); ax+=ctx.measureText(v).width+16; };
-        if(rec.d) item(rec.dl||"入手日",acqDateLabel(rec.d));   // ㉚ 実装日と同じ日付なら「実装日」
+        if(rec.d) item("入手日",acqDateLabel(rec.d));
         if(rec.n) item("ガシャ",`${rec.n}回`);
         ay+=22;
       }
@@ -1426,7 +1428,8 @@ async function layoutUnits(ctx,T,data){
         let ay=y0+26;
         const row=(l,v)=>{ ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText(l,ax,ay);   // ㉚ 11→12px
           ctx.fillStyle=T.text; ctx.font=`bold 13px ${FONT}`; ctx.fillText(v,ax+44,ay); ay+=20; };
-        if(rec.d) row(rec.dl||"入手日",acqDateLabel(rec.d));
+        if(rec.r) row("実装日",acqDateLabel(rec.r));   // 2026-09-27 実装日を常に先頭に
+        if(rec.d) row("入手日",acqDateLabel(rec.d));
         if(rec.n) row("ガシャ",`${rec.n}回`);
         if(rec.m){
           ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("メモ",ax,ay);
@@ -1609,16 +1612,18 @@ function jstToday(){
   return d.toISOString().slice(0, 10);
 }
 // ㉚ カードに出す入手記録。表示オプション（入手日・ガシャ回数／メモ）で項目を絞る。
-// 入手日が実装日（ur-units.jsのreleased）と同じなら、ラベルを「実装日」にする（ユニットチェッカーが欄を開いた時点で実装日を自動記録するため、
-// 入手日として表示すると事実と違う可能性がある。実装日と同じ日付なら「実装日」と書いても常に正しい）
+// 2026-09-27（ユーザー依頼）：推しユニットには実装日（ur-units.jsのreleased。rec.r）を表示オプションに関係なく常に入れる。
+// 入手日が実装日と同じ日付なら入手日は省く（ユニットチェッカーが欄を開いた時点で実装日を自動記録するため、入手日としては出さない）
 function cardAcq(){
   const src = (api.units && api.units.acq) || {}, out = {}, opt = draft.cardOptions;
-  for (const [id, r] of Object.entries(src)) {
-    const rec = {};
-    if (opt.acq && r.d) { rec.d = r.d; const u = UR_UNITS_BY_ID.get(Number(id)); if (u && u.released === r.d) rec.dl = "実装日"; }
+  const ids = new Set([...Object.keys(src), ...draft.favoriteUnits.map(String)]);
+  for (const id of ids) {
+    const r = src[id] || {}, rec = {}, u = UR_UNITS_BY_ID.get(Number(id));
+    if (u && u.released) rec.r = u.released;
+    if (opt.acq && r.d && r.d !== rec.r) rec.d = r.d;
     if (opt.acq && r.n) rec.n = r.n;
     if (opt.memo && r.m) rec.m = r.m;
-    if (rec.d || rec.n || rec.m) out[id] = rec;
+    if (rec.r || rec.d || rec.n || rec.m) out[id] = rec;
   }
   return out;
 }
