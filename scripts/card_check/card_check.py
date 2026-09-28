@@ -8,7 +8,7 @@
   1. 9通り（標準・エタロ攻略・推しユニット × 宇宙・地球・空中）と、推しユニットのメモ表示ON・入手記録OFFを描画し、PNGを out/ に保存
   2. JSエラー（pageerror・console.error。画像の404は除く）が無い
   3. カードに描いた文字の最小サイズ：論理12px未満は例外リスト（エタロのバナー内チップ・凡例）だけ
-  4. フッター文字（@アカウント・ハッシュタグ）の背景とのコントラスト比 4.5 以上
+  4. フッター文字（右下の作成日・左下のハッシュタグ）の背景とのコントラスト比 4.5 以上
   5. 初回プレビューがWebフォント（Noto Sans JP）の読み込み後に描かれている（フォントを遅延配信して確認）
   6. 機体名の折り返しで、2行目が2文字以下の「泣き別れ」が無い（ur-units.jsの全84機・3種類の幅）
 out/ のPNGは docs/04_自己紹介カード/画像/ の最新モックと目で見比べる。
@@ -101,7 +101,7 @@ async def main():
             small = sorted({(t, fnt) for t, fnt in texts if (m := re.search(r"([\d.]+)px", fnt)) and float(m.group(1)) < 12
                             and t.strip() and t not in SMALL_OK and not SMALL_OK_RE.match(t)})
             if small: fails.append(f"3: {name} 12px未満の文字 {small[:6]}")
-            for label, box in [("右下", (900, 640, 1164, 662)), ("左下", (36, 640, 180, 662))]:
+            for label, box in [("右下", (1040, 640, 1164, 662)), ("左下", (36, 640, 180, 662))]:
                 cr = footer_contrast(img, tuple(int(v * sc) for v in box))
                 if cr < 4.5: fails.append(f"4: {name} フッター{label}のコントラスト {cr:.2f}")
             return len(data)

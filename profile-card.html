@@ -366,6 +366,16 @@ function fitText(ctx,text,maxW){
   let t=text; while(t.length>0 && ctx.measureText(t+"…").width>maxW) t=t.slice(0,-1);
   return t+"…";
 }
+// ㉟ 作品名の通称（work_id → 通称）。カード内で短縮名（short_name）が枠に収まらないときだけ使い、「鉄血のオル…」のような途中切れを避ける
+// 通称でも収まらないときは通称を「…」で省略する。フォームの一覧・Xのシェア文は従来どおり短縮名
+const WORK_NICK={1:"ファースト",2:"Ζ新訳",3:"ΖΖ",5:"UC",6:"NT",7:"閃ハサ",9:"Gガンダム",10:"ガンダムW",11:"W EW",12:"ガンダムX",
+  13:"SEED",14:"DESTINY",17:"鉄血",28:"BLUE DESTINY",42:"Ζガンダム",46:"センチネル",48:"ライデンの帰還",60:"クロスボーン",
+  61:"Vガンダム",67:"ASTRAY",75:"天空の皇女",85:"Gレコ",88:"鉄血MSV",89:"PROLOGUE",91:"GBF",94:"SD外伝",106:"Gジェネ"};
+function workText(ctx,short,workId,maxW){
+  if(ctx.measureText(short).width<=maxW) return short;
+  const nick=WORK_NICK[workId];
+  return nick?fitText(ctx,nick,maxW):fitText(ctx,short,maxW);
+}
 function drawCover(ctx,im,x,y,w,h){
   const s=Math.max(w/im.width,h/im.height), sw=w/s, sh=h/s;
   ctx.drawImage(im,(im.width-sw)/2,(im.height-sh)/2,sw,sh,x,y,w,h);
@@ -403,7 +413,7 @@ function stars(ctx,n,seed,maxA){
   }
 }
 
-// ① 宇宙世紀：銀河系（渦巻銀河＋星雲＋遠景のスペースコロニー）
+// ① 宇宙世紀：銀河系（渦巻銀河＋星雲）
 function bgGalaxy(layout){
   const c=offscreen(W,H), ctx=c.getContext("2d");
   const bg=ctx.createLinearGradient(0,0,W,H); bg.addColorStop(0,"#070b16"); bg.addColorStop(1,"#03050a");
@@ -437,19 +447,7 @@ function bgGalaxy(layout){
     }
   }
   ctx.restore(); ctx.globalCompositeOperation="source-over";
-  // 遠景のスペースコロニー（円筒＋3枚のミラー。シルエットのみの一般的なモチーフ）
-  const [kx,ky]=[600,646];   // フッター帯の中央（左右のフッター文字の間）
-  ctx.save(); ctx.translate(kx,ky); ctx.rotate(-0.12); ctx.scale(0.62,0.62);
-  const cw=150, ch=26;
-  const body=ctx.createLinearGradient(0,-ch/2,0,ch/2);
-  body.addColorStop(0,"#3a4a5e"); body.addColorStop(0.5,"#1c2533"); body.addColorStop(1,"#0c1119");
-  ctx.fillStyle=body; ctx.fillRect(-cw/2,-ch/2,cw,ch);
-  ctx.fillStyle="rgba(140,220,255,.55)";   // 採光窓（縞）
-  for(let i=0;i<3;i++) ctx.fillRect(-cw/2+8,-ch/2+4+i*7,cw-16,1.6);
-  ctx.strokeStyle="rgba(150,180,210,.45)"; ctx.lineWidth=1.2;
-  for(const s of [-1,0,1]){ ctx.beginPath(); ctx.moveTo(cw/2,0); ctx.lineTo(cw/2+70,s*22); ctx.stroke(); }
-  ctx.fillStyle="rgba(255,240,200,.9)"; ctx.beginPath(); ctx.arc(-cw/2,0,2.2,0,Math.PI*2); ctx.fill();
-  ctx.restore();
+  // 2026-09-28 フッター帯中央の遠景スペースコロニーはユーザー指示で削除（㉞）
   return c;
 }
 
@@ -836,6 +834,13 @@ async function header(ctx,T,sub){
 // 表示名・ひとこと。戻り値は次に描けるy
 // 2026-09-27：称号のピルを廃止し、空いた高さをひとことに回した（最大60文字・最大3行。17pxから、3行に収まるまで13pxまで縮める）
 function identity(ctx,T,p,LX,LW,nameMax=38,nameY=98){
+  // ㉟ 表示名の上に「推し作品」等のパネル見出しと同じ体裁（金のバー3×18＋bold 15px）の見出し「ユーザーネーム」を置く。
+  // x位置もパネル見出しと揃える（バー＝LX-8、文字＝LX+6）。背景に直接載るため影付き。表示名はその分20px下げる
+  const hy=nameY-26;
+  ctx.fillStyle=T.gold; ctx.fillRect(LX-8,hy-9,3,18);
+  ctx.fillStyle=T.bgText||T.text; ctx.font=`bold 15px ${FONT}`; ctx.textBaseline="middle"; ctx.textAlign="left";
+  shadowText(ctx,T,"ユーザーネーム",LX+6,hy); ctx.textBaseline="alphabetic";
+  nameY+=20;
   ctx.fillStyle=T.bgText||T.text;
   let fs=nameMax; ctx.font=`bold ${fs}px ${FONT}`;
   // 移植時の変更（㉒8章9）：下限をプロトタイプの22pxから18pxに下げた。左カラムが290pxの「エタロ攻略」「推しユニット」で、
@@ -875,7 +880,7 @@ function footer(ctx,T,data){
   ctx.textBaseline="alphabetic"; ctx.textAlign="left";
   ctx.fillStyle=T.bgAccent||T.cyan; ctx.font=`bold 13px ${FONT}`; shadowText(ctx,T,"#ジージェネエターナル",36,H-22);
   ctx.textAlign="right"; ctx.fillStyle=T.bgText||T.bgMuted||T.muted; ctx.font=`bold 13px ${FONT}`;   // ㉚ 12→bold 13px
-  shadowText(ctx,T,`${data.siteLabel}　${data.createdAt} 作成`,W-36,H-22);
+  shadowText(ctx,T,`${data.createdAt} 作成`,W-36,H-22);   // ㉟ 2026-09-28 右下の「@polarbear148691」を削除（ユーザー指示）。作成日だけ残す
   ctx.textAlign="left";
 }
 // 画像の彩度処理（Safari対策でピクセル操作。getImageDataはscaleの影響を受けないため実ピクセルに換算）
@@ -922,7 +927,7 @@ async function layoutStandard(ctx,T,data){
     await workLogo(ctx,T,f.iconNo,ix,ry,lw,icon,7);
     const tx=ix+lw+12, tw=LX+LW-tx+8;
     ctx.fillStyle=T.text; ctx.font=`bold 14px ${FONT}`; ctx.textBaseline="alphabetic";
-    ctx.fillText(fitText(ctx,f.shortName,tw),tx,ry+icon/2-2);
+    ctx.fillText(workText(ctx,f.shortName,f.workId,tw),tx,ry+icon/2-2);   // ㉟ 収まらなければ通称
     const eraLabel={UC:"宇宙世紀",ALT:"オルタナ",ETC:"SD・ビルド他"}[f.era];   // カード内は幅を抑えるため略称「オルタナ」
     ctx.font=`bold 12px ${FONT}`; const ew=ctx.measureText(eraLabel).width+12;   // ㉚ 11→12px
     roundRect(ctx,tx,ry+icon/2+6,ew,18,4);
@@ -1378,7 +1383,8 @@ async function layoutUnits(ctx,T,data){
     const sx=totsuStars(ctx,T,x+18,ty,9,f.level);
     ctx.fillStyle=f.level===3?rainbow(ctx,sx+6,ty-8,sx+50,ty+8):T.muted; ctx.font=`bold 14px ${FONT}`; ctx.textBaseline="middle";
     ctx.fillText(LV_LABEL[f.level],sx+8,ty+1); ctx.textBaseline="alphabetic"; ty+=18;
-    let chx=x+18; chx=chip(ctx,chx,ty,f.type,TC[f.type],false,12); chip(ctx,chx,ty,f.workShort,T.cyan,false,12);
+    let chx=x+18; chx=chip(ctx,chx,ty,f.type,TC[f.type],false,12);
+    ctx.font=`bold 12px ${FONT}`; chip(ctx,chx,ty,workText(ctx,f.workShort,f.workId,x+heroW-18-chx-14),T.cyan,false,12);   // ㉟ 収まらなければ通称
     if(hasA){
       let ay=ty+21+14;
       ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+18,ay-6); ctx.lineTo(x+heroW-18,ay-6); ctx.stroke();
@@ -1421,7 +1427,7 @@ async function layoutUnits(ctx,T,data){
       ctx.fillStyle=f.level===3?rainbow(ctx,sx+4,sy-6,sx+40,sy+6):T.muted; ctx.font=`bold 12px ${FONT}`; ctx.textBaseline="middle";
       ctx.fillText(LV_LABEL[f.level],sx+6,sy+1); ctx.textBaseline="alphabetic";
       let chx=tx0; const cyy=sy+12; chx=chip(ctx,chx,cyy,f.type,TC[f.type],false,12);   // ㉚ 10→12px
-      ctx.font=`bold 12px ${FONT}`; chip(ctx,chx,cyy,fitText(ctx,f.workShort,Math.max(30,tRight-chx-14)),T.cyan,false,12);
+      ctx.font=`bold 12px ${FONT}`; chip(ctx,chx,cyy,workText(ctx,f.workShort,f.workId,Math.max(30,tRight-chx-14)),T.cyan,false,12);   // ㉟ 収まらなければ通称
       if(hasA){
         const ax=lx+lw-12-ACQW;
         ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(ax-8,y0+14); ctx.lineTo(ax-8,y0+rh-14); ctx.stroke();
@@ -1630,10 +1636,10 @@ function cardAcq(){
 function buildCardData(){
   const own = (api.units && api.units.ownership) || {};
   const favorites = draft.favoriteWorks.map(id => worksById.get(id)).filter(Boolean)
-    .map(w => ({ shortName: w.shortName, era: w.era, timeline: w.timeline, iconNo: w.workId }));
+    .map(w => ({ shortName: w.shortName, era: w.era, timeline: w.timeline, iconNo: w.workId, workId: w.workId }));
   const favoriteUnits = draft.favoriteUnits.map(id => unitsById.get(id)).filter(u => u && own[String(u.unitId)] !== undefined)
     .map(u => ({ unitId: u.unitId, name: u.name, type: u.type, limited: u.limited, level: own[String(u.unitId)],
-                 workShort: (worksById.get(u.workId) || {}).shortName || "" }));
+                 workShort: (worksById.get(u.workId) || {}).shortName || "", workId: u.workId }));
   const units = api.units ? Object.assign({}, api.units, {
     maxUnitIds: Object.keys(own).filter(k => own[k] === 3).map(Number).sort((a, b) => a - b),   // ㉘ 新レイアウトでは未使用（残置）
     // ㉘ 標準カードで推しユニット未設定のときに並べる所持ユニット：凸Lvの高い順、同じならID順に5機（形はfavoriteUnitsと同じ）
@@ -1641,7 +1647,7 @@ function buildCardData(){
       .sort((a, b) => own[String(b)] - own[String(a)] || a - b).slice(0, 5)
       .map(id => { const u = unitsById.get(id);
         return { unitId: id, name: u.name, type: u.type, limited: u.limited, level: own[String(id)],
-                 workShort: (worksById.get(u.workId) || {}).shortName || "" }; })
+                 workShort: (worksById.get(u.workId) || {}).shortName || "", workId: u.workId }; })
   }) : null;
   const er = api.eternalRoad && erStages ? {
     registered: !!api.eternalRoad.registered, stages: erStages,
@@ -1652,7 +1658,7 @@ function buildCardData(){
     profile: { displayName: draft.displayName.trim() || api.username, title: null, comment: draft.comment.trim() || null },
     favorites, favoriteUnits, units, supporters: api.supporters || null, eternalRoad: er,
     unitAcq: cardAcq(),   // ㉙ 推しユニットカードの入手記録（DB登録済みの値）。㉚ 表示オプションで絞り、実装日と同じ日付には「実装日」の印
-    siteLabel: "@" + CONFIG.xHandle, createdAt: jstToday()   // 2026-09-27 サイトURLからXアカウントIDに変更（ユーザー指示）
+    createdAt: jstToday()   // ㉟ 2026-09-28 右下のXアカウントID（siteLabel）はカードから削除（ユーザー指示）
   };
 }
 
