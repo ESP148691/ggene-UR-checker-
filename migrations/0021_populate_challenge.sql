@@ -1,7 +1,3 @@
--- ㊵ チャレンジミッションのマスター。シリーズ5件・HARDステージ15件・ミッション30件（ノーマルは対象外）
--- INSERT OR REPLACE なので何度実行しても同じ結果。新シリーズは同じ形で追記する
--- 画面の並び順（challenge_series.sort_order）は追加順＝series_code（ガンダム→SEED→Ζ→W→ΖΖ。2026-09-29 ユーザー決定）
-
 INSERT OR REPLACE INTO challenge_series (series_code, series_name, short_name, work_id, sort_order, released_on) VALUES (1, '機動戦士ガンダム', 'ガンダム', 1, 1, NULL);
 INSERT OR REPLACE INTO challenge_series (series_code, series_name, short_name, work_id, sort_order, released_on) VALUES (2, '機動戦士ガンダムSEED', 'SEED', 13, 2, NULL);
 INSERT OR REPLACE INTO challenge_series (series_code, series_name, short_name, work_id, sort_order, released_on) VALUES (3, '機動戦士Ζガンダム', 'Ζガンダム', 42, 3, NULL);
