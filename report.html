@@ -69,6 +69,9 @@
   .typeRow label{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--text);cursor:pointer;
     background:var(--panel-2);border:1px solid var(--line-strong);padding:7px 12px;}
   .typeRow input{accent-color:var(--gold);}
+  /* ㊱ 並び順（高い順／TOP15・ワースト15／低い順） */
+  .orderRow{align-items:center;}
+  .orderRow .rowLabel{font-size:12.5px;color:var(--muted);margin-right:2px;}
   .badgeRow{margin-top:10px;}
   .badgeRow input[type=text]{
     width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line-strong);
@@ -105,6 +108,13 @@
         <label><input type="radio" name="reportType" value="sup_all"> 全URサポート 所持率</label>
         <label><input type="radio" name="reportType" value="sup_permanent"> 恒常URサポート 所持率</label>
         <label><input type="radio" name="reportType" value="sup_limited"> 期間限定URサポート 所持率</label>
+      </div>
+      <!-- ㊱ 並び順。種類（6択）と組み合わせて使う。既定は従来どおりの「高い順」 -->
+      <div class="typeRow orderRow" id="orderRow">
+        <span class="rowLabel">並び順</span>
+        <label><input type="radio" name="reportOrder" value="desc" checked> 高い順</label>
+        <label><input type="radio" name="reportOrder" value="topworst"> TOP15／ワースト15</label>
+        <label><input type="radio" name="reportOrder" value="asc"> 低い順</label>
       </div>
       <div class="ctlRow">
         <label for="reportDate">集計日</label>
@@ -262,6 +272,15 @@ const REPORT_TYPES = {
 // 2列ランキングに載せる上位の件数（左列1〜15位・右列16〜30位）
 const RANK_LIMIT = 30;
 const MEDAL = ["#e8c45a", "#c9d1d9", "#c58a4a"];
+// ㊱ ワースト3の強調色（金銀銅と見分けがつく赤系。1位ほど濃い）
+const WORST = ["#ef5f6f", "#e2808c", "#d49aa3"];
+// ㊱ 並び順。eyebrow＝画像左上の小見出しに添える文言（高い順は従来どおり何も足さない）
+const REPORT_ORDERS = {
+  desc:     { label: "高い順",             eyebrow: "" },
+  topworst: { label: "TOP15／ワースト15",  eyebrow: "TOP15・ワースト15" },
+  asc:      { label: "低い順",             eyebrow: "所持率が低い順" }
+};
+const HALF_LIMIT = 15; // TOP／ワーストそれぞれの上限
 
 function loadImage(src){
   return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
@@ -308,28 +327,59 @@ function limitedBadge(ctx, x, cy){
   ctx.fillStyle = "#dab949"; ctx.font = `bold 13px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("限", x + 10, cy + 1);
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 }
-function rankMark(ctx, rank, cx, cy, r){
+// ㊱ rank＝表示する番号、tone＝"top"（総合1〜3位＝金銀銅）／"worst"（ワースト1〜3位＝赤系）／""（通常）、tier＝1〜3
+function rankMark(ctx, rank, cx, cy, r, tone, tier){
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  if (rank <= 3) { ctx.fillStyle = MEDAL[rank - 1]; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#1b1503"; ctx.font = `bold ${Math.round(r * 1.1)}px ${MONO}`; ctx.fillText(String(rank), cx, cy + 1); }
+  if (tone) {
+    const col = tone === "top" ? MEDAL[tier - 1] : WORST[tier - 1];
+    ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 8;
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ctx.fillStyle = tone === "top" ? "#1b1503" : "#ffffff"; ctx.font = `bold ${Math.round(r * 1.1)}px ${MONO}`; ctx.fillText(String(rank), cx, cy + 1); }
   else { if (r >= 16) { ctx.fillStyle = "rgba(8,12,20,.78)"; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); }
     ctx.fillStyle = "#9fb0c0"; ctx.font = `bold ${Math.round(r * 1.1)}px ${MONO}`; ctx.fillText(String(rank), cx, cy + 1); }
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 }
+// ㊱ 強調の判定：総合順位（高い順）で1〜3位＝TOP3、低い順で1〜3位＝ワースト3。どの並び順・どの列に出ても同じ判定。
+// 件数が少なく両方に当たる場合（6件未満）はTOP3を優先
+function emph(r){
+  if (r.rank <= 3) return { tone: "top", tier: r.rank, color: MEDAL[r.rank - 1] };
+  if (r.worstRank <= 3) return { tone: "worst", tier: r.worstRank, color: WORST[r.worstRank - 1] };
+  return null;
+}
 
 /* ---------- データの整形（APIの応答 → レポート用） ---------- */
 // resp: { date, totalUsers, items:[{id,name,limited,ownedCount,maxCount}] }
-function buildReportData(resp, typeKey){
+function buildReportData(resp, typeKey, order){
   const t = REPORT_TYPES[typeKey];
+  order = REPORT_ORDERS[order] ? order : "desc";
   const items = resp.items.filter(i => t.scope === "all" || (t.scope === "limited" ? i.limited : !i.limited));
   const total = resp.totalUsers;
   const rows = items.map(i => ({
     id: i.id, name: i.name, limited: i.limited, ownedCount: i.ownedCount,
     ownedRate: total > 0 ? i.ownedCount / total : 0, maxRate: total > 0 ? i.maxCount / total : 0
   })).sort((a, b) => b.ownedRate - a.ownedRate || a.id - b.id);
+  // ㊱ 総合順位（高い順）とワースト順位（低い順。同率はID順）を両方持たせる
+  rows.forEach((r, i) => { r.rank = i + 1; });
+  const asc = rows.slice().sort((a, b) => a.ownedRate - b.ownedRate || a.id - b.id);
+  asc.forEach((r, i) => { r.worstRank = i + 1; });
   const avgOwned = total > 0 ? rows.reduce((s, r) => s + r.ownedCount, 0) / total : 0;
   const layout = rows.length >= 9 ? "ranking" : "cards";
-  return { type: t, typeKey, kind: t.kind, date: resp.date, totalUsers: total, rows, avgOwned, layout };
+  // ㊱ sections＝画面に並べるまとまり。num＝そのまとまりで表示する番号（高い順はrank、低い順・ワーストはworstRank）
+  const n = rows.length;
+  let sections;
+  if (order === "desc") {
+    sections = [{ side: "top", rows: rows.slice(0, RANK_LIMIT), num: r => r.rank }];
+  } else if (order === "asc") {
+    sections = [{ side: "worst", rows: asc.slice(0, RANK_LIMIT), num: r => r.worstRank }];
+  } else {
+    // TOP15／ワースト15。30件に満たないときは重ならないように半分ずつ（TOPが多め）
+    const topN = Math.min(HALF_LIMIT, Math.ceil(n / 2)), worstN = Math.min(HALF_LIMIT, n - topN);
+    sections = [
+      { side: "top",   rows: rows.slice(0, topN),  num: r => r.rank },
+      { side: "worst", rows: asc.slice(0, worstN), num: r => r.worstRank }
+    ];
+  }
+  return { type: t, typeKey, order, kind: t.kind, date: resp.date, totalUsers: total, rows, asc, avgOwned, layout, sections };
 }
 
 /* ---------- 共通：背景・見出し・フッター ---------- */
@@ -340,7 +390,9 @@ function drawFrame(ctx, d, badge){
   ctx.fillStyle = "rgba(3,5,10,.35)"; ctx.fillRect(0, 0, W, H);
   ctx.strokeStyle = "#2b3746"; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "#6be0e0"; ctx.font = `bold 15px ${FONT}`; shadowText(ctx, "ジージェネレーション　エターナル", 40, 46);
+  ctx.fillStyle = "#6be0e0"; ctx.font = `bold 15px ${FONT}`;
+  const eb = REPORT_ORDERS[d.order].eyebrow;
+  shadowText(ctx, "ジージェネレーション　エターナル" + (eb ? "｜" + eb : ""), 40, 46);
   ctx.fillStyle = "#ffffff";
   let fs = 38; ctx.font = `bold ${fs}px ${FONT}`;
   const statLine = `${d.type.label} ${d.rows.length}${d.type.noun}｜1人あたり平均 ${d.avgOwned.toFixed(1)}${d.type.noun}所持`;
@@ -384,33 +436,54 @@ function drawFooter(ctx){
   ctx.textAlign = "left";
 }
 
-/* ---------- レイアウトA：2列ランキング（9件以上。上位RANK_LIMIT位まで。左列が前半・右列が後半） ---------- */
+/* ---------- レイアウトA：2列ランキング（9件以上。左右のパネルに15件ずつ） ----------
+ * ㊱ 高い順／低い順：1つのまとまり（最大30件）を前半・後半に分けて左右へ（従来どおり）
+ *    TOP15／ワースト15：左にTOP、右にワースト（どちらも最大15件） */
+function rankingColumns(d){
+  if (d.sections.length === 2) {
+    const [top, worst] = d.sections;
+    return [
+      { list: top.rows,   num: top.num,   title: `所持率 TOP${top.rows.length}`,     accent: "#dab949" },
+      { list: worst.rows, num: worst.num, title: `所持率 ワースト${worst.rows.length}`, accent: WORST[0] }
+    ];
+  }
+  const sec = d.sections[0], show = sec.rows, half = Math.ceil(show.length / 2);
+  const head = sec.side === "worst" ? "所持率が低い順" : "所持率ランキング";
+  return [
+    { list: show.slice(0, half), num: sec.num, title: `${head} 1〜${half}位`,                accent: sec.side === "worst" ? WORST[0] : "#dab949" },
+    { list: show.slice(half),    num: sec.num, title: `${head} ${half + 1}〜${show.length}位`, accent: "#6be0e0" }
+  ];
+}
 async function layoutRanking(ctx, d){
   const isSup = d.kind === "supporter";
-  const show = d.rows.slice(0, RANK_LIMIT);
+  const cols = rankingColumns(d);
   const imgs = {};
-  await Promise.all(show.map(async r => { imgs[r.id] = await loadImage(imgPath(d.kind, r.id)); }));
-  const half = Math.ceil(show.length / 2), cols = [show.slice(0, half), show.slice(half)];
+  await Promise.all(cols.flatMap(c => c.list).map(async r => { imgs[r.id] = await loadImage(imgPath(d.kind, r.id)); }));
   const PY = 116, PH = 500, PW = 550, GAP = 20;
-  const rowH = Math.min(40, Math.floor((PH - 56) / Math.max(1, half)));
-  cols.forEach((list, ci) => {
+  const perCol = Math.max(1, ...cols.map(c => c.list.length));
+  const rowH = Math.min(40, Math.floor((PH - 56) / perCol));
+  cols.forEach((col, ci) => {
     const PX = 40 + ci * (PW + GAP);
-    const from = ci === 0 ? 1 : half + 1, to = ci === 0 ? half : show.length;
-    panel(ctx, PX, PY, PW, PH, `所持率ランキング ${from}〜${to}位`, ci === 0 ? "#dab949" : "#6be0e0");
+    panel(ctx, PX, PY, PW, PH, col.title, col.accent);
     ctx.textAlign = "right"; ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${FONT}`; ctx.fillText("所持率　（完凸率）", PX + PW - 18, PY + 31); ctx.textAlign = "left";
-    list.forEach((r, i) => {
-      const rank = (ci === 0 ? 0 : half) + i + 1, y = PY + 50 + i * rowH, cy = y + rowH / 2;
+    col.list.forEach((r, i) => {
+      const y = PY + 50 + i * rowH, cy = y + rowH / 2, e = emph(r);
       const barX = PX + 12, barW = PW - 24;
-      ctx.fillStyle = "rgba(255,255,255,.035)"; ctx.fillRect(barX, y + 2, barW, rowH - 4);
-      ctx.fillStyle = rank <= 3 ? "rgba(218,185,73,.20)" : "rgba(107,224,224,.12)"; ctx.fillRect(barX, y + 2, barW * r.ownedRate, rowH - 4);
-      rankMark(ctx, rank, PX + 32, cy, Math.min(12, rowH / 2 - 2));
+      ctx.fillStyle = e ? (e.tone === "top" ? "rgba(218,185,73,.07)" : "rgba(239,95,111,.07)") : "rgba(255,255,255,.035)";
+      ctx.fillRect(barX, y + 2, barW, rowH - 4);
+      ctx.fillStyle = !e ? "rgba(107,224,224,.12)" : (e.tone === "top" ? "rgba(218,185,73,.22)" : "rgba(239,95,111,.24)");
+      ctx.fillRect(barX, y + 2, barW * r.ownedRate, rowH - 4);
+      // ㊱ TOP3・ワースト3は行の左端に色の縦線（少しだけ強調）
+      if (e) { ctx.fillStyle = e.color; ctx.fillRect(barX, y + 2, 3, rowH - 4); }
+      rankMark(ctx, col.num(r), PX + 32, cy, Math.min(12, rowH / 2 - 2), e && e.tone, e && e.tier);
       const s = rowH - 8, tw = isSup ? Math.round(s * 1.6) : s;
       drawThumb(ctx, imgs[r.id], PX + 52, cy - s / 2, tw, s, d.kind);
+      if (e) { ctx.strokeStyle = e.color; ctx.lineWidth = 1.5; ctx.strokeRect(PX + 52 + 0.75, cy - s / 2 + 0.75, tw - 1.5, s - 1.5); }
       ctx.textAlign = "right"; ctx.textBaseline = "middle";
       ctx.fillStyle = "#9fb0c0"; ctx.font = `13px ${MONO}`; const mt = `（${pct(r.maxRate)}）`; ctx.fillText(mt, PX + PW - 18, cy + 1);
       const mw = ctx.measureText(mt).width;
-      ctx.fillStyle = rank <= 3 ? MEDAL[rank - 1] : "#eef3f6"; ctx.font = `bold 19px ${MONO}`; ctx.fillText(pct(r.ownedRate), PX + PW - 18 - mw - 4, cy + 1);
-      ctx.textAlign = "left"; ctx.fillStyle = "#eef3f6"; ctx.font = `15px ${FONT}`;
+      ctx.fillStyle = e ? e.color : "#eef3f6"; ctx.font = `bold 19px ${MONO}`; ctx.fillText(pct(r.ownedRate), PX + PW - 18 - mw - 4, cy + 1);
+      ctx.textAlign = "left"; ctx.fillStyle = "#eef3f6"; ctx.font = `${e ? "bold " : ""}15px ${FONT}`;
       // 「全」のレポートでは期間限定に「限」バッジ（恒常・期間限定のレポートでは付けない）
       const badge = r.limited && d.type.scope === "all";
       const nameX = PX + 52 + tw + 10, name = fitText(ctx, r.name, PX + PW - 18 - 190 - nameX - (badge ? 26 : 0));
@@ -421,32 +494,42 @@ async function layoutRanking(ctx, d){
   });
 }
 
-/* ---------- レイアウトB：大きなカード（8件以下：期間限定URサポート6体） ---------- */
+/* ---------- レイアウトB：大きなカード（8件以下：期間限定URサポート6体） ----------
+ * ㊱ 高い順／低い順：その順に並べる。TOP／ワースト：前半にTOP（高い順）、後半にワースト（低い順） */
 async function layoutCards(ctx, d){
-  const isSup = d.kind === "supporter";
+  const list = [];
+  d.sections.forEach(sec => sec.rows.forEach(r => list.push({ r, num: sec.num(r), side: sec.side })));
   const imgs = {};
-  await Promise.all(d.rows.map(async r => { imgs[r.id] = await loadImage(imgPath(d.kind, r.id)); }));
-  const n = d.rows.length, cols = n <= 3 ? n : (n <= 6 ? 3 : 4), rows = Math.ceil(n / cols);
+  await Promise.all(list.map(async ({ r }) => { imgs[r.id] = await loadImage(imgPath(d.kind, r.id)); }));
+  const n = list.length, cols = n <= 3 ? n : (n <= 6 ? 3 : 4), rows = Math.ceil(n / cols);
   const X0 = 40, Y0 = 116, AW = W - 80, AH = 500, G = 18;
   const cw = (AW - G * (cols - 1)) / cols, chh = (AH - G * (rows - 1)) / rows;
-  d.rows.forEach((r, i) => {
-    const x = X0 + (i % cols) * (cw + G), y = Y0 + Math.floor(i / cols) * (chh + G), rank = i + 1;
+  list.forEach(({ r, num, side }, i) => {
+    const x = X0 + (i % cols) * (cw + G), y = Y0 + Math.floor(i / cols) * (chh + G), e = emph(r);
     panel(ctx, x, y, cw, chh, null, null);
-    if (rank <= 3) { roundRect(ctx, x + 1, y + 1, cw - 2, chh - 2, 10); ctx.strokeStyle = MEDAL[rank - 1]; ctx.lineWidth = 2; ctx.stroke(); }
+    if (e) { ctx.save(); ctx.shadowColor = e.color; ctx.shadowBlur = 10; roundRect(ctx, x + 1, y + 1, cw - 2, chh - 2, 10);
+      ctx.strokeStyle = e.color; ctx.lineWidth = e.tier === 1 ? 3 : 2; ctx.stroke(); ctx.restore(); }
     // 画像（上半分）
     const ih = Math.round(chh * 0.48), ix = x + 12, iy = y + 12, iw = cw - 24;
     ctx.save(); roundRect(ctx, ix, iy, iw, ih, 8); ctx.clip(); drawThumb(ctx, imgs[r.id], ix, iy, iw, ih, d.kind); ctx.restore();
-    rankMark(ctx, rank, ix + 24, iy + 24, 17);
+    rankMark(ctx, num, ix + 24, iy + 24, 17, e && e.tone, e && e.tier);
+    // ㊱ 低い順・ワースト側の番号には「ワースト」の札を添える（番号だけだと高い順の順位と区別できないため）
+    if (side === "worst") {
+      ctx.font = `bold 13px ${FONT}`; const lw = ctx.measureText("ワースト").width + 14;
+      roundRect(ctx, ix + 46, iy + 13, lw, 22, 11); ctx.fillStyle = "rgba(8,12,20,.82)"; ctx.fill();
+      ctx.strokeStyle = WORST[0]; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = "#ffd6db"; ctx.textBaseline = "middle"; ctx.fillText("ワースト", ix + 53, iy + 25); ctx.textBaseline = "alphabetic";
+    }
     // 名前・所持率・帯
     ctx.textAlign = "left"; ctx.fillStyle = "#eef3f6"; ctx.font = `bold 17px ${FONT}`;
     ctx.fillText(fitText(ctx, r.name, cw - 28), x + 14, iy + ih + 30);
-    ctx.fillStyle = rank <= 3 ? MEDAL[rank - 1] : "#eef3f6"; ctx.font = `bold 40px ${MONO}`;
+    ctx.fillStyle = e ? e.color : "#eef3f6"; ctx.font = `bold 40px ${MONO}`;
     const rt = pct(r.ownedRate); ctx.fillText(rt, x + 14, y + chh - 38);
     const rw = ctx.measureText(rt).width;
     ctx.fillStyle = "#9fb0c0"; ctx.font = `14px ${FONT}`; ctx.fillText(`所持（完凸 ${pct(r.maxRate)}）`, x + 14 + rw + 10, y + chh - 40);
     const bx = x + 14, by = y + chh - 24, bw = cw - 28;
     roundRect(ctx, bx, by, bw, 8, 4); ctx.fillStyle = "rgba(255,255,255,.10)"; ctx.fill();
-    if (r.ownedRate > 0) { roundRect(ctx, bx, by, Math.max(8, bw * r.ownedRate), 8, 4); ctx.fillStyle = rank <= 3 ? "#dab949" : "#6be0e0"; ctx.fill(); }
+    if (r.ownedRate > 0) { roundRect(ctx, bx, by, Math.max(8, bw * r.ownedRate), 8, 4); ctx.fillStyle = e ? e.color : "#6be0e0"; ctx.fill(); }
   });
 }
 
@@ -471,19 +554,30 @@ function tweetWeight(text){
   }
   return n + text.split("\n").length - 1;
 }
+// ㊱ 並び順で本文の上位行を切り替える。280を超えるときは、下の順位の行から削る
+//   高い順：1〜3位（従来どおり）／低い順：ワースト1〜3位／TOP・ワースト：1〜3位とワースト1〜3位
 function buildOwnershipPost(d, badge){
-  const lines = [`【Gジェネエターナル】${d.type.post}レポート（${shortDate(d.date)}時点・登録${d.totalUsers}人）`];
+  const head = { desc: "", asc: "・低い順", topworst: "・TOP/ワースト" }[d.order];
+  const lines = [`【Gジェネエターナル】${d.type.post}レポート（${shortDate(d.date)}時点・登録${d.totalUsers}人${head}）`];
   if (badge) lines.push(`${badge}ありがとうございます！`);
   lines.push("");
-  d.rows.slice(0, 3).forEach((r, i) => lines.push(`${i + 1}位 ${r.name} ${pct(r.ownedRate)}`));
+  const topLine = (r) => `${r.rank}位 ${r.name} ${pct(r.ownedRate)}`;
+  const worstLine = (r) => `ワースト${r.worstRank}位 ${r.name} ${pct(r.ownedRate)}`;
+  const tops = d.order === "asc" ? [] : d.rows.slice(0, 3);
+  const worsts = d.order === "desc" ? [] : d.asc.slice(0, 3).filter(r => !(d.order === "topworst" && r.rank <= 3));
+  tops.forEach(r => lines.push(topLine(r)));
+  worsts.forEach(r => lines.push(worstLine(r)));
   lines.push(`1人あたり平均 ${d.avgOwned.toFixed(1)}${d.type.noun}／${d.rows.length}${d.type.noun}`);
   lines.push("");
   lines.push(CONFIG.hashtag);
   lines.push(CONFIG.siteUrl);
   let text = lines.join("\n");
-  // 280を超えるときは3位→2位の順に削る
+  // 削る順：ワースト3位→3位→ワースト2位→2位（1位とワースト1位は残す）
   const drop = [];
-  for (let k = 2; k >= 1; k--) if (d.rows[k]) drop.push(`\n${k + 1}位 ${d.rows[k].name} ${pct(d.rows[k].ownedRate)}`);
+  for (let k = 2; k >= 1; k--) {
+    if (worsts[k]) drop.push("\n" + worstLine(worsts[k]));
+    if (tops[k]) drop.push("\n" + topLine(tops[k]));
+  }
   for (const s of drop) { if (tweetWeight(text) <= 280) break; text = text.replace(s, ""); }
   return text;
 }
@@ -509,6 +603,7 @@ function setMsg(el, text, kind){
 
 
 function reportType(){ return document.querySelector('input[name="reportType"]:checked').value; }
+function reportOrder(){ const el = document.querySelector('input[name="reportOrder"]:checked'); return el ? el.value : "desc"; }
 
 // ㉘ 6種類とも GET /api/admin/report/ownership を1回呼び、対象の絞り込み・並べ替え・レイアウト選択は buildReportData() で行う
 async function makeReport(){
@@ -526,7 +621,8 @@ async function makeReport(){
       setMsg($("makeMsg"), r.data && r.data.error === "no_data" ? "この日の集計データがありません。" : "データの取得に失敗しました（" + r.status + "）。", "ng");
       return;
     }
-    const data = buildReportData(r.data, typeKey);
+    const order = reportOrder();
+    const data = buildReportData(r.data, typeKey, order);
     if (!date) $("reportDate").value = data.date;
     const badge = $("badgeText").value.trim();
     const canvas = document.createElement("canvas");
@@ -540,7 +636,7 @@ async function makeReport(){
     $("postSection").hidden = false;
     updateCount();
     const label = document.querySelector(`input[name="reportType"][value="${typeKey}"]`).parentElement.textContent.trim();
-    setMsg($("makeMsg"), `${slashDate(data.date)}時点の${label}レポートを作成しました。`, "ok");
+    setMsg($("makeMsg"), `${slashDate(data.date)}時点の${label}レポート（${REPORT_ORDERS[order].label}）を作成しました。`, "ok");
   } catch (e) {
     console.error(e);
     setMsg($("makeMsg"), "作成に失敗しました：" + e.message, "ng");
