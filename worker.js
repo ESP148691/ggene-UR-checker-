@@ -665,7 +665,7 @@ async function handleAnalyticsEternalRoad(request, env) {
 // ================= ㉖ 定時分析（analytics_daily）・運営者用レポート =================
 // 1日1回（Cron Triggers：UTC 19:00＝JST 4:00）、分析APIと同じ定義で集計してD1に積み上げる。
 // snap_dateは「その日のJST 4:00時点の状態」。同じ日付で何度実行しても結果は同じ（INSERT OR REPLACE）
-const SNAPSHOT_KINDS = new Set(["unit", "supporter", "er_stage", "er_mission"]);
+const SNAPSHOT_KINDS = new Set(["unit", "supporter", "er_stage", "er_mission", "ch_stage", "ch_mission"]);
 
 // ユニット／サポートの所持者数（handleAnalyticsと同じCOUNT(DISTINCT user_uid)）・完凸者数。マスターの全IDを返す
 async function queryOwnershipCounts(env, isSupporter) {
@@ -692,6 +692,7 @@ async function runDailySnapshot(env, snapDate) {
   const units = await queryOwnershipCounts(env, false);
   const supporters = await queryOwnershipCounts(env, true);
   const er = await queryEternalRoadCounts(env);
+  const ch = await queryChallengeCounts(env);
   const accountsRow = await env.DB.prepare("SELECT COUNT(*) AS c FROM users").first();
 
   const rows = [];
@@ -702,6 +703,11 @@ async function runDailySnapshot(env, snapDate) {
   const stageIds = [...new Set(er.missionRows.map(r => r.stage_id))].sort((a, b) => a - b);
   for (const id of stageIds) rows.push(["er_stage", id, clearedByStage.get(id) || 0, perfectByStage.get(id) || 0, er.totalUsers]);
   for (const r of er.missionRows) rows.push(["er_mission", r.mission_id, r.achieved_count, 0, er.totalUsers]);
+  const chClearedByStage = new Map(ch.clearRows.map(r => [r.stage_id, r.cleared_count]));
+  const chPerfectByStage = new Map(ch.perfectRows.map(r => [r.stage_id, r.perfect_count]));
+  const chStageIds = [...new Set(ch.missionRows.map(r => r.stage_id))].sort((a, b) => a - b);
+  for (const id of chStageIds) rows.push(["ch_stage", id, chClearedByStage.get(id) || 0, chPerfectByStage.get(id) || 0, ch.totalUsers]);
+  for (const r of ch.missionRows) rows.push(["ch_mission", r.mission_id, r.achieved_count, 0, ch.totalUsers]);
 
   const insert = "INSERT OR REPLACE INTO analytics_daily (snap_date, kind, item_id, owned_count, max_count, total_users) VALUES (?, ?, ?, ?, ?, ?)";
   const statements = rows.map(r => env.DB.prepare(insert).bind(snapDate, ...r));
@@ -1184,6 +1190,172 @@ async function handleMyEternalRoad(request, env) {
   }, 200);
 }
 
+// ================= ㊵ チャレンジミッションチェッカー（メインステージCHALLENGE・HARDのみ。運営者試用） =================
+// エタロ（⑩⑮）と同じ保持方式だが、受付IDはworker.js内の固定Setではなくマスター（challenge_stages/challenge_missions）で
+// 検証する。新シリーズの追加をD1（migrations）だけで反映でき、worker.jsの変更が不要になるため
+const CHALLENGE_CLEAR_MAX_ENTRIES = 200; // 現状15＋30。シリーズが増えても十分な上限
+
+// "1,2,..."形式のカンマ区切りID文字列を、重複なしの整数配列にパースする（マスターとの照合はしない）。
+// 件数上限を超える不正に巨大な入力や非整数を含む入力はnull（＝書き込みしない）を返す
+function parseChallengeIdListRaw(raw, maxEntries) {
+  const parts = (typeof raw === "string" ? raw : "").split(",").map(s => s.trim()).filter(Boolean);
+  if (parts.length > maxEntries) return null;
+  const nums = parts.map(Number);
+  if (nums.some(n => !Number.isInteger(n))) return null;
+  return [...new Set(nums)];
+}
+
+// マスターに実在するstage_id・mission_idの集合を毎回D1から取得する（固定Setを持たない）
+async function loadChallengeIdSets(env) {
+  const [st, ms] = await Promise.all([
+    env.DB.prepare("SELECT stage_id FROM challenge_stages").all(),
+    env.DB.prepare("SELECT mission_id, stage_id FROM challenge_missions").all()
+  ]);
+  return {
+    stageIds: new Set(st.results.map(r => r.stage_id)),
+    missionStage: new Map(ms.results.map(r => [r.mission_id, r.stage_id]))
+  };
+}
+
+// チャレンジのマスターデータ（シリーズ・ステージ・ミッション）取得。認証不要
+async function handleChallengeMaster(request, env) {
+  const [series, stages, missions] = await Promise.all([
+    env.DB.prepare("SELECT series_code, series_name, short_name, work_id, sort_order, released_on FROM challenge_series ORDER BY sort_order ASC").all(),
+    env.DB.prepare("SELECT stage_id, series_code, difficulty, stage_no, stage_label, sort_order FROM challenge_stages ORDER BY sort_order ASC").all(),
+    env.DB.prepare(
+      `SELECT mission_id, stage_id, mission_slot, mission_type, mission_text, reward, tag_id, tag_name, param, short_label, includes_secret, sort_order
+       FROM challenge_missions ORDER BY sort_order ASC`
+    ).all()
+  ]);
+  return jsonResponse({
+    series: series.results, stages: stages.results, missions: missions.results
+  }, 200, { "Cache-Control": "public, max-age=3600" });
+}
+
+// チャレンジチェッカー起動時の復元用（handleMyEternalRoad()のチャレンジ版）
+async function handleMyChallenge(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) return jsonResponse({ loggedIn: false }, 200);
+
+  const userRow = await env.DB.prepare(
+    "SELECT challenge_first_registered_at AS registeredAt FROM users WHERE user_uid = ?"
+  ).bind(sessionUser.userUid).first();
+  const { results: stageRows } = await env.DB.prepare(
+    "SELECT stage_id FROM challenge_stage_clears WHERE user_uid = ? ORDER BY stage_id"
+  ).bind(sessionUser.userUid).all();
+  const { results: missionRows } = await env.DB.prepare(
+    "SELECT mission_id FROM challenge_mission_clears WHERE user_uid = ? ORDER BY mission_id"
+  ).bind(sessionUser.userUid).all();
+
+  return jsonResponse({
+    loggedIn: true,
+    registered: !!(userRow && userRow.registeredAt),
+    clearedStageIds: stageRows.map(r => r.stage_id),
+    clearedMissionIds: missionRows.map(r => r.mission_id)
+  }, 200);
+}
+
+// 所持データ・エタロと同じ「最新スナップショット方式」。送信の都度、そのuser_uidの既存クリア行を全削除してから
+// 現在のクリア状態を入れ直す。初回登録日時の更新も同じbatchで行う
+async function replaceChallengeClears(env, userUid, missionIds, stageIds) {
+  const nowJst = toJstIsoString(new Date());
+  const nowUtc = new Date().toISOString();
+  const statements = [
+    env.DB.prepare("DELETE FROM challenge_mission_clears WHERE user_uid = ?").bind(userUid),
+    env.DB.prepare("DELETE FROM challenge_stage_clears WHERE user_uid = ?").bind(userUid)
+  ];
+  for (const missionId of missionIds) {
+    statements.push(
+      env.DB.prepare(
+        "INSERT INTO challenge_mission_clears (user_uid, mission_id, cleared_at) VALUES (?, ?, ?)"
+      ).bind(userUid, missionId, nowJst)
+    );
+  }
+  for (const stageId of stageIds) {
+    statements.push(
+      env.DB.prepare(
+        "INSERT INTO challenge_stage_clears (user_uid, stage_id, cleared_at) VALUES (?, ?, ?)"
+      ).bind(userUid, stageId, nowJst)
+    );
+  }
+  statements.push(
+    env.DB.prepare(
+      `UPDATE users SET challenge_first_registered_at = COALESCE(challenge_first_registered_at, ?), last_seen = ?
+       WHERE user_uid = ?`
+    ).bind(nowJst, nowUtc, userUid)
+  );
+  await env.DB.batch(statements);
+}
+
+// チャレンジチェッカーの「データ登録」「画像で保存」「Xでシェア」押下時の同期エンドポイント。ログイン必須。
+// 未ログイン時はD1への保存を行わない。ミッション達成があるステージはサーバー側でもクリアへ正規化する
+async function handleLogChallenge(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) return jsonResponse({ ok: true, loggedIn: false }, 200);
+
+  let body = null;
+  try {
+    body = await request.json();
+  } catch (e) {
+    body = null;
+  }
+
+  try {
+    const rawMissionIds = parseChallengeIdListRaw(body && body.clearedMissionIds, CHALLENGE_CLEAR_MAX_ENTRIES);
+    const rawStageIds = parseChallengeIdListRaw(body && body.clearedStageIds, CHALLENGE_CLEAR_MAX_ENTRIES);
+    if (rawMissionIds && rawStageIds) {
+      const { stageIds: validStageIds, missionStage } = await loadChallengeIdSets(env);
+      const missionIds = rawMissionIds.filter(id => missionStage.has(id));
+      const stageSet = new Set(rawStageIds.filter(id => validStageIds.has(id)));
+      for (const id of missionIds) stageSet.add(missionStage.get(id));
+      await replaceChallengeClears(env, sessionUser.userUid, missionIds, [...stageSet].sort((a, b) => a - b));
+    }
+  } catch (e) {
+    console.error("challenge clears write error", e);
+  }
+
+  return jsonResponse({ ok: true, loggedIn: true }, 200);
+}
+
+// ㉖定時分析用の集計部分（母数はchallenge_first_registered_at IS NOT NULLのユーザー。queryEternalRoadCountsと同じ定義）
+async function queryChallengeCounts(env) {
+  const REGISTERED_JOIN = "JOIN users u ON u.user_uid = c.user_uid AND u.challenge_first_registered_at IS NOT NULL";
+
+  const totalRow = await env.DB.prepare(
+    "SELECT COUNT(*) AS c FROM users WHERE challenge_first_registered_at IS NOT NULL"
+  ).first();
+  const totalUsers = totalRow ? totalRow.c : 0;
+
+  const { results: missionRows } = await env.DB.prepare(
+    `SELECT m.mission_id, m.stage_id,
+            (SELECT COUNT(DISTINCT c.user_uid) FROM challenge_mission_clears c ${REGISTERED_JOIN}
+              WHERE c.mission_id = m.mission_id) AS achieved_count
+     FROM challenge_missions m
+     ORDER BY m.sort_order ASC`
+  ).all();
+
+  const { results: clearRows } = await env.DB.prepare(
+    `SELECT c.stage_id AS stage_id, COUNT(DISTINCT c.user_uid) AS cleared_count
+     FROM challenge_stage_clears c ${REGISTERED_JOIN}
+     GROUP BY c.stage_id`
+  ).all();
+
+  // ステージ内の全ミッションを達成したユーザー数（ステージごと）
+  const { results: perfectRows } = await env.DB.prepare(
+    `SELECT x.stage_id AS stage_id, COUNT(*) AS perfect_count
+     FROM (SELECT c.user_uid, m.stage_id, COUNT(DISTINCT c.mission_id) AS n
+           FROM challenge_mission_clears c ${REGISTERED_JOIN}
+           JOIN challenge_missions m ON m.mission_id = c.mission_id
+           GROUP BY c.user_uid, m.stage_id) x
+     JOIN (SELECT stage_id, COUNT(*) AS total FROM challenge_missions GROUP BY stage_id) t
+       ON t.stage_id = x.stage_id
+     WHERE x.n = t.total
+     GROUP BY x.stage_id`
+  ).all();
+
+  return { totalUsers, missionRows, clearRows, perfectRows };
+}
+
 async function withJsonError(fn, label) {
   try {
     return await fn();
@@ -1241,6 +1413,17 @@ export default {
     // データ登録結果レポート（analytics.html）の「エタロ攻略」タブ用の集計API。ログイン必須
     if (url.pathname === "/api/analytics/eternal-road" && request.method === "GET") {
       return handleAnalyticsEternalRoad(request, env);
+    }
+
+    // ㊵ チャレンジミッションチェッカー（メインステージCHALLENGE・HARDのみ。運営者試用。画面側のadminGateで制御）
+    if (url.pathname === "/api/challenge/master" && request.method === "GET") {
+      return handleChallengeMaster(request, env);
+    }
+    if (url.pathname === "/api/my-challenge" && request.method === "GET") {
+      return handleMyChallenge(request, env);
+    }
+    if (url.pathname === "/api/log-challenge" && request.method === "POST") {
+      return handleLogChallenge(request, env);
     }
 
     // ㉒ 自己紹介カード

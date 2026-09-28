@@ -20,6 +20,7 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `supporter.html` — URサポート所持率チェッカー（49体収録）。**2026-09-26（㉘）からログイン必須**。2026-09-27からスクショ読み取り（`supporter-scan.js`）を統合＝本番化
 - `analytics.html` — データ登録結果レポート（分析ページ。ログインユーザー限定・2026-09-19新設。2026-09-24に「みんなの所持率ランキング」→「全軍戦況レポート」→「ログインユーザーレポート」→「データ登録結果レポート」と改名し、エタロ攻略タブを追加）
 - `eternal-road.html` — エタロ攻略チェッカー（エターナルロード エキスパート難易度。全29ステージ・69ミッション。2026-09-23新設・⑩⑭。同日⑮でバナー画像・通常クリア・3ボタン・フィルタ追加、**ログインユーザー限定**化）
+- `challenge.html` — チャレンジミッションチェッカー（メインステージCHALLENGE・HARDのみ。全5シリーズ・15ステージ・30ミッション。2026-09-29新設・㊵）。`eternal-road.html`のコピー＋`docs/06_チャレンジミッションチェッカー/試作HTML/㊵challenge_参考実装.html`の描画部分を移植。**現時点は運営者専用で試用中**（`profile-card.html`と同じ`adminGate()`方式。未ログイン→ログイン案内、ログイン済みだが運営者でない→「運営者試用中」の案内のみ）。トップの導線も`#adminSection`（運営者専用欄）のみ。一般公開するときは`adminGate()`・`#adminOnlyView`を削除して`top.html`のnavcardを「チェッカー」欄へ移す
 - `profile-card.html` — 自己紹介カード作成ページ（㉒・2026-09-24新設。ログインユーザー限定。テンプレート3種×背景4種の16:9カードをCanvasで生成。描画は`docs/04_自己紹介カード/試作HTML/㉑自己紹介カード_試作5_プロトタイプ.html`から移植した`CardRenderer`（2026-09-26（㉘）に「標準」と地球背景を`㉗…試作6_プロトタイプ.html`から再移植）。**トップページの導線`#profileCardNav`は`hidden`のまま・ページは`adminGate()`で運営者専用**＝テスト運用中。一般公開の変更は㉟でローカルブランチ`release/profile-card-public`に準備済み（未push）。「㉞㉟」節参照）
 - `unit-scan.js` — スクショ読み取りの判定処理（`window.UnitScan`。`SCAN_FIT`＝ユニットごとの位置合わせ値）。2026-09-26から`unit.html`が読み込む
 - ~~`unit-scan.html`~~ — ㉖段階Aのスクショ読み取り試験版。`unit.html`へ統合済みのため**2026-09-26（㉘段階A）に削除**（ユーザー承認済み）。学習用の`?scandebug=1`は`/unit?scandebug=1`で使う
@@ -46,9 +47,12 @@ Xアカウント（@polarbear148691 / フォロワー2,700人 / Premium会員450
 - `migrations/0016_profile_card_options.sql` — ㉚：`ALTER TABLE user_profiles ADD COLUMN card_options TEXT;`の1行。**再実行するとduplicate columnエラー（＝適用済みの意味）**。未適用でもコードは動く（表示設定が保存されず既定値で表示）
 - `migrations/0017_normalize_names.sql` — ㉚：ユニット11件・サポート2件・作品1件の名前を表記ルールに合わせるUPDATE 14行。冪等・構造変更なし。`0012`の作品44（Ζ-MSV）も同じ値に書き換え済み。**0016・0017とも適用済み（2026-09-27、ユーザーがD1 Consoleで実行）**
 - `migrations/0019_move_g_reco_to_uc.sql` — ㉞㉟：Gのレコンギスタ（85）を`era='UC'`・`sort_order=505`（Vガンダム500と∀510の間）・`timeline_label='R.C.1014'`（誤記R.G.→R.C.）にするUPDATE 1行。冪等・構造変更なし。`0012`の該当行も同じ値に書き換え済み。**0018は㉝（UR以外の推し登録）用に予約・未適用**。**0019は未適用（2026-09-28時点。ユーザーがD1 Consoleで適用予定）**。ファイル先頭に`--`コメント4行があるため、D1 ConsoleにはUPDATE文の1行だけを貼る
+- `migrations/0020_challenge.sql` — ㊵：チャレンジミッションチェッカーの5テーブル（`challenge_series`・`challenge_stages`・`challenge_missions`・`challenge_mission_clears`・`challenge_stage_clears`）＋`users.challenge_first_registered_at`列。`CREATE TABLE IF NOT EXISTS`で冪等（末尾の`ALTER TABLE`だけ再実行不可＝duplicate columnエラー）。**未適用（2026-09-29時点。0021とセットでコード側がD1 Consoleへの適用を依頼する）**
+- `migrations/0021_populate_challenge.sql` — ㊵：チャレンジのマスターデータ（シリーズ5・HARDステージ15・ミッション30）投入。`INSERT OR REPLACE`で冪等。**未適用（2026-09-29時点）**。**適用順は0020→0021→pushの順**（⑬のデプロイギャップ防止と同じ理由）
 - `images/eternal-road/1.jpg`〜`29.jpg` — エタロのステージバナー（640×234px。ユーザー撮影のスクショからCoworkが切り出し。⑮）
 - `images/eternal-road/icon/1.jpg`〜`29.jpg` — トップページのエタロ導線用アイコン（136×136px。各バナーの横中央・上端170×170を切り抜き。`scripts/make_eternal_road_icons.py`で生成。**バナーを差し替え・追加したら再実行すること**）
 - `images/series/1.png`〜`106.png` — 作品アイコン（ゲーム内「シリーズ絞り込み」画面のロゴ。運営者のスクショからCoworkが切り出し、320×140。番号＝`works_master.work_id`）
+- `images/challenge/1.jpg`〜`5.jpg` — チャレンジミッションチェッカーのシリーズバナー（640×256px。2026-09-29・㊵。番号＝`challenge_series.series_code`）。シリーズタブ・トップのnavcardのアイコンは新規画像を作らず`images/series/`の作品ロゴを流用
 - `images/`, `units/` — 外部化済みの画像アセット
 - `scripts/extract_embedded_images.py` — base64埋め込み画像を外部ファイル化する汎用スクリプト（冪等・再実行安全）
 - `scripts/card_check/` — ㉚：自己紹介カードの回帰チェック（Cowork作成）。`server.mjs`（`worker.js`をNode 22.5以上＋`node:sqlite`で動かし、`migrations/`を番号順に適用＋`seed.sql`を投入。`SKIP_MIG=0016`で未適用環境を再現）と`card_check.py`（Playwrightで9通り＋表示オプション2通りを描画し、JSエラー・12px未満の文字・フッターのコントラスト4.5以上・フォント読み込み後の描画・機体名の泣き別れを確認）。使い方は`card_check.py`冒頭。**本番の動作には無関係**。この開発PCにはNodeもNoto Sans CJKも無いため、実行時はスクラッチパッドにポータブル版Node（nodejs.orgの`node-v22.x-win-x64.zip`）とフォント（`notofonts/noto-cjk`の`Sans/SubsetOTF/JP/NotoSansJP-Regular.otf`・`-Bold.otf`を`NotoJP-Regular.otf`・`NotoJP-Bold.otf`にリネーム）を置き、環境変数`CARD_CHECK_FONT_DIR`でフォントの場所を指定する（`PYTHONIOENCODING=utf-8`も指定）
@@ -885,7 +889,26 @@ Cowork側の実装依頼書`docs/05_機能拡張_有料プラン/㊱X投稿用�
 **検証**：`scripts/card_check/`のポータブルNode・ハーネス（`worker.js`をそのまま動かすサーバー）を使い、`/api/admin/run-snapshot`で実データ相当の`analytics_daily`を生成した上でPlaywrightにより**種類6×並び順3＝18通り**すべてで画像生成・投稿文生成が成功し、JSエラーなし（67件成功）。サンプル画像（全URユニットの高い順・TOP/ワースト・低い順、期間限定URユニットのTOP/ワースト、期間限定URサポート6体のTOP/ワースト・低い順）を目視確認し、依頼書3〜5章の見た目（TOP3金銀銅・ワースト3赤系グロー、カードの「ワースト」札、小見出しの並び順表記）と一致することを確認した。`node --check`でスクリプト部分の構文エラーもなし
 - `docs/WEBサイト仕様書.md`の2.9節・最終更新ヘッダーを更新済み
 
+### ㊵ チャレンジミッションチェッカー（運営者専用で試用開始・2026-09-29）
+Cowork側の詳細設計書`docs/06_チャレンジミッションチェッカー/㊵チャレンジミッションチェッカー_詳細設計.md`に基づき実装した。ユーザー指示は「運営者専用ツールとしてトップページに表示し、運営側で試用する」で、設計書が前提とする一般ログインユーザー向け公開は今回のスコープ外にした（㉒自己紹介カードの試用期と同じ扱い）。
+
+- **D1（`migrations/0020_challenge.sql`・`0021_populate_challenge.sql`。設計書の㊵0024・0025を空き番号0020・0021に振り直し）**：5テーブル（`challenge_series`・`challenge_stages`・`challenge_missions`・`challenge_mission_clears`・`challenge_stage_clears`）＋`users.challenge_first_registered_at`列。マスターはシリーズ5（ガンダム→SEED→Ζ→W→ΖΖ）・HARDステージ15・ミッション30件（設計書の内容をそのまま投入）。**D1は未適用**（次回、ユーザーがD1 Consoleで0020→0021の順に適用してからpushする）
+- **`images/challenge/1.jpg`〜`5.jpg`**：設計書付属のシリーズバナー（640×256）をそのまま配置。シリーズタブ・トップのアイコンは新規画像を作らず`images/series/{1,13,42,10,3}.png`（自己紹介カードの推し作品ロゴ）を流用（設計書どおり）
+- **`worker.js`**：API3本を追加。`GET /api/challenge/master`（マスター一式・認証不要・`max-age=3600`）、`GET /api/my-challenge`（起動時の復元用・認証任意）、`POST /api/log-challenge`（データ登録・ログイン必須）。設計書どおり、受付IDは`worker.js`内の固定Setではなく`loadChallengeIdSets()`で毎回D1のマスターから取得した集合で検証する（新シリーズ追加がSQLだけで反映できる）。`parseChallengeIdListRaw()`（上限200件・非整数を含む入力はnull）→マスターとの照合→ミッション達成のステージを自動追加→`replaceChallengeClears()`（エタロと同じスナップショット方式のDELETE+INSERT+`challenge_first_registered_at`のCOALESCE更新）の流れ。定時分析（㉖）に`ch_stage`・`ch_mission`を追加（`queryChallengeCounts()`。母数は`challenge_first_registered_at IS NOT NULL`。`analytics_daily_summary`への列追加なし）
+- **`challenge.html`（新規）**：`eternal-road.html`をコピーし、ガード・起動処理・auth.jsの読み込みはそのまま流用。ステージ部分・集計・画像生成は設計書付属の参考実装`docs/06_.../試作HTML/㊵challenge_参考実装.html`からスクリプトの中身をそのまま移植（サマリー・ミッション報酬の獲得状況・シリーズタブ・ステータスタブ・シリーズごとのステージカード・画像生成・Xシェア文）。**運営者専用ゲート**：`profile-card.html`の試用期と同じ`adminGate()`方式を追加（設計書にはない今回の変更点）。未ログイン→`guardView`、ログイン済みだが`/api/admin/me`が`admin:true`でない→`#adminOnlyView`（「チャレンジミッションチェッカーは現在運営者試用中のため、運営者専用ページです。」）、運営者のみ`loadChecker()`
+- **`top.html`**：チャレンジのnavcardを**「チェッカー」欄ではなく`#adminSection`（運営者専用欄）に追加**（今回の変更点）。アイコンは`data-pool="challenge"`で`images/series/{1,13,42,10,3}.png`を切り替え（エタロの`ETERNAL_ROAD_IMAGES`と同じ仕組み）。ロゴは横長・地色`#c6c7d6`なので`.icoImg.poolChallenge{object-fit:contain;background:#c6c7d6;padding:2px;}`で枠に収める（`cover`だとロゴが切れる）。登録状況バッジ`data-reg="challenge"`は`showChallengeRegStatus()`（`showEternalRoadRegStatus()`と同じ考え方）で、運営者ログイン時（`toggleAdminNav()`内）のみ取得する
+- **検証**：この開発PCにはNode・wranglerが無いため、`worker.js`をヘッドレスChromium内でESモジュールとしてそのまま読み込み、`env.DB`をPythonのsqlite3（`migrations`の実ファイル0001〜0021、0007除く）へPlaywrightの`expose_function`でブリッジするハーネス（㉘段階C・㊱と同じ方式）を作成。サーバー側27件（マスターAPIの件数・並び順、`/api/my-challenge`の3状態、不正ID・上限超過の拒否、ミッションのみ送信時のステージ自動クリア、スナップショット方式の置換、`run-snapshot`が`ch_stage`15行・`ch_mission`30行を正しい`owned_count`/`max_count`で積むこと、`/api/admin/me`の判定）、`challenge.html`（APIモック）28件（3状態のガード表示、ミッション⇄ステージの連動、全完了ボタン、画像生成とログ送信、JSエラーなし）、`top.html`（APIモック）12件（非運営者では`#adminSection`非表示、運営者のみ表示・アイコン・登録バッジの実データ一致）で、**合計67件すべて成功**
+- **docs**：`docs/WEBサイト仕様書.md`に2.10節（新設）・API3本・DBテーブル5件・ルーティング1行・6章の既知の制約・7章の参考資料を追加、最終更新ヘッダーを更新
+
+**未実施（要対応）**
+- D1に`migrations/0020`→`0021`を適用してからこの変更をpush（適用前にpushすると、運営者がトライアル中に`/api/challenge/master`等が500になる＝⑬と同じデプロイギャップ）
+- 運営者（`ESP`）で本番の`/challenge.html`を実機確認（データ登録→再読み込みでDBから復元、画像で保存、Xでシェア）
+- `SCAN_FIT`のような画像相関は使わないため新規ユニット追加の影響はないが、新シリーズ・新ミッションを追加するときは`challenge_series`・`challenge_stages`・`challenge_missions`にSQLを追記するだけでよい（`worker.js`の変更は不要。設計書の意図どおり）
+- 試用で問題なければ、一般公開するときは`challenge.html`の`adminGate()`・`#adminOnlyView`を削除し`/api/me`のログイン判定から直接`loadChecker()`を呼ぶ、`top.html`のnavcardを「チェッカー」欄（`.route`）へ移す（`profile-card.html`の㉟公開と同じ手順）
+- 設計書9章の「後回し」（`analytics.html`のチャレンジタブ、自己紹介カードへの掲載、タグ縛りの所持UR表示）は今回未着手
+
 ## 次にやること
+- **㊵（2026-09-29）**：①ユーザーがD1に0020→0021の順で適用、②このセッションの変更（`challenge.html`・`worker.js`・`top.html`・migrations・`images/challenge/`）をcommit・push、③運営者（`ESP`）で`/challenge.html`を本番確認。詳細は「㊵」節
 - **㉟（2026-09-28）**：①ユーザーがD1に0019を適用、②運営者ページで最終確認、③`release/profile-card-public`をmainへfast-forwardしてpush（一般公開）、④依頼書4章A-4のチェックリストで本番確認（iOS Safariの画像保存を含む）。詳細は「㉞㉟」節
 - **2026-09-30（水）12:00の新UR：3機（V2アサルトバスターガンダム・ザンスパイン・ゴトラタン＝ID 85〜87仮）＋URサポート1体（ロベルト・ゴメス&リーンホースJr.＝ID 50仮）**。当日中に追加（`㉟`依頼書5章。画像・タイプ・回復種別・名前表記を当日確認）
 - ㉚：0016・0017適用・push済み（`27f9f74`）。本番で自己紹介カードの表示設定の保存・「実装日」表示・ランキングの新表記を確認

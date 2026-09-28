@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>チャレンジミッションチェッカー | Gジェネエターナル ファンツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+<!-- "/"ではなく"/top"を対象にする。過去の"/"→/unit 301キャッシュを引き当てても意味がないため（⑧） -->
+<link rel="prefetch" href="/top">
+<link rel="prefetch" href="images/logo.png">
+<style>
+  :root{
+    --void:#05070d;
+    --panel:rgba(16,22,32,.68);
+    --panel-2:#0e141d;
+    --panel-solid:#121924;
+    --line:rgba(107,224,224,.16);
+    --line-strong:rgba(140,160,180,.28);
+    --gold:#dab949;
+    --gold-dim:#8a7128;
+    --cyan:#6be0e0;
+    --cyan-dim:#3f8f8f;
+    --title-color:#e0a8f5;
+    --text:#eef3f6;
+    --muted:#93a3b3;
+    --register:#7fd9a0;
+    --rainbow:linear-gradient(135deg,#ff5f6d 0%,#ffc371 25%,#9dff8a 50%,#5b8def 75%,#c471f5 100%);
+  }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  html,body{height:100%;}
+  body{
+    margin:0;background:var(--void);color:var(--text);
+    font-family:'Noto Sans JP',sans-serif;min-height:100%;
+    -webkit-font-smoothing:antialiased;padding-bottom:96px;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 60vmax 60vmax at 10% -10%, rgba(122,95,207,.28), transparent 60%),
+      radial-gradient(ellipse 55vmax 55vmax at 110% 10%, rgba(52,224,177,.16), transparent 60%),
+      radial-gradient(ellipse 70vmax 70vmax at 50% 120%, rgba(44,63,122,.35), transparent 60%);
+  }
+  ::selection{background:rgba(107,224,224,.3);color:#fff;}
+
+  main.wrap{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 18px calc(28px + env(safe-area-inset-bottom,0px));}
+
+  .eyebrow{
+    font-family:'Share Tech Mono',monospace;font-weight:400;letter-spacing:.16em;font-size:11px;
+    color:var(--cyan);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin:0 0 14px;opacity:.9;
+    text-shadow:0 1px 3px rgba(2,4,9,.85), 0 0 10px rgba(2,4,9,.6);
+  }
+  .eyebrow::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);display:inline-block;border-radius:1px;}
+
+  .titlerow{display:flex;align-items:center;gap:12px;margin:0 0 12px;flex-wrap:wrap;}
+  .titlerow .logo{height:40px;width:auto;flex:0 0 auto;filter:drop-shadow(0 0 6px rgba(107,224,224,.25));}
+  h1{
+    font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:23px;margin:0;
+    word-break:keep-all;overflow-wrap:break-word;
+    text-shadow:0 1px 4px rgba(2,4,9,.9), 0 0 16px rgba(2,4,9,.6);
+  }
+  .diffLabel{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;letter-spacing:.12em;
+    color:#1b1503;background:linear-gradient(135deg,var(--gold),var(--gold-dim));
+    border-radius:3px;padding:2px 9px;
+  }
+  .diffLabel.challenge{background:linear-gradient(135deg,#e8424f,#9c1b27);color:#fff;}
+  .sub{
+    color:#c7d2dc;font-size:13.5px;margin:0 0 22px;line-height:1.85;
+    word-break:keep-all;overflow-wrap:break-word;
+  }
+
+  /* ---- ログイン必須ガード（analytics.html・eternal-road.htmlと同じ） ---- */
+  .guardCard{
+    background:var(--panel);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);
+    border:1px solid var(--line);border-radius:6px;padding:28px 22px;text-align:center;
+  }
+  .guardCard p{color:var(--muted);font-size:13px;line-height:1.8;margin:0 0 18px;}
+  .guardCard button{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.03em;
+    background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;
+    border:1px solid var(--gold);border-radius:3px;padding:10px 26px;cursor:pointer;
+  }
+  .stateMsg{color:var(--muted);font-size:13px;text-align:center;padding:30px 0;}
+
+  /* ---- サマリー ---- */
+  .summaryHero{
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+    background:var(--panel-solid);border:1px solid var(--line-strong);border-bottom:none;border-radius:4px 4px 0 0;
+    padding:14px 14px 10px;
+  }
+  .summaryHero .v{font-family:'Share Tech Mono',monospace;font-size:30px;color:var(--gold);line-height:1;}
+  .summaryHero .v small{font-size:16px;color:var(--muted);}
+  .summaryHero .l{font-size:12px;color:var(--muted);}
+  .summaryHero .rate{margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:15px;color:var(--cyan);}
+  .summaryRow{display:flex;gap:1px;background:var(--line-strong);margin:0 0 18px;border:1px solid var(--line-strong);border-radius:0 0 4px 4px;overflow:hidden;}
+  .summaryItem{flex:1;background:var(--panel-solid);padding:10px 4px;text-align:center;min-width:0;}
+  .summaryItem .v{font-family:'Share Tech Mono',monospace;font-size:17px;color:var(--cyan);font-weight:700;white-space:nowrap;}
+  .summaryItem .l{font-size:10.5px;color:var(--muted);margin-top:4px;}
+  .summaryRow.withReward{margin-bottom:0;border-radius:0;border-bottom:none;}
+  .rewardBox{background:var(--panel-solid);border:1px solid var(--line-strong);border-radius:0 0 4px 4px;padding:8px 12px 10px;margin:0 0 18px;}
+  .rewardHead{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;margin:0 0 4px;}
+  .rewardRow{display:flex;align-items:baseline;gap:8px;padding:3px 0;font-size:12px;}
+  .rewardRow .nm{flex:1;min-width:0;color:var(--text);}
+  .rewardRow .qty{font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--muted);white-space:nowrap;}
+  .rewardRow .qty b{color:var(--cyan);font-weight:700;}
+  .rewardRow .rest{font-size:11px;color:var(--muted);min-width:78px;text-align:right;white-space:nowrap;}
+  .rewardRow .rest.done{color:var(--gold);}
+
+  /* ---- シリーズタブ（アイコン＋進捗）。ALL＋5シリーズを3列×2段で一覧（スマホでも横スクロールなし） ---- */
+  .seriesTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 14px;}
+  .seriesTab{
+    min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;
+    background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;padding:5px 5px 6px;cursor:pointer;
+    color:var(--muted);font-family:'Noto Sans JP',sans-serif;
+  }
+  /* 推し作品ロゴ（320×140）をそのまま縮小して載せる。地色（#c6c7d6）ごと表示＝自己紹介カードと同じ見え方 */
+  .seriesTab .ico{width:100%;aspect-ratio:320 / 140;border-radius:4px;overflow:hidden;background:#c6c7d6;display:flex;align-items:center;justify-content:center;padding:2px;}
+  .seriesTab .ico img{width:100%;height:100%;object-fit:contain;display:block;}
+  .seriesTab .ico.allIco{background:#0c1424;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:var(--text);letter-spacing:.05em;}
+  .seriesTab .nm{font-size:10.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  .seriesTab .pg{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan);}
+  .seriesTab.active{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset, 0 0 8px rgba(218,185,73,.35);color:var(--text);}
+  .seriesTab.complete .ico{background:var(--rainbow);padding:3px;}
+  .seriesTab.complete .ico img{border-radius:2px;background:#c6c7d6;}
+
+  /* ---- フィルタ ---- */
+  .statusTabs{display:flex;gap:6px;margin:0 0 10px;}
+  .statusTabs button{
+    flex:1;min-width:0;font-family:'Noto Sans JP',sans-serif;font-weight:500;font-size:12px;
+    background:var(--panel-2);border:1px solid var(--line-strong);color:var(--muted);
+    padding:8px 2px;cursor:pointer;border-radius:4px;line-height:1.3;
+  }
+  .statusTabs button .cnt{display:block;font-family:'Share Tech Mono',monospace;font-size:12px;margin-top:1px;}
+  .statusTabs button.active{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold);font-weight:700;}
+  .toggleRow{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:0 0 18px;}
+  .toggleItem{display:flex;align-items:center;gap:6px;}
+  .toggleItem input{accent-color:var(--cyan);width:15px;height:15px;margin:0;}
+  .toggleItem label{cursor:pointer;}
+  .emptyMsg{color:var(--muted);font-size:13px;text-align:center;padding:24px 0;}
+
+  /* ---- 一括操作 ---- */
+  .bulkRow{margin:0 0 14px;}
+  .bulkRow button{
+    width:100%;font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:12.5px;
+    background:var(--panel-2);border:1px solid var(--line-strong);color:var(--text);
+    padding:9px 8px;cursor:pointer;border-radius:4px;
+  }
+  .bulkRow button:hover{border-color:var(--gold-dim);}
+
+  /* ---- シリーズのセクション ---- */
+  .seriesSection{margin:0 0 22px;}
+  .seriesBanner{position:relative;border-radius:6px;overflow:hidden;border:1px solid var(--line-strong);background:#0c1424;}
+  .seriesBanner img{display:block;width:100%;aspect-ratio:640 / 256;object-fit:cover;}
+  .seriesBanner .band{
+    position:absolute;left:0;right:0;bottom:0;padding:18px 12px 8px;
+    background:linear-gradient(180deg,rgba(5,7,13,0),rgba(5,7,13,.88) 55%);
+    display:flex;align-items:flex-end;gap:10px;
+  }
+  .seriesBanner .band .nm{font-family:'Zen Kaku Gothic New',sans-serif;font-weight:900;font-size:15px;flex:1;min-width:0;text-shadow:0 1px 3px #000;}
+  .seriesBanner .band .pg{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--cyan);white-space:nowrap;text-align:right;line-height:1.5;}
+  .seriesBanner .bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.08);}
+  .seriesBanner .bar i{display:block;height:100%;background:var(--gold);}
+  .seriesBanner.complete{border-color:transparent;box-shadow:0 0 0 2px #fff3, 0 0 14px rgba(196,113,245,.35);}
+  .seriesBanner.complete .bar i{background:var(--rainbow);}
+
+  .hardBlock{margin-top:10px;}
+  /* ---- ステージカード（HARD 1〜3） ---- */
+  .stageCard{
+    background:var(--panel);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);
+    border:1px solid var(--line-strong);border-radius:6px;padding:10px 12px 6px;margin:0 0 12px;
+  }
+  .stageCard .cardHead{display:flex;align-items:center;gap:10px;margin:2px 0 6px;}
+  .stageCard .cardHead .lbl{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:18px;letter-spacing:.04em;}
+  .stageCard.st-clear{border-color:var(--gold);box-shadow:0 0 8px rgba(218,185,73,.3);}
+  .stageCard.st-perfect{border-color:transparent;background:
+      linear-gradient(var(--panel-solid),var(--panel-solid)) padding-box, var(--rainbow) border-box;
+    border:2px solid transparent;box-shadow:0 0 10px rgba(196,113,245,.3);}
+  .clearToggle{
+    font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:12px;
+    background:var(--panel-2);border:1px solid var(--line-strong);color:var(--muted);
+    padding:6px 12px;cursor:pointer;border-radius:3px;white-space:nowrap;
+  }
+  .clearToggle.on{background:linear-gradient(135deg,var(--gold),var(--gold-dim));border-color:var(--gold);color:#1b1503;}
+  .clearToggle.perfect{
+    background:var(--rainbow);border-color:transparent;color:#1b1503;
+    box-shadow:0 0 8px rgba(255,255,255,.35);
+  }
+
+  .missionRow{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid var(--line);}
+  .missionRow.hiddenRow{display:none;}
+  .missionRow input{accent-color:var(--cyan);width:17px;height:17px;flex:0 0 auto;margin-top:2px;cursor:pointer;}
+  .missionRow label{flex:1;font-size:13px;line-height:1.6;cursor:pointer;}
+  .missionRow .reward{display:block;font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .missionRow.cleared label{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line-strong);}
+  .chip{
+    display:inline-block;font-size:10.5px;font-weight:700;line-height:1.5;padding:0 7px;border-radius:9px;margin-right:6px;
+    background:#1d2a3a;color:#bfe9ff;border:1px solid #2f4a63;vertical-align:1px;
+  }
+  .chip.turn{background:#3a2a14;color:#ffd79a;border-color:#6b4c1f;}
+  .chip.series{background:#2c1f3d;color:#e0c2ff;border-color:#4c3569;}
+  .missionRow.cleared .chip{opacity:.6;}
+
+  /* ---- アクションバー（unit.html・eternal-road.htmlと同じ3ボタン構成） ---- */
+  .actionbar{
+    position:fixed;left:0;right:0;bottom:0;
+    background:rgba(10,14,20,.92);backdrop-filter:blur(6px);
+    border-top:1px solid var(--line-strong);
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    display:flex;gap:10px;max-width:640px;margin:0 auto;z-index:50;
+  }
+  .actionbar button{
+    flex:1;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.04em;
+    padding:12px 4px;cursor:pointer;border:1px solid var(--line-strong);border-radius:3px;white-space:nowrap;
+  }
+  .actionbar button:disabled{opacity:.6;cursor:default;}
+  .btn-save{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold) !important;}
+  .btn-share{background:transparent;color:var(--cyan);border-color:var(--cyan) !important;}
+  .btn-register{background:transparent;color:var(--register);border-color:var(--register) !important;}
+
+  .registerToast{
+    position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));
+    transform:translate(-50%,8px);
+    background:rgba(10,14,20,.95);border:1px solid var(--register);color:var(--text);
+    font-size:13px;padding:10px 18px;max-width:88%;text-align:center;border-radius:4px;
+    z-index:110;opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+  }
+  .registerToast.show{opacity:1;transform:translate(-50%,0);}
+
+  /* ---- 保存プレビュー用モーダル（unit.htmlと同じ。長押し/右クリックで保存） ---- */
+  .previewModal{
+    position:fixed;inset:0;background:rgba(5,7,10,.94);
+    display:none;align-items:center;justify-content:center;
+    flex-direction:column;gap:14px;padding:24px 16px;z-index:100;
+  }
+  .previewModal.show{display:flex;}
+  .previewModal img{max-width:96%;max-height:80vh;border:1px solid var(--line-strong);background:#000;}
+  .previewModal .msg{color:var(--muted);font-size:12.5px;text-align:center;line-height:1.7;max-width:420px;}
+  .previewModal .msg b{color:var(--cyan);}
+  .previewModal .row{display:flex;gap:10px;}
+  .previewModal button, .previewModal a{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;
+    background:var(--gold);color:#1b1503;border:1px solid var(--gold);
+    padding:10px 20px;cursor:pointer;text-decoration:none;display:inline-block;
+  }
+  .previewModal .btn-secondary{background:transparent;color:var(--muted);border-color:var(--line-strong);}
+
+  .pageFooter{
+    margin-top:28px;padding-top:16px;border-top:1px solid var(--line-strong);
+    font-size:10.5px;line-height:1.9;color:var(--muted);
+  }
+  .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
+  .pageFooter a{color:var(--cyan);text-decoration:none;}
+  .pageFooter a:hover{text-decoration:underline;}
+</style>
+</head>
+<!-- data-auth-stay: ログイン成功後にトップへ遷移せずこのページをリロードする（auth.js）。
+     ㊵ 運営者試用中：guardView（未ログイン）→ adminGate()（ログイン済みだが運営者以外はadminOnlyViewのみ）→ loadChecker()（運営者）。
+     一般公開するときは adminOnlyView・adminGate() を削除し、/api/me のログイン判定から直接 loadChecker() を呼ぶ（profile-card.htmlの㉟公開と同じ手順） -->
+<body data-auth-stay>
+
+<main class="wrap">
+  <p class="eyebrow">GGENERATION ETERNAL <span class="jp">ジージェネレーション エターナル</span></p>
+  <div class="titlerow">
+    <img class="logo" src="images/logo.png" alt="ESP logo">
+    <h1>チャレンジミッションチェッカー</h1>
+    <span class="diffLabel challenge">CHALLENGE</span>
+  </div>
+  <p class="sub">メインステージ「CHALLENGE」HARDの全<span id="subStages">15</span>ステージ・<span id="subMissions">30</span>ミッションのクリア状況を記録できます（運営者試用中）。ステージのボタンでクリア、ミッションにチェックすると達成済みになります。</p>
+
+  <div id="guardView" class="guardCard" hidden>
+    <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、チャレンジミッションのクリア状況を記録・保存できるようになります。</p>
+    <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
+  </div>
+  <!-- 運営者専用（試用中）。運営者以外のログインユーザーにはこの案内だけを出す。一般公開時はこの判定を外す -->
+  <div id="adminOnlyView" class="stateMsg" hidden>チャレンジミッションチェッカーは現在運営者試用中のため、運営者専用ページです。</div>
+  <div id="loadingView" class="stateMsg">読み込み中...</div>
+  <div id="errorView" class="stateMsg" hidden>データの読み込みに失敗しました。時間をおいて再度お試しください。</div>
+
+  <div id="contentView" hidden>
+    <div class="summaryHero">
+      <span class="v" id="sumStages">0<small> / 15</small></span>
+      <span class="l">HARDクリア</span>
+      <span class="rate" id="sumRate">0%</span>
+    </div>
+    <div class="summaryRow withReward">
+      <div class="summaryItem"><div class="v" id="sumMissions">0 / 30</div><div class="l">ミッション達成</div></div>
+      <div class="summaryItem"><div class="v" id="sumSeries">0 / 5</div><div class="l">シリーズ制覇</div></div>
+    </div>
+    <!-- 「全ミッション達成」の代わりに、ミッション報酬の獲得状況（報酬の種類ごと。マスターのreward文字列から集計） -->
+    <div class="rewardBox" id="rewardBox"></div>
+
+    <div class="seriesTabs" id="seriesTabs"></div>
+
+    <div class="statusTabs" id="statusTabs">
+      <button type="button" data-status="all">すべて<span class="cnt" data-cnt="all">0</span></button>
+      <button type="button" data-status="uncleared">未クリア<span class="cnt" data-cnt="uncleared">0</span></button>
+      <button type="button" data-status="remaining">ミッション残<span class="cnt" data-cnt="remaining">0</span></button>
+      <button type="button" data-status="perfect">全達成<span class="cnt" data-cnt="perfect">0</span></button>
+    </div>
+    <div class="toggleRow">
+      <div class="toggleItem"><input type="checkbox" id="filterUnclearedMissions"><label for="filterUnclearedMissions">未達成ミッションのみ</label></div>
+    </div>
+
+    <div id="seriesList"></div>
+    <div id="emptyMsg" class="emptyMsg" hidden>条件に一致するステージはありません</div>
+
+    <div class="bulkRow">
+      <button type="button" id="btnAllComplete">全ステージ・全ミッションを達成にする</button>
+    </div>
+  </div>
+
+  <footer class="pageFooter">
+    <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
+    <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
+    <p>掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
+    <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+    <p>更新情報はXで発信しています。よろしければ<a href="https://x.com/intent/follow?screen_name=polarbear148691" target="_blank" rel="noopener">フォロー</a>していただけると励みになります。</p>
+  </footer>
+</main>
+
+<div class="actionbar" id="actionbar" hidden>
+  <button type="button" class="btn-register" id="btnRegister">データ登録</button>
+  <button type="button" class="btn-save" id="btnSave">画像で保存</button>
+  <button type="button" class="btn-share" id="btnShare">Xでシェア</button>
+</div>
+<div class="registerToast" id="registerToast"></div>
+
+<div class="previewModal" id="previewModal">
+  <img id="previewImg" alt="チャレンジ攻略カード">
+  <div class="msg">自動ダウンロードが始まらない場合は、画像を<b>長押し（スマホ）</b>または<b>右クリック</b>して「画像を保存」を選んでください。</div>
+  <div class="row">
+    <a id="downloadLink" download="challenge.png">ダウンロード</a>
+    <button type="button" class="btn-secondary" id="btnClosePreview">閉じる</button>
+  </div>
+</div>
+
+<script>
+const CONFIG = {
+  xHandle: "@polarbear148691",
+  siteUrl: "https://ggene-ur-checker.polarbear14869.workers.dev/challenge.html",
+  hashtags: ["ジージェネエターナル", "GGETチャレンジチェッカー"],
+  quotePostUrl: "" // エタロと同じく、告知ポストができたら設定
+};
+
+/* =========================================================
+   状態管理（エタロ⑮と同じ）：clearedStages＝クリアしたstage_id、clearedMissions＝達成したmission_id。
+   正はDB（起動時に/api/my-challengeから復元）。localStorageは作業中データ・通信失敗時の保険
+   整合ルール：ミッション達成があるステージは必ずクリア（チェック時に自動ON、クリアOFF時はミッションも全解除）
+   ========================================================= */
+const STORAGE_KEY = "challenge_v1";
+const FILTER_STORAGE_KEY = "challenge_filter_v1";
+
+let clearedStages = new Set();
+let clearedMissions = new Set();
+let userEditedSinceLoad = false;
+
+let seriesList = [];          // challenge_series（sort_order順）＋ stages[]
+let stages = [];              // challenge_stages（sort_order順）＋ missions[]
+let missions = [];
+let stageById = new Map();
+let validMissionIds = new Set();
+
+function buildModel(master){
+  missions = master.missions.slice();
+  validMissionIds = new Set(missions.map(m => m.mission_id));
+  stages = master.stages.slice().sort((a, b) => a.sort_order - b.sort_order).map(s => ({ ...s, missions: [] }));
+  stageById = new Map(stages.map(s => [s.stage_id, s]));
+  for (const m of missions) { const s = stageById.get(m.stage_id); if (s) s.missions.push(m); }
+  for (const s of stages) s.missions.sort((a, b) => a.mission_slot - b.mission_slot);
+  seriesList = master.series.slice().sort((a, b) => a.sort_order - b.sort_order)
+    .map(se => ({ ...se, stages: stages.filter(s => s.series_code === se.series_code) }));
+}
+
+function loadLocalState(){
+  try {
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    if (data) return { stages: data.stages || [], missions: data.missions || [] };
+  } catch (e) { /* 壊れたデータは無視 */ }
+  return { stages: [], missions: [] };
+}
+function applyState(stageIds, missionIds){
+  clearedMissions = new Set(missionIds.map(Number).filter(id => validMissionIds.has(id)));
+  clearedStages = new Set(stageIds.map(Number).filter(id => stageById.has(id)));
+  for (const id of clearedMissions) clearedStages.add(Math.floor(id / 10));
+}
+function persist(){
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      stages: [...clearedStages].sort((a, b) => a - b),
+      missions: [...clearedMissions].sort((a, b) => a - b)
+    }));
+  } catch (e) { console.warn(e); }
+}
+
+// none＝未クリア／clear＝クリア済・ミッション残／perfect＝全ミッション達成（ミッションが無いステージはクリアで完了）
+function stageStatus(stage){
+  if (!clearedStages.has(stage.stage_id)) return "none";
+  const done = stage.missions.filter(m => clearedMissions.has(m.mission_id)).length;
+  return done === stage.missions.length ? "perfect" : "clear";
+}
+
+/* ---- 集計（画面・画像・シェア文で共通。分母はすべてマスターから算出＝シリーズ・ステージ追加で自動的に増える） ---- */
+function statsOf(stageArr){
+  const ms = stageArr.flatMap(s => s.missions);
+  const stageClear = stageArr.filter(s => clearedStages.has(s.stage_id)).length;
+  return {
+    stageTotal: stageArr.length, stageClear,
+    perfect: stageArr.filter(s => stageStatus(s) === "perfect").length, // ステージの枠色・ステータスタブ用（サマリーには出さない）
+    missionTotal: ms.length, missionDone: ms.filter(m => clearedMissions.has(m.mission_id)).length,
+    complete: stageArr.length > 0 && stageArr.every(s => stageStatus(s) === "perfect"),
+    rate: stageArr.length ? Math.round(stageClear / stageArr.length * 100) : 0
+  };
+}
+function computeStats(){
+  const s = statsOf(stages);
+  s.seriesTotal = seriesList.length;
+  s.seriesDone = seriesList.filter(se => statsOf(se.stages).complete).length;
+  return s;
+}
+
+function updateSummary(){
+  const s = computeStats();
+  document.getElementById("sumStages").innerHTML = `${s.stageClear}<small> / ${s.stageTotal}</small>`;
+  document.getElementById("sumRate").textContent = `${s.rate}%`;
+  renderRewards();
+  document.getElementById("sumMissions").textContent = `${s.missionDone} / ${s.missionTotal}`;
+  document.getElementById("sumSeries").textContent = `${s.seriesDone} / ${s.seriesTotal}`;
+  document.getElementById("subStages").textContent = s.stageTotal;
+  document.getElementById("subMissions").textContent = s.missionTotal;
+}
+
+/* ---- ミッション報酬の集計（「ユニット強化データSSR×200」→ 名前と数量に分け、種類ごとに獲得／全体を合計）。
+   報酬の種類・数量はマスターの文字列から数えるので、ミッションが増えても自動で反映される ---- */
+function parseReward(text){
+  const m = String(text || "").match(/^(.*?)\s*[×x]\s*([\d,]+)\s*$/);
+  return m ? { name: m[1].trim(), qty: Number(m[2].replace(/,/g, "")) } : { name: String(text || ""), qty: 1 };
+}
+function rewardStats(){
+  const map = new Map();
+  for (const m of missions) {
+    const { name, qty } = parseReward(m.reward);
+    if (!map.has(name)) map.set(name, { name, got: 0, total: 0 });
+    const e = map.get(name);
+    e.total += qty;
+    if (clearedMissions.has(m.mission_id)) e.got += qty;
+  }
+  return [...map.values()];
+}
+const fmt = n => n.toLocaleString("ja-JP");
+function renderRewards(){
+  const rows = rewardStats();
+  document.getElementById("rewardBox").innerHTML =
+    `<div class="rewardHead">ミッション報酬<span>獲得済み / 全体</span></div>` +
+    rows.map(r => {
+      const rest = r.total - r.got;
+      return `<div class="rewardRow"><span class="nm">${escapeHtml(r.name)}</span>` +
+        `<span class="qty"><b>${fmt(r.got)}</b> / ${fmt(r.total)}</span>` +
+        `<span class="rest${rest ? "" : " done"}">${rest ? "残り " + fmt(rest) : "獲得済み ✦"}</span></div>`;
+    }).join("");
+}
+
+/* ---- フィルタ（表示のみ。画像・シェア・集計には影響しない） ---- */
+let filter = { series: "all", status: "all", unclearedMissions: false };
+try {
+  const saved = JSON.parse(localStorage.getItem(FILTER_STORAGE_KEY) || "null");
+  if (saved && typeof saved === "object") filter = Object.assign(filter, saved);
+} catch (e) { /* 既定値のまま */ }
+if (!["all", "uncleared", "remaining", "perfect"].includes(filter.status)) filter.status = "all";
+function persistFilter(){ try { localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filter)); } catch (e) {} }
+
+function passesStatus(stage){
+  const st = stageStatus(stage);
+  if (filter.status === "uncleared") return st === "none";
+  if (filter.status === "remaining") return st === "clear";
+  if (filter.status === "perfect") return st === "perfect";
+  return true;
+}
+
+/* ---- 表記 ---- */
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+// チップの表記。マスターのshort_labelを優先し、無ければ種類から組み立てる（エタロのmissionLabel()と同じ考え方）
+function missionLabel(m){
+  if (m.short_label) return m.short_label;
+  if (m.mission_type === "tag") return `${m.tag_name || "タグ"}縛り`;
+  if (m.mission_type === "series") return `${m.param || "シリーズ"}縛り`;
+  if (m.mission_type === "turn") return `${m.param}ターン`;
+  return "ミッション";
+}
+function seriesBannerUrl(code){ return `images/challenge/${code}.jpg`; }
+// シリーズタブのアイコンは自己紹介カードの推し作品ロゴ（㉑、320×140）を流用する
+function seriesLogoUrl(se){ return `images/series/${se.work_id}.png`; }
+
+/* =========================================================
+   描画：DOMは初回に1度だけ組み立て、以降はクラス・表示だけ更新する（エタロと同じ）
+   ========================================================= */
+const tabEls = new Map();      // series_code|"all" -> { el, pg }
+const sectionEls = new Map();  // series_code -> { sec, bannerWrap, bandPg, bar }
+const stageEls = new Map();    // stage_id -> { el, progress, toggle, rows }
+
+function buildTabs(){
+  const wrap = document.getElementById("seriesTabs");
+  wrap.innerHTML = "";
+  tabEls.clear();
+  const mk = (key, icoHtml, name) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "seriesTab"; b.dataset.series = key;
+    b.innerHTML = `<div class="ico${key === "all" ? " allIco" : ""}">${icoHtml}</div><div class="nm">${escapeHtml(name)}</div><div class="pg"></div>`;
+    b.addEventListener("click", () => { filter.series = key; persistFilter(); refresh(); });
+    wrap.appendChild(b);
+    tabEls.set(key, { el: b, pg: b.querySelector(".pg") });
+  };
+  mk("all", "ALL", "すべて");
+  for (const se of seriesList) {
+    mk(String(se.series_code), se.work_id ? `<img src="${seriesLogoUrl(se)}" alt="" loading="lazy">` : escapeHtml(se.short_name), se.short_name);
+  }
+}
+
+function buildStageCard(stage){
+  const card = document.createElement("div");
+  card.className = "stageCard";
+  card.innerHTML = `<div class="cardHead"><span class="lbl">${escapeHtml(stage.stage_label)}</span><span class="progress" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted);flex:1"></span></div>`;
+  const toggle = document.createElement("button");
+  toggle.type = "button"; toggle.className = "clearToggle";
+  toggle.addEventListener("click", () => toggleStageClear(stage));
+  card.querySelector(".cardHead").appendChild(toggle);
+  const rows = new Map();
+  for (const m of stage.missions) {
+    const row = document.createElement("div");
+    row.className = "missionRow";
+    const cbId = "mission_" + m.mission_id;
+    const chipCls = m.mission_type === "turn" ? "chip turn" : m.mission_type === "series" ? "chip series" : "chip";
+    row.innerHTML = `<input type="checkbox" id="${cbId}">
+      <label for="${cbId}"><span class="${chipCls}">${escapeHtml(missionLabel(m))}</span>${escapeHtml(m.mission_text)}<span class="reward">${escapeHtml(m.reward)}</span></label>`;
+    const input = row.querySelector("input");
+    input.addEventListener("change", () => toggleMission(stage, m, input.checked));
+    rows.set(m.mission_id, { row, input });
+    card.appendChild(row);
+  }
+  stageEls.set(stage.stage_id, { el: card, progress: card.querySelector(".progress"), toggle, rows });
+  return card;
+}
+
+function buildList(){
+  const listEl = document.getElementById("seriesList");
+  listEl.innerHTML = "";
+  sectionEls.clear(); stageEls.clear();
+  for (const se of seriesList) {
+    const sec = document.createElement("section");
+    sec.className = "seriesSection";
+    sec.innerHTML = `
+      <div class="seriesBanner">
+        <img src="${seriesBannerUrl(se.series_code)}" alt="${escapeHtml(se.series_name)}" loading="lazy">
+        <div class="band"><span class="nm">${escapeHtml(se.series_name)}</span><span class="pg"></span></div>
+        <div class="bar"><i></i></div>
+      </div>`;
+    // ステージはすべてHARD（ノーマルは対象外）。1ステージ1カード
+    const hBlock = document.createElement("div");
+    hBlock.className = "hardBlock";
+    for (const s of se.stages) hBlock.appendChild(buildStageCard(s));
+    sec.append(hBlock);
+    listEl.appendChild(sec);
+    sectionEls.set(se.series_code, {
+      sec, bannerWrap: sec.querySelector(".seriesBanner"), bandPg: sec.querySelector(".band .pg"), bar: sec.querySelector(".bar i")
+    });
+  }
+}
+
+function refresh(){
+  const counts = { all: 0, uncleared: 0, remaining: 0, perfect: 0 };
+  let visibleCount = 0;
+
+  // ステージ単位の見た目
+  for (const stage of stages) {
+    const e = stageEls.get(stage.stage_id);
+    const st = stageStatus(stage);
+    {
+      const done = stage.missions.filter(m => clearedMissions.has(m.mission_id)).length;
+      e.el.classList.toggle("st-clear", st === "clear");
+      e.el.classList.toggle("st-perfect", st === "perfect");
+      e.progress.textContent = `ミッション ${done}/${stage.missions.length}`;
+      e.toggle.classList.toggle("on", st === "clear");
+      e.toggle.classList.toggle("perfect", st === "perfect");
+      e.toggle.textContent = st === "perfect" ? "全ミッション達成 ✦" : st === "clear" ? "クリア済 ✓" : "未クリア";
+      for (const m of stage.missions) {
+        const r = e.rows.get(m.mission_id);
+        const c = clearedMissions.has(m.mission_id);
+        r.input.checked = c;
+        r.row.classList.toggle("cleared", c);
+        r.row.classList.toggle("hiddenRow", filter.unclearedMissions && c);
+      }
+    }
+  }
+
+  // シリーズ単位：タブ・バナー・見出し。ステータス件数は「選択中のシリーズ×トグル」で数える
+  const inTab = se => filter.series === "all" || String(se.series_code) === filter.series;
+  for (const se of seriesList) {
+    const s = statsOf(se.stages);
+    const t = tabEls.get(String(se.series_code));
+    t.pg.textContent = `${s.stageClear}/${s.stageTotal}`;
+    t.el.classList.toggle("complete", s.complete);
+    const x = sectionEls.get(se.series_code);
+    x.bandPg.innerHTML = `HARD ${s.stageClear}/${s.stageTotal}<br>ミッション ${s.missionDone}/${s.missionTotal}`;
+    x.bar.style.width = `${s.rate}%`;
+    x.bannerWrap.classList.toggle("complete", s.complete);
+
+    let secVisible = 0;
+    for (const stage of se.stages) {
+      const e = stageEls.get(stage.stage_id);
+      if (inTab(se)) {
+        counts.all++;
+        const st = stageStatus(stage);
+        counts[st === "none" ? "uncleared" : st === "clear" ? "remaining" : "perfect"]++;
+      }
+      const vis = passesStatus(stage);
+      e.el.hidden = !vis;
+      if (vis) secVisible++;
+    }
+    const show = inTab(se) && secVisible > 0;
+    x.sec.hidden = !show;
+    if (show) visibleCount += secVisible;
+  }
+  const all = computeStats();
+  tabEls.get("all").pg.textContent = `${all.stageClear}/${all.stageTotal}`;
+  tabEls.get("all").el.classList.toggle("complete", all.complete);
+  for (const [k, t] of tabEls) t.el.classList.toggle("active", k === filter.series);
+
+  document.querySelectorAll("#statusTabs button").forEach(b => b.classList.toggle("active", b.dataset.status === filter.status));
+  document.querySelectorAll("#statusTabs .cnt").forEach(c => { c.textContent = counts[c.dataset.cnt]; });
+  document.getElementById("filterUnclearedMissions").checked = filter.unclearedMissions;
+  document.getElementById("emptyMsg").hidden = visibleCount > 0;
+  updateSummary();
+}
+
+/* ---- 操作 ---- */
+function toggleStageClear(stage){
+  userEditedSinceLoad = true;
+  if (clearedStages.has(stage.stage_id)) {
+    clearedStages.delete(stage.stage_id);
+    let removed = 0;
+    for (const m of stage.missions) if (clearedMissions.delete(m.mission_id)) removed++;
+    if (removed > 0) showRegisterToast(`${stage.stage_label}のミッション達成も解除しました`);
+  } else {
+    clearedStages.add(stage.stage_id);
+  }
+  persist(); refresh();
+}
+function toggleMission(stage, m, checked){
+  userEditedSinceLoad = true;
+  if (checked) { clearedMissions.add(m.mission_id); clearedStages.add(stage.stage_id); }
+  else clearedMissions.delete(m.mission_id);
+  persist(); refresh();
+}
+
+document.getElementById("btnAllComplete").addEventListener("click", () => {
+  const s = computeStats();
+  if (!confirm(`全${s.stageTotal}ステージ・全${s.missionTotal}ミッションを達成済みにします。よろしいですか？`)) return;
+  userEditedSinceLoad = true;
+  clearedStages = new Set(stages.map(x => x.stage_id));
+  clearedMissions = new Set(missions.map(m => m.mission_id));
+  persist(); refresh();
+  showRegisterToast("全ミッションを達成にしました。DBへの反映は「データ登録」から");
+});
+document.getElementById("statusTabs").addEventListener("click", (e) => {
+  const btn = e.target.closest("button"); if (!btn) return;
+  filter.status = btn.dataset.status; persistFilter(); refresh();
+});
+[["filterUnclearedMissions", "unclearedMissions"]].forEach(([id, key]) => {
+  document.getElementById(id).addEventListener("change", (e) => { filter[key] = e.target.checked; persistFilter(); refresh(); });
+});
+
+/* ---- トースト・DB送信（エタロと同じ。送信形式もカンマ区切り文字列） ---- */
+let registerToastTimer = null;
+function showRegisterToast(message){
+  const el = document.getElementById("registerToast");
+  el.textContent = message; el.classList.add("show");
+  clearTimeout(registerToastTimer);
+  registerToastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+}
+function sendChallengeLog(){
+  try {
+    return fetch("/api/log-challenge", {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", keepalive: true,
+      body: JSON.stringify({
+        clearedStageIds: [...clearedStages].sort((a, b) => a - b).join(","),
+        clearedMissionIds: [...clearedMissions].sort((a, b) => a - b).join(",")
+      })
+    });
+  } catch (e) { return Promise.reject(e); }
+}
+document.getElementById("btnRegister").addEventListener("click", async () => {
+  const btn = document.getElementById("btnRegister");
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = "登録中...";
+  try {
+    const res = await sendChallengeLog();
+    const data = await res.json().catch(() => null);
+    showRegisterToast(data && data.loggedIn ? "データを登録しました" : "登録にはログインが必要です");
+  } catch (e) {
+    showRegisterToast("通信エラーが発生しました。時間をおいて再度お試しください");
+  } finally { btn.disabled = false; btn.textContent = original; }
+});
+
+/* =========================================================
+   画像生成（ネイティブCanvas。フィルタに関係なく全シリーズを描く）
+   1シリーズ1行：左にシリーズバナー、右にHARD 3枠（ミッションは文言チップ）
+   シリーズが増えたら行が増えるだけ（高さはシリーズ数から算出）
+   ========================================================= */
+function loadImage(src){
+  return new Promise((resolve) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => resolve(null); img.src = src; });
+}
+function roundRectPath(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+}
+const RAINBOW_STOPS = ["#ff5f6d", "#ffc371", "#9dff8a", "#5b8def", "#c471f5"];
+function rainbow(ctx, x0, y0, x1, y1){
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  RAINBOW_STOPS.forEach((c, i) => g.addColorStop(i / (RAINBOW_STOPS.length - 1), c));
+  return g;
+}
+function fitText(ctx, text, maxW){
+  if (ctx.measureText(text).width <= maxW) return text;
+  let t = text;
+  while (t.length > 1 && ctx.measureText(t + "…").width > maxW) t = t.slice(0, -1);
+  return t + "…";
+}
+
+async function generateShareImage(){
+  const s = computeStats();
+  const W = 800, pad = 36;
+  const headerH = 276;
+  const rowH = 110, rowGap = 12;
+  const bannerW = 260, bannerH = 104; // 640:256
+  const H = headerH + seriesList.length * (rowH + rowGap) + 80;
+
+  const scale = 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = W * scale; canvas.height = H * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#0e141d"); bg.addColorStop(1, "#0a0e14");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "#26323f"; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+
+  // ヘッダー（エタロ画像と同じ体裁）
+  ctx.textBaseline = "top";
+  ctx.fillStyle = "#dab949"; ctx.font = "bold 15px sans-serif";
+  ctx.fillText("ジージェネレーション　エターナル", pad, pad);
+  ctx.fillStyle = "#eef2f5"; ctx.font = "bold 28px sans-serif";
+  const title = "チャレンジミッションチェッカー";
+  ctx.fillText(title, pad, pad + 26);
+  const titleW = ctx.measureText(title).width;
+  ctx.font = "bold 13px sans-serif";
+  const lab = "CHALLENGE", labW = ctx.measureText(lab).width + 16;
+  const lg = ctx.createLinearGradient(0, 0, labW, 0); lg.addColorStop(0, "#e8424f"); lg.addColorStop(1, "#9c1b27");
+  ctx.fillStyle = lg; ctx.fillRect(pad + titleW + 12, pad + 32, labW, 20);
+  ctx.fillStyle = "#fff"; ctx.fillText(lab, pad + titleW + 20, pad + 36);
+
+  // HARDクリア（大）＋率
+  ctx.fillStyle = "#93a3b3"; ctx.font = "13px sans-serif";
+  ctx.fillText("HARDクリア", pad, pad + 76);
+  ctx.fillStyle = "#dab949"; ctx.font = "bold 44px monospace";
+  const main = String(s.stageClear); ctx.fillText(main, pad, pad + 96);
+  const mainW = ctx.measureText(main).width;
+  ctx.fillStyle = "#93a3b3"; ctx.font = "20px monospace";
+  ctx.fillText(` / ${s.stageTotal}`, pad + mainW + 4, pad + 118);
+  ctx.textAlign = "right"; ctx.fillStyle = "#6be0e0"; ctx.font = "bold 22px monospace";
+  ctx.fillText(`${s.rate}%`, W - pad, pad + 116); ctx.textAlign = "left";
+
+  // サブ項目：ミッション達成・シリーズ制覇＋ミッション報酬（獲得済み / 全体）
+  const subs = [
+    { v: `${s.missionDone} / ${s.missionTotal}`, l: "ミッション達成" },
+    { v: `${s.seriesDone} / ${s.seriesTotal}`, l: "シリーズ制覇" }
+  ];
+  const subY = pad + 156, subW = (W - pad * 2 - 16) / 4;
+  {
+    const rx0 = pad + 2 * (subW + 8), rw0 = W - pad - rx0;
+    ctx.fillStyle = "#121924"; roundRectPath(ctx, rx0, subY, rw0, 54, 4); ctx.fill();
+    ctx.strokeStyle = "#26323f"; ctx.stroke();
+    rewardStats().slice(0, 2).forEach((rw, k) => {
+      const ly = subY + 9 + k * 20;
+      ctx.fillStyle = "#93a3b3"; ctx.font = "12px sans-serif";
+      ctx.fillText(rw.name.replace("データ", "").replace("キャラクター", "キャラ"), rx0 + 12, ly + 2);
+      ctx.textAlign = "right"; ctx.font = "bold 15px monospace";
+      ctx.fillStyle = rw.got === rw.total ? "#dab949" : "#6be0e0";
+      ctx.fillText(`${fmt(rw.got)} / ${fmt(rw.total)}`, rx0 + rw0 - 12, ly);
+      ctx.textAlign = "left";
+    });
+  }
+  subs.forEach((st, i) => {
+    const x = pad + i * (subW + 8);
+    ctx.fillStyle = "#121924"; roundRectPath(ctx, x, subY, subW, 54, 4); ctx.fill();
+    ctx.strokeStyle = "#26323f"; ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#6be0e0"; ctx.font = "bold 18px monospace"; ctx.fillText(st.v, x + subW / 2, subY + 9);
+    ctx.fillStyle = "#93a3b3"; ctx.font = "12px sans-serif"; ctx.fillText(st.l, x + subW / 2, subY + 34);
+    ctx.textAlign = "left";
+  });
+
+  // シリーズ行
+  const imgs = await Promise.all(seriesList.map(se => loadImage(seriesBannerUrl(se.series_code))));
+  let y = headerH;
+  seriesList.forEach((se, i) => {
+    const st = statsOf(se.stages);
+    const x = pad;
+    // 行の下地
+    ctx.fillStyle = "#101722"; roundRectPath(ctx, x - 8, y - 8, W - pad * 2 + 16, rowH + 4, 6); ctx.fill();
+    // バナー（未着手はグレー、クリアありはカラー、シリーズ完全制覇は虹枠）
+    const bx = x, by = y + (rowH - bannerH) / 2 - 2;
+    ctx.save(); roundRectPath(ctx, bx, by, bannerW, bannerH, 4); ctx.clip();
+    if (imgs[i]) {
+      ctx.drawImage(imgs[i], bx, by, bannerW, bannerH);
+      // 未着手は暗くする（ctx.filterはiOS Safariで効かないため半透明の塗りで代用）
+      if (st.stageClear === 0) { ctx.fillStyle = "rgba(8,12,18,.62)"; ctx.fillRect(bx, by, bannerW, bannerH); }
+    } else {
+      ctx.fillStyle = "#14203a"; ctx.fillRect(bx, by, bannerW, bannerH);
+      ctx.fillStyle = "#eef2f5"; ctx.font = "bold 16px sans-serif"; ctx.fillText(se.short_name, bx + 12, by + 40);
+    }
+    ctx.restore();
+    ctx.lineWidth = st.complete ? 3 : st.stageClear ? 2 : 1;
+    ctx.strokeStyle = st.complete ? rainbow(ctx, bx, by, bx + bannerW, by + bannerH) : st.stageClear ? "#dab949" : "#3a4654";
+    roundRectPath(ctx, bx, by, bannerW, bannerH, 4); ctx.stroke(); ctx.lineWidth = 1;
+
+    // 右側
+    const rx = bx + bannerW + 16, rw = W - pad - rx;
+    // HARD枠
+    const hards = se.stages;
+    const hy = y + (rowH - 84) / 2 - 2, hh = 84, hg = 8, hw = (rw - hg * (hards.length - 1)) / hards.length;
+    hards.forEach((stg, k) => {
+      const hx = rx + k * (hw + hg);
+      const status = stageStatus(stg);
+      ctx.fillStyle = status === "none" ? "#141c27" : "#1d1a10";
+      roundRectPath(ctx, hx, hy, hw, hh, 4); ctx.fill();
+      ctx.lineWidth = status === "perfect" ? 2.5 : status === "clear" ? 2 : 1;
+      ctx.strokeStyle = status === "perfect" ? rainbow(ctx, hx, hy, hx + hw, hy + hh) : status === "clear" ? "#dab949" : "#3a4654";
+      roundRectPath(ctx, hx, hy, hw, hh, 4); ctx.stroke(); ctx.lineWidth = 1;
+      ctx.fillStyle = status === "none" ? "#93a3b3" : "#eef2f5"; ctx.font = "bold 13px sans-serif";
+      ctx.fillText(stg.stage_label + (status === "perfect" ? " ★" : ""), hx + 8, hy + 7);
+      stg.missions.forEach((m, j) => {
+        const cy = hy + 28 + j * 22, cw = hw - 16;
+        const done = clearedMissions.has(m.mission_id);
+        ctx.fillStyle = done ? (status === "perfect" ? rainbow(ctx, hx, cy, hx + hw, cy) : "#dab949") : "#232e3c";
+        roundRectPath(ctx, hx + 8, cy, cw, 18, 9); ctx.fill();
+        ctx.fillStyle = done ? "#1b1503" : "#7f8e9d"; ctx.font = "bold 11px sans-serif";
+        ctx.fillText(fitText(ctx, missionLabel(m), cw - 14), hx + 15, cy + 3);
+      });
+    });
+    y += rowH + rowGap;
+  });
+
+  // 凡例＋フッター
+  const footY = y + 6;
+  ctx.font = "12px sans-serif";
+  const legend = [["#3a4654", "未クリア"], ["#dab949", "クリア"], [null, "全ミッション達成"]];
+  let lx = pad;
+  legend.forEach(([c, t]) => {
+    ctx.lineWidth = 2; ctx.strokeStyle = c || rainbow(ctx, lx, 0, lx + 18, 0);
+    roundRectPath(ctx, lx, footY + 2, 18, 12, 3); ctx.stroke(); ctx.lineWidth = 1;
+    ctx.fillStyle = "#93a3b3"; ctx.fillText(t, lx + 24, footY + 1);
+    lx += 24 + ctx.measureText(t).width + 18;
+  });
+  ctx.strokeStyle = "#26323f"; ctx.beginPath(); ctx.moveTo(pad, footY + 26); ctx.lineTo(W - pad, footY + 26); ctx.stroke();
+  ctx.fillStyle = "#5ad1d1"; ctx.font = "13px monospace"; ctx.textAlign = "right";
+  ctx.fillText(CONFIG.xHandle, W - pad, footY + 38); ctx.textAlign = "left";
+  return canvas;
+}
+
+document.getElementById("btnSave").addEventListener("click", async () => {
+  const btn = document.getElementById("btnSave");
+  const original = btn.textContent;
+  btn.textContent = "生成中..."; btn.disabled = true;
+  try {
+    const canvas = await generateShareImage();
+    const dataUrl = canvas.toDataURL("image/png");
+    document.getElementById("previewImg").src = dataUrl;
+    document.getElementById("downloadLink").href = dataUrl;
+    document.getElementById("previewModal").classList.add("show");
+    sendChallengeLog().catch(() => {});
+  } catch (err) {
+    console.error(err);
+    alert("画像の生成に失敗しました。\n(エラー内容: " + err.message + ")");
+  } finally { btn.textContent = original; btn.disabled = false; }
+});
+document.getElementById("btnClosePreview").addEventListener("click", () => document.getElementById("previewModal").classList.remove("show"));
+
+function shareText(){
+  const s = computeStats();
+  const tags = CONFIG.hashtags.map(t => "#" + t).join(" ");
+  return `【Gジェネエターナル】チャレンジHARD クリア ${s.stageClear}/${s.stageTotal}・ミッション ${s.missionDone}/${s.missionTotal}・シリーズ制覇 ${s.seriesDone}/${s.seriesTotal}\n${tags}\n${CONFIG.siteUrl}`;
+}
+document.getElementById("btnShare").addEventListener("click", () => {
+  const via = CONFIG.xHandle.replace(/^@/, "");
+  let intent = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(shareText()) + "&via=" + encodeURIComponent(via);
+  if (CONFIG.quotePostUrl) intent += "&url=" + encodeURIComponent(CONFIG.quotePostUrl);
+  window.open(intent, "_blank");
+  sendChallengeLog().catch(() => {});
+});
+
+/* =========================================================
+   起動：ログイン確認 → 運営者確認（試用中のみ）→ マスター取得・DB復元 → 描画
+   ========================================================= */
+const guardView = document.getElementById("guardView");
+const adminOnlyView = document.getElementById("adminOnlyView");
+const loadingView = document.getElementById("loadingView");
+const errorView = document.getElementById("errorView");
+const contentView = document.getElementById("contentView");
+
+document.getElementById("guardLoginBtn").addEventListener("click", () => {
+  // auth.jsが生成するログインリンクを経由して、共通のログインモーダルを開く
+  const link = document.getElementById("authOpenLink");
+  if (link) link.click();
+});
+
+function showGuard(){
+  loadingView.hidden = true;
+  guardView.hidden = false;
+}
+
+async function loadChecker(){
+  let myData = null;
+  try {
+    let masterRes;
+    [masterRes, myData] = await Promise.all([
+      fetch("/api/challenge/master").then(r => { if (!r.ok) throw new Error("master fetch failed"); return r.json(); }),
+      // 復元の失敗はチェッカー本体に影響させない（localStorageのまま使う）
+      fetch("/api/my-challenge", { credentials: "same-origin" }).then(r => r.json()).catch(() => null)
+    ]);
+    if (!masterRes || !Array.isArray(masterRes.missions) || !masterRes.missions.length) throw new Error("empty master");
+    buildModel(masterRes);
+  } catch (e) {
+    loadingView.hidden = true;
+    errorView.hidden = false;
+    return;
+  }
+
+  const local = loadLocalState();
+  applyState(local.stages, local.missions);
+  // 一度でもデータ登録済みならDBの状態を正とする。未登録ならlocalStorageをそのまま使う
+  if (myData && myData.loggedIn && myData.registered && !userEditedSinceLoad) {
+    applyState(myData.clearedStageIds || [], myData.clearedMissionIds || []);
+  }
+  persist();
+
+  buildTabs();
+  buildList();
+  refresh();
+  loadingView.hidden = true;
+  contentView.hidden = false;
+  document.getElementById("actionbar").hidden = false;
+}
+
+// 運営者試用中：ログイン済みでも/api/admin/meがadmin:trueのときだけ本体を読み込む
+// （profile-card.htmlと同じ判定。一般公開するときはadminGateを外してloadChecker()を直接呼ぶ）
+function showAdminOnly(){ loadingView.hidden = true; adminOnlyView.hidden = false; }
+async function adminGate(){
+  try {
+    const r = await fetch("/api/admin/me", { credentials: "same-origin" });
+    const d = await r.json();
+    if (d && d.admin === true) loadChecker(); else showAdminOnly();
+  } catch (e) { showAdminOnly(); }
+}
+
+// /api/me失敗時は保守的にガード表示側に倒す（analytics.htmlと同じ）
+fetch("/api/me", { credentials: "same-origin" })
+  .then(res => res.json())
+  .then(data => { if (data && data.loggedIn) adminGate(); else showGuard(); })
+  .catch(showGuard);
+</script>
+<script src="auth.js" defer></script>
+</body>
+</html>

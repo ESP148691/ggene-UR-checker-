@@ -174,6 +174,8 @@
   .navcard .icon .icoImg.show{opacity:1;}
   /* サポート画像はキャラクターが右側に描かれているため、右寄りをトリミングして表示 */
   .navcard .icon .icoImg.poolSupporter{object-position:78% center;}
+  /* ㊵ チャレンジミッションチェッカーのアイコンは推し作品ロゴ（320×140・地色#c6c7d6）。coverだとロゴが切れるためcontainで収める */
+  .navcard .icon .icoImg.poolChallenge{object-fit:contain;background:#c6c7d6;padding:2px;}
   .navcard .body{flex:1;min-width:0;}
   .navcard .name{
     font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:18px;letter-spacing:.02em;
@@ -342,6 +344,16 @@
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
+    <!-- ㊵ チャレンジミッションチェッカー（試用中）。一般公開は「チェッカー」欄（.route）へ移し、challenge.html の adminGate を外す -->
+    <a class="navcard" href="/challenge.html">
+      <div class="icon" data-pool="challenge"><img class="icoImg" alt="" aria-hidden="true"></div>
+      <div class="body">
+        <div class="name">チャレンジ<wbr>ミッション<wbr>チェッカー<wbr>（試用）</div>
+        <div class="desc">メインステージCHALLENGE HARD全15ステージ・30ミッションの達成状況を記録（運営者専用）</div>
+        <div class="regBadge" data-reg="challenge" hidden></div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
   </div>
 
   <div class="section soonGroup">
@@ -371,6 +383,9 @@
   /* エタロのステージバナー（640x234）の横中央・上端170x170を切り抜いた画像（ステージ名・EXPERTラベルにかからない範囲）。
      元バナーを差し替えたときは images/eternal-road/icon/ も作り直すこと */
   var ETERNAL_ROAD_IMAGES = Array.from({length:29}, function(_, i){ return 'images/eternal-road/icon/' + (i+1) + '.jpg'; });
+  /* ㊵ チャレンジミッションチェッカー。アイコンは推し作品ロゴ（自己紹介カードと同じimages/series/{work_id}.png）を流用。
+     work_idはchallenge_series.work_id（ガンダム=1・SEED=13・Ζ=42・W=10・ΖΖ=3） */
+  var CHALLENGE_IMAGES = [1, 13, 42, 10, 3].map(function(id){ return 'images/series/' + id + '.png'; });
 
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -567,7 +582,7 @@
 
     function poolFor(el){
       var pool = el.getAttribute('data-pool');
-      return pool === 'unit' ? UNIT_IMAGES : pool === 'eternal' ? ETERNAL_ROAD_IMAGES : SUPPORTER_IMAGES;
+      return pool === 'unit' ? UNIT_IMAGES : pool === 'eternal' ? ETERNAL_ROAD_IMAGES : pool === 'challenge' ? CHALLENGE_IMAGES : SUPPORTER_IMAGES;
     }
 
     function setImage(img, src){
@@ -583,6 +598,7 @@
       var pool = poolFor(el);
       var img = el.querySelector('.icoImg');
       if(el.getAttribute('data-pool') === 'supporter'){ img.classList.add('poolSupporter'); }
+      if(el.getAttribute('data-pool') === 'challenge'){ img.classList.add('poolChallenge'); }
       var idx = Math.floor(Math.random()*pool.length);
       img.src = pool[idx];
       img.onload = function(){ img.classList.add('show'); };
@@ -624,7 +640,7 @@
     if (!section) return;
     fetch('/api/admin/me', { credentials: 'same-origin' })
       .then(function(res){ return res.json(); })
-      .then(function(data){ if (data && data.admin === true) section.hidden = false; })
+      .then(function(data){ if (data && data.admin === true) { section.hidden = false; showChallengeRegStatus(); } })
       .catch(function(){ /* 失敗時は非表示のまま */ });
   }
 
@@ -676,6 +692,33 @@
           var missions = (data.clearedIds || []).filter(function(id){ return missionIds[id]; }).length;
           el.className = 'regBadge ok';
           el.innerHTML = '<span class="st">✓ データ登録済み</span><span>ステージクリア <span class="rate">' + stages + ' / ' + totalStages + '</span> <span class="cnt">(ミッション ' + missions + ' / ' + totalMissions + ')</span></span>';
+        } else {
+          el.className = 'regBadge todo';
+          el.innerHTML = '<span class="st">データ未登録</span><span><span style="white-space:nowrap">攻略データを</span><span style="white-space:nowrap">登録ください。</span></span>';
+        }
+        el.hidden = false;
+      })
+      .catch(function(){ /* 失敗時は表示しない */ });
+  }
+
+  /* ㊵ チャレンジミッションチェッカー（運営者試用）の登録状況。分母（15ステージ・30ミッション）はマスターから算出し、
+     マスターに無いIDは数えない（エタロと同じ扱い）。運営者だけがこのカードを見るため、toggleAdminNav()からのみ呼ぶ */
+  function showChallengeRegStatus(){
+    var el = document.querySelector('.regBadge[data-reg="challenge"]');
+    if (!el) return;
+    function getJson(url){ return fetch(url, { credentials: 'same-origin' }).then(function(res){ return res.json(); }); }
+    Promise.all([getJson('/api/challenge/master'), getJson('/api/my-challenge')])
+      .then(function(r){
+        var master = r[0], data = r[1];
+        if (!data || !data.loggedIn || !master || !Array.isArray(master.stages) || !Array.isArray(master.missions)) return;
+        if (data.registered) {
+          var stageIds = {}; master.stages.forEach(function(s){ stageIds[s.stage_id] = true; });
+          var missionIds = {}; master.missions.forEach(function(m){ missionIds[m.mission_id] = true; });
+          var totalStages = master.stages.length, totalMissions = master.missions.length;
+          var stages = (data.clearedStageIds || []).filter(function(id){ return stageIds[id]; }).length;
+          var missions = (data.clearedMissionIds || []).filter(function(id){ return missionIds[id]; }).length;
+          el.className = 'regBadge ok';
+          el.innerHTML = '<span class="st">✓ データ登録済み</span><span>HARDクリア <span class="rate">' + stages + ' / ' + totalStages + '</span> <span class="cnt">(ミッション ' + missions + ' / ' + totalMissions + ')</span></span>';
         } else {
           el.className = 'regBadge todo';
           el.innerHTML = '<span class="st">データ未登録</span><span><span style="white-space:nowrap">攻略データを</span><span style="white-space:nowrap">登録ください。</span></span>';
