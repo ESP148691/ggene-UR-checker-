@@ -92,5 +92,8 @@ window.UR_UNITS = [
   {"id": 81, "name": "フルアーマー百式改", "limited": true, "type": "攻撃", "imageUrl": "images/units/81.jpg", "released": "2026-08-31"},
   {"id": 82, "name": "Dガンダム・サード", "limited": false, "type": "支援", "imageUrl": "images/units/82.jpg", "released": "2026-08-31"},
   {"id": 83, "name": "ガンダムアヴァランチアストレア タイプFダッシュ", "limited": false, "type": "耐久", "imageUrl": "images/units/83.jpg", "released": "2026-09-17"},
-  {"id": 84, "name": "スサノオ", "limited": false, "type": "攻撃", "imageUrl": "images/units/84.jpg", "released": "2026-09-17"}
+  {"id": 84, "name": "スサノオ", "limited": false, "type": "攻撃", "imageUrl": "images/units/84.jpg", "released": "2026-09-17"},
+  {"id": 85, "name": "V2アサルトバスターガンダム", "limited": true, "type": "攻撃", "imageUrl": "images/units/85.jpg", "released": "2026-09-30", "wrap": "V2アサルトバスター|ガンダム"},
+  {"id": 86, "name": "ザンスパイン", "limited": true, "type": "支援", "imageUrl": "images/units/86.jpg", "released": "2026-09-30"},
+  {"id": 87, "name": "ゴトラタン", "limited": false, "type": "耐久", "imageUrl": "images/units/87.jpg", "released": "2026-09-30"}
 ];

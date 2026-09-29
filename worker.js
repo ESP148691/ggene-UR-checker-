@@ -150,7 +150,7 @@ async function handleMe(request, env) {
 }
 
 // ④ D1への所持データ保存（ログイン済みユーザーのみ。ゲスト保存は廃止・2026-09-19）
-// 想定される最大件数（機体84・サポート49）より十分大きい安全マージン。不正に巨大な入力は無視する
+// 想定される最大件数（機体87・サポート50）より十分大きい安全マージン。不正に巨大な入力は無視する
 const OWNERSHIP_LOG_MAX_ENTRIES = 300;
 
 // マスターに実在するID範囲（= unit.html/supporter.htmlのUNITS配列の件数と一致させる）。
@@ -158,8 +158,8 @@ const OWNERSHIP_LOG_MAX_ENTRIES = 300;
 // FOREIGN KEYだが、D1側でFK制約が有効化されているとは限らないため、アプリ側でも範囲チェックする。
 // 新しいUR機体・サポートを追加した際は、この数値もtop.htmlのUNIT_IMAGES/SUPPORTER_IMAGESの件数・
 // migrations/0002_populate_master_data.sqlの投入件数と合わせて必ず更新すること
-const MAX_UNIT_ID = 84;
-const MAX_SUPPORTER_ID = 49;
+const MAX_UNIT_ID = 87;
+const MAX_SUPPORTER_ID = 50;
 
 // "id:code,id:code,..." 形式のコンパクトログを { id, level } の配列にパースする。
 // code(1=無凸,2=1凸,3=2凸,4=完凸) → level(0〜3) に変換。壊れた要素・範囲外のidは読み飛ばす
