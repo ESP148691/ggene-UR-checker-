@@ -315,7 +315,7 @@
     <!-- ㉒ 自己紹介カード。公開済み（2026-09-28・㉟）。
          この節（#analyticsSection）ごとログイン中のみ表示されるため、判定はtoggleAnalyticsNav()と同じ -->
     <a class="navcard" href="/profile-card.html" id="profileCardNav">
-      <div class="icon analyticsIcon" aria-hidden="true">🪪</div>
+      <div class="icon" data-pool="profile"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
         <div class="name">自己紹介<wbr>カード</div>
         <div class="desc">登録データと推し作品・推しユニットからXでシェアできるカードを作成（ログイン会員限定）</div>
@@ -337,7 +337,7 @@
     </a>
     <!-- 自己紹介カード（試用版・運営者専用）。追加改修はここで試してから profile-card.html へ反映する -->
     <a class="navcard" href="/profile-card-trial.html">
-      <div class="icon analyticsIcon" aria-hidden="true">🪪</div>
+      <div class="icon" data-pool="profile"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
         <div class="name">自己紹介<wbr>カード<wbr>（試用）</div>
         <div class="desc">新機能の試用版。本番の自己紹介カードへ反映する前に確認（運営者専用）</div>
@@ -386,6 +386,8 @@
   /* ㊵ チャレンジミッションチェッカー。アイコンは推し作品ロゴ（自己紹介カードと同じimages/series/{work_id}.png）を流用。
      work_idはchallenge_series.work_id（ガンダム=1・SEED=13・Ζ=42・W=10・ΖΖ=3） */
   var CHALLENGE_IMAGES = [1, 13, 42, 10, 3].map(function(id){ return 'images/series/' + id + '.png'; });
+  /* ㊹ 自己紹介カードのアイコン：試作カード（㉟のモック）3テンプレート（標準・推しユニット・エタロ攻略）を縮小した静止画。カードのデザインを大きく変えたら作り直す */
+  var PROFILE_CARD_IMAGES = ['standard', 'units', 'eternal'].map(function(k){ return 'images/profile-card/' + k + '.jpg'; });
 
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -582,7 +584,7 @@
 
     function poolFor(el){
       var pool = el.getAttribute('data-pool');
-      return pool === 'unit' ? UNIT_IMAGES : pool === 'eternal' ? ETERNAL_ROAD_IMAGES : pool === 'challenge' ? CHALLENGE_IMAGES : SUPPORTER_IMAGES;
+      return pool === 'unit' ? UNIT_IMAGES : pool === 'eternal' ? ETERNAL_ROAD_IMAGES : pool === 'challenge' ? CHALLENGE_IMAGES : pool === 'profile' ? PROFILE_CARD_IMAGES : SUPPORTER_IMAGES;
     }
 
     function setImage(img, src){
