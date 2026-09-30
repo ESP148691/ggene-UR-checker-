@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>自己紹介カード | Gジェネエターナル ファンツール</title>
+<meta name="robots" content="noindex">
+<title>自己紹介カード（試用版） | Gジェネエターナル ファンツール</title>
+<!-- 運営者専用の試用版。新機能はここで試し、問題なければ profile-card.html へ反映する（2026-10-01 ユーザー決定） -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
@@ -223,6 +225,8 @@
     <p>自己紹介カードはログインユーザー限定です。<br>ログインすると、登録したデータからカードを作れるようになります。</p>
     <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
   </div>
+  <!-- 運営者専用（試用中）。運営者以外のログインユーザーにはこの案内だけを出す。公開時はこの判定を外す -->
+  <div id="adminOnlyView" class="stateMsg" hidden>自己紹介カードは試用版のため、運営者専用ページです。一般向けは「自己紹介カード」をご利用ください。</div>
   <div id="loadingView" class="stateMsg">読み込み中...</div>
   <div id="errorView" class="stateMsg" hidden>データの読み込みに失敗しました。時間をおいて再度お試しください。</div>
 
@@ -2067,10 +2071,19 @@ async function init(){
 }
 
 // /api/me失敗時は保守的にガード表示に倒し、他のAPIは呼ばない（analytics.htmlと同じ）
-// ㉟ 2026-09-28 一般公開：試用中の運営者判定（adminGate）を外し、ログイン済みなら誰でも init() する
+// 試用中は運営者専用：ログイン済みでも /api/admin/me が admin:true のときだけ本体を読み込む
+// （unit-scan.html・report.htmlと同じ判定。公開するときは adminGate を外して init() を直接呼ぶ）
+function showAdminOnly(){ $("loadingView").hidden = true; $("adminOnlyView").hidden = false; }
+async function adminGate(){
+  try {
+    const r = await fetch("/api/admin/me", { credentials: "same-origin" });
+    const d = await r.json();
+    if (d && d.admin === true) init(); else showAdminOnly();
+  } catch (e) { showAdminOnly(); }
+}
 fetch("/api/me", { credentials: "same-origin" })
   .then(r => r.json())
-  .then(d => { if (d && d.loggedIn) init(); else showGuard(); })
+  .then(d => { if (d && d.loggedIn) adminGate(); else showGuard(); })
   .catch(showGuard);
 })();
 </script>

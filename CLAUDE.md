@@ -183,6 +183,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
 - **㊵チャレンジ**：実装・push・D1（0020・0021）適用済み（2026-09-30ユーザー確認）。運営者専用で稼働中。**一般公開は後日**（ユーザー決定。公開時は上の「一般公開の手順」）。設計書9章の後回し（分析ページのタブ・カードへの掲載・タグ縛り）は未着手
+- **㉟A 進捗（2026-10-01）**：0019適用済み・運営者ページで確認済み。旧`release/profile-card-public`は`main`より古くff不可のため、最新`main`へ載せ直した`release/profile-card-public-v2`をローカルに作成（adminGate解除・導線表示のcherry-pick。**未commit**）。回帰チェックは11枚すべて成功。**運営者用の試用版`profile-card-trial.html`（adminGate・noindex）を残し、トップの運営者欄から遷移**（追加改修は試用版で試す→問題なければ`profile-card.html`へ反映、というユーザー決定）。残り：commit→`git checkout main && git merge --ff-only release/profile-card-public-v2 && git push origin main`→依頼書4章A-4の本番確認
 - **㉟A 自己紹介カードの一般公開**：①ユーザーがD1に0019を適用（UPDATE文の1行だけを貼る）②運営者ページで最終確認 ③`git checkout main && git merge --ff-only release/profile-card-public && git push origin main` ④依頼書4章A-4のチェックリストで本番確認（iOS Safariの画像保存を含む）。切り戻しは依頼書どおり
 - **㊸ 9/30新UR**：実装・D1(0022)適用・push済み（2026-09-30）。残り：依頼書8章の本番確認（特に#5データ登録→復元、#9カード）、`SCAN_FIT`の学習
 - **㊶ユニットのタグ・SSRマスター**（`docs/01_所持チェッカー・DB登録/㊶…実装依頼書（㊳の実装）.md`）：段階A・Bが実装待ち
@@ -198,3 +199,4 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 - ファイル削除は必ずユーザーに確認してから（`git rm`も同じ）
 - commit・pushはユーザーの指示・承認に従う。D1の適用が要る変更は、適用の連絡を待ってからpushする
 - このファイルは改行コードCRLF
+- `.claude/worktrees/data-notice/`（ブランチ`worktree-data-notice`）は**古新聞・参照不要**（2026-09-22の注記追加1件。`main`未反映・内容も㉘以降は古い。コミットはGitHubにある）。2026-10-01のフォルダ移動で作業ツリーのリンクが切れ`git worktree list`でprunable表示になるが、修正不要。片付けるなら`git worktree prune`→フォルダ削除（削除はユーザー確認のうえ）
