@@ -3,7 +3,7 @@
 //   使い方（checker/ で）: node scripts/card_check/server.mjs . 8787
 //   - migrations/ を番号順に適用（0007は適用しない＝前提が誤りだった重複削除案）。SKIP_MIG=0016 のように指定すると、そのマイグレーションを飛ばす（未適用環境の確認用）
 //   - 同じフォルダの seed.sql（テスト用ユーザー esp／セッション tok・所持データ・入手記録・エタロ・プロフィール）を投入
-//   - ADMIN_USERNAMES=esp（試用中は profile-card.html が運営者専用だったため。2026-09-28の一般公開後は report.html 等の運営者API用）
+//   - ADMIN_USERNAMES=esp（profile-card.html は運営者専用の試用中のため）
 //   - 本番のD1とは無関係。データはプロセス終了で消える
 import http from "node:http";
 import os from "node:os";
