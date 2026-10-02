@@ -1109,9 +1109,14 @@ async function layoutEternal(ctx,T,data){
     cx+=w+6;
   }
 
-  // ---- 右：全29ステージのバナー一覧（5列×6行。30マス目は凡例） ----
-  const GX=352, GY=96, GW=W-36-GX, cols=5, gapX=10, gapY=9;
-  const cw=(GW-(cols-1)*gapX)/cols, ch=cw*234/640, pipH=21, cellH=ch+pipH;
+  // ---- 右：全ステージのバナー一覧（5列。30ステージで5列×6行） ----
+  // ㊼ 2026-10-03：No.30追加で30マス目（凡例）が埋まるため、凡例はグリッドの下に1行の帯として描く。
+  // 31ステージ以上になって6行に収まらない場合は、バナーを縮めて帯の上に収め、横は中央に寄せる
+  const GX0=352, GY=96, maxGW=W-36-GX0, cols=5, gapX=10, gapY=9, pipH=21, LEG_Y=H-55;
+  const nRows=Math.max(1,Math.ceil(e.stages.length/cols)), availH=LEG_Y-12-GY;
+  let cw=(maxGW-(cols-1)*gapX)/cols, ch=cw*234/640, cellH=ch+pipH;
+  if(nRows*cellH+(nRows-1)*gapY>availH){ cellH=(availH-(nRows-1)*gapY)/nRows; ch=cellH-pipH; cw=ch*640/234; }
+  const GW=cols*cw+(cols-1)*gapX, GX=GX0+(maxGW-GW)/2;
   const imgs=await Promise.all(e.stages.map(s=>loadImage(`${BASE}images/eternal-road/${s.id}.jpg`)));
   e.stages.forEach((s,i)=>{
     const x=GX+(i%cols)*(cw+gapX), yy=GY+Math.floor(i/cols)*(cellH+gapY);
@@ -1132,24 +1137,29 @@ async function layoutEternal(ctx,T,data){
     // ピップ＋達成数
     missionChips(ctx,T,x+4,yy+ch+3,cw-8,pipH-6,s.missions,cm,clear);
   });
-  // 凡例（30マス目）
+  // 凡例（グリッド下の帯。㊼で30マス目から移動）：枠の意味3種＋チップの意味3種を1行に並べ、グリッドの右端にそろえる
   {
-    const i=e.stages.length, x=GX+(i%cols)*(cw+gapX), yy=GY+Math.floor(i/cols)*(cellH+gapY);
-    roundRect(ctx,x,yy,cw,cellH,6); ctx.fillStyle=T.dark?"rgba(8,12,20,.55)":"rgba(255,255,255,.7)"; ctx.fill();
-    const items=[["rb","全ミッション達成"],["gold","ステージクリア"],["none","未クリア"]];
-    ctx.font=`11px ${FONT}`; ctx.textBaseline="middle";   // ㉚ 10.5→11px（凡例は30マス目の狭い枠内のため例外的に12px未満）
-    items.forEach(([k,l],j)=>{
-      const ly=yy+10+j*14;
-      ctx.lineWidth=2; ctx.strokeStyle=k==="rb"?rainbow(ctx,x+8,ly-5,x+26,ly+5):(k==="gold"?T.gold:(T.dark?"rgba(140,160,180,.5)":"rgba(15,39,64,.35)"));
-      ctx.strokeRect(x+9,ly-4,16,9); ctx.fillStyle=T.muted; ctx.fillText(l,x+32,ly);
+    const frames=[["rb","全ミッション達成"],["gold","ステージクリア"],["none","未クリア"]];
+    const chips=[["達成",T.gold,true],["称号達成",T.violet,true],["未達成",null,false]];
+    const fFont=`11px ${FONT}`, cFont=`bold 10px ${FONT}`, chipW=46, sep=16;   // 凡例は例外的に12px未満（㉚と同じ）
+    ctx.font=fFont;
+    const fW=frames.map(([,l])=>16+6+ctx.measureText(l).width);
+    const totalW=fW.reduce((a,b)=>a+b,0)+12*(frames.length-1)+sep+chips.length*chipW+4*(chips.length-1)+24;
+    const bx=GX+GW-totalW, by=LEG_Y-11, bh=22;
+    roundRect(ctx,bx,by,totalW,bh,11); ctx.fillStyle=T.dark?"rgba(8,12,20,.55)":"rgba(255,255,255,.7)"; ctx.fill();
+    let x=bx+12; ctx.textBaseline="middle";
+    frames.forEach(([k,l],j)=>{
+      ctx.lineWidth=2; ctx.strokeStyle=k==="rb"?rainbow(ctx,x-1,LEG_Y-5,x+17,LEG_Y+5):(k==="gold"?T.gold:(T.dark?"rgba(140,160,180,.5)":"rgba(15,39,64,.35)"));
+      ctx.strokeRect(x,LEG_Y-4.5,16,9); ctx.fillStyle=T.muted; ctx.font=fFont; ctx.fillText(l,x+22,LEG_Y+0.5);
+      x+=fW[j]+12;
     });
-    // チップの凡例：達成（金／称号は紫）／未達成（枠のみ）
-    const ly=yy+10+3*14+2, lw=(cw-16-6)/3;
-    [["達成",T.gold,true],["称号達成",T.violet,true],["未達成",null,false]].forEach(([l,col,fill],j)=>{
-      const lx=x+8+j*(lw+3); roundRect(ctx,lx,ly-6,lw,13,3);
+    x+=sep-12;
+    chips.forEach(([l,col,fill])=>{
+      roundRect(ctx,x,LEG_Y-6.5,chipW,13,3);
       if(fill){ ctx.fillStyle=col; ctx.fill(); ctx.fillStyle=T.dark?"#121019":"#ffffff"; }
       else { ctx.strokeStyle=T.dark?"rgba(255,255,255,.28)":"rgba(15,39,64,.28)"; ctx.lineWidth=1; ctx.stroke(); ctx.fillStyle=T.muted; }
-      ctx.font=`bold 10px ${FONT}`; ctx.textAlign="center"; ctx.fillText(l,lx+lw/2,ly+0.5); ctx.textAlign="left";   // ㉚ 9→10px
+      ctx.font=cFont; ctx.textAlign="center"; ctx.fillText(l,x+chipW/2,LEG_Y+0.5); ctx.textAlign="left";
+      x+=chipW+4;
     });
     ctx.textBaseline="alphabetic";
   }

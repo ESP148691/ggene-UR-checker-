@@ -2,7 +2,7 @@
 （images/eternal-road/icon/N.jpg、136x136）を切り抜く。
 
 切り抜き範囲は横中央・上端の170x170（x 235〜405、y 0〜170）。ステージ名（y≈180〜225）と
-左下の「EXPERT」ラベル（x≈10〜95）にかからない範囲として、全29枚を目視確認して決めた。
+左下の「EXPERT」ラベル（x≈10〜95）にかからない範囲として、全29枚を目視確認して決めた（No.30も同じ範囲で確認済み・2026-10-03）。
 バナーを差し替え・追加したときに再実行する（上書き・冪等）。
 
 実行: checker/ をカレントにして `python scripts/make_eternal_road_icons.py`（Playwright＋Chromiumが必要）
@@ -12,7 +12,7 @@ import os
 from playwright.sync_api import sync_playwright
 
 SX, SY, SIZE, OUT = 235, 0, 170, 136  # 出力はトップの68px表示の2倍
-STAGES = 29
+STAGES = 30  # ㊼ 2026-10-03 No.30「機動戦士Vガンダム」追加
 
 
 def main():

@@ -248,7 +248,7 @@
     <h1>エタロ攻略チェッカー</h1>
     <span class="diffLabel">EXPERT</span>
   </div>
-  <p class="sub">エターナルロード エキスパート全29ステージ・69ミッションのクリア状況を記録できます。バナーをタップするとステージクリア、ミッションにチェックすると達成済みになります。</p>
+  <p class="sub">エターナルロード エキスパート全30ステージ・71ミッションのクリア状況を記録できます。バナーをタップするとステージクリア、ミッションにチェックすると達成済みになります。</p>
 
   <!-- ⑮ ノーマル・ハード実装まで難易度タブは非表示（将来戻せるようマークアップを残す）
   <div class="diffTabs">
@@ -267,13 +267,13 @@
 
   <div id="contentView" hidden>
     <div class="summaryHero">
-      <span class="v" id="sumStages">0<small> / 29</small></span>
+      <span class="v" id="sumStages">0<small> / 30</small></span>
       <span class="l">ステージクリア</span>
       <span class="rate" id="sumRate">クリア率 0%</span>
     </div>
     <div class="summaryRow">
-      <div class="summaryItem"><div class="v" id="sumPerfect">0 / 29</div><div class="l">全ミッション達成</div></div>
-      <div class="summaryItem"><div class="v" id="sumMissions">0 / 69</div><div class="l">ミッション達成</div></div>
+      <div class="summaryItem"><div class="v" id="sumPerfect">0 / 30</div><div class="l">全ミッション達成</div></div>
+      <div class="summaryItem"><div class="v" id="sumMissions">0 / 71</div><div class="l">ミッション達成</div></div>
       <div class="summaryItem"><div class="v" id="sumTitles">0 / 11</div><div class="l">称号獲得</div></div>
     </div>
 
@@ -590,9 +590,9 @@ function toggleMission(stage, m, checked){
   refresh();
 }
 
-// 1件ずつチェックする手間を省くための一括操作。全69件を上書きするため確認を挟む
+// 1件ずつチェックする手間を省くための一括操作。全ミッションを上書きするため確認を挟む
 document.getElementById("btnAllComplete").addEventListener("click", () => {
-  if (!confirm("全29ステージ・全ミッションを達成済みにします。よろしいですか？")) return;
+  if (!confirm(`全${stages.length}ステージ・全ミッションを達成済みにします。よろしいですか？`)) return;
   userEditedSinceLoad = true;
   clearedStages = new Set(stages.map(s => s.stage_id));
   clearedMissions = new Set(missions.map(m => m.mission_id));
@@ -837,7 +837,7 @@ async function generateShareImage(){
     }
   }
 
-  // 主指標：自己紹介カードと同じく「ステージクリア」ラベル → 「n / 29」 → 右端に%（「クリア率」の語は使わない）
+  // 主指標：自己紹介カードと同じく「ステージクリア」ラベル → 「n / 30」 → 右端に%（「クリア率」の語は使わない）
   ctx.fillStyle = "#9fb0c0";
   ctx.font = "bold 14px sans-serif";
   ctx.fillText("ステージクリア", pad, pad + 76);
