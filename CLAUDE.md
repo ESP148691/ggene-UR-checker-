@@ -181,7 +181,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | ㊵ | 09-29 | チャレンジミッションチェッカー（0020・0021は適用済み・push済み。運営者専用で稼働中） |
 | ㊸ | 09-30 | 9/30新UR：ユニット85〜87・サポート50を追加（`ur-units.js`・`supporter.html`・画像・`top.html`・`worker.js`の`MAX_*_ID`・0022）。D1適用・push済み。本番確認（依頼書8章）とSCAN_FIT学習が残り |
 | ㉟A・㊹ | 10-01 | 自己紹介カード一般公開（adminGate解除・導線表示。運営者向け試用版`profile-card-trial.html`を残す。0019適用済み）。㊹：トップの導線アイコンを試作カード縮小画像（`images/profile-card/{standard,units,eternal}.jpg`。カードのデザインを大きく変えたら`docs/04_自己紹介カード/データ/㊹カードアイコン生成.py`で作り直す）に差し替え。本番確認（依頼書4章A-4・㊹8章）が残り。2026-10-01：画面の「ログイン会員限定」「ログインユーザー限定」表記を削除（全機能ログイン必須のため。トップの節見出しは「レポート・カード」） |
-| ㊼ | 10-03 | エタロ攻略にステージ30（機動戦士Vガンダム）を追加：全30ステージ・71ミッション（`eternal-road.html`の表記・合計、一括達成の確認文は`stages.length`参照に）、`images/eternal-road/30.jpg`・`icon/30.jpg`（`scripts/make_eternal_road_icons.py`更新）、`worker.js`、`top.html`、自己紹介カード`profile-card.html`・`profile-card-trial.html`のエタロ分母を30に、`migrations/0023_eternal_road_stage30.sql`（ミッション301・302）。**0023のD1適用と本番確認が残り** |
+| ㊼ | 10-03 | エタロ攻略にステージ30（機動戦士Vガンダム）を追加：全30ステージ・71ミッション（`eternal-road.html`の表記・合計、一括達成の確認文は`stages.length`参照に）、`images/eternal-road/30.jpg`・`icon/30.jpg`（`scripts/make_eternal_road_icons.py`更新）、`worker.js`、`top.html`、自己紹介カード`profile-card.html`・`profile-card-trial.html`のエタロ分母を30に、`migrations/0023_eternal_road_stage30.sql`（ミッション301・302）。0023はD1適用済み（2026-10-03ユーザー確認）。本番確認が残り |
 
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
 - **㊵チャレンジ**：実装・push・D1（0020・0021）適用済み（2026-09-30ユーザー確認）。運営者専用で稼働中。**一般公開は後日**（ユーザー決定。公開時は上の「一般公開の手順」）。設計書9章の後回し（分析ページのタブ・カードへの掲載・タグ縛り）は未着手
