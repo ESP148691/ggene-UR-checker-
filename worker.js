@@ -161,6 +161,9 @@ const OWNERSHIP_LOG_MAX_ENTRIES = 300;
 const MAX_UNIT_ID = 87;
 const MAX_SUPPORTER_ID = 50;
 
+// レアリティ区分（rarity_code）。(rarity_code, unit_id) で公式ユニットを特定する。詳細は docs ㊳詳細設計 1章
+const RARITY_CODE = Object.freeze({ CUSTOM: 0, UR: 1, SSR: 2 });  // SR以下を実装するときは SR: 3, R: 4, N: 5
+
 // "id:code,id:code,..." 形式のコンパクトログを { id, level } の配列にパースする。
 // code(1=無凸,2=1凸,3=2凸,4=完凸) → level(0〜3) に変換。壊れた要素・範囲外のidは読み飛ばす
 function parseCompactOwnershipLog(log, maxId) {
@@ -883,15 +886,22 @@ const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/;
 // GET /api/works（認証不要）。作品マスター＋作品ごとのURユニット。0011未適用なら{works:[]}を返す
 async function handleWorks(request, env) {
   let rows;
+  const worksSql = (mapJoin) =>
+    `SELECT w.work_id, w.era, w.universe, w.sort_order, w.name, w.short_name, w.timeline_label,
+            u.unit_id, u.name AS unit_name, u.type AS unit_type, u.limited AS unit_limited
+     FROM works_master w
+     LEFT JOIN unit_work_map m ON ${mapJoin}
+     LEFT JOIN units_master u ON u.unit_id = m.unit_id
+     ORDER BY w.sort_order ASC, w.work_id ASC, u.unit_id ASC`;
   try {
-    ({ results: rows } = await env.DB.prepare(
-      `SELECT w.work_id, w.era, w.universe, w.sort_order, w.name, w.short_name, w.timeline_label,
-              u.unit_id, u.name AS unit_name, u.type AS unit_type, u.limited AS unit_limited
-       FROM works_master w
-       LEFT JOIN unit_work_map m ON m.work_id = w.work_id
-       LEFT JOIN units_master u ON u.unit_id = m.unit_id
-       ORDER BY w.sort_order ASC, w.work_id ASC, u.unit_id ASC`
-    ).all());
+    try {
+      // ㊶ 0024適用後：URの行だけにする（SSRの行を混ぜない）
+      ({ results: rows } = await env.DB.prepare(worksSql("m.work_id = w.work_id AND m.rarity_code = ?"))
+        .bind(RARITY_CODE.UR).all());
+    } catch (e) {
+      // 0024未適用（rarity_code列が無い）：従来のSQL
+      ({ results: rows } = await env.DB.prepare(worksSql("m.work_id = w.work_id")).all());
+    }
   } catch (e) {
     return jsonResponse({ works: [] }, 200);
   }
@@ -912,6 +922,26 @@ async function handleWorks(request, env) {
     }
   }
   return jsonResponse({ works }, 200, { "Cache-Control": "public, max-age=3600" });
+}
+
+// ㊶ GET /api/tags（認証不要）。有効なタグ＋ユニットへのタグ付与（UR・SSR）。0025未適用なら空配列
+async function handleTags(request, env) {
+  let tags, unitTags;
+  try {
+    ({ results: tags } = await env.DB.prepare(
+      `SELECT tag_id, name, category, applies_to, sort_order FROM tags_master
+       WHERE is_active = 1 ORDER BY sort_order ASC, tag_id ASC`
+    ).all());
+    ({ results: unitTags } = await env.DB.prepare(
+      `SELECT rarity_code, unit_id, tag_id FROM units_tags ORDER BY rarity_code, unit_id, tag_id`
+    ).all());
+  } catch (e) {
+    return jsonResponse({ tags: [], unitTags: [] }, 200);
+  }
+  return jsonResponse({
+    tags: tags.map(r => ({ tagId: r.tag_id, name: r.name, category: r.category, appliesTo: r.applies_to, sortOrder: r.sort_order })),
+    unitTags: unitTags.map(r => ({ rarityCode: r.rarity_code, unitId: r.unit_id, tagId: r.tag_id }))
+  }, 200, { "Cache-Control": "public, max-age=3600" });
 }
 
 // 所持データの集計（unit.html／supporter.htmlのcomputeStats()と同じ定義）
@@ -1005,11 +1035,22 @@ async function loadProfile(env, userUid, earnedTitles) {
        JOIN works_master w ON w.work_id = f.work_id
        WHERE f.user_uid = ? ORDER BY f.slot`
     ).bind(userUid).all());
-    ({ results: units } = await env.DB.prepare(
-      `SELECT f.slot, f.unit_id FROM user_favorite_units f
-       WHERE f.user_uid = ? AND EXISTS (SELECT 1 FROM units_ownership o WHERE o.user_uid = f.user_uid AND o.unit_id = f.unit_id)
-       ORDER BY f.slot`
-    ).bind(userUid).all());
+    try {
+      // ㊶ 0024適用後：URの行だけ（rarity_code = UR）
+      ({ results: units } = await env.DB.prepare(
+        `SELECT f.slot, f.unit_id FROM user_favorite_units f
+         WHERE f.user_uid = ? AND f.rarity_code = ?
+           AND EXISTS (SELECT 1 FROM units_ownership o WHERE o.user_uid = f.user_uid AND o.unit_id = f.unit_id)
+         ORDER BY f.slot`
+      ).bind(userUid, RARITY_CODE.UR).all());
+    } catch (e) {
+      // 0024未適用（rarity_code列が無い）：従来のSQL
+      ({ results: units } = await env.DB.prepare(
+        `SELECT f.slot, f.unit_id FROM user_favorite_units f
+         WHERE f.user_uid = ? AND EXISTS (SELECT 1 FROM units_ownership o WHERE o.user_uid = f.user_uid AND o.unit_id = f.unit_id)
+         ORDER BY f.slot`
+      ).bind(userUid).all());
+    }
   } catch (e) {
     return empty;
   }
@@ -1021,7 +1062,7 @@ async function loadProfile(env, userUid, earnedTitles) {
     cardTemplate: row && CARD_TEMPLATES.has(row.card_template) ? row.card_template : "standard",
     cardTheme: row && CARD_THEMES.has(row.card_theme) ? row.card_theme : "galaxy",
     favoriteWorks: works.map(r => ({ slot: r.slot, workId: r.work_id })),
-    favoriteUnits: units.map(r => ({ slot: r.slot, unitId: r.unit_id })),
+    favoriteUnits: units.map(r => ({ slot: r.slot, unitId: r.unit_id, rarityCode: RARITY_CODE.UR })),
     updatedAt: row ? row.updated_at : null,
     cardOptions: row ? await loadCardOptions(env, userUid) : Object.assign({}, CARD_OPTIONS_DEFAULT)
   };
@@ -1449,6 +1490,9 @@ export default {
 
     if (url.pathname === "/api/works" && request.method === "GET") {
       return handleWorks(request, env);
+    }
+    if (url.pathname === "/api/tags" && request.method === "GET") {
+      return handleTags(request, env);
     }
     if (url.pathname === "/api/profile-card" && request.method === "GET") {
       return handleProfileCard(request, env);

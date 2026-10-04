@@ -1,0 +1,11 @@
+INSERT OR REPLACE INTO tags_master (tag_id, name, category, applies_to, sort_order) VALUES (134, 'エース機', '機体の種類', 'unit', 208);
+INSERT OR REPLACE INTO tags_master (tag_id, name, category, applies_to, sort_order) VALUES (135, '指揮官機', '機体の種類', 'unit', 209);
+INSERT OR REPLACE INTO tags_master (tag_id, name, category, applies_to, sort_order) VALUES (136, '重撃', '戦闘', 'both', 714);
+INSERT OR REPLACE INTO tags_master (tag_id, name, category, applies_to, sort_order) VALUES (137, 'Wシリーズ', 'シリーズ', 'both', 820);
+INSERT OR REPLACE INTO tags_master (tag_id, name, category, applies_to, sort_order) VALUES (138, 'デビルガンダム軍団', '勢力・組織', 'both', 937);
+INSERT OR REPLACE INTO tags_master (tag_id, name, category, applies_to, sort_order) VALUES (139, '地球連邦軍（X）', '勢力・組織', 'both', 938);
+INSERT OR REPLACE INTO tags_master (tag_id, name, category, applies_to, sort_order) VALUES (140, 'マフティー', '勢力・組織', 'both', 939);
+INSERT OR REPLACE INTO tags_master (tag_id, name, category, applies_to, sort_order) VALUES (141, '宇宙革命軍', '勢力・組織', 'both', 940);
+INSERT OR REPLACE INTO tags_master (tag_id, name, category, applies_to, sort_order) VALUES (142, 'MO-V', '勢力・組織', 'both', 941);
+INSERT OR REPLACE INTO tags_master (tag_id, name, category, applies_to, sort_order) VALUES (143, 'ヴェイガン', '勢力・組織', 'both', 942);
+UPDATE tags_master SET is_active = 0 WHERE tag_id IN (60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 132, 133);

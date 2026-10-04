@@ -62,6 +62,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 - 登録済みフラグ：`users.units_first_registered_at`・`supporters_first_registered_at`・`eternal_road_first_registered_at`・`challenge_first_registered_at`（JST。非NULL＝登録済み。「登録済みで0件」と「未登録」を区別する）
 - エタロ・チャレンジ：マスター＋達成スナップショット＋ステージクリア（ミッション達成があるステージは必ずクリア行を持つ＝サーバーで正規化）。`mission_id = stage_id*10 + slot`。受付IDはマスターの集合で検証
 - 自己紹介カード：`works_master`（106作品。`work_id`＝ゲーム内の並び順＝`images/series/{id}.png`）、`unit_work_map`、`user_profiles`（`card_options`はJSON）、`user_favorite_works`・`user_favorite_units`（slot 1〜5のスナップショット）
+- ユニットの特定（㊶）：公式ユニットは**`(rarity_code, unit_id)`**で特定する（`unit_work_map`の主キー・`units_tags`も同じ）。コード値は`worker.js`の`RARITY_CODE`（0＝ユーザー登録、1＝UR、2＝SSR。SQLのコメント・マスターTBLには書かない）。SSRマスター`ssr_units_master`、タグ`tags_master`（143件・有効129）・`units_tags`（URのみ712件）、ビュー`v_all_units`。SSR名のUNIQUEは`(name, type)`
 - 定時分析：`analytics_daily`（`kind`＝`unit`／`supporter`／`er_stage`／`er_mission`／`ch_stage`／`ch_mission`、`item_id`＝kindごとのID）・`analytics_daily_summary`
 - FK宣言はあるが、アプリ側でもID範囲・集合を検証する（`MAX_UNIT_ID`・`MAX_SUPPORTER_ID`・`WORK_IDS`など）
 
@@ -81,7 +82,11 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0019 | Gレコを宇宙世紀へ（UPDATE 1行） | **未適用**（㉟A） |
 | 0020〜0021 | ㊵チャレンジ（TBL5つ・マスター） | 適用済み（2026-09-30ユーザー確認） |
 | 0022 | ㊸ 9/30新UR（ユニット85〜87・サポート50） | 適用済み（2026-09-30ユーザー確認） |
-| 次の空き | ㊶タグ・SSRマスター3本＝0023〜0025 | ― |
+| 0023 | ㊼ エタロ ステージ30 | 適用済み（2026-10-03ユーザー確認） |
+| 0024 | ㊶ SSRマスター・`unit_work_map`作り直し・`user_favorite_units.rarity_code`（**1回だけ**。再実行は先頭ALTERが`duplicate column`で止まる）。SSR名のUNIQUE索引は`(name, type)`（㊻3章） | 適用済み（2026-10-04） |
+| 0025〜0026 | ㊶ タグ・`units_tags`・`v_all_units`（0025）／タグ133件（0026） | 適用済み（2026-10-04） |
+| 0027〜0028 | ㊾ タグ10件追加＋作品名タグ14件を無効化（0027）／URのタグ付け712件（0028。先頭で`DELETE FROM units_tags WHERE rarity_code = 1`） | 適用済み（2026-10-04） |
+| 次の空き | 0029 | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
 - **適用はD1が先、pushが後**。逆にすると新コードが未作成のTBL・列を読んで500や保存漏れになる（⑬のデプロイギャップ）。**バックフィルは必ず冪等に書き、間が空いたら再実行する**
@@ -134,11 +139,11 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 3. `worker.js`の`MAX_UNIT_ID`（`MAX_SUPPORTER_ID`）を更新
 4. D1の`units_master`（`supporters_master`）に1行追加（`migrations/0002`と同じ形式のINSERT。次の番号のマイグレーションとしても残す）
 5. **URユニットのみ：`unit_work_map`に1行追加**。これが無いと自己紹介カードの推しユニット一覧・作品名に出ない
-   - ㊶（0023〜）の適用前：`INSERT OR REPLACE INTO unit_work_map (unit_id, work_id) VALUES (…, …);`
-   - **㊶の適用後**：`INSERT OR REPLACE INTO unit_work_map (rarity_code, unit_id, work_id) VALUES (1, …, …);`（旧い形は`NOT NULL constraint failed`で止まる）
+   - ㊶（0024）の適用前：`INSERT OR REPLACE INTO unit_work_map (unit_id, work_id) VALUES (…, …);`
+   - **㊶の0024の適用後**：`INSERT OR REPLACE INTO unit_work_map (rarity_code, unit_id, work_id) VALUES (1, …, …);`（旧い形は`NOT NULL constraint failed`で止まる）
 6. **URユニットのみ：スクショ読み取りの位置合わせ値`SCAN_FIT`を`unit-scan.js`に追加**。無いと自動判定されない（「判定できなかったカード」に入る）。運営者がそのユニットの写ったスクショで`/unit?scandebug=1`を開いて読み取り、手動で割り当て → 画面下の「学習した位置合わせ値」のJSONの該当IDを追記。2026-09-30時点で87機中69機にあり
 7. **URサポートのみ：`supporter-scan.js`の`SCAN_FIT`を追加**。手順は同じで`/supporter?scandebug=1`（「強化 > サポーター」一覧のスクショ）。50体中31体にあり
-8. ㊶の適用後は、タグを`units_tags`へ入れ、㊳詳細設計5章の確認SQLを流す（タグ付けの運用が始まってから）
+8. ㊶・㊾の適用後：新URの**タグ**を`INSERT OR REPLACE INTO units_tags (rarity_code, unit_id, tag_id, source, updated_at) VALUES (1, …, …, 'game', '…');`で入れる（運営者がゲーム内ユニット詳細の「タグ」欄で確認。**「シリーズ」欄の作品名はタグではない**）。新しいタグ名が出たら`tags_master`に次の`tag_id`（144〜）で追加。その後、㊳詳細設計5章の確認SQL（3本とも0件が正常）を流す
 
 **作品（推し作品の選択肢）を追加するとき**：`works_master`（`INSERT OR REPLACE`）・`worker.js`の`WORK_IDS`・`images/series/{work_id}.png`の3点を必ずそろえる。`work_id`はゲーム内「シリーズ絞り込み」の並び順
 
@@ -181,6 +186,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | ㊵ | 09-29 | チャレンジミッションチェッカー（0020・0021は適用済み・push済み。運営者専用で稼働中） |
 | ㊸ | 09-30 | 9/30新UR：ユニット85〜87・サポート50を追加（`ur-units.js`・`supporter.html`・画像・`top.html`・`worker.js`の`MAX_*_ID`・0022）。D1適用・push済み。本番確認（依頼書8章）とSCAN_FIT学習が残り |
 | ㉟A・㊹ | 10-01 | 自己紹介カード一般公開（adminGate解除・導線表示。運営者向け試用版`profile-card-trial.html`を残す。0019適用済み）。㊹：トップの導線アイコンを試作カード縮小画像（`images/profile-card/{standard,units,eternal}.jpg`。カードのデザインを大きく変えたら`docs/04_自己紹介カード/データ/㊹カードアイコン生成.py`で作り直す）に差し替え。本番確認（依頼書4章A-4・㊹8章）が残り。2026-10-01：画面の「ログイン会員限定」「ログインユーザー限定」表記を削除（全機能ログイン必須のため。トップの節見出しは「レポート・カード」） |
+| ㊶A・㊾ | 10-04 | ㊶段階A：`migrations/0024〜0026`（SSRマスター・`unit_work_map`作り直し・`rarity_code`・タグ）、`worker.js`の`RARITY_CODE`・`/api/works`と`loadProfile`のURだけ読み＋旧SQLへのフォールバック（`rarityCode: 1`を返す）・新API`GET /api/tags`。㊾：`0027`（タグ10件追加・作品名タグ14件無効）・`0028`（URタグ付け712件）。**段階B（`ssr-tool.html`等）とSSR関連（㊻C-1・C-2）は保留**。0024の索引は㊻3章どおり`(name, type)`。D1適用（0024→0028の順）→push の順で。仕様書4章・3章は更新済み |
 | ㊼ | 10-03 | エタロ攻略にステージ30（機動戦士Vガンダム）を追加：全30ステージ・71ミッション（`eternal-road.html`の表記・合計、一括達成の確認文は`stages.length`参照に）、`images/eternal-road/30.jpg`・`icon/30.jpg`（`scripts/make_eternal_road_icons.py`更新）、`worker.js`、`top.html`、自己紹介カード`profile-card.html`・`profile-card-trial.html`のエタロ分母を30に、`migrations/0023_eternal_road_stage30.sql`（ミッション301・302）。0023はD1適用済み（2026-10-03ユーザー確認）。本番確認が残り |
 
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
@@ -188,7 +194,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 - **㉟A 自己紹介カード一般公開・㊹（2026-10-01夜に再公開）**：朝にいったん公開→ユーザー指示で夜公開に変更（非公開に戻した）→夜に再公開（revertのrevert）。残り：依頼書4章A-4と㊹8章の本番確認（iOS Safariの画像保存を含む）。追加改修は運営者用の試用版`profile-card-trial.html`で試してから`profile-card.html`へ反映（ユーザー決定）。切り戻しは㉟依頼書4章・㊹はcommitのrevert
 - **㉟A 自己紹介カードの一般公開**：①ユーザーがD1に0019を適用（UPDATE文の1行だけを貼る）②運営者ページで最終確認 ③`git checkout main && git merge --ff-only release/profile-card-public && git push origin main` ④依頼書4章A-4のチェックリストで本番確認（iOS Safariの画像保存を含む）。切り戻しは依頼書どおり
 - **㊸ 9/30新UR**：実装・D1(0022)適用・push済み（2026-09-30）。残り：依頼書8章の本番確認（特に#5データ登録→復元、#9カード）、`SCAN_FIT`の学習
-- **㊶ユニットのタグ・SSRマスター**（`docs/01_所持チェッカー・DB登録/㊶…実装依頼書（㊳の実装）.md`）：段階A・Bが実装待ち
+- **㊶ユニットのタグ・SSRマスター**（`docs/01_所持チェッカー・DB登録/㊶…実装依頼書（㊳の実装）.md`）：段階A＋㊾のSQLを実装・D1適用（0024〜0028。2026-10-04にClaude Codeがwranglerで適用し確認SQLも期待値どおり）・push済み。本番確認（`/api/works`のユニット数・推しユニットの表示保存・`/api/tags`が129件）が残り。段階B（`ssr-tool.html`・`ssr-units.js`・`images/ssr/`・topの導線）・㊻C-1/C-2（SSRの推しユニット）は保留
 - **㉝ UR以外の推しユニット（ユーザー登録）**（`docs/04_自己紹介カード/㉝…実装依頼書.md`）：実装待ち。0018。㊶との順番の注意は㊶7章
 - ⑪の残り：`migrations/0005`のD1適用、本番実機確認（通常ブラウザ／Xアプリ内ブラウザ×画像保存・Xシェア・データ登録）
 - `SCAN_FIT`の学習：ユニット18機（新85〜87を含む）・サポート19体（新50を含む）。新3機・新サポートは写ったスクショで`?scandebug=1`から学習
