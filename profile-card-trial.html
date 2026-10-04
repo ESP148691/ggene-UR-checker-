@@ -163,6 +163,21 @@
   .pickItem .nm small{display:block;font-family:'Share Tech Mono',monospace;color:var(--muted);font-size:10.5px;}
   .pickItem .mark{flex:0 0 auto;width:20px;text-align:center;color:var(--gold);font-weight:700;}
   .filterRow{display:flex;gap:8px;margin:0 0 8px;}
+  /* 51 推し編成フォーム */
+  .fmSlot{display:flex;align-items:center;gap:8px;margin:0 0 8px;}
+  .fmSlot .no{flex:0 0 24px;font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;}
+  .fmSlot select{flex:1;min-width:0;}
+  .fmInfo{font-size:12.5px;line-height:1.6;color:var(--muted);margin:0 0 10px;overflow-wrap:anywhere;}
+  .fmInfo b{color:var(--text);}
+  .fmGauge{display:flex;align-items:center;gap:10px;margin:10px 0 0;font-size:13px;}
+  .fmGauge .bar{display:flex;gap:3px;}
+  .fmGauge .bar i{display:block;width:22px;height:8px;border-radius:3px;border:1px solid var(--line-strong);}
+  .fmGauge .bar i.on{background:var(--gold);border-color:var(--gold);}
+  .fmGauge .bar.full i.on{background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);border-color:transparent;}
+  .fmUse2{margin:0 0 12px;}
+  #formationSection .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;}
+  #formationSection .chk input{width:16px;height:16px;accent-color:var(--gold);}
+  .seg[hidden]{display:none;}
   .filterRow select{
     flex:1;min-width:0;font:inherit;font-size:12.5px;color:var(--text);background:var(--panel-2);
     border:1px solid var(--line-strong);border-radius:4px;padding:7px 6px;
@@ -246,6 +261,7 @@
           <button type="button" data-tpl="standard">標準</button>
           <button type="button" data-tpl="eternal">エタロ攻略</button>
           <button type="button" data-tpl="units">推しユニット</button>
+          <button type="button" data-tpl="formation">推し編成</button>
         </div>
         <p class="hint" id="tplHint" hidden></p>
         <div class="themes" id="themeButtons" role="group" aria-label="背景">
@@ -308,6 +324,29 @@
           </div>
         </div>
         <p class="hint" id="unitEmptyHint" hidden>URユニット所持率チェッカーで所持データを登録すると選べます。</p>
+      </section>
+
+      <section class="section" id="formationSection" hidden>
+        <h2>推し編成</h2>
+        <label class="chk fmUse2"><input type="checkbox" id="fmUse2"> 2つ目の編成を使う</label>
+        <div class="seg" id="fmTabs" role="group" aria-label="編成の切り替え" style="margin:0 0 12px">
+          <button type="button" data-fm="0">編成1</button>
+          <button type="button" data-fm="1">編成2</button>
+        </div>
+        <div class="field">
+          <label class="fieldLabel" for="fmLabel">編成名（10文字まで・空でもOK）</label>
+          <input type="text" id="fmLabel" maxlength="10" autocomplete="off">
+        </div>
+        <div class="field">
+          <label class="fieldLabel" for="fmSupporter">推しサポーター</label>
+          <select id="fmSupporter"></select>
+        </div>
+        <div class="fmInfo" id="fmSupInfo"></div>
+        <div class="fieldLabel">ユニット（位置どおりにカードへ並びます。途中を空けてもOK）</div>
+        <div id="fmSlots"></div>
+        <label class="chk"><input type="checkbox" id="fmOnlyHit"> 候補をバフ対象のユニットだけにする</label>
+        <div class="fmGauge" id="fmGauge"></div>
+        <p class="hint">サポーターのリーダースキルの対象になるユニットがカードで金色に光ります。2つの編成で同じサポーター・ユニットは使えません。『推し編成』のカードに表示されます。</p>
       </section>
     </div>
   </div>
@@ -1344,6 +1383,10 @@ async function layoutUnits(ctx,T,data){
   // タイプ別の所持（攻撃・支援・耐久）
   let tx=LX+8;
   for(const t of ["攻撃","支援","耐久"]) tx=chip(ctx,tx,yy-8,`${t} ${u.byType[t].owned}/${u.byType[t].total}`,TC[t],false,12);   // ㉚ 11→12px
+  // 案D-3：得意タグ（URが3機以上あるタグのうち所持率の高い順に3つ）
+  if(data.tagTrend&&data.tagTrend.length){ yy+=30; ctx.fillStyle=T.muted; ctx.font=`bold 12px ${FONT}`; ctx.fillText("得意タグ",LX+8,yy+7);
+    let gx=LX+64; for(const t of data.tagTrend){ ctx.font=`bold 12px ${FONT}`; const lab=`${t.name} ${t.owned}/${t.total}`;
+      if(gx+ctx.measureText(lab).width+14>LX+LW-4) break; gx=chip(ctx,gx,yy-8,lab,t.owned===t.total?(T.dark?"#f2cf5b":T.gold):T.cyan,t.owned===t.total,12); } }
   // ㉙ URサポート・エタロ：チップ1行だった表示を、所持率・凸・ステージクリアなどの小ブロックに拡充（登録済みのものだけ。2つなら左右半分ずつ）
   const blocks=[];
   const s=data.supporters;
@@ -1355,7 +1398,7 @@ async function layoutUnits(ctx,T,data){
       rows:[["クリア率",`${st.clearPct}%`],["全達成",`${st.perfect}/${st.stageTotal}`],["ミッション",`${st.missions}/${st.missionTotal}`],["称号",`${st.titles}/${st.titleTotal}`]]}); }
   if(blocks.length){
     // ブロックの高さは約105px。パネルの下端に揃える（上のタイプ別チップとの間が詰まらないよう、最低でもチップの下28px）
-    const by=Math.max(yy+40,pTop+pH-118);
+    const by=Math.max(yy+34,pTop+pH-118);
     ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(LX+8,by-24); ctx.lineTo(LX+LW-8,by-24); ctx.stroke();
     const bw=blocks.length===2?(LW-16-16)/2:LW-16;
     blocks.forEach((bk,i)=>{
@@ -1383,7 +1426,8 @@ async function layoutUnits(ctx,T,data){
     const acqH=hasA?(22+(rec.r?22:0)+((rec.d||rec.n)?22:0)+memoLines.length*19+4):0;
     // 内容の高さを見積もって縦中央に配置（画像は元画像150px幅のため270pxを上限にしてボケを抑える）
     const heroName=wrapName(ctx,f.name,heroW-36,sz=>`bold ${sz}px ${FONT}`,21,f.unitId), nl=heroName.lines.length;   // ㉚ wrap2→wrapName
-    const fixedH=34+nl*26+4+18+26+acqH;
+    const tagRow=(f.featureTags&&f.featureTags.length)?26:0;
+    const fixedH=34+nl*26+4+18+26+tagRow+acqH;
     const size=Math.max(150,Math.min(270,heroW-50,heroH-46-20-fixedH));
     const contentH=size+fixedH, ix=x+(heroW-size)/2, iy=y0+46+Math.max(0,(heroH-46-contentH-16)/2);
     ctx.fillStyle=T.gold; ctx.font=`bold 13px ${FONT}`; ctx.fillText("推し No.1",x+18,y0+30);
@@ -1397,6 +1441,8 @@ async function layoutUnits(ctx,T,data){
     ctx.fillText(LV_LABEL[f.level],sx+8,ty+1); ctx.textBaseline="alphabetic"; ty+=18;
     let chx=x+18; chx=chip(ctx,chx,ty,f.type,TC[f.type],false,12);
     ctx.font=`bold 12px ${FONT}`; chip(ctx,chx,ty,workText(ctx,f.workShort,f.workId,x+heroW-18-chx-14),T.cyan,false,12);   // ㉟ 収まらなければ通称
+    if(tagRow){ ty+=26; let gx=x+18; for(const tg of f.featureTags){ ctx.font=`bold 12px ${FONT}`; if(gx+ctx.measureText(tg).width+14>x+heroW-18) break;
+      gx=chip(ctx,gx,ty,tg,T.dark?"rgba(220,230,240,.75)":T.muted,false,12); } }
     if(hasA){
       let ay=ty+21+14;
       ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+18,ay-6); ctx.lineTo(x+heroW-18,ay-6); ctx.stroke();
@@ -1461,6 +1507,268 @@ async function layoutUnits(ctx,T,data){
   footer(ctx,T,data);
 }
 
+/* ======================= 51 テンプレート④：推し編成 ======================= */
+// data.formation = { supporter:{id,name,level,limited,rules:[{rates:[lv0..lv3], label, labels:[...]}]},
+//                    units:[{unitId,name,type,limited,level,workShort,workId,tags:[name], hit:null|{rate, label, top:bool}}],
+//                    synergy:{count,total,full}, sharedTags:[{name,count}] }
+const SYN_GOLD="#f2cf5b";
+function rateAt(rates,lv){ const v=rates[lv]; return v==null?null:v; }
+function rateText(rates,lv){ const v=rateAt(rates,lv); return v==null?`+${rates[0]}〜${rates[3]}%`:`+${v}%`; }
+async function supporterImage(ctx,T,s,x,y,w,h){
+  ctx.save(); roundRect(ctx,x,y,w,h,10); ctx.fillStyle=T.dark?"#101720":"#e3eef8"; ctx.fill(); ctx.clip();
+  const im=await loadImage(`${BASE}images/supporters/${s.id}.jpg`); if(im) drawCover(ctx,im,x,y,w,h);
+  ctx.restore();
+  roundRect(ctx,x,y,w,h,10); ctx.strokeStyle=s.level===3?rainbow(ctx,x,y,x+w,y+h):T.frame; ctx.lineWidth=s.level===3?3:1.2; ctx.stroke();
+  if(s.limited){ ctx.font=`bold 12px ${FONT}`; const t="期間限定", bw=ctx.measureText(t).width+10;
+    roundRect(ctx,x+6,y+6,bw,18,3); ctx.fillStyle="rgba(10,14,20,.8)"; ctx.fill(); ctx.strokeStyle="#8a7128"; ctx.stroke();
+    ctx.fillStyle="#dab949"; ctx.textBaseline="middle"; ctx.fillText(t,x+11,y+15.5); ctx.textBaseline="alphabetic"; }
+}
+// 対象のチップ（タグ＝金の枠、シリーズ＝シアンの枠）。幅が足りなければ次の行へ。戻り値は次のy
+function targetChips(ctx,T,x,y,maxW,items){
+  let cx=x, cy=y;
+  for(const it of items){
+    ctx.font=`bold 12px ${FONT}`;
+    const label=(it.kind==="work"?"シリーズ ":"")+it.label;
+    const w=Math.min(maxW,ctx.measureText(label).width+14);
+    if(cx+w>x+maxW && cx>x){ cx=x; cy+=27; }
+    chip(ctx,cx,cy,fitText(ctx,label,maxW-14),it.kind==="work"?T.cyan:(T.dark?SYN_GOLD:T.gold),false,12);
+    cx+=w+6;
+  }
+  return cy+27;
+}
+async function layoutFormation(ctx,T,data){
+  await header(ctx,T,"FAVORITE FORMATION");
+  const F=data.formation, TC=T.dark?TYPE_COL.dark:TYPE_COL.light, G=T.dark?SYN_GOLD:T.gold;
+  const LX=36, LW=290;
+  let y=identity(ctx,T,data.profile,LX,LW,32,96);
+  if(!F||!F.supporter){
+    ctx.fillStyle=T.bgMuted||T.muted; ctx.font=`15px ${FONT}`; shadowText(ctx,T,"推し編成が未設定です",380,140);
+    footer(ctx,T,data); return;
+  }
+  const s=F.supporter, full=F.synergy.full;
+  // ---- 左：推しサポーター ----
+  const pTop=Math.max(y+8,178), pH=H-pTop-58;
+  panel(ctx,T,LX-8,pTop,LW+16,pH,"推しサポーター",G);
+  const imgH=Math.max(96,Math.min(150,pH-250)), imgW=Math.min(Math.round(imgH*1.45),LW-16-104), ix=LX+8, iy=pTop+42;
+  await supporterImage(ctx,T,s,ix,iy,imgW,imgH);
+  // 画像の右：凸
+  const sx0=ix+imgW+12;
+  ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("限界突破",sx0,iy+16);
+  totsuStars(ctx,T,sx0,iy+34,8,s.level);
+  ctx.fillStyle=s.level===3?rainbow(ctx,sx0,iy+44,sx0+50,iy+60):T.text; ctx.font=`bold 15px ${FONT}`;
+  ctx.fillText(LV_LABEL_C[s.level],sx0,iy+62);
+  if(s.heal){ ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("サポートスキル",sx0,iy+92);
+    ctx.fillStyle=T.cyan; ctx.font=`bold 14px ${FONT}`; ctx.fillText(s.heal,sx0,iy+112); }
+  let ty=iy+imgH+24;
+  const nm=wrapName(ctx,s.name,LW-16,sz=>`bold ${sz}px ${FONT}`,16,null);
+  ctx.fillStyle=T.text; ctx.font=`bold ${nm.size}px ${FONT}`; nm.lines.forEach((ln,i)=>ctx.fillText(ln,LX+8,ty+i*21)); ty+=nm.lines.length*21+4;
+  ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(LX+8,ty); ctx.lineTo(LX+LW-8,ty); ctx.stroke();
+  ty+=20;
+  ctx.fillStyle=G; ctx.font=`bold 13px ${FONT}`; ctx.fillText("リーダースキル",LX+8,ty);
+  ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.textAlign="right"; ctx.fillText("対象の全ステータス（EN除く）",LX+LW-8,ty); ctx.textAlign="left";
+  ty+=10;
+  for(const r of s.rules){
+    const ny=targetChips(ctx,T,LX+8,ty,LW-16-74,r.extra?r.items.map((it,k)=>k===0?Object.assign({},it,{label:"＋"+it.label}):it):r.items);
+    ctx.fillStyle=G; ctx.font=`bold 22px ${FONT}`; ctx.textAlign="right";
+    ctx.fillText(rateText(r.rates,s.level),LX+LW-8,ty+19); ctx.textAlign="left";
+    ty=ny+2;
+  }
+  if(s.targetUr){ ty+=4; ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("対象のURユニット",LX+8,ty+12);
+    ctx.fillStyle=T.text; ctx.font=`bold 14px ${FONT}`; ctx.textAlign="right";
+    ctx.fillText(`${s.targetUr.total}機中 所持${s.targetUr.owned}機`,LX+LW-8,ty+13); ctx.textAlign="left"; }
+  // ---- 右上：バフ対象のメーター ----
+  const GX=352, GW=W-36-GX;
+  const n=F.units.filter(Boolean).length;   // 空きの枠（手放した・未選択）は数えない
+  panel(ctx,T,GX,88,GW,70,null,null);
+  ctx.fillStyle=T.muted; ctx.font=`bold 13px ${FONT}`; ctx.fillText("バフ対象",GX+18,114);
+  ctx.fillStyle=full?rainbow(ctx,GX+18,120,GX+130,150):G; ctx.font=`bold 38px ${FONT}`; ctx.fillText(String(F.synergy.count),GX+18,148);
+  let mw=ctx.measureText(String(F.synergy.count)).width;
+  ctx.fillStyle=T.muted; ctx.font=`bold 18px ${FONT}`; ctx.fillText(`/ ${n}機`,GX+18+mw+6,148);
+  // 5分割のゲージ
+  const segX=GX+150, segW=(GW-150-250)/5;
+  for(let i=0;i<n;i++){   // ゲージは埋まっている枠の数だけ（分母と合わせる）
+    const on=i<F.synergy.count;
+    roundRect(ctx,segX+i*segW+3,118,segW-6,14,4);
+    if(on){ ctx.save(); ctx.shadowColor=G; ctx.shadowBlur=10; ctx.fillStyle=full?rainbow(ctx,segX,0,segX+5*segW,0):G; ctx.fill(); ctx.restore(); }
+    else { ctx.strokeStyle=T.dark?"rgba(255,255,255,.25)":"rgba(15,39,64,.25)"; ctx.lineWidth=1.2; ctx.stroke(); }
+  }
+  ctx.textAlign="right";
+  ctx.font=`bold 14px ${FONT}`; ctx.fillStyle=T.text; ctx.fillText(`サポーターの対象 ${F.synergy.count}機`,W-54,131);   // 全員が対象でも文言は出さない（ゲージ・線・枠を虹にするだけ。2026-10-04 ユーザー指示）
+  ctx.textAlign="left";
+  // ---- ユニット5機 ----
+  const gap=12, tw=(GW-gap*4)/5, tyTop=192, stripH=50, th=H-58-stripH-12-tyTop;
+  // バフ対象のリンク線：左パネルの右端からユニットの上へ横線、対象ユニットへ縦線（光る）
+  const hits=F.units.map((u,i)=>u&&u.hit?i:-1).filter(i=>i>=0);   // 枠の位置（slot-1）のまま。左から詰めない
+  if(hits.length){
+    const by=176, lastX=GX+hits[hits.length-1]*(tw+gap)+tw/2;
+    ctx.save(); ctx.strokeStyle=full?rainbow(ctx,LX+LW+8,by,lastX,by):G; ctx.lineWidth=2.5; ctx.shadowColor=G; ctx.shadowBlur=12; ctx.lineCap="round";
+    const sy0=pTop+23, jx=GX-12;
+    ctx.beginPath(); ctx.moveTo(LX+LW+8,sy0); ctx.lineTo(jx,sy0); ctx.lineTo(jx,by); ctx.lineTo(lastX,by);
+    for(const i of hits){ const cx=GX+i*(tw+gap)+tw/2; ctx.moveTo(cx,by); ctx.lineTo(cx,tyTop); }
+    ctx.stroke();
+    ctx.fillStyle=full?"#ffffff":G;
+    for(const i of hits){ const cx=GX+i*(tw+gap)+tw/2; ctx.beginPath(); ctx.arc(cx,by,4,0,Math.PI*2); ctx.fill(); }
+    ctx.beginPath(); ctx.arc(LX+LW+8,sy0,5,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  for(let i=0;i<5;i++){
+    const x=GX+i*(tw+gap), u=F.units[i];
+    if(!u){ roundRect(ctx,x,tyTop,tw,th,10); ctx.setLineDash([5,5]); ctx.strokeStyle=T.line; ctx.stroke(); ctx.setLineDash([]); continue; }
+    // 枠：対象＝金で光らせる、全員が対象＝虹、対象外＝通常
+    ctx.save(); if(u.hit){ ctx.shadowColor=G; ctx.shadowBlur=full?18:12; }
+    roundRect(ctx,x,tyTop,tw,th,10); ctx.fillStyle=T.panel; ctx.fill(); ctx.restore();
+    roundRect(ctx,x,tyTop,tw,th,10);
+    ctx.strokeStyle=u.hit?(full?rainbow(ctx,x,tyTop,x+tw,tyTop+th):G):T.line; ctx.lineWidth=u.hit?2:1; ctx.stroke();
+    ctx.fillStyle=T.goldDim; ctx.font=`bold 15px ${FONT}`; ctx.fillText(String(i+1).padStart(2,"0"),x+10,tyTop+22);
+    const size=tw-28, ix2=x+14, iy2=tyTop+30;
+    await unitImage(ctx,T,u,ix2,iy2,size,8);
+    let yy=iy2+size+20;
+    const nmu=wrapName(ctx,u.name,tw-20,sz=>`bold ${sz}px ${FONT}`,14,u.unitId);
+    ctx.fillStyle=T.text; ctx.font=`bold ${nmu.size}px ${FONT}`;
+    nmu.lines.forEach((ln,j)=>ctx.fillText(ln,x+10,yy+j*18)); yy+=2*18;
+    const sx=totsuStars(ctx,T,x+10,yy-2,6,u.level);
+    chip(ctx,sx+6,yy-12,u.type,TC[u.type],false,12);
+    ctx.font=`bold 12px ${FONT}`;
+    const hitWork=u.hit&&u.hit.byWork;
+    chip(ctx,x+10,yy+14,workText(ctx,u.workShort,u.workId,tw-20-14),hitWork?G:T.cyan,false,12);
+    // 案D-2：特徴タグ（URの中で付いている機体が少ないタグ。サポーターの対象タグは金）
+    let fy=yy+48;
+    for(const tg of (u.featureTags||[]).filter(t=>!(u.hit&&u.hit.tags&&u.hit.tags.includes(t))).slice(0,2)){
+      if(fy+20>tyTop+th-58) break;
+      ctx.font=`bold 12px ${FONT}`;
+      const isHit=u.hit&&u.hit.tags&&u.hit.tags.includes(tg);
+      chip(ctx,x+10,fy,fitText(ctx,tg,tw-20-14),isHit?G:(T.dark?"rgba(220,230,240,.7)":T.muted),false,12);
+      fy+=26;
+    }
+    // 下部：バフ対象の結果
+    const by2=tyTop+th-46;
+    ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+10,by2-8); ctx.lineTo(x+tw-10,by2-8); ctx.stroke();
+    if(u.hit){
+      ctx.font=`bold 12px ${FONT}`;
+      const lab=fitText(ctx,u.hit.label,tw-20-14);
+      chip(ctx,x+10,by2-2,lab,G,true,12);
+      ctx.fillStyle=u.hit.top===false?T.text:G; ctx.font=`bold 20px ${FONT}`; ctx.textAlign="right";
+      ctx.fillText(u.hit.rateText,x+tw-10,by2+40); ctx.textAlign="left";
+      ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("全ステ",x+10,by2+38);
+    } else {
+      ctx.fillStyle=T.muted; ctx.font=`bold 13px ${FONT}`; ctx.fillText("対象外",x+10,by2+14);
+      ctx.font=`12px ${FONT}`; ctx.fillText("推しで編成",x+10,by2+34);
+    }
+  }
+  // ---- 下：編成のタグ（案D-1：2機以上に共通するタグ） ----
+  const sy=tyTop+th+12, sh=stripH;
+  panel(ctx,T,GX,sy,GW,sh,null,null);
+  ctx.fillStyle=T.muted; ctx.font=`bold 13px ${FONT}`; ctx.fillText("編成のタグ",GX+16,sy+sh/2+5);
+  let cx=GX+100;
+  for(const t of F.sharedTags){
+    ctx.font=`bold 12px ${FONT}`; const label=`${t.name} ×${t.count}`, w=ctx.measureText(label).width+14;
+    if(cx+w>GX+GW-16) break;
+    cx=chip(ctx,cx,sy+sh/2-10,label,t.count===n?G:T.cyan,t.count===n,12);
+  }
+  footer(ctx,T,data);
+}
+const LV_LABEL_C=["無凸","1凸","2凸","完凸"];
+
+/* ======================= 51 推し編成：2編成（上下2段） ======================= */
+// data.formations = [F1, F2]（Fの形は1編成と同じ。label＝「編成1」等の見出し）。2つ目が空なら従来の1編成レイアウト
+function identityBand(ctx,T,p,x,y,w){
+  // 上部の帯：見出し「ユーザーネーム」＋名前（左）、ひとこと（右・2行まで）
+  ctx.fillStyle=T.gold; ctx.fillRect(x-8,y-9,3,18);
+  ctx.fillStyle=T.bgText||T.text; ctx.font=`bold 15px ${FONT}`; ctx.textBaseline="middle"; ctx.textAlign="left";
+  shadowText(ctx,T,"ユーザーネーム",x+6,y); ctx.textBaseline="alphabetic";
+  const NW=300; let fs=32; ctx.font=`bold ${fs}px ${FONT}`;
+  while(fs>18&&ctx.measureText(p.displayName).width>NW){ fs-=2; ctx.font=`bold ${fs}px ${FONT}`; }
+  ctx.fillStyle=T.bgText||T.text; shadowText(ctx,T,fitText(ctx,p.displayName,NW),x,y+38);
+  if(p.comment){
+    const cx=x+NW+24, cw=w-NW-24, text="“"+p.comment+"”";
+    let cs=17, lines;
+    for(;;){ ctx.font=`bold ${cs}px ${FONT}`; lines=wrapLines(ctx,text,cw,2); if(ctx.measureText(text).width<=cw*2-cs||cs<=13) break; cs--; }
+    ctx.fillStyle=T.bgMuted||T.muted;
+    const lh=Math.round(cs*1.4), ty=y+38-(lines.length-1)*lh+4;
+    lines.forEach((ln,i)=>shadowText(ctx,T,ln,cx,ty+i*lh));
+  }
+}
+async function formationRow(ctx,T,F,label,x,y,w,h){
+  const TC=T.dark?TYPE_COL.dark:TYPE_COL.light, G=T.dark?SYN_GOLD:T.gold;
+  panel(ctx,T,x,y,w,h,null,null);
+  if(!F||!F.supporter){ ctx.fillStyle=T.muted; ctx.font=`14px ${FONT}`; ctx.fillText(`${label}：未設定`,x+18,y+h/2); return; }
+  const s=F.supporter, full=F.synergy.full, n=F.units.filter(Boolean).length;
+  // 見出し：バー＋「編成1」＋編成名
+  ctx.fillStyle=G; ctx.fillRect(x,y+12,3,18);
+  ctx.fillStyle=T.text; ctx.font=`bold 15px ${FONT}`; ctx.fillText(label,x+14,y+27);
+  // ---- 左：サポーター（幅SW） ----
+  const SW=228, sx=x+14, imgH=72, imgW=104, iy=y+40;
+  await supporterImage(ctx,T,s,sx,iy,imgW,imgH);
+  const rx=sx+imgW+10;
+  totsuStars(ctx,T,rx,iy+12,7,s.level);
+  ctx.fillStyle=s.level===3?rainbow(ctx,rx,iy+20,rx+40,iy+36):T.text; ctx.font=`bold 13px ${FONT}`; ctx.fillText(LV_LABEL_C[s.level],rx,iy+36);
+  if(s.heal){ ctx.fillStyle=T.cyan; ctx.font=`bold 12px ${FONT}`; ctx.fillText(fitText(ctx,s.heal,SW-imgW-24),rx,iy+60); }
+  let ty=iy+imgH+18;
+  const nm=wrapName(ctx,s.name,SW-8,sz=>`bold ${sz}px ${FONT}`,13,null);
+  ctx.fillStyle=T.text; ctx.font=`bold ${nm.size}px ${FONT}`; nm.lines.forEach((ln,i)=>ctx.fillText(ln,sx,ty+i*17)); ty+=nm.lines.length*17+2;
+  // リーダースキル：ルールごとに1行（チップ＋上昇率）
+  for(const r of s.rules){
+    if(ty+22>y+h-6) break;
+    const items=r.extra?r.items.map((it,k)=>k===0?Object.assign({},it,{label:"＋"+it.label}):it):r.items;
+    let cx=sx;
+    for(const it of items){ ctx.font=`bold 12px ${FONT}`;
+      const lab=fitText(ctx,(it.kind==="work"?"シリーズ ":"")+it.label,SW-80);
+      if(cx+ctx.measureText(lab).width+14>sx+SW-62) break;
+      cx=chip(ctx,cx,ty,lab,it.kind==="work"?T.cyan:G,false,12); }
+    ctx.fillStyle=G; ctx.font=`bold 17px ${FONT}`; ctx.textAlign="right"; ctx.fillText(rateText(r.rates,s.level),sx+SW-4,ty+16); ctx.textAlign="left";
+    ty+=25;
+  }
+  // ---- 右：バフ対象のゲージ（見出しの行）とユニット5枠 ----
+  const GX=x+SW+30, GW=x+w-14-GX, gap=10, tw=(GW-gap*4)/5, tTop=y+48, th=y+h-10-tTop;
+  ctx.fillStyle=T.muted; ctx.font=`bold 12px ${FONT}`; ctx.fillText("バフ対象",GX,y+27);
+  ctx.fillStyle=full?rainbow(ctx,GX+56,y+12,GX+110,y+30):G; ctx.font=`bold 20px ${FONT}`; ctx.fillText(String(F.synergy.count),GX+56,y+29);
+  let mw=ctx.measureText(String(F.synergy.count)).width;
+  ctx.fillStyle=T.muted; ctx.font=`bold 13px ${FONT}`; ctx.fillText(`/ ${n}機`,GX+56+mw+4,y+29);
+  const segX=GX+120, segW=26;
+  for(let i=0;i<n;i++){ roundRect(ctx,segX+i*segW+2,y+17,segW-4,10,3);
+    if(i<F.synergy.count){ ctx.save(); ctx.shadowColor=G; ctx.shadowBlur=8; ctx.fillStyle=full?rainbow(ctx,segX,0,segX+n*segW,0):G; ctx.fill(); ctx.restore(); }
+    else { ctx.strokeStyle=T.dark?"rgba(255,255,255,.25)":"rgba(15,39,64,.25)"; ctx.lineWidth=1; ctx.stroke(); } }
+  // リンク線：サポーター画像の右から右へ、タイルの上（tTop-8）を通り、対象の枠にだけ縦線
+  const hits=F.units.map((u,i)=>u&&u.hit?i:-1).filter(i=>i>=0);
+  if(hits.length){
+    const by=tTop-7, lastX=GX+hits[hits.length-1]*(tw+gap)+tw/2, sy0=iy+imgH/2;
+    ctx.save(); ctx.strokeStyle=full?rainbow(ctx,sx+imgW,by,lastX,by):G; ctx.lineWidth=2; ctx.shadowColor=G; ctx.shadowBlur=10; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(sx+SW+6,sy0); ctx.lineTo(GX-12,sy0); ctx.lineTo(GX-12,by); ctx.lineTo(lastX,by);
+    for(const i of hits){ const cx=GX+i*(tw+gap)+tw/2; ctx.moveTo(cx,by); ctx.lineTo(cx,tTop); }
+    ctx.stroke(); ctx.fillStyle=full?"#ffffff":G;
+    for(const i of hits){ const cx=GX+i*(tw+gap)+tw/2; ctx.beginPath(); ctx.arc(cx,by,3.5,0,Math.PI*2); ctx.fill(); }
+    ctx.beginPath(); ctx.arc(sx+SW+6,sy0,4,0,Math.PI*2); ctx.fill(); ctx.restore();
+  }
+  for(let i=0;i<5;i++){
+    const tx=GX+i*(tw+gap), u=F.units[i];
+    if(!u){ roundRect(ctx,tx,tTop,tw,th,8); ctx.setLineDash([4,4]); ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.stroke(); ctx.setLineDash([]); continue; }
+    ctx.save(); if(u.hit){ ctx.shadowColor=G; ctx.shadowBlur=full?14:9; }
+    roundRect(ctx,tx,tTop,tw,th,8); ctx.fillStyle=T.panel; ctx.fill(); ctx.restore();
+    roundRect(ctx,tx,tTop,tw,th,8); ctx.strokeStyle=u.hit?(full?rainbow(ctx,tx,tTop,tx+tw,tTop+th):G):T.line; ctx.lineWidth=u.hit?2:1; ctx.stroke();
+    // 画像（左上に番号）→ 名前（2行まで）→ ★・タイプ → バフの結果
+    const size=th-100, ix=tx+(tw-size)/2, iy2=tTop+8;
+    await unitImage(ctx,T,u,ix,iy2,size,7);
+    ctx.fillStyle=T.goldDim; ctx.font=`bold 13px ${FONT}`; ctx.fillText(String(i+1).padStart(2,"0"),tx+7,tTop+20);
+    const nmu=wrapName(ctx,u.name,tw-14,sz=>`bold ${sz}px ${FONT}`,13,u.unitId);
+    ctx.fillStyle=T.text; ctx.font=`bold ${nmu.size}px ${FONT}`;
+    nmu.lines.forEach((ln,j)=>ctx.fillText(ln,tx+7,iy2+size+16+j*15));
+    const by2=tTop+th-30;
+    const stx=totsuStars(ctx,T,tx+7,by2-14,5,u.level);
+    chip(ctx,stx+6,by2-25,u.type,TC[u.type],false,12);
+    if(u.hit){
+      ctx.font=`bold 12px ${FONT}`; chip(ctx,tx+7,by2-1,fitText(ctx,u.hit.label,tw-14-14-50),G,true,12);
+      ctx.fillStyle=u.hit.top===false?T.text:G; ctx.font=`bold 16px ${FONT}`; ctx.textAlign="right"; ctx.fillText(u.hit.rateText,tx+tw-7,by2+16); ctx.textAlign="left";
+    } else { ctx.fillStyle=T.muted; ctx.font=`bold 12px ${FONT}`; ctx.fillText("対象外",tx+7,by2+15); }
+  }
+}
+async function layoutFormation2(ctx,T,data){
+  await header(ctx,T,"FAVORITE FORMATION");
+  identityBand(ctx,T,data.profile,44,82,W-80);
+  const fs=data.formations, top=146, gap=10, rh=(H-58-top-gap)/2;
+  for(let k=0;k<2;k++) await formationRow(ctx,T,fs[k],fs[k]&&fs[k].label||`編成${k+1}`,28,top+k*(rh+gap),W-56,rh);
+  footer(ctx,T,data);
+}
+
 /* ======================= エントリポイント ======================= */
 // ㉚ Webフォント（Noto Sans JP）の読み込みを待ってから描く。
 // Google Fontsの日本語フォントは文字の範囲ごとに分割配信され、Canvasで描いただけでは読み込みが始まらない。
@@ -1497,12 +1805,167 @@ async function drawCardOnce(canvas,data,layout,themeKey,used){
   if(layout==="none") return;   // 背景のみ（確認用）
   if(layout==="eternal") await layoutEternal(ctx,T,data);
   else if(layout==="units") await layoutUnits(ctx,T,data);
+  else if(layout==="formation") await ((data.formations&&data.formations.filter(f=>f&&f.supporter).length===2)?layoutFormation2:layoutFormation)(ctx,T,data);
   else await layoutStandard(ctx,T,data);
 }
-return { drawProfileCard, drawThemeBackground, THEMES, eternalSummary, wrapName, setWrapHints, W, H };
+// 51 バフ対象の結果チップ用の作品名（通称優先。SEED ASTRAY系の作品はまとめて「SEED ASTRAY」）
+const ASTRAY_WORKS=new Set([67,68,69,70,74,75]);
+function workLabel(workId,short){ return ASTRAY_WORKS.has(workId)?"SEED ASTRAY":(WORK_NICK[workId]||short||""); }
+return { drawProfileCard, drawThemeBackground, THEMES, eternalSummary, wrapName, setWrapHints, workLabel, W, H };
 })();
 </script>
 
+<script>
+/* 51・52 推し編成のバフ対象判定とタグ傾向の計算（参考実装。profile-card.html の画面側に移植する想定）
+ * 入力はどれも既存／新設APIの応答そのまま：
+ *   leader  = GET /api/leader-skills  → { rules:[{supporterId,ruleNo,rates:[lv0,lv1,lv2,lv3]}], targets:[{supporterId,ruleNo,condNo,kind:'tag'|'work',id}] }
+ *   tagsApi = GET /api/tags           → { tags:[{tagId,name,...}], unitTags:[{rarityCode,unitId,tagId}] }
+ *   unitWork= Map(unitId → workId)    → GET /api/works から（画面は既に unitsById で持っている）
+ *   workLabel(workId) → カードに出す作品名（短縮名。収まらなければ WORK_NICK の通称）
+ * 判定の規則（51 4.4）：ルール内の条件(condNo)はすべて満たす（AND）、条件内の候補はどれか1つ（OR）。
+ *   該当ルールのうち、サポーターの凸での上昇率が一番高い1つをそのユニットの結果にする（効果は重複しない）。
+ *   凸の値が null のルールは完凸(lv3)の値で比べ、表示は「+lv0〜lv3%」。
+ * UR以外（rarityCode≠1）は今回は判定しない（SSRは㊻の再開後に unitTags の rarityCode=2 を足すだけで動く形）。
+ */
+(function (root) {
+  "use strict";
+  const RARITY_UR = 1;
+  const TAG_SHORT = { "阿頼耶識システム": "阿頼耶識", "モビル・トレース・システム": "MTS" };   // 結果チップ用の短い表記
+
+  function buildIndex(leader, tagsApi, unitWork) {
+    const tagName = new Map((tagsApi.tags || []).map(t => [t.tagId, t.name]));
+    const unitTagIds = new Map();                       // unitId → Set(tagId)（URだけ）
+    for (const r of tagsApi.unitTags || []) {
+      if (r.rarityCode !== RARITY_UR || !tagName.has(r.tagId)) continue;
+      if (!unitTagIds.has(r.unitId)) unitTagIds.set(r.unitId, new Set());
+      unitTagIds.get(r.unitId).add(r.tagId);
+    }
+    const freq = new Map();                             // tagId → そのタグを持つURの数
+    for (const set of unitTagIds.values()) for (const t of set) freq.set(t, (freq.get(t) || 0) + 1);
+    const rules = new Map();                            // supporterId → [{ruleNo, rates, conds: Map(condNo → [{kind,id}])}]
+    for (const r of leader.rules || []) {
+      if (!rules.has(r.supporterId)) rules.set(r.supporterId, []);
+      rules.get(r.supporterId).push({ ruleNo: r.ruleNo, rates: r.rates, conds: new Map() });
+    }
+    for (const t of leader.targets || []) {
+      const rule = (rules.get(t.supporterId) || []).find(x => x.ruleNo === t.ruleNo);
+      if (!rule) continue;
+      if (!rule.conds.has(t.condNo)) rule.conds.set(t.condNo, []);
+      rule.conds.get(t.condNo).push({ kind: t.kind, id: t.id });
+    }
+    for (const list of rules.values()) list.sort((a, b) => a.ruleNo - b.ruleNo);
+    return { tagName, unitTagIds, freq, rules, unitWork };
+  }
+
+  function rateAt(rates, lv) { const v = rates[lv]; return v == null ? null : v; }
+  function rateText(rates, lv) { const v = rateAt(rates, lv); return v == null ? `+${rates[0]}〜${rates[3]}%` : `+${v}%`; }
+  function hasKey(ix, unitId, c) {
+    return c.kind === "tag" ? !!(ix.unitTagIds.get(unitId) && ix.unitTagIds.get(unitId).has(c.id))
+                            : ix.unitWork.get(unitId) === c.id;
+  }
+
+  // ユニット1機の判定。対象外は null
+  function judge(ix, supporterId, level, unitId, workLabel) {
+    const list = ix.rules.get(supporterId) || [];
+    let best = null;
+    const comparable = r => rateAt(r.rates, level) ?? r.rates[3];
+    for (const r of list) {
+      const matched = [];
+      let ok = r.conds.size > 0;
+      for (const cands of r.conds.values()) {
+        const m = cands.find(c => hasKey(ix, unitId, c));
+        if (!m) { ok = false; break; }
+        matched.push(m);
+      }
+      if (!ok) continue;
+      const rate = comparable(r);
+      if (best && best.rate >= rate) continue;
+      best = {
+        rate, rateText: rateText(r.rates, level), ruleNo: r.ruleNo,
+        label: matched.map(m => m.kind === "tag" ? (TAG_SHORT[ix.tagName.get(m.id)] || ix.tagName.get(m.id)) : workLabel(m.id)).join("＋"),
+        byWork: matched.some(m => m.kind === "work"),
+        tags: matched.filter(m => m.kind === "tag").map(m => ix.tagName.get(m.id))
+      };
+    }
+    if (best && list.length > 1) best.top = best.rate === Math.max(...list.map(comparable));   // 低い方のルールに該当＝数字を白に
+    return best;
+  }
+
+  // 左パネルのリーダースキル表示。2つ目以降のルールが1つ目の対象をすべて含むなら差分だけ（extra=true。「＋阿頼耶識システム」）
+  function ruleView(ix, supporterId, workLabelFull) {
+    const list = ix.rules.get(supporterId) || [];
+    const keys = r => new Set([...r.conds.values()].flat().map(c => c.kind + ":" + c.id));
+    const first = list[0] ? keys(list[0]) : new Set();
+    return list.map((r, i) => {
+      const k = keys(r), extra = i > 0 && [...first].every(x => k.has(x));
+      const items = [], seen = new Set();
+      for (const c of [...r.conds.values()].flat()) {
+        if (extra && first.has(c.kind + ":" + c.id)) continue;
+        const label = c.kind === "tag" ? ix.tagName.get(c.id) : workLabelFull(c.id);
+        if (seen.has(label)) continue;                  // SEED ASTRAY系の6作品は1つのラベルにまとまる
+        seen.add(label); items.push({ kind: c.kind, label });
+      }
+      return { rates: r.rates, items, extra };
+    });
+  }
+
+  // 「対象のURユニット n機中 所持m機」
+  function targetCount(ix, supporterId, ownedSet) {
+    const all = [...ix.unitWork.keys()].filter(u => judge(ix, supporterId, 3, u, () => ""));
+    return { total: all.length, owned: all.filter(u => ownedSet.has(u)).length };
+  }
+
+  // 52 案D-2：特徴タグ（URの中で付いている機体が少ない順。同じなら tagId 順）
+  function featureTags(ix, unitId, n, exclude) {
+    const ex = new Set(exclude || []);
+    return [...(ix.unitTagIds.get(unitId) || [])]
+      .sort((a, b) => ix.freq.get(a) - ix.freq.get(b) || a - b)
+      .map(t => ix.tagName.get(t)).filter(name => !ex.has(name)).slice(0, n);
+  }
+  // 52 案D-1：編成の共通タグ（2機以上。多い順、同じなら名前順）
+  function sharedTags(ix, unitIds) {
+    const cnt = new Map();
+    for (const u of unitIds) for (const t of ix.unitTagIds.get(u) || []) { const nm = ix.tagName.get(t); cnt.set(nm, (cnt.get(nm) || 0) + 1); }
+    return [...cnt].filter(([, c]) => c >= 2).map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  }
+  // 52 案D-3：得意タグ（URが3機以上あるタグのうち、所持率の高い順。同じなら総数の多い順、さらに同じなら tagId 順）
+  function tagTrend(ix, ownedSet, n) {
+    const rows = [];
+    for (const [t, total] of ix.freq) {
+      if (total < 3) continue;
+      let owned = 0;
+      for (const u of ownedSet) if (ix.unitTagIds.get(u) && ix.unitTagIds.get(u).has(t)) owned++;
+      rows.push({ tagId: t, name: ix.tagName.get(t), owned, total });
+    }
+    return rows.sort((a, b) => b.owned / b.total - a.owned / a.total || b.total - a.total || a.tagId - b.tagId).slice(0, n);
+  }
+
+  // 編成1つ分のカード用データ（slotの位置のまま。空き枠は null）
+  function formationData(ix, f, unitById, supporterById, levels, workLabel, workLabelFull, ownedSet) {
+    if (!f || !f.supporterId) return null;
+    const lv = levels.supporters[f.supporterId] ?? 0;
+    const slots = [null, null, null, null, null];
+    for (const s of f.units) {
+      const u = unitById.get(s.unitId); if (!u || s.slot < 1 || s.slot > 5) continue;
+      const hit = judge(ix, f.supporterId, lv, s.unitId, workLabel);
+      slots[s.slot - 1] = Object.assign({}, u, { level: levels.units[s.unitId] ?? 0, hit,
+        featureTags: featureTags(ix, s.unitId, 2, hit ? hit.tags : []) });
+    }
+    const filled = slots.filter(Boolean), count = filled.filter(u => u.hit).length;
+    const sup = supporterById.get(f.supporterId);
+    return {
+      label: f.label || null,
+      supporter: Object.assign({}, sup, { level: lv, rules: ruleView(ix, f.supporterId, workLabelFull), targetUr: targetCount(ix, f.supporterId, ownedSet) }),
+      units: slots,
+      synergy: { count, total: filled.length, full: filled.length > 0 && count === filled.length },   // 描画側の既存名（synergy）のまま。表示文言は「バフ対象」
+      sharedTags: sharedTags(ix, filled.map(u => u.unitId))
+    };
+  }
+
+  root.FormationLogic = { buildIndex, judge, ruleView, targetCount, featureTags, sharedTags, tagTrend, formationData, rateText };
+})(typeof window !== "undefined" ? window : globalThis);
+</script>
 <script>
 (function(){
 "use strict";
@@ -1518,7 +1981,8 @@ const MAX_FAV = 5;
 const COMMENT_MAX = 60;   // ひとことの上限（2026-09-27に40→60。worker.jsのhandleSaveProfile()と合わせる）
 const ERA_LABEL = { UC: "宇宙世紀", ALT: "オルタナティブ", ETC: "SD・ビルド他" };   // 2026-09-27「アナザー」から改称（略称は「オルタナ」）
 const LV_LABEL = ["無凸", "1凸", "2凸", "完凸"];
-const TEMPLATE_LABEL = { standard: "標準", eternal: "エタロ攻略", units: "推しユニット" };
+const TEMPLATE_LABEL = { standard: "標準", eternal: "エタロ攻略", units: "推しユニット", formation: "推し編成" };   // worker.jsのCARD_TEMPLATESと対応
+const FM_SLOTS = 5, FM_LABEL_MAX = 10;
 
 // ---- 状態 ----
 let api = null;           // GET /api/profile-card の応答
@@ -1526,10 +1990,14 @@ let works = [];           // GET /api/works
 const worksById = new Map();
 const unitsById = new Map();  // unitId -> {unitId,name,type,limited,workId}
 let erStages = null;      // カード用のエタロ構成 [{id, missions:[{id,type,title,tag}]}]
+let fmIx = null;          // 51 FormationLogic.buildIndex()の結果。/api/tags・/api/leader-skillsが取れなければnull（推し編成は無効）
+let fmTab = 0;            // 編成フォームで開いているタブ（0／1）
 // ㉚ cardOptions：推しユニットカードに出す入手記録（acq＝入手日・ガシャ回数、memo＝メモ）。worker.jsのCARD_OPTIONS_DEFAULTと同じ既定値
 const CARD_OPTIONS_DEFAULT = { acq: true, memo: false };
+const emptyFormation = () => ({ label: "", supporterId: null, units: [null, null, null, null, null] });
 const draft = { displayName: "", comment: "", titleMissionId: null, cardTemplate: "standard", cardTheme: "galaxy", favoriteWorks: [], favoriteUnits: [],
-                cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT) };
+                cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT),
+                formations: [emptyFormation(), emptyFormation()], useFm2: false };   // 51 推し編成（units＝slotの位置どおり。空き枠はnull）
 // ㉚ ur-units.js（unit.htmlと共有するURユニットのマスター）から実装日と改行位置の指定を読む
 const UR_UNITS_BY_ID = new Map((window.UR_UNITS || []).map(u => [u.id, u]));
 CardRenderer.setWrapHints(Object.fromEntries((window.UR_UNITS || []).filter(u => u.wrap).map(u => [u.id, u.wrap])));
@@ -1559,9 +2027,12 @@ function toast(msg){
 // ---- テンプレートの選択可否 ----
 function eternalAvailable(){ return !!(api && api.eternalRoad && api.eternalRoad.registered && erStages); }
 function unitsAvailable(){ return !!(api && api.units && api.units.registered && api.units.owned > 0); }
+function supportersAvailable(){ return ownedSupporterList().length > 0; }
+function formationAvailable(){ return !!fmIx && unitsAvailable() && supportersAvailable(); }
 function effectiveTemplate(){
   if (draft.cardTemplate === "eternal" && !eternalAvailable()) return "standard";
   if (draft.cardTemplate === "units" && !unitsAvailable()) return "standard";
+  if (draft.cardTemplate === "formation" && !formationAvailable()) return "standard";
   return draft.cardTemplate;
 }
 
@@ -1573,13 +2044,33 @@ function sanitizeDraft(){
   draft.favoriteWorks = [...new Set(draft.favoriteWorks)].filter(id => worksById.has(id)).slice(0, MAX_FAV);
   draft.favoriteUnits = [...new Set(draft.favoriteUnits)].filter(id => owned.has(id)).slice(0, MAX_FAV);
   if (!earnedTitleIds().has(draft.titleMissionId)) draft.titleMissionId = null;
-  if (!["standard", "eternal", "units"].includes(draft.cardTemplate)) draft.cardTemplate = "standard";
+  if (!["standard", "eternal", "units", "formation"].includes(draft.cardTemplate)) draft.cardTemplate = "standard";
+  sanitizeFormations(owned);
   // ジャングル背景は2026-09-24に選択肢から削除（ユーザー指示）。保存済み・下書きの"jungle"は宇宙世紀で描く
   if (!["galaxy", "earth", "sky"].includes(draft.cardTheme)) draft.cardTheme = "galaxy";
   const o = draft.cardOptions && typeof draft.cardOptions === "object" ? draft.cardOptions : {};
   draft.cardOptions = { acq: typeof o.acq === "boolean" ? o.acq : CARD_OPTIONS_DEFAULT.acq, memo: typeof o.memo === "boolean" ? o.memo : CARD_OPTIONS_DEFAULT.memo };
   draft.displayName = String(draft.displayName || "").slice(0, 32);
   draft.comment = String(draft.comment || "").slice(0, 120);
+}
+// 51 所持していないサポーター・ユニットを外し、2つの編成の重複（サポーター・ユニット）は後ろを落とす。slotは詰めない
+function sanitizeFormations(owned){
+  const supOwned = new Set(ownedSupporterList().map(s => s.id));
+  if (!Array.isArray(draft.formations)) draft.formations = [];
+  draft.formations = [0, 1].map(i => {
+    const f = draft.formations[i] && typeof draft.formations[i] === "object" ? draft.formations[i] : {};
+    const units = Array.isArray(f.units) ? f.units.slice(0, FM_SLOTS) : [];
+    while (units.length < FM_SLOTS) units.push(null);
+    return { label: String(f.label || "").slice(0, FM_LABEL_MAX),
+             supporterId: Number.isInteger(f.supporterId) && supOwned.has(f.supporterId) ? f.supporterId : null,
+             units: units.map(id => Number.isInteger(id) && owned.has(id) ? id : null) };
+  });
+  const [a, b] = draft.formations;
+  if (b.supporterId != null && b.supporterId === a.supporterId) b.supporterId = null;
+  b.units = b.units.map(id => id != null && a.units.includes(id) ? null : id);
+  const seen = new Set();
+  for (const f of draft.formations) f.units = f.units.map(id => { if (id == null || seen.has(id)) return null; seen.add(id); return id; });
+  draft.useFm2 = !!draft.useFm2;
 }
 function draftFromProfile(p){
   const bySlot = arr => (arr || []).slice().sort((a, b) => a.slot - b.slot);
@@ -1591,14 +2082,30 @@ function draftFromProfile(p){
     cardTheme: p.cardTheme || "galaxy",
     favoriteWorks: bySlot(p.favoriteWorks).map(f => f.workId),
     favoriteUnits: bySlot(p.favoriteUnits).map(f => f.unitId),
-    cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT, p.cardOptions || {})
+    cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT, p.cardOptions || {}),
+    formations: [0, 1].map(i => {
+      const f = (p.formations || [])[i], out = emptyFormation();
+      if (f) {
+        out.label = f.label || ""; out.supporterId = f.supporterId == null ? null : f.supporterId;
+        for (const u of f.units || []) if (u.slot >= 1 && u.slot <= FM_SLOTS) out.units[u.slot - 1] = u.unitId;
+      }
+      return out;
+    }),
+    useFm2: (p.formations || []).length > 1
   };
+}
+// 51 保存・未保存判定に使う編成（使わない2つ目と、空の編成は除く。サーバーも空の編成は保存しない）
+function formationsPayload(){
+  const act = draft.useFm2 ? draft.formations : [draft.formations[0]];
+  return act.map(f => ({ label: f.label.trim() || null, supporterId: f.supporterId, units: f.units.slice() }))
+    .filter(f => f.supporterId != null || f.units.some(id => id != null));
 }
 function draftJson(){
   return JSON.stringify({
     displayName: draft.displayName.trim(), comment: draft.comment.trim(), titleMissionId: draft.titleMissionId,
     cardTemplate: draft.cardTemplate, cardTheme: draft.cardTheme,
-    favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits, cardOptions: draft.cardOptions
+    favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits, cardOptions: draft.cardOptions,
+    formations: formationsPayload()
   });
 }
 
@@ -1645,13 +2152,40 @@ function cardAcq(){
   }
   return out;
 }
+// 51 推し編成・タグ傾向のカード用データ。fmIxが無ければ空（推し編成のバフ対象判定とタグ表示だけ無効）
+function ownedSupporterList(){
+  const own = (api && api.supporters && api.supporters.ownership) || {};
+  return ((api && api.supporters && api.supporters.master) || []).filter(s => own[String(s.id)] !== undefined && fmIx && fmIx.rules.has(s.id));
+}
+function fmWorkLabel(id){ const w = worksById.get(id); return CardRenderer.workLabel(id, w ? w.shortName : ""); }
+function fmUnitObj(id){
+  const u = unitsById.get(id); if (!u) return null;
+  return { unitId: u.unitId, name: u.name, type: u.type, limited: u.limited,
+           workShort: (worksById.get(u.workId) || {}).shortName || "", workId: u.workId };
+}
+function fmFormationData(f){
+  const own = (api.units && api.units.ownership) || {}, sOwn = (api.supporters && api.supporters.ownership) || {};
+  const unitById = new Map(), supporterById = new Map();
+  for (const id of f.units) if (id != null && !unitById.has(id)) { const o = fmUnitObj(id); if (o) unitById.set(id, o); }
+  for (const s of (api.supporters && api.supporters.master) || []) supporterById.set(s.id, { id: s.id, name: s.name, limited: s.limited, heal: s.skill });
+  const units = [];
+  f.units.forEach((id, i) => { if (id != null) units.push({ slot: i + 1, unitId: id }); });
+  return FormationLogic.formationData(fmIx, { label: f.label.trim() || null, supporterId: f.supporterId, units },
+    unitById, supporterById, { supporters: sOwn, units: own }, fmWorkLabel, fmWorkLabel, ownedUnitIds());
+}
+function fmCardFormations(){
+  if (!fmIx) return [];
+  const act = draft.useFm2 ? draft.formations : [draft.formations[0]];
+  return act.filter(f => f.supporterId != null).map(fmFormationData).filter(Boolean).slice(0, 2);
+}
 function buildCardData(){
   const own = (api.units && api.units.ownership) || {};
   const favorites = draft.favoriteWorks.map(id => worksById.get(id)).filter(Boolean)
     .map(w => ({ shortName: w.shortName, era: w.era, timeline: w.timeline, iconNo: w.workId, workId: w.workId }));
   const favoriteUnits = draft.favoriteUnits.map(id => unitsById.get(id)).filter(u => u && own[String(u.unitId)] !== undefined)
     .map(u => ({ unitId: u.unitId, name: u.name, type: u.type, limited: u.limited, level: own[String(u.unitId)],
-                 workShort: (worksById.get(u.workId) || {}).shortName || "", workId: u.workId }));
+                 workShort: (worksById.get(u.workId) || {}).shortName || "", workId: u.workId,
+                 featureTags: fmIx ? FormationLogic.featureTags(fmIx, u.unitId, 3) : [] }));   // 52 1位の特徴タグ
   const units = api.units ? Object.assign({}, api.units, {
     maxUnitIds: Object.keys(own).filter(k => own[k] === 3).map(Number).sort((a, b) => a - b),   // ㉘ 新レイアウトでは未使用（残置）
     // ㉘ 標準カードで推しユニット未設定のときに並べる所持ユニット：凸Lvの高い順、同じならID順に5機（形はfavoriteUnitsと同じ）
@@ -1665,13 +2199,17 @@ function buildCardData(){
     registered: !!api.eternalRoad.registered, stages: erStages,
     clearedStageIds: api.eternalRoad.clearedStageIds || [], clearedMissionIds: api.eternalRoad.clearedMissionIds || []
   } : null;
-  return {
+  const cardData = {
     // 称号はカードに表示しない（2026-09-27 表示称号欄を削除）。titleMissionIdは保存データの互換のためAPIへはそのまま送る
     profile: { displayName: draft.displayName.trim() || api.username, title: null, comment: draft.comment.trim() || null },
     favorites, favoriteUnits, units, supporters: api.supporters || null, eternalRoad: er,
+    formations: fmCardFormations(),   // 51 推し編成（最大2件）。1件なら1編成のレイアウト
+    tagTrend: fmIx ? FormationLogic.tagTrend(fmIx, ownedUnitIds(), 3) : [],   // 52 左パネルの得意タグ
     unitAcq: cardAcq(),   // ㉙ 推しユニットカードの入手記録（DB登録済みの値）。㉚ 表示オプションで絞り、実装日と同じ日付には「実装日」の印
     createdAt: jstToday()   // ㉟ 2026-09-28 右下のXアカウントID（siteLabel）はカードから削除（ユーザー指示）
   };
+  cardData.formation = cardData.formations[0] || null;   // 51 1編成のレイアウトが読む
+  return cardData;
 }
 
 // ---- プレビュー（300msデバウンス。描画はオフスクリーンで行い、最新の要求だけを反映する） ----
@@ -1718,13 +2256,14 @@ function renderDesign(){
   const tpl = effectiveTemplate();
   document.querySelectorAll("#tplButtons button").forEach(b => {
     const k = b.dataset.tpl;
-    b.disabled = (k === "eternal" && !eternalAvailable()) || (k === "units" && !unitsAvailable());
+    b.disabled = (k === "eternal" && !eternalAvailable()) || (k === "units" && !unitsAvailable()) || (k === "formation" && !formationAvailable());
     b.classList.toggle("active", k === tpl);
     b.setAttribute("aria-pressed", k === tpl ? "true" : "false");
   });
   const hints = [];
   if (!eternalAvailable()) hints.push("「エタロ攻略」はエタロ攻略チェッカーでデータ登録すると選べます。");
   if (!unitsAvailable()) hints.push("「推しユニット」はURユニットの所持データを登録すると選べます。");
+  if (!formationAvailable()) hints.push("「推し編成」はURユニットとURサポートの所持データを登録すると選べます。");
   $("tplHint").textContent = hints.join(" ");
   $("tplHint").hidden = !hints.length;
   document.querySelectorAll("#themeButtons button").forEach(b => {
@@ -1876,9 +2415,84 @@ function renderUnits(){
   list.scrollTop = keepScroll;
 }
 
+// ---- 51 推し編成フォーム ----
+function fmSupporterLevel(id){ const o = (api.supporters && api.supporters.ownership) || {}; return o[String(id)] == null ? 0 : o[String(id)]; }
+function fmJudge(supporterId, unitId){
+  return supporterId == null || !fmIx ? null : FormationLogic.judge(fmIx, supporterId, fmSupporterLevel(supporterId), unitId, fmWorkLabel);
+}
+function renderFormation(){
+  const sec = $("formationSection");
+  sec.hidden = !(fmIx && unitsAvailable() && supportersAvailable());
+  if (sec.hidden) return;
+  if (!draft.useFm2 && fmTab === 1) fmTab = 0;
+  const f = draft.formations[fmTab], other = draft.formations[1 - fmTab];
+  const own = (api.units && api.units.ownership) || {};
+  $("fmUse2").checked = draft.useFm2;
+  $("fmTabs").hidden = !draft.useFm2;
+  document.querySelectorAll("#fmTabs button").forEach(b => {
+    const on = Number(b.dataset.fm) === fmTab;
+    b.classList.toggle("active", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  if ($("fmLabel") !== document.activeElement) $("fmLabel").value = f.label;
+  // サポーター（もう一方の編成で使用中のものは選べない）
+  const sel = $("fmSupporter"); sel.textContent = "";
+  sel.appendChild(el("option", { value: "", text: "未選択" }));
+  for (const s of ownedSupporterList()) {
+    const o = el("option", { value: String(s.id), text: `${s.name}（${LV_LABEL[fmSupporterLevel(s.id)]}）` });
+    if (other.supporterId === s.id && draft.useFm2) { o.disabled = true; o.text += " ※もう一方の編成で使用中"; }
+    sel.appendChild(o);
+  }
+  sel.value = f.supporterId == null ? "" : String(f.supporterId);
+  // リーダースキルの説明と対象ユニット数
+  const info = $("fmSupInfo"); info.textContent = "";
+  if (f.supporterId != null) {
+    const lv = fmSupporterLevel(f.supporterId);
+    const rules = FormationLogic.ruleView(fmIx, f.supporterId, fmWorkLabel);
+    for (const r of rules) {
+      const names = r.items.map(it => (it.kind === "work" ? "シリーズ " : "") + it.label).join("・");
+      info.appendChild(el("div", {}, [document.createTextNode("リーダースキル："),
+        el("b", { text: (r.extra ? "＋" : "") + names }), document.createTextNode(` ${FormationLogic.rateText(r.rates, lv)}`)]));
+    }
+    const tc = FormationLogic.targetCount(fmIx, f.supporterId, ownedUnitIds());
+    info.appendChild(el("div", { text: `対象のURユニット ${tc.total}機中 所持${tc.owned}機` }));
+  } else {
+    info.textContent = "サポーターを選ぶと、リーダースキルの対象になるユニットが分かります。";
+  }
+  // ユニット5枠（位置どおり。途中を空けてよい）
+  const onlyHit = $("fmOnlyHit").checked && f.supporterId != null;
+  const usedElsewhere = new Set(draft.useFm2 ? other.units.filter(id => id != null) : []);
+  const slots = $("fmSlots"); slots.textContent = "";
+  const ids = Object.keys(own).map(Number).filter(id => unitsById.has(id)).sort((a, b) => a - b);
+  f.units.forEach((cur, i) => {
+    const s = el("select", { "aria-label": `ユニット${i + 1}` });
+    s.appendChild(el("option", { value: "", text: "（空き枠）" }));
+    for (const id of ids) {
+      const hit = fmJudge(f.supporterId, id);
+      if (onlyHit && !hit && id !== cur) continue;
+      const taken = f.units.some((x, j) => j !== i && x === id) || usedElsewhere.has(id);
+      const u = unitsById.get(id);
+      const o = el("option", { value: String(id), text: `${hit ? "◎対象 " + hit.rateText + "｜" : ""}${u.name}（${u.type}・${LV_LABEL[own[String(id)]] || ""}）${taken ? " ※使用中" : ""}` });
+      if (taken) o.disabled = true;
+      s.appendChild(o);
+    }
+    s.value = cur == null ? "" : String(cur);
+    s.addEventListener("change", () => { f.units[i] = s.value === "" ? null : Number(s.value); renderFormation(); onChange(); });
+    slots.appendChild(el("div", { class: "fmSlot" }, [el("span", { class: "no", text: String(i + 1).padStart(2, "0") }), s]));
+  });
+  // バフ対象のゲージ
+  const g = $("fmGauge"); g.textContent = "";
+  const filled = f.units.filter(id => id != null);
+  const cnt = f.supporterId == null ? 0 : filled.filter(id => fmJudge(f.supporterId, id)).length;
+  const bar = el("span", { class: "bar" + (filled.length && cnt === filled.length ? " full" : "") });
+  for (let i = 0; i < filled.length; i++) bar.appendChild(el("i", { class: i < cnt ? "on" : "" }));
+  g.appendChild(el("span", { text: "バフ対象" }));
+  g.appendChild(el("b", { text: `${cnt}/${filled.length}` }));
+  g.appendChild(bar);
+}
+
 function renderAcqOpts(){ $("optAcq").checked = !!draft.cardOptions.acq; $("optMemo").checked = !!draft.cardOptions.memo; }
 function renderAll(){
-  renderDesign(); renderRegList(); renderProfileFields(); renderWorks(); renderUnits(); renderAcqOpts(); updateDirty();
+  renderDesign(); renderRegList(); renderProfileFields(); renderWorks(); renderUnits(); renderFormation(); renderAcqOpts(); updateDirty();
 }
 
 // ---- 入力イベント ----
@@ -1898,6 +2512,17 @@ $("workTabs").addEventListener("click", e => {
 });
 $("unitTypeFilter").addEventListener("change", () => { $("unitList").scrollTop = 0; renderUnits(); });
 $("unitWorkFilter").addEventListener("change", () => { $("unitList").scrollTop = 0; renderUnits(); });
+$("fmTabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-fm]"); if (!b) return;
+  fmTab = Number(b.dataset.fm); renderFormation();
+});
+$("fmUse2").addEventListener("change", () => { draft.useFm2 = $("fmUse2").checked; if (!draft.useFm2) fmTab = 0; sanitizeDraft(); renderFormation(); onChange(); });
+$("fmLabel").addEventListener("input", () => { draft.formations[fmTab].label = $("fmLabel").value.slice(0, FM_LABEL_MAX); onChange(); });
+$("fmOnlyHit").addEventListener("change", renderFormation);
+$("fmSupporter").addEventListener("change", () => {
+  const f = draft.formations[fmTab]; f.supporterId = $("fmSupporter").value === "" ? null : Number($("fmSupporter").value);
+  sanitizeDraft(); renderFormation(); onChange();
+});
 $("optAcq").addEventListener("change", () => { draft.cardOptions = Object.assign({}, draft.cardOptions, { acq: $("optAcq").checked }); onChange(); });
 $("optMemo").addEventListener("change", () => { draft.cardOptions = Object.assign({}, draft.cardOptions, { memo: $("optMemo").checked }); onChange(); });
 
@@ -1906,10 +2531,12 @@ function profileBody(){
   return JSON.stringify({
     displayName: draft.displayName.trim(), comment: draft.comment.trim(), titleMissionId: draft.titleMissionId,
     cardTemplate: draft.cardTemplate, cardTheme: draft.cardTheme,
-    favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits, cardOptions: draft.cardOptions
+    favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits, cardOptions: draft.cardOptions,
+    formations: formationsPayload()
   });
 }
 const SAVE_ERRORS = {
+  invalid_formations: "推し編成は2つまで・ユニットは5機まで・編成名は10文字以内です",
   invalid_display_name: "表示名は16文字以内で、改行や制御文字は使えません",
   invalid_comment: "ひとことは60文字以内で入力してください",
   invalid_favorites: "推し作品は5つまでです",
@@ -1990,6 +2617,14 @@ function shareStatsLine(tpl, data){
     if (!f.length) return null;
     return f.length > 1 ? `推しユニット：${f[0].name}ほか${f.length - 1}機` : `推しユニット：${f[0].name}`;
   }
+  if (tpl === "formation") {
+    const fs = data.formations || [];
+    if (!fs.length) return null;
+    const supName = F => F.supporter.name.split("&")[0];
+    if (fs.length > 1) return `推し編成：${supName(fs[0])}・${supName(fs[1])} バフ対象${fs[0].synergy.count}/${fs[0].synergy.total}・${fs[1].synergy.count}/${fs[1].synergy.total}`;
+    const us = fs[0].units.filter(Boolean);
+    return `推し編成：${supName(fs[0])}${us.length ? "＋" + us[0].name + (us.length > 1 ? "ほか" : "") : ""} バフ対象${fs[0].synergy.count}/${fs[0].synergy.total}`;
+  }
   const parts = [];
   if (data.units && data.units.registered) parts.push(`URユニット${data.units.pct}%`);
   if (data.supporters && data.supporters.registered) parts.push(`URサポート${data.supporters.pct}%`);
@@ -2027,10 +2662,12 @@ $("guardLoginBtn").addEventListener("click", () => { const l = document.getEleme
 
 async function init(){
   try {
-    const [cardRes, worksRes, missionsRes] = await Promise.all([
+    const [cardRes, worksRes, missionsRes, tagsRes, leaderRes] = await Promise.all([
       fetch("/api/profile-card", { credentials: "same-origin" }),
       fetch("/api/works").then(r => r.ok ? r.json() : { works: [] }).catch(() => ({ works: [] })),
-      fetch("/api/eternal-road/missions").then(r => r.ok ? r.json() : null).catch(() => null)
+      fetch("/api/eternal-road/missions").then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch("/api/tags").then(r => r.ok ? r.json() : null).catch(() => null),            // 51・52 失敗したら推し編成・タグ表示だけ無効
+      fetch("/api/leader-skills").then(r => r.ok ? r.json() : null).catch(() => null)
     ]);
     if (cardRes.status === 401) { showGuard(); return; }
     if (!cardRes.ok) throw new Error("profile-card " + cardRes.status);
@@ -2039,6 +2676,11 @@ async function init(){
     for (const w of works) {
       worksById.set(w.workId, w);
       for (const u of w.units || []) unitsById.set(u.unitId, Object.assign({ workId: w.workId }, u));
+    }
+    // 51・52 バフ対象の判定とタグ傾向の索引（両APIにデータがあるときだけ有効）
+    if (tagsRes && leaderRes && (tagsRes.tags || []).length && (leaderRes.rules || []).length) {
+      const unitWork = new Map(); for (const [id, u] of unitsById) unitWork.set(id, u.workId);
+      fmIx = FormationLogic.buildIndex(leaderRes, tagsRes, unitWork);
     }
     // エタロの構成（ステージごとのミッション）はマスターAPIから組み立てる（㉒6.2）
     const ms = (missionsRes && missionsRes.missions) || [];

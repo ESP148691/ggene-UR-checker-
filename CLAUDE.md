@@ -28,7 +28,7 @@ Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェ�
   - GitHub：`https://github.com/ESP148691/ggene-UR-checker-`
   - Cloudflare：`https://dash.cloudflare.com/d78525314dd74181c2dc4fea74c8844a/workers/services/view/ggene-ur-checker/production`
 - `wrangler.jsonc`：プロジェクト`ggene-ur-checker`、assets=`./`、D1バインディング`DB`（`ggene-ur-checker-db`）、定期実行`0 19 * * *`（JST 4:00）、運営者`vars.ADMIN_USERNAMES`（カンマ区切り・大文字小文字を区別。**現在`ESP`**。増やすときはここに追記してpush＝トップの運営者欄・運営者ページ・`/api/admin/*`が連動）
-- **この開発PCにはwrangler・Nodeが無い**。D1へのSQL適用は**ユーザーがCloudflareダッシュボード（D1 > Console）で手動実行**する。コード側は「どのSQLをどの順で流すか」を案内する
+- **D1へのSQL適用はClaude Codeがwranglerで行える（2026-10-04〜）**：`npx wrangler d1 execute ggene-ur-checker-db --remote --file=migrations/00NN_xxx.sql`（OAuthログイン済み。`--command`でSELECTも可。まれに認可エラー7403が一時的に出るので、その場合は再実行）。適用前に`sqlite_master`で既存TBLと衝突しないことを確認する
 - ユーザーはシステム開発経験あり（技術説明は詳しくてよい）。ただしGitHub・Cloudflareの画面操作は不慣れなので手順は具体的に
 
 ## リポジトリ構成（2026-09-29時点）
@@ -86,7 +86,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0024 | ㊶ SSRマスター・`unit_work_map`作り直し・`user_favorite_units.rarity_code`（**1回だけ**。再実行は先頭ALTERが`duplicate column`で止まる）。SSR名のUNIQUE索引は`(name, type)`（㊻3章） | 適用済み（2026-10-04） |
 | 0025〜0026 | ㊶ タグ・`units_tags`・`v_all_units`（0025）／タグ133件（0026） | 適用済み（2026-10-04） |
 | 0027〜0028 | ㊾ タグ10件追加＋作品名タグ14件を無効化（0027）／URのタグ付け712件（0028。先頭で`DELETE FROM units_tags WHERE rarity_code = 1`） | 適用済み（2026-10-04） |
-| 次の空き | 0029 | ― |
+| 0029〜0030 | 51 推し編成：TBL4つ（`supporters_leader_rules`・`supporters_leader_targets`・`user_formations`・`user_formation_units`。0029）／URサポーター50体のリーダースキル（ルール55・条件75。0030。先頭で2TBLを全削除するので再実行可） | 適用済み（2026-10-04 Claude Code。確認SQLは期待値どおり） |
+| 次の空き | 0031 | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
 - **適用はD1が先、pushが後**。逆にすると新コードが未作成のTBL・列を読んで500や保存漏れになる（⑬のデプロイギャップ）。**バックフィルは必ず冪等に書き、間が空いたら再実行する**
@@ -108,6 +109,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 - `restoreOwnershipFromServer()`は`data.registered`のときだけ上書きする（新規登録直後に端末の状態を消さない。㉘）
 - **同じものを複数か所に持っている箇所**（変えるときは全部そろえる）
   - ミッションの短い表示名：`eternal-road.html`の`missionLabel()`・`profile-card.html`の`CardRenderer`内・`analytics.html`の`erMissionLabel()`
+  - カードのテンプレート：`worker.js`の`CARD_TEMPLATES`と`profile-card*.html`の`TEMPLATE_LABEL`（`formation`＝推し編成）
   - カード表示設定の既定値`CARD_OPTIONS_DEFAULT`（`{acq:true, memo:false}`）：`profile-card.html`と`worker.js`
   - 作品ID：`worker.js`の`WORK_IDS`・`works_master`・`images/series/`
   - ユニット件数：`ur-units.js`・`top.html`の`UNIT_IMAGES`・`worker.js`の`MAX_UNIT_ID`・D1（サポートも同様）
@@ -144,6 +146,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 6. **URユニットのみ：スクショ読み取りの位置合わせ値`SCAN_FIT`を`unit-scan.js`に追加**。無いと自動判定されない（「判定できなかったカード」に入る）。運営者がそのユニットの写ったスクショで`/unit?scandebug=1`を開いて読み取り、手動で割り当て → 画面下の「学習した位置合わせ値」のJSONの該当IDを追記。2026-09-30時点で87機中69機にあり
 7. **URサポートのみ：`supporter-scan.js`の`SCAN_FIT`を追加**。手順は同じで`/supporter?scandebug=1`（「強化 > サポーター」一覧のスクショ）。50体中31体にあり
 8. ㊶・㊾の適用後：新URの**タグ**を`INSERT OR REPLACE INTO units_tags (rarity_code, unit_id, tag_id, source, updated_at) VALUES (1, …, …, 'game', '…');`で入れる（運営者がゲーム内ユニット詳細の「タグ」欄で確認。**「シリーズ」欄の作品名はタグではない**）。新しいタグ名が出たら`tags_master`に次の`tag_id`（144〜）で追加。その後、㊳詳細設計5章の確認SQL（3本とも0件が正常）を流す
+
+**URサポーターを追加するとき（51）**：上の手順に加えて、`supporters_leader_rules`・`supporters_leader_targets`に行を足す（Coworkが攻略サイト・ゲーム内で対象を確認して下書き）。`docs/04_自己紹介カード/データ/51_シナジー判定_確認SQL.sql`の先頭3本で孤児0件を確認。新しいタグがリーダースキルの対象になるなら、`tags_master`に先に追加する
 
 **作品（推し作品の選択肢）を追加するとき**：`works_master`（`INSERT OR REPLACE`）・`worker.js`の`WORK_IDS`・`images/series/{work_id}.png`の3点を必ずそろえる。`work_id`はゲーム内「シリーズ絞り込み」の並び順
 
@@ -187,6 +191,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | ㊸ | 09-30 | 9/30新UR：ユニット85〜87・サポート50を追加（`ur-units.js`・`supporter.html`・画像・`top.html`・`worker.js`の`MAX_*_ID`・0022）。D1適用・push済み。本番確認（依頼書8章）とSCAN_FIT学習が残り |
 | ㉟A・㊹ | 10-01 | 自己紹介カード一般公開（adminGate解除・導線表示。運営者向け試用版`profile-card-trial.html`を残す。0019適用済み）。㊹：トップの導線アイコンを試作カード縮小画像（`images/profile-card/{standard,units,eternal}.jpg`。カードのデザインを大きく変えたら`docs/04_自己紹介カード/データ/㊹カードアイコン生成.py`で作り直す）に差し替え。本番確認（依頼書4章A-4・㊹8章）が残り。2026-10-01：画面の「ログイン会員限定」「ログインユーザー限定」表記を削除（全機能ログイン必須のため。トップの節見出しは「レポート・カード」） |
 | ㊶A・㊾ | 10-04 | ㊶段階A：`migrations/0024〜0026`（SSRマスター・`unit_work_map`作り直し・`rarity_code`・タグ）、`worker.js`の`RARITY_CODE`・`/api/works`と`loadProfile`のURだけ読み＋旧SQLへのフォールバック（`rarityCode: 1`を返す）・新API`GET /api/tags`。㊾：`0027`（タグ10件追加・作品名タグ14件無効）・`0028`（URタグ付け712件）。**段階B（`ssr-tool.html`等）とSSR関連（㊻C-1・C-2）は保留**。0024の索引は㊻3章どおり`(name, type)`。D1適用（0024→0028の順）→push の順で。仕様書4章・3章は更新済み |
+| 51・52 推し編成・タグ傾向（段階1） | 10-04 | 0029・0030をD1適用済み。`worker.js`：`GET /api/leader-skills`、`/api/profile-card`に`profile.formations`・`supporters.ownership`・`supporters.master`（依頼書に無い追加。サポーター名・限定・skillを画面側が持たないため）、`POST /api/profile`の`formations`（別バッチ・送らなければ不変・2編成の重複は後ろを読み飛ばす）。`profile-card-trial.html`：テンプレート「推し編成」（1編成・2編成の描画、フォーム、Xシェア）と推しユニットカードの特徴タグ・得意タグ。**本番`profile-card.html`への反映と`scripts/card_check/`への追加は段階2（運営者の確認後）**。左パネル・結果の「サポートスキル」表示は`supporters_master.skill`（HP回復/EN回復/複合）で、試作の「HP回復/防御UP」等の詳細表記は出ない。`scripts/card_check/seed.sql`は`user_favorite_units`の列数が0024以降に合わず古い（段階2で直す） |
 | ㊼ | 10-03 | エタロ攻略にステージ30（機動戦士Vガンダム）を追加：全30ステージ・71ミッション（`eternal-road.html`の表記・合計、一括達成の確認文は`stages.length`参照に）、`images/eternal-road/30.jpg`・`icon/30.jpg`（`scripts/make_eternal_road_icons.py`更新）、`worker.js`、`top.html`、自己紹介カード`profile-card.html`・`profile-card-trial.html`のエタロ分母を30に、`migrations/0023_eternal_road_stage30.sql`（ミッション301・302）。0023はD1適用済み（2026-10-03ユーザー確認）。本番確認が残り |
 
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
