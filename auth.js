@@ -35,6 +35,8 @@
           <button type="button" class="btn-cancel" id="authCancel">閉じる</button>
           <button type="submit" class="btn-submit" id="authSubmit">ログイン</button>
         </div>
+        <button type="button" class="forgotLink" id="authForgotLink">パスワードを忘れた方</button>
+        <p class="hint forgotInfo" id="authForgotInfo" hidden>パスワードを忘れた場合は、運営者のXアカウント（@polarbear148691）へDMでユーザー名をお知らせください。</p>
       </form>
     </div>
   `;
@@ -47,6 +49,9 @@
   const usernameInput = document.getElementById("authUsername");
   const passwordInput = document.getElementById("authPassword");
   const tabs = modal.querySelectorAll(".tabs button");
+  const forgotLink = document.getElementById("authForgotLink");
+  const forgotInfo = document.getElementById("authForgotInfo");
+  forgotLink.addEventListener("click", () => { forgotInfo.hidden = !forgotInfo.hidden; });
   let mode = "login";
 
   function setMode(m) {
@@ -56,6 +61,9 @@
     submitBtn.textContent = m === "login" ? "ログイン" : "登録する";
     passwordInput.autocomplete = m === "login" ? "current-password" : "new-password";
     errEl.textContent = "";
+    // 54 「パスワードを忘れた方」はログインタブのときだけ表示する
+    forgotLink.hidden = m !== "login";
+    forgotInfo.hidden = true;
   }
   tabs.forEach(b => b.addEventListener("click", () => setMode(b.dataset.tab)));
 
@@ -86,7 +94,13 @@
     // Cloudflareの静的アセット配信は/top.htmlを拡張子なしの/topへ自動リダイレクトするため、その形も許容する
     const isTopPage = location.pathname === "/" || location.pathname === "/top" || location.pathname === "/top.html";
     const topLink = isTopPage ? "" : `<a href="/top" class="authlink">トップに戻る</a>`;
-    authbar.innerHTML = `${topLink}<span class="authuser">${escapeHtml(username)} さん</span><button type="button" id="authLogoutBtn">ログアウト</button>`;
+    // 54 アカウント設定（パスワード変更）への入口。account.html上ではリンクにしない
+    const isAccountPage = location.pathname === "/account" || location.pathname === "/account.html";
+    const userLabel = `${escapeHtml(username)} さん`;
+    const userEl = isAccountPage
+      ? `<span class="authuser">${userLabel}</span>`
+      : `<a href="/account.html" class="authuser authuserLink">${userLabel}</a>`;
+    authbar.innerHTML = `${topLink}${userEl}<button type="button" id="authLogoutBtn">ログアウト</button>`;
     document.getElementById("authLogoutBtn").addEventListener("click", doLogout);
   }
 
@@ -133,6 +147,11 @@
         return;
       }
       closeModal();
+      // 54 運営者が発行した仮パスワードでのログインは、data-auth-stayの有無にかかわらずアカウント設定へ移して変更を求める
+      if (mode === "login" && data.mustChangePassword === true) {
+        window.location.href = "/account.html";
+        return;
+      }
       // ログイン・新規登録どちらも成功後はトップページへ遷移する
       // "/"ではなく"/top"へ遷移させる。過去に"/"を/unitへ301リダイレクトしていた時期があり、
       // その301をブラウザ（特にXアプリ内ブラウザ）がキャッシュしていると"/"がチェッカー画面に化けるため（⑧）

@@ -17,7 +17,7 @@ Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェ�
 
 ## 確定済みの設計方針（変更不可）
 - **チェッカーはログイン必須**（2026-09-26・㉘で転換）。未ログインはログイン案内（ガード）のみ。トップの導線は未ログインでも表示し、ガードから登録へつなげる
-- 認証はユーザー名＋パスワードのみ（メール不要・個人情報を持たない）。**パスワードは平文で保存**（ユーザーが選択。列名は`password`）。セッションはHttpOnly Cookie（`Secure; SameSite=Lax`・30日・`sessions`TBL）
+- 認証はユーザー名＋パスワードのみ（メール不要・個人情報を持たない）。**パスワードはPBKDF2（10万回）でハッシュ化**（`password_hash`。再設定は本人の変更画面`account.html`と運営者リセット`admin-account.html`のみ。メール・復旧コードは持たない。54）。**A-2が済むまでは`password`列に平文も残している**（A-1の切り戻し用。`worker.js`の`KEEP_PLAINTEXT_PASSWORD`）。セッションはHttpOnly Cookie（`Secure; SameSite=Lax`・30日・`sessions`TBL）
 - ゲストの所持データは保存しない（`usage_counters`に匿名の利用回数だけ）。ゲスト時代のデータをアカウントへ引き継ぐ機能は作らない（ユーザー確認済み）
 - コスト：Workers Paid（月5ドル）の枠内。上限超過は停止ではなく従量課金
 - 所持率などの母数は「その機能でデータ登録済みのユーザー」（`users.*_first_registered_at IS NOT NULL`）。分子も同条件で`COUNT(DISTINCT user_uid)`
@@ -87,7 +87,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0025〜0026 | ㊶ タグ・`units_tags`・`v_all_units`（0025）／タグ133件（0026） | 適用済み（2026-10-04） |
 | 0027〜0028 | ㊾ タグ10件追加＋作品名タグ14件を無効化（0027）／URのタグ付け712件（0028。先頭で`DELETE FROM units_tags WHERE rarity_code = 1`） | 適用済み（2026-10-04） |
 | 0029〜0030 | 51 推し編成：TBL4つ（`supporters_leader_rules`・`supporters_leader_targets`・`user_formations`・`user_formation_units`。0029）／URサポーター50体のリーダースキル（ルール55・条件75。0030。先頭で2TBLを全削除するので再実行可） | 適用済み（2026-10-04 Claude Code。確認SQLは期待値どおり） |
-| 次の空き | 0031 | ― |
+| 0031 | 54 パスワードのハッシュ化：`users`に`password_hash`・`password_changed_at`・`must_change_password`、新TBL`auth_rate_limits`（**1回だけ**。再実行は先頭ALTERが`duplicate column`で止まる） | 適用済み（2026-10-04 Claude Code。736人・未移行736・`auth_rate_limits`0件で期待どおり） |
+| 次の空き | 0032 | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
 - **適用はD1が先、pushが後**。逆にすると新コードが未作成のTBL・列を読んで500や保存漏れになる（⑬のデプロイギャップ）。**バックフィルは必ず冪等に書き、間が空いたら再実行する**
@@ -192,9 +193,11 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | ㉟A・㊹ | 10-01 | 自己紹介カード一般公開（adminGate解除・導線表示。運営者向け試用版`profile-card-trial.html`を残す。0019適用済み）。㊹：トップの導線アイコンを試作カード縮小画像（`images/profile-card/{standard,units,eternal}.jpg`。カードのデザインを大きく変えたら`docs/04_自己紹介カード/データ/㊹カードアイコン生成.py`で作り直す）に差し替え。本番確認（依頼書4章A-4・㊹8章）が残り。2026-10-01：画面の「ログイン会員限定」「ログインユーザー限定」表記を削除（全機能ログイン必須のため。トップの節見出しは「レポート・カード」） |
 | ㊶A・㊾ | 10-04 | ㊶段階A：`migrations/0024〜0026`（SSRマスター・`unit_work_map`作り直し・`rarity_code`・タグ）、`worker.js`の`RARITY_CODE`・`/api/works`と`loadProfile`のURだけ読み＋旧SQLへのフォールバック（`rarityCode: 1`を返す）・新API`GET /api/tags`。㊾：`0027`（タグ10件追加・作品名タグ14件無効）・`0028`（URタグ付け712件）。**段階B（`ssr-tool.html`等）とSSR関連（㊻C-1・C-2）は保留**。0024の索引は㊻3章どおり`(name, type)`。D1適用（0024→0028の順）→push の順で。仕様書4章・3章は更新済み |
 | 51・52 推し編成・タグ傾向（段階1） | 10-04 | 0029・0030をD1適用済み。`worker.js`：`GET /api/leader-skills`、`/api/profile-card`に`profile.formations`・`supporters.ownership`・`supporters.master`（依頼書に無い追加。サポーター名・限定・skillを画面側が持たないため）、`POST /api/profile`の`formations`（別バッチ・送らなければ不変・2編成の重複は後ろを読み飛ばす）。`profile-card-trial.html`：テンプレート「推し編成」（1編成・2編成の描画、フォーム、Xシェア）と推しユニットカードの特徴タグ・得意タグ。**本番`profile-card.html`への反映と`scripts/card_check/`への追加は段階2（運営者の確認後）**。左パネル・結果の「サポートスキル」表示は`supporters_master.skill`（HP回復/EN回復/複合）で、試作の「HP回復/防御UP」等の詳細表記は出ない。`scripts/card_check/seed.sql`は`user_favorite_units`の列数が0024以降に合わず古い（段階2で直す） |
+| 54 パスワード変更・運営者リセット・ハッシュ化（段階A-1） | 10-04 | 0031をD1適用→push。`worker.js`：PBKDF2ヘルパー・`KEEP_PLAINTEXT_PASSWORD = true`・回数制限（`auth_rate_limits`）・登録/ログイン/`/api/me`の変更（ログイン時に未移行者を自動ハッシュ化、`mustChangePassword`）・`POST /api/account/password`・`POST /api/admin/reset-password`・`GET /api/admin/password-status`・`POST /api/admin/hash-migrate`・`scheduled()`で古い制限記録の掃除。画面：`account.html`・`admin-account.html`・`auth.js`（ユーザー名リンク・「パスワードを忘れた方」・仮パスワードログイン後の遷移）・`top.html`の運営者欄に導線。0031未適用でも動くフォールバックあり。案内文のXアカウントは`@polarbear148691`で実装（依頼書の確認事項1）。仮パスワードのままでも他ページは使える（確認事項2）。**A-2（平文を消す）は約1週間後**。依頼書：`docs/05_機能拡張_有料プラン/54_…実装依頼書.md` |
 | ㊼ | 10-03 | エタロ攻略にステージ30（機動戦士Vガンダム）を追加：全30ステージ・71ミッション（`eternal-road.html`の表記・合計、一括達成の確認文は`stages.length`参照に）、`images/eternal-road/30.jpg`・`icon/30.jpg`（`scripts/make_eternal_road_icons.py`更新）、`worker.js`、`top.html`、自己紹介カード`profile-card.html`・`profile-card-trial.html`のエタロ分母を30に、`migrations/0023_eternal_road_stage30.sql`（ミッション301・302）。0023はD1適用済み（2026-10-03ユーザー確認）。本番確認が残り |
 
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
+- **54 パスワードのハッシュ化**：段階A-1を実装・D1(0031)適用・push済み（2026-10-04）。残り：①運営者（ESP）の本番確認（依頼書7章3：ログアウト→ログイン→D1で`password_hash`確認→`account.html`で変更→テスト用アカウントで仮パスワード発行・ログイン・変更）②約1週間後に`admin-account.html`で「一括移行」（`remaining`が0になるまで）③**段階A-2**：`worker.js`の`KEEP_PLAINTEXT_PASSWORD = false`でpush→D1で`UPDATE users SET password = NULL WHERE password_hash IS NOT NULL;`＋確認SQL2本が0（依頼書7章）。A-2以降は、A-1より前のコードには戻せない。ER図の更新はCowork（`ggene-er-diagram`）
 - **㊵チャレンジ**：実装・push・D1（0020・0021）適用済み（2026-09-30ユーザー確認）。運営者専用で稼働中。**一般公開は後日**（ユーザー決定。公開時は上の「一般公開の手順」）。設計書9章の後回し（分析ページのタブ・カードへの掲載・タグ縛り）は未着手
 - **㉟A 自己紹介カード一般公開・㊹（2026-10-01夜に再公開）**：朝にいったん公開→ユーザー指示で夜公開に変更（非公開に戻した）→夜に再公開（revertのrevert）。残り：依頼書4章A-4と㊹8章の本番確認（iOS Safariの画像保存を含む）。追加改修は運営者用の試用版`profile-card-trial.html`で試してから`profile-card.html`へ反映（ユーザー決定）。切り戻しは㉟依頼書4章・㊹はcommitのrevert
 - **㉟A 自己紹介カードの一般公開**：①ユーザーがD1に0019を適用（UPDATE文の1行だけを貼る）②運営者ページで最終確認 ③`git checkout main && git merge --ff-only release/profile-card-public && git push origin main` ④依頼書4章A-4のチェックリストで本番確認（iOS Safariの画像保存を含む）。切り戻しは依頼書どおり

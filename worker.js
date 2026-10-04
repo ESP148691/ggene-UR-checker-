@@ -61,7 +61,7 @@ async function createSession(env, userUid) {
 
 // username・passwordが空文字/未指定/NULLだと弾く（3〜20文字の英数字・アンダースコアのみを要求）。
 // 【重要な不変条件】usersへの行のINSERTはhandleRegister()経由（この関数を必ず通る）でのみ行われるため、
-// username・passwordは常に非NULLになる。
+// usernameは常に非NULL。passwordは54のA-2以降NULL（照合はpassword_hash）。
 // （旧仕様では④のゲスト所持ログ経由でusername IS NULLの行が作られていたが、2026-09-19の
 // 「ゲストデータ廃止」対応でその経路自体を削除し、0003/0004マイグレーションで過去分も削除済み。
 // usersテーブルは現在「登録済みアカウントのみ」を前提としている）
@@ -71,6 +71,158 @@ function isValidUsername(username) {
 
 function isValidPassword(password) {
   return typeof password === "string" && password.length >= 6 && password.length <= 100;
+}
+
+// 54 パスワードのハッシュ化 参考実装（Cowork作成・Node 22のWeb Crypto で動作確認済み）
+// worker.js にそのまま貼れる形。Cloudflare Workers の crypto.subtle は PBKDF2 の回数上限が 100000。
+const PBKDF2_ITERATIONS = 100000;
+const PASSWORD_HASH_PREFIX = "pbkdf2-sha256";
+
+function bytesToBase64(bytes) {
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
+function base64ToBytes(b64) {
+  const s = atob(b64);
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+
+async function pbkdf2(password, salt, iterations) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, 256);
+  return new Uint8Array(bits);
+}
+
+// → "pbkdf2-sha256$100000$<salt base64>$<hash base64>"
+async function hashPassword(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const hash = await pbkdf2(password, salt, PBKDF2_ITERATIONS);
+  return `${PASSWORD_HASH_PREFIX}$${PBKDF2_ITERATIONS}$${bytesToBase64(salt)}$${bytesToBase64(hash)}`;
+}
+
+// 保存値の形式が壊れていれば false（例外にしない）
+async function verifyPassword(password, stored) {
+  if (typeof password !== "string" || typeof stored !== "string") return false;
+  const parts = stored.split("$");
+  if (parts.length !== 4 || parts[0] !== PASSWORD_HASH_PREFIX) return false;
+  const iterations = Number(parts[1]);
+  if (!Number.isInteger(iterations) || iterations < 1 || iterations > PBKDF2_ITERATIONS) return false;
+  let salt, expected;
+  try { salt = base64ToBytes(parts[2]); expected = base64ToBytes(parts[3]); } catch (e) { return false; }
+  const actual = await pbkdf2(password, salt, iterations);
+  return timingSafeEqualBytes(actual, expected);
+}
+
+function timingSafeEqualBytes(a, b) {
+  let diff = a.length ^ b.length;
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) diff |= (a[i] || 0) ^ (b[i] || 0);
+  return diff === 0;
+}
+function timingSafeEqualStr(a, b) {
+  const enc = new TextEncoder();
+  return timingSafeEqualBytes(enc.encode(String(a)), enc.encode(String(b)));
+}
+
+// 存在しないユーザー名でも同じだけ計算するためのダミー（モジュール読み込み時に1回だけ作る）
+let dummyHashPromise = null;
+function getDummyHash() {
+  if (!dummyHashPromise) dummyHashPromise = hashPassword("dummy-password-for-timing");
+  return dummyHashPromise;
+}
+
+// 仮パスワード：12文字。紛らわしい 0 O o 1 l I を除いた英数字（56種）。偏りが出ないよう棄却サンプリング
+const TEMP_PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+function generateTempPassword(length = 12) {
+  const chars = TEMP_PASSWORD_CHARS;
+  const limit = 256 - (256 % chars.length);
+  let out = "";
+  while (out.length < length) {
+    const buf = crypto.getRandomValues(new Uint8Array(length * 2));
+    for (const b of buf) {
+      if (b < limit) out += chars[b % chars.length];
+      if (out.length === length) break;
+    }
+  }
+  return out;
+}
+
+// 54 A-1はtrue（平文も書く）。A-2でfalseにする
+const KEEP_PLAINTEXT_PASSWORD = true;
+
+// 列・TBLが無い（0031未適用）ときのエラーか
+function isMissingSchemaError(e) {
+  return /no such (column|table)|has no column/i.test(String(e && e.message || e));
+}
+
+// パスワードを設定する（登録以外のすべての経路で使う）
+async function setUserPassword(env, userUid, newPassword, mustChange) {
+  const hash = await hashPassword(newPassword);
+  await env.DB.prepare(
+    "UPDATE users SET password_hash = ?, password = ?, password_changed_at = ?, must_change_password = ? WHERE user_uid = ?"
+  ).bind(hash, KEEP_PLAINTEXT_PASSWORD ? newPassword : null, new Date().toISOString(), mustChange ? 1 : 0, userUid).run();
+}
+
+// セッションの失効。exceptTokenを渡すとその1つだけ残す
+async function revokeSessions(env, userUid, exceptToken) {
+  if (exceptToken) {
+    await env.DB.prepare("DELETE FROM sessions WHERE user_uid = ? AND token <> ?").bind(userUid, exceptToken).run();
+  } else {
+    await env.DB.prepare("DELETE FROM sessions WHERE user_uid = ?").bind(userUid).run();
+  }
+}
+
+// 現在のパスワードの照合（ログイン・パスワード変更で共用）。rowは SELECT * FROM users の行
+async function checkUserPassword(row, password) {
+  if (row.password_hash) return verifyPassword(password, row.password_hash);
+  return typeof row.password === "string" && row.password !== "" && timingSafeEqualStr(password, row.password);
+}
+
+// 54 回数制限（auth_rate_limits。無い＝0031未適用のときは制限なしで動く）
+const RL_WINDOW_MS = 15 * 60 * 1000;
+const RL_LIMIT_USER = 10;
+const RL_LIMIT_IP = 30;
+const TOO_MANY_ATTEMPTS_MESSAGE = "ログインの失敗が続いたため、しばらく時間をおいてお試しください";
+
+function loginUserKey(username) { return "login:u:" + username; }
+function loginIpKey(request) { return "login:ip:" + (request.headers.get("CF-Connecting-IP") || "unknown"); }
+
+async function isRateLimited(env, key, limit) {
+  try {
+    const row = await env.DB.prepare("SELECT fail_count, window_start FROM auth_rate_limits WHERE rl_key = ?").bind(key).first();
+    if (!row) return false;
+    const since = new Date(Date.now() - RL_WINDOW_MS).toISOString();
+    return row.window_start >= since && row.fail_count >= limit;
+  } catch (e) {
+    return false;
+  }
+}
+async function recordAuthFailure(env, key) {
+  try {
+    const nowDate = new Date();
+    await env.DB.prepare(
+      `INSERT INTO auth_rate_limits (rl_key, window_start, fail_count) VALUES (?1, ?2, 1)
+       ON CONFLICT(rl_key) DO UPDATE SET
+        fail_count = CASE WHEN window_start < ?3 THEN 1 ELSE fail_count + 1 END,
+        window_start = CASE WHEN window_start < ?3 THEN ?2 ELSE window_start END
+       RETURNING fail_count`
+    ).bind(key, nowDate.toISOString(), new Date(nowDate.getTime() - RL_WINDOW_MS).toISOString()).first();
+  } catch (e) {
+    if (!isMissingSchemaError(e)) console.error("rate limit record error", e);
+  }
+}
+async function clearAuthFailures(env, key) {
+  try {
+    await env.DB.prepare("DELETE FROM auth_rate_limits WHERE rl_key = ?").bind(key).run();
+  } catch (e) {
+    // 0031未適用などは無視
+  }
+}
+function tooManyAttempts() {
+  return jsonResponse({ error: "too_many_attempts", message: TOO_MANY_ATTEMPTS_MESSAGE }, 429);
 }
 
 async function handleRegister(request, env) {
@@ -95,9 +247,18 @@ async function handleRegister(request, env) {
 
   const userUid = crypto.randomUUID();
   const now = new Date().toISOString();
-  await env.DB.prepare(
-    "INSERT INTO users (user_uid, first_seen, last_seen, username, password) VALUES (?, ?, ?, ?, ?)"
-  ).bind(userUid, now, now, username, password).run();
+  try {
+    const hash = await hashPassword(password);
+    await env.DB.prepare(
+      "INSERT INTO users (user_uid, first_seen, last_seen, username, password, password_hash, password_changed_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    ).bind(userUid, now, now, username, KEEP_PLAINTEXT_PASSWORD ? password : null, hash, now).run();
+  } catch (e) {
+    // 0031未適用（列が無い）のときだけ従来のINSERTで登録する
+    if (!isMissingSchemaError(e)) throw e;
+    await env.DB.prepare(
+      "INSERT INTO users (user_uid, first_seen, last_seen, username, password) VALUES (?, ?, ?, ?, ?)"
+    ).bind(userUid, now, now, username, password).run();
+  }
 
   const token = await createSession(env, userUid);
   return jsonResponse(
@@ -119,17 +280,48 @@ async function handleLogin(request, env) {
     return jsonResponse({ error: "invalid_body" }, 400);
   }
 
-  const row = await env.DB.prepare("SELECT user_uid, password FROM users WHERE username = ?").bind(username).first();
-  if (!row || row.password !== password) {
+  const userKey = loginUserKey(username);
+  const ipKey = loginIpKey(request);
+  if (await isRateLimited(env, userKey, RL_LIMIT_USER) || await isRateLimited(env, ipKey, RL_LIMIT_IP)) {
+    return tooManyAttempts();
+  }
+
+  const row = await env.DB.prepare("SELECT * FROM users WHERE username = ?").bind(username).first();
+  let ok = false;
+  if (!row) {
+    // 存在しないユーザー名でも同じだけ計算し、応答時間でユーザーの有無が分からないようにする
+    await verifyPassword(password, await getDummyHash());
+  } else {
+    ok = await checkUserPassword(row, password);
+  }
+  if (!ok) {
+    await recordAuthFailure(env, userKey);
+    await recordAuthFailure(env, ipKey);
     return jsonResponse({ error: "invalid_credentials", message: "ユーザー名またはパスワードが違います" }, 401);
   }
+
+  // 未移行（password_hashがNULL。0031適用済みのときだけ"password_hash"キーがある）：その場でハッシュを保存
+  if ("password_hash" in row && !row.password_hash) {
+    try {
+      const hash = await hashPassword(password);
+      const nowIso = new Date().toISOString();
+      if (KEEP_PLAINTEXT_PASSWORD) {
+        await env.DB.prepare("UPDATE users SET password_hash = ?, password_changed_at = ? WHERE user_uid = ? AND password_hash IS NULL").bind(hash, nowIso, row.user_uid).run();
+      } else {
+        await env.DB.prepare("UPDATE users SET password_hash = ?, password_changed_at = ?, password = NULL WHERE user_uid = ? AND password_hash IS NULL").bind(hash, nowIso, row.user_uid).run();
+      }
+    } catch (e) {
+      console.error("password hash migrate error", e);
+    }
+  }
+  await clearAuthFailures(env, userKey);
 
   const now = new Date().toISOString();
   await env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(now, row.user_uid).run();
 
   const token = await createSession(env, row.user_uid);
   return jsonResponse(
-    { username },
+    { username, mustChangePassword: row.must_change_password === 1 },
     200,
     { "Set-Cookie": buildSessionCookie(token, SESSION_MAX_AGE_SECONDS) }
   );
@@ -146,7 +338,51 @@ async function handleLogout(request, env) {
 async function handleMe(request, env) {
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ loggedIn: false }, 200);
-  return jsonResponse({ loggedIn: true, username: user.username }, 200);
+  let mustChangePassword = false;
+  try {
+    const r = await env.DB.prepare("SELECT must_change_password FROM users WHERE user_uid = ?").bind(user.userUid).first();
+    mustChangePassword = !!r && r.must_change_password === 1;
+  } catch (e) {
+    // 0031未適用（列が無い）はfalse
+  }
+  return jsonResponse({ loggedIn: true, username: user.username, mustChangePassword }, 200);
+}
+
+// 54 POST /api/account/password（ログイン必須）：自分でパスワードを変更。今の端末以外はログアウトされる
+async function handleAccountPassword(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) return jsonResponse({ error: "not_logged_in", message: "ログインが必要です" }, 401);
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: "invalid_body" }, 400);
+  }
+  const { currentPassword, newPassword } = body || {};
+  if (typeof currentPassword !== "string" || typeof newPassword !== "string") {
+    return jsonResponse({ error: "invalid_body" }, 400);
+  }
+  const userKey = loginUserKey(sessionUser.username);
+  if (await isRateLimited(env, userKey, RL_LIMIT_USER)) return tooManyAttempts();
+
+  const row = await env.DB.prepare("SELECT * FROM users WHERE user_uid = ?").bind(sessionUser.userUid).first();
+  if (!row) return jsonResponse({ error: "not_logged_in", message: "ログインが必要です" }, 401);
+  if (!("password_hash" in row)) return jsonResponse({ error: "not_ready" }, 503);
+
+  if (!(await checkUserPassword(row, currentPassword))) {
+    await recordAuthFailure(env, userKey);
+    return jsonResponse({ error: "invalid_credentials", message: "現在のパスワードが違います" }, 401);
+  }
+  if (!isValidPassword(newPassword)) {
+    return jsonResponse({ error: "invalid_password", message: "パスワードは6〜100文字で入力してください" }, 400);
+  }
+  if (newPassword === currentPassword) {
+    return jsonResponse({ error: "same_password", message: "現在と同じパスワードは使えません" }, 400);
+  }
+  await setUserPassword(env, sessionUser.userUid, newPassword, false);
+  await revokeSessions(env, sessionUser.userUid, sessionUser.token);
+  await clearAuthFailures(env, userKey);
+  return jsonResponse({ ok: true }, 200);
 }
 
 // ④ D1への所持データ保存（ログイン済みユーザーのみ。ゲスト保存は廃止・2026-09-19）
@@ -750,6 +986,82 @@ async function handleAdminRunSnapshot(request, env) {
   if (admin instanceof Response) return admin;
   const result = await runDailySnapshot(env, jstDateString(new Date()));
   return jsonResponse({ ok: true, snapDate: result.snapDate, rows: result.rows }, 200);
+}
+
+// 54 POST /api/admin/reset-password（運営者のみ）：仮パスワードを発行。対象の全端末をログアウトする
+async function handleAdminResetPassword(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: "invalid_body" }, 400);
+  }
+  const username = body && body.username;
+  if (typeof username !== "string" || !username) return jsonResponse({ error: "invalid_body" }, 400);
+
+  const target = await env.DB.prepare("SELECT user_uid, username FROM users WHERE username = ?").bind(username).first();
+  if (!target) return jsonResponse({ error: "user_not_found", message: "そのユーザー名は見つかりません" }, 404);
+
+  const tempPassword = generateTempPassword();
+  try {
+    await setUserPassword(env, target.user_uid, tempPassword, true);
+  } catch (e) {
+    if (isMissingSchemaError(e)) return jsonResponse({ error: "not_ready" }, 503);
+    throw e;
+  }
+  await revokeSessions(env, target.user_uid);
+  await clearAuthFailures(env, loginUserKey(target.username));
+  console.log("admin reset-password", { by: admin.username, target: target.username, at: new Date().toISOString() });
+  return jsonResponse({ username: target.username, tempPassword }, 200);
+}
+
+// 54 GET /api/admin/password-status（運営者のみ）
+async function handleAdminPasswordStatus(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
+  try {
+    const r = await env.DB.prepare(
+      `SELECT COUNT(*) AS total,
+              COALESCE(SUM(CASE WHEN password_hash IS NOT NULL THEN 1 ELSE 0 END), 0) AS hashed,
+              COALESCE(SUM(CASE WHEN password_hash IS NULL THEN 1 ELSE 0 END), 0) AS unmigrated,
+              COALESCE(SUM(CASE WHEN must_change_password = 1 THEN 1 ELSE 0 END), 0) AS mustChange
+       FROM users`
+    ).first();
+    return jsonResponse({ total: r.total, hashed: r.hashed, unmigrated: r.unmigrated, mustChange: r.mustChange }, 200);
+  } catch (e) {
+    if (isMissingSchemaError(e)) return jsonResponse({ error: "not_ready" }, 503);
+    throw e;
+  }
+}
+
+// 54 POST /api/admin/hash-migrate（運営者のみ）：未移行ユーザーを50件ずつハッシュ化
+async function handleAdminHashMigrate(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT user_uid, password FROM users
+       WHERE password_hash IS NULL AND password IS NOT NULL AND password <> ''
+       LIMIT 50`
+    ).all();
+    const nowIso = new Date().toISOString();
+    const sql = KEEP_PLAINTEXT_PASSWORD
+      ? "UPDATE users SET password_hash = ?, password_changed_at = COALESCE(password_changed_at, ?) WHERE user_uid = ? AND password_hash IS NULL"
+      : "UPDATE users SET password_hash = ?, password_changed_at = COALESCE(password_changed_at, ?), password = NULL WHERE user_uid = ? AND password_hash IS NULL";
+    const statements = [];
+    for (const row of results) {
+      const hash = await hashPassword(row.password);
+      statements.push(env.DB.prepare(sql).bind(hash, nowIso, row.user_uid));
+    }
+    if (statements.length) await env.DB.batch(statements);
+    const rem = await env.DB.prepare("SELECT COUNT(*) AS c FROM users WHERE password_hash IS NULL").first();
+    return jsonResponse({ converted: statements.length, remaining: rem.c }, 200);
+  } catch (e) {
+    if (isMissingSchemaError(e)) return jsonResponse({ error: "not_ready" }, 503);
+    throw e;
+  }
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -1540,6 +1852,9 @@ export default {
     if (url.pathname === "/api/me" && request.method === "GET") {
       return handleMe(request, env);
     }
+    if (url.pathname === "/api/account/password" && request.method === "POST") {
+      return withJsonError(() => handleAccountPassword(request, env), "account-password");
+    }
 
     // 所持データのログ収集エンドポイント（機体版・サポート版共通）
     // ④ ログイン済みユーザーのみunits_ownership/supporters_ownershipに保存。ゲストは匿名カウンタのみ加算
@@ -1590,6 +1905,16 @@ export default {
     }
     if (url.pathname === "/api/admin/run-snapshot" && request.method === "POST") {
       return withJsonError(() => handleAdminRunSnapshot(request, env), "run-snapshot");
+    }
+    // 54 パスワードの運営者リセット・移行状況・一括ハッシュ化
+    if (url.pathname === "/api/admin/reset-password" && request.method === "POST") {
+      return withJsonError(() => handleAdminResetPassword(request, env), "reset-password");
+    }
+    if (url.pathname === "/api/admin/password-status" && request.method === "GET") {
+      return withJsonError(() => handleAdminPasswordStatus(request, env), "password-status");
+    }
+    if (url.pathname === "/api/admin/hash-migrate" && request.method === "POST") {
+      return withJsonError(() => handleAdminHashMigrate(request, env), "hash-migrate");
     }
     if (url.pathname === "/api/admin/report/weekly" && request.method === "GET") {
       return withJsonError(() => handleAdminWeeklyReport(request, env, url), "weekly-report");
@@ -1643,5 +1968,14 @@ export default {
     ctx.waitUntil(runDailySnapshot(env, snapDate).catch(e => {
       console.error("daily snapshot error", snapDate, e);
     }));
+    // 54 回数制限の古い記録を掃除（定時分析の結果に影響させないよう別のtry/catch）
+    ctx.waitUntil((async () => {
+      try {
+        const cutoff = new Date(controller.scheduledTime - 24 * 60 * 60 * 1000).toISOString();
+        await env.DB.prepare("DELETE FROM auth_rate_limits WHERE window_start < ?").bind(cutoff).run();
+      } catch (e) {
+        console.error("auth_rate_limits cleanup error", e);
+      }
+    })());
   }
 };

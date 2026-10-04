@@ -40,6 +40,7 @@
   box-shadow:0 0 20px rgba(218,185,73,.5); transform:scale(.93);
   transition:transform .05s ease, background-color .05s ease, border-color .05s ease, color .05s ease;
 }
+.authbar a.authuserLink{ text-decoration:underline; text-underline-offset:3px; }
 .authbar .authuser{ color:var(--auth-cyan); font-size:12px; font-family:'Share Tech Mono',monospace; letter-spacing:.03em; white-space:nowrap; }
 
 .authModal{
@@ -103,6 +104,12 @@
 }
 .authModal .btn-submit:hover:not(:disabled){ box-shadow:0 0 16px rgba(218,185,73,.3); transform:translateY(-1px); }
 .authModal .btn-submit:disabled{ opacity:.6; cursor:default; }
+.authModal .forgotLink{
+  align-self:flex-start; background:none; border:none; padding:2px 0; cursor:pointer;
+  color:var(--auth-muted); font-size:11px; text-decoration:underline; font-family:'Noto Sans JP',sans-serif;
+}
+.authModal .forgotLink:hover{ color:var(--auth-text); }
+.authModal .forgotLink[hidden], .authModal .forgotInfo[hidden]{ display:none; }
 .authModal .btn-cancel{ background:transparent; color:var(--auth-muted); }
 .authModal .btn-cancel:hover{ color:var(--auth-text); border-color:var(--auth-line-soft); }
 

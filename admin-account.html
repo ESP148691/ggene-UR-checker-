@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アカウント管理（運営者） | Gジェネエターナル ファンツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+<style>
+  :root{
+    --void:#05070d;
+    --panel:rgba(16,22,32,.68);
+    --panel-2:#0e141d;
+    --line:rgba(107,224,224,.16);
+    --line-strong:rgba(140,160,180,.28);
+    --gold:#dab949;
+    --cyan:#6be0e0;
+    --text:#eef3f6;
+    --muted:#93a3b3;
+    --ok:#7fd9a0;
+    --ng:#ff8a8f;
+  }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  html,body{height:100%;}
+  body{margin:0;background:var(--void);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100%;-webkit-font-smoothing:antialiased;}
+  main.wrap{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 18px calc(28px + env(safe-area-inset-bottom,0px));}
+  .eyebrow{font-family:'Share Tech Mono',monospace;letter-spacing:.16em;font-size:11px;color:var(--cyan);text-transform:uppercase;margin:0 0 14px;}
+  h1{font-size:22px;margin:0 0 8px;}
+  .sub{color:var(--muted);font-size:12.5px;line-height:1.8;margin:0 0 20px;}
+  .stateMsg{color:var(--muted);font-size:14px;padding:28px 0;text-align:center;}
+  .section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:16px;}
+  .section h2{font-size:15px;margin:0 0 12px;}
+  input[type=text]{
+    display:block;width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line-strong);
+    font-size:16px;padding:9px 12px;border-radius:3px;margin:0 0 12px;font-family:inherit;
+  }
+  button.btn{
+    font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:14px;cursor:pointer;
+    background:var(--gold);color:#1b1503;border:1px solid var(--gold);padding:9px 16px;border-radius:3px;
+  }
+  button.btn.sec{background:transparent;color:var(--cyan);border-color:var(--cyan);}
+  button.btn:disabled{opacity:.45;cursor:default;}
+  .msg{font-size:12.5px;line-height:1.7;margin:10px 0 0;min-height:1em;}
+  .msg.ok{color:var(--ok);}
+  .msg.ng{color:var(--ng);}
+  .confirmBox{border:1px solid var(--ng);border-radius:4px;padding:12px;margin:0 0 12px;font-size:13px;line-height:1.8;}
+  .confirmBox .row{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
+  .tempBox{margin-top:14px;}
+  .tempPw{
+    font-family:'Share Tech Mono',monospace;font-size:26px;letter-spacing:.08em;color:var(--gold);
+    word-break:break-all;margin:6px 0 8px;
+  }
+  .dmText{
+    background:var(--panel-2);border:1px solid var(--line-strong);border-radius:3px;padding:10px 12px;
+    font-size:13px;line-height:1.8;margin:6px 0 8px;word-break:break-all;
+  }
+  .lab{font-size:12px;color:var(--muted);}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:0 0 12px;}
+  .stat{background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:10px;text-align:center;}
+  .stat .v{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:24px;color:var(--cyan);}
+  .stat .l{font-size:11.5px;color:var(--muted);}
+  .note{font-size:12px;color:var(--muted);line-height:1.8;margin:10px 0 0;}
+</style>
+</head>
+<!-- data-auth-stay: ログインした人をトップへ飛ばさず、このページに戻す（auth.js） -->
+<body data-auth-stay>
+<main class="wrap">
+  <p class="eyebrow">ADMIN ACCOUNT</p>
+  <div id="loadingView" class="stateMsg">読み込み中...</div>
+  <div id="guardView" class="stateMsg" hidden>運営者専用ページです</div>
+
+  <div id="contentView" hidden>
+    <h1>アカウント管理</h1>
+    <p class="sub">パスワードを忘れた人のリセット（仮パスワードの発行）と、パスワードのハッシュ化の状況確認ができます。</p>
+
+    <section class="section">
+      <h2>仮パスワードの発行</h2>
+      <label class="lab" for="targetName">ユーザー名</label>
+      <input type="text" id="targetName" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="40">
+      <button type="button" class="btn" id="btnIssue">仮パスワードを発行</button>
+      <div class="confirmBox" id="confirmBox" hidden style="margin-top:12px;">
+        <div id="confirmText"></div>
+        <div class="row">
+          <button type="button" class="btn" id="btnConfirmYes">発行する</button>
+          <button type="button" class="btn sec" id="btnConfirmNo">やめる</button>
+        </div>
+      </div>
+      <p class="msg" id="issueMsg" role="status"></p>
+      <div class="tempBox" id="tempBox" hidden>
+        <div class="lab">仮パスワード</div>
+        <div class="tempPw" id="tempPw"></div>
+        <button type="button" class="btn sec" id="btnCopyPw">コピー</button>
+        <div class="lab" style="margin-top:14px;">DMの例文</div>
+        <div class="dmText" id="dmText"></div>
+        <button type="button" class="btn sec" id="btnCopyDm">コピー</button>
+        <p class="note">この画面を閉じる・再読み込みすると仮パスワードは二度と表示されません。</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>パスワードのハッシュ化の状況</h2>
+      <div class="stats">
+        <div class="stat"><div class="v" id="stTotal">-</div><div class="l">登録ユーザー</div></div>
+        <div class="stat"><div class="v" id="stHashed">-</div><div class="l">移行済み</div></div>
+        <div class="stat"><div class="v" id="stUnmigrated">-</div><div class="l">未移行</div></div>
+        <div class="stat"><div class="v" id="stMust">-</div><div class="l">仮パスワードのまま</div></div>
+      </div>
+      <button type="button" class="btn" id="btnMigrate">一括移行</button>
+      <button type="button" class="btn sec" id="btnRefresh">状況を更新</button>
+      <p class="msg" id="migrateMsg" role="status"></p>
+      <p class="note">未移行の人は、次にログインしたときに自動で移行されます。長くログインしていない人の分は「一括移行」で変換できます（未移行が0になるまで自動で繰り返します）。</p>
+    </section>
+  </div>
+</main>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var pendingUser = "";
+
+  function setMsg(el, text, ok){
+    el.textContent = text || "";
+    el.className = "msg" + (text ? (ok ? " ok" : " ng") : "");
+  }
+  function copyText(text, btn){
+    var done = function(){ var o = btn.textContent; btn.textContent = "コピーしました"; setTimeout(function(){ btn.textContent = o; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function(){ fallbackCopy(text); done(); });
+    } else { fallbackCopy(text); done(); }
+  }
+  function fallbackCopy(text){
+    var ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  /* ---- 仮パスワードの発行 ---- */
+  $("btnIssue").addEventListener("click", function(){
+    var name = $("targetName").value.trim();
+    setMsg($("issueMsg"), "");
+    $("tempBox").hidden = true;
+    if (!name) { setMsg($("issueMsg"), "ユーザー名を入力してください", false); return; }
+    pendingUser = name;
+    $("confirmText").textContent = name + " さんの今のパスワードは使えなくなり、全端末でログアウトされます。発行しますか？";
+    $("confirmBox").hidden = false;
+  });
+  $("btnConfirmNo").addEventListener("click", function(){ $("confirmBox").hidden = true; });
+  $("btnConfirmYes").addEventListener("click", function(){
+    $("confirmBox").hidden = true;
+    var btn = $("btnIssue");
+    btn.disabled = true;
+    fetch("/api/admin/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ username: pendingUser })
+    }).then(function(res){
+      return res.json().catch(function(){ return {}; }).then(function(d){ return { ok: res.ok, status: res.status, data: d }; });
+    }).then(function(r){
+      if (!r.ok) {
+        var m = r.status === 404 ? "そのユーザー名は見つかりません"
+              : r.status === 503 ? "パスワードの機能が準備できていません（D1の0031が未適用です）"
+              : (r.data.message || "エラーが発生しました");
+        setMsg($("issueMsg"), m, false);
+        return;
+      }
+      var u = r.data.username, p = r.data.tempPassword;
+      $("tempPw").textContent = p;
+      $("dmText").textContent = "ユーザー名「" + u + "」の仮パスワードは「" + p + "」です。ログインすると変更画面が開くので、新しいパスワードに変更してください。";
+      $("tempBox").hidden = false;
+      setMsg($("issueMsg"), "発行しました（" + u + "）", true);
+      refreshStatus();
+    }).catch(function(){
+      setMsg($("issueMsg"), "通信エラーが発生しました", false);
+    }).then(function(){ btn.disabled = false; });
+  });
+  $("btnCopyPw").addEventListener("click", function(){ copyText($("tempPw").textContent, this); });
+  $("btnCopyDm").addEventListener("click", function(){ copyText($("dmText").textContent, this); });
+
+  /* ---- 移行の状況・一括移行 ---- */
+  function refreshStatus(){
+    return fetch("/api/admin/password-status", { credentials: "same-origin" })
+      .then(function(res){ return res.json().then(function(d){ return { ok: res.ok, data: d }; }); })
+      .then(function(r){
+        if (!r.ok) { setMsg($("migrateMsg"), r.data.error === "not_ready" ? "D1の0031が未適用です" : "状況を取得できませんでした", false); return null; }
+        $("stTotal").textContent = r.data.total;
+        $("stHashed").textContent = r.data.hashed;
+        $("stUnmigrated").textContent = r.data.unmigrated;
+        $("stMust").textContent = r.data.mustChange;
+        return r.data;
+      })
+      .catch(function(){ setMsg($("migrateMsg"), "状況を取得できませんでした", false); return null; });
+  }
+  $("btnRefresh").addEventListener("click", function(){ setMsg($("migrateMsg"), ""); refreshStatus(); });
+
+  $("btnMigrate").addEventListener("click", function(){
+    var btn = $("btnMigrate");
+    btn.disabled = true;
+    var total = 0;
+    setMsg($("migrateMsg"), "移行中...", true);
+    function step(){
+      return fetch("/api/admin/hash-migrate", { method: "POST", credentials: "same-origin" })
+        .then(function(res){ return res.json().then(function(d){ return { ok: res.ok, data: d }; }); })
+        .then(function(r){
+          if (!r.ok) { setMsg($("migrateMsg"), "移行に失敗しました（" + total + "件まで変換済み）", false); return null; }
+          total += r.data.converted;
+          setMsg($("migrateMsg"), "移行中... " + total + "件変換、残り " + r.data.remaining + "件", true);
+          if (r.data.remaining > 0 && r.data.converted > 0) return step();
+          setMsg($("migrateMsg"), r.data.remaining === 0 ? "完了しました（" + total + "件を変換）" : "残り " + r.data.remaining + "件は平文が無いため変換できません", r.data.remaining === 0);
+          return null;
+        });
+    }
+    step().catch(function(){ setMsg($("migrateMsg"), "通信エラーが発生しました（" + total + "件まで変換済み）", false); })
+      .then(function(){ btn.disabled = false; return refreshStatus(); });
+  });
+
+  /* ---- 運営者判定（report.htmlと同じ考え方：APIも運営者以外は403） ---- */
+  function showGuard(){ $("loadingView").hidden = true; $("guardView").hidden = false; }
+  fetch("/api/admin/me", { credentials: "same-origin" })
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      if (!data || data.admin !== true) { showGuard(); return; }
+      $("loadingView").hidden = true;
+      $("contentView").hidden = false;
+      refreshStatus();
+    })
+    .catch(showGuard);
+})();
+</script>
+<script src="auth.js" defer></script>
+</body>
+</html>
