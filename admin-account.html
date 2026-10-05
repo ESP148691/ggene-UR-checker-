@@ -101,6 +101,18 @@
     </section>
 
     <section class="section">
+      <h2>利用状況</h2>
+      <div class="stats">
+        <div class="stat"><div class="v" id="usLoginTotal">-</div><div class="l">累計ログイン数</div></div>
+        <div class="stat"><div class="v" id="usLoginToday">-</div><div class="l">本日のログイン数</div></div>
+        <div class="stat"><div class="v" id="usCheckTotal">-</div><div class="l">チェッカー利用数（累計）</div></div>
+        <div class="stat"><div class="v" id="usCheckToday">-</div><div class="l">チェッカー利用数（本日）</div></div>
+      </div>
+      <p class="msg" id="usageMsg" role="status"></p>
+      <p class="note" id="usageNote">ログイン数は登録時・ログイン時に1回ずつ数えます。チェッカー利用数は、ユニット・サポート・エタロ・チャレンジの「データ登録」等で保存に成功した回数です。日付はJSTです。</p>
+    </section>
+
+    <section class="section">
       <h2>パスワードのハッシュ化の状況</h2>
       <div class="stats">
         <div class="stat"><div class="v" id="stTotal">-</div><div class="l">登録ユーザー</div></div>
@@ -196,7 +208,22 @@
       })
       .catch(function(){ setMsg($("migrateMsg"), "状況を取得できませんでした", false); return null; });
   }
-  $("btnRefresh").addEventListener("click", function(){ setMsg($("migrateMsg"), ""); refreshStatus(); });
+  $("btnRefresh").addEventListener("click", function(){ setMsg($("migrateMsg"), ""); refreshStatus(); refreshUsage(); });
+
+  /* ---- 利用状況（ログイン数・チェッカー利用数） ---- */
+  function refreshUsage(){
+    return fetch("/api/admin/usage-stats", { credentials: "same-origin" })
+      .then(function(res){ return res.json().then(function(d){ return { ok: res.ok, data: d }; }); })
+      .then(function(r){
+        if (!r.ok) { setMsg($("usageMsg"), r.data.error === "not_ready" ? "D1の0032が未適用です" : "利用状況を取得できませんでした", false); return; }
+        setMsg($("usageMsg"), r.data.since ? "集計開始日：" + r.data.since : "", true);
+        $("usLoginTotal").textContent = r.data.login.total;
+        $("usLoginToday").textContent = r.data.login.today;
+        $("usCheckTotal").textContent = r.data.checkerUse.total;
+        $("usCheckToday").textContent = r.data.checkerUse.today;
+      })
+      .catch(function(){ setMsg($("usageMsg"), "利用状況を取得できませんでした", false); });
+  }
 
   $("btnMigrate").addEventListener("click", function(){
     var btn = $("btnMigrate");
@@ -228,6 +255,7 @@
       $("loadingView").hidden = true;
       $("contentView").hidden = false;
       refreshStatus();
+      refreshUsage();
     })
     .catch(showGuard);
 })();

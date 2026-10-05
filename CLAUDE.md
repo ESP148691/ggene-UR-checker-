@@ -42,7 +42,7 @@ Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェ�
 | `unit-scan.js` / `supporter-scan.js` | スクショ読み取りの判定（`window.UnitScan`／`SupporterScan`、位置合わせ値`SCAN_FIT`） |
 | `analytics.html` | データ登録結果レポート（ログイン限定。ユニット・サポートのティアリスト＋エタロ攻略タブ） |
 | `eternal-road.html` | エタロ攻略チェッカー（EXPERT・29ステージ・69ミッション） |
-| `challenge.html` | チャレンジミッションチェッカー（HARDのみ・5シリーズ・15ステージ・30ミッション。㊵）。**運営者専用で本番稼働中**（`adminGate()`。push・D1適用済み。一般公開は後日） |
+| `challenge.html` | チャレンジミッションチェッカー（HARDのみ・5シリーズ・15ステージ・30ミッション。㊵）。**一般公開済み**（2026-10-06。adminGate解除・トップの「チェッカー」欄へ移動） |
 | `profile-card.html` | 自己紹介カード（テンプレート3×背景3の16:9 Canvas。描画は`CardRenderer`）。**運営者専用で試用中**（`adminGate()`）。一般公開の変更はブランチ`release/profile-card-public`に準備済み |
 | `report.html` | X投稿用レポート（運営者専用。6種類×並び順3種。`GET /api/admin/report/ownership`） |
 | `auth.css` / `auth.js` | ログイン・新規登録の共通UI。成功後は`/top`へ。`<body data-auth-stay>`のページはその場でリロード |
@@ -88,7 +88,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0027〜0028 | ㊾ タグ10件追加＋作品名タグ14件を無効化（0027）／URのタグ付け712件（0028。先頭で`DELETE FROM units_tags WHERE rarity_code = 1`） | 適用済み（2026-10-04） |
 | 0029〜0030 | 51 推し編成：TBL4つ（`supporters_leader_rules`・`supporters_leader_targets`・`user_formations`・`user_formation_units`。0029）／URサポーター50体のリーダースキル（ルール55・条件75。0030。先頭で2TBLを全削除するので再実行可） | 適用済み（2026-10-04 Claude Code。確認SQLは期待値どおり） |
 | 0031 | 54 パスワードのハッシュ化：`users`に`password_hash`・`password_changed_at`・`must_change_password`、新TBL`auth_rate_limits`（**1回だけ**。再実行は先頭ALTERが`duplicate column`で止まる） | 適用済み（2026-10-04 Claude Code。736人・未移行736・`auth_rate_limits`0件で期待どおり） |
-| 次の空き | 0032 | ― |
+| 0032 | 日別利用集計`daily_stats`（`stat_key`＝login／checker_use）・ビグ・ラングをMS IGLOO(23)、グレート・ジオング／ザンスパインをG GENERATION(106)へ（`unit_work_map`のUPDATE） | 適用済み（2026-10-06 Claude Code） |
+| 次の空き | 0033 | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
 - **適用はD1が先、pushが後**。逆にすると新コードが未作成のTBL・列を読んで500や保存漏れになる（⑬のデプロイギャップ）。**バックフィルは必ず冪等に書き、間が空いたら再実行する**
@@ -194,6 +195,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | ㊶A・㊾ | 10-04 | ㊶段階A：`migrations/0024〜0026`（SSRマスター・`unit_work_map`作り直し・`rarity_code`・タグ）、`worker.js`の`RARITY_CODE`・`/api/works`と`loadProfile`のURだけ読み＋旧SQLへのフォールバック（`rarityCode: 1`を返す）・新API`GET /api/tags`。㊾：`0027`（タグ10件追加・作品名タグ14件無効）・`0028`（URタグ付け712件）。**段階B（`ssr-tool.html`等）とSSR関連（㊻C-1・C-2）は保留**。0024の索引は㊻3章どおり`(name, type)`。D1適用（0024→0028の順）→push の順で。仕様書4章・3章は更新済み |
 | 51・52 推し編成・タグ傾向（段階1） | 10-04 | 0029・0030をD1適用済み。`worker.js`：`GET /api/leader-skills`、`/api/profile-card`に`profile.formations`・`supporters.ownership`・`supporters.master`（依頼書に無い追加。サポーター名・限定・skillを画面側が持たないため）、`POST /api/profile`の`formations`（別バッチ・送らなければ不変・2編成の重複は後ろを読み飛ばす）。`profile-card-trial.html`：テンプレート「推し編成」（1編成・2編成の描画、フォーム、Xシェア）と推しユニットカードの特徴タグ・得意タグ。**本番`profile-card.html`への反映と`scripts/card_check/`への追加は段階2（運営者の確認後）**。左パネル・結果の「サポートスキル」表示は`supporters_master.skill`（HP回復/EN回復/複合）で、試作の「HP回復/防御UP」等の詳細表記は出ない。`scripts/card_check/seed.sql`は`user_favorite_units`の列数が0024以降に合わず古い（段階2で直す） |
 | 54 パスワード変更・運営者リセット・ハッシュ化（段階A-1） | 10-04 | 0031をD1適用→push。`worker.js`：PBKDF2ヘルパー・`KEEP_PLAINTEXT_PASSWORD = true`・回数制限（`auth_rate_limits`）・登録/ログイン/`/api/me`の変更（ログイン時に未移行者を自動ハッシュ化、`mustChangePassword`）・`POST /api/account/password`・`POST /api/admin/reset-password`・`GET /api/admin/password-status`・`POST /api/admin/hash-migrate`・`scheduled()`で古い制限記録の掃除。画面：`account.html`・`admin-account.html`・`auth.js`（ユーザー名リンク・「パスワードを忘れた方」・仮パスワードログイン後の遷移）・`top.html`の運営者欄に導線。0031未適用でも動くフォールバックあり。案内文のXアカウントは`@polarbear148691`で実装（依頼書の確認事項1）。仮パスワードのままでも他ページは使える（確認事項2）。**A-2（平文を消す）は約1週間後**。依頼書：`docs/05_機能拡張_有料プラン/54_…実装依頼書.md` |
+| チャレンジ公開・作品紐付け修正・利用集計 | 10-06 | ㊵チャレンジを一般公開（`challenge.html`のadminGate削除、`top.html`の導線を「チェッカー」欄へ）。0032適用（上表）。`worker.js`：`bumpDailyStat`（登録・ログイン成功時に`login`、`/api/log`・`/api/log-supporter`・`/api/log-eternal-road-missions`・`/api/log-challenge`の200で`checker_use`）・`GET /api/admin/usage-stats`。`admin-account.html`に「利用状況」（累計／本日のログイン数・チェッカー利用数。集計は0032適用後から。日付JST） |
 | ㊼ | 10-03 | エタロ攻略にステージ30（機動戦士Vガンダム）を追加：全30ステージ・71ミッション（`eternal-road.html`の表記・合計、一括達成の確認文は`stages.length`参照に）、`images/eternal-road/30.jpg`・`icon/30.jpg`（`scripts/make_eternal_road_icons.py`更新）、`worker.js`、`top.html`、自己紹介カード`profile-card.html`・`profile-card-trial.html`のエタロ分母を30に、`migrations/0023_eternal_road_stage30.sql`（ミッション301・302）。0023はD1適用済み（2026-10-03ユーザー確認）。本番確認が残り |
 
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）

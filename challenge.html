@@ -258,8 +258,7 @@
 </style>
 </head>
 <!-- data-auth-stay: ログイン成功後にトップへ遷移せずこのページをリロードする（auth.js）。
-     ㊵ 運営者試用中：guardView（未ログイン）→ adminGate()（ログイン済みだが運営者以外はadminOnlyViewのみ）→ loadChecker()（運営者）。
-     一般公開するときは adminOnlyView・adminGate() を削除し、/api/me のログイン判定から直接 loadChecker() を呼ぶ（profile-card.htmlの㉟公開と同じ手順） -->
+     ㊵ 一般公開済み（2026-10-06）：guardView（未ログイン）→ loadChecker()（ログイン済み） -->
 <body data-auth-stay>
 
 <main class="wrap">
@@ -269,14 +268,12 @@
     <h1>チャレンジミッションチェッカー</h1>
     <span class="diffLabel challenge">CHALLENGE</span>
   </div>
-  <p class="sub">メインステージ「CHALLENGE」HARDの全<span id="subStages">15</span>ステージ・<span id="subMissions">30</span>ミッションのクリア状況を記録できます（運営者試用中）。ステージのボタンでクリア、ミッションにチェックすると達成済みになります。</p>
+  <p class="sub">メインステージ「CHALLENGE」HARDの全<span id="subStages">15</span>ステージ・<span id="subMissions">30</span>ミッションのクリア状況を記録できます。ステージのボタンでクリア、ミッションにチェックすると達成済みになります。</p>
 
   <div id="guardView" class="guardCard" hidden>
     <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、チャレンジミッションのクリア状況を記録・保存できるようになります。</p>
     <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
   </div>
-  <!-- 運営者専用（試用中）。運営者以外のログインユーザーにはこの案内だけを出す。一般公開時はこの判定を外す -->
-  <div id="adminOnlyView" class="stateMsg" hidden>チャレンジミッションチェッカーは現在運営者試用中のため、運営者専用ページです。</div>
   <div id="loadingView" class="stateMsg">読み込み中...</div>
   <div id="errorView" class="stateMsg" hidden>データの読み込みに失敗しました。時間をおいて再度お試しください。</div>
 
@@ -911,7 +908,6 @@ document.getElementById("btnShare").addEventListener("click", () => {
    起動：ログイン確認 → 運営者確認（試用中のみ）→ マスター取得・DB復元 → 描画
    ========================================================= */
 const guardView = document.getElementById("guardView");
-const adminOnlyView = document.getElementById("adminOnlyView");
 const loadingView = document.getElementById("loadingView");
 const errorView = document.getElementById("errorView");
 const contentView = document.getElementById("contentView");
@@ -960,21 +956,10 @@ async function loadChecker(){
   document.getElementById("actionbar").hidden = false;
 }
 
-// 運営者試用中：ログイン済みでも/api/admin/meがadmin:trueのときだけ本体を読み込む
-// （profile-card.htmlと同じ判定。一般公開するときはadminGateを外してloadChecker()を直接呼ぶ）
-function showAdminOnly(){ loadingView.hidden = true; adminOnlyView.hidden = false; }
-async function adminGate(){
-  try {
-    const r = await fetch("/api/admin/me", { credentials: "same-origin" });
-    const d = await r.json();
-    if (d && d.admin === true) loadChecker(); else showAdminOnly();
-  } catch (e) { showAdminOnly(); }
-}
-
 // /api/me失敗時は保守的にガード表示側に倒す（analytics.htmlと同じ）
 fetch("/api/me", { credentials: "same-origin" })
   .then(res => res.json())
-  .then(data => { if (data && data.loggedIn) adminGate(); else showGuard(); })
+  .then(data => { if (data && data.loggedIn) loadChecker(); else showGuard(); })
   .catch(showGuard);
 </script>
 <script src="auth.js" defer></script>

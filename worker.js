@@ -260,6 +260,7 @@ async function handleRegister(request, env) {
     ).bind(userUid, now, now, username, password).run();
   }
 
+  await bumpDailyStat(env, "login");
   const token = await createSession(env, userUid);
   return jsonResponse(
     { username },
@@ -319,6 +320,7 @@ async function handleLogin(request, env) {
   const now = new Date().toISOString();
   await env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(now, row.user_uid).run();
 
+  await bumpDailyStat(env, "login");
   const token = await createSession(env, row.user_uid);
   return jsonResponse(
     { username, mustChangePassword: row.must_change_password === 1 },
@@ -438,6 +440,18 @@ async function incrementUsageCounter(env, counterKey) {
     `INSERT INTO usage_counters (counter_key, count) VALUES (?, 1)
      ON CONFLICT(counter_key) DO UPDATE SET count = count + 1`
   ).bind(counterKey).run();
+}
+
+// 運営者向けの利用集計（日別カウンタ。stat_key＝login／checker_use）。0032未適用や失敗でも本処理は止めない
+async function bumpDailyStat(env, statKey) {
+  try {
+    await env.DB.prepare(
+      `INSERT INTO daily_stats (stat_date, stat_key, count) VALUES (?, ?, 1)
+       ON CONFLICT(stat_date, stat_key) DO UPDATE SET count = count + 1`
+    ).bind(jstDateString(new Date()), statKey).run();
+  } catch (e) {
+    console.error("daily_stats error", e);
+  }
 }
 
 // 所持データは履歴を積み上げず「最新状態のスナップショット」として保持する。
@@ -1015,6 +1029,37 @@ async function handleAdminResetPassword(request, env) {
   await clearAuthFailures(env, loginUserKey(target.username));
   console.log("admin reset-password", { by: admin.username, target: target.username, at: new Date().toISOString() });
   return jsonResponse({ username: target.username, tempPassword }, 200);
+}
+
+// チェッカーの利用（データ登録の保存成功）を1回として数える
+async function countCheckerUse(response, env) {
+  if (response.status === 200) await bumpDailyStat(env, "checker_use");
+  return response;
+}
+
+// GET /api/admin/usage-stats（運営者のみ）：累計ログイン数・本日のログイン数・チェッカー利用数（累計・本日）
+async function handleAdminUsageStats(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
+  try {
+    const today = jstDateString(new Date());
+    const { results } = await env.DB.prepare(
+      `SELECT stat_key,
+              COALESCE(SUM(count), 0) AS total,
+              COALESCE(SUM(CASE WHEN stat_date = ? THEN count ELSE 0 END), 0) AS today,
+              MIN(stat_date) AS since
+       FROM daily_stats GROUP BY stat_key`
+    ).bind(today).all();
+    const by = {};
+    for (const r of results) by[r.stat_key] = r;
+    const pick = (k) => ({ total: by[k] ? by[k].total : 0, today: by[k] ? by[k].today : 0 });
+    let since = null;
+    for (const r of results) if (!since || r.since < since) since = r.since;
+    return jsonResponse({ date: today, since, login: pick("login"), checkerUse: pick("checker_use") }, 200);
+  } catch (e) {
+    if (isMissingSchemaError(e)) return jsonResponse({ error: "not_ready" }, 503);
+    throw e;
+  }
 }
 
 // 54 GET /api/admin/password-status（運営者のみ）
@@ -1859,7 +1904,7 @@ export default {
     // 所持データのログ収集エンドポイント（機体版・サポート版共通）
     // ④ ログイン済みユーザーのみunits_ownership/supporters_ownershipに保存。ゲストは匿名カウンタのみ加算
     if ((url.pathname === "/api/log" || url.pathname === "/api/log-supporter") && request.method === "POST") {
-      return handleOwnershipLog(request, env, url.pathname === "/api/log-supporter");
+      return countCheckerUse(await handleOwnershipLog(request, env, url.pathname === "/api/log-supporter"), env);
     }
 
     // ④ 所持データ分析（全体所持率ランキング）API。ログイン済みユーザーのみ利用可能
@@ -1877,7 +1922,7 @@ export default {
       return handleEternalRoadMissions(request, env);
     }
     if (url.pathname === "/api/log-eternal-road-missions" && request.method === "POST") {
-      return handleLogEternalRoadMissions(request, env);
+      return countCheckerUse(await handleLogEternalRoadMissions(request, env), env);
     }
     if (url.pathname === "/api/my-eternal-road" && request.method === "GET") {
       return handleMyEternalRoad(request, env);
@@ -1895,7 +1940,7 @@ export default {
       return handleMyChallenge(request, env);
     }
     if (url.pathname === "/api/log-challenge" && request.method === "POST") {
-      return handleLogChallenge(request, env);
+      return countCheckerUse(await handleLogChallenge(request, env), env);
     }
 
     // ㉒ 自己紹介カード
@@ -1909,6 +1954,9 @@ export default {
     // 54 パスワードの運営者リセット・移行状況・一括ハッシュ化
     if (url.pathname === "/api/admin/reset-password" && request.method === "POST") {
       return withJsonError(() => handleAdminResetPassword(request, env), "reset-password");
+    }
+    if (url.pathname === "/api/admin/usage-stats" && request.method === "GET") {
+      return handleAdminUsageStats(request, env);
     }
     if (url.pathname === "/api/admin/password-status" && request.method === "GET") {
       return withJsonError(() => handleAdminPasswordStatus(request, env), "password-status");

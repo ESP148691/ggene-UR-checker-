@@ -300,6 +300,16 @@
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
+    <!-- ㊵ チャレンジミッションチェッカー（一般公開済み 2026-10-06） -->
+    <a class="navcard" href="/challenge.html">
+      <div class="icon" data-pool="challenge"><img class="icoImg" alt="" aria-hidden="true"></div>
+      <div class="body">
+        <div class="name">チャレンジ<wbr>ミッション<wbr>チェッカー</div>
+        <div class="desc">メインステージCHALLENGE HARD全15ステージ・30ミッションの達成状況を記録</div>
+        <div class="regBadge" data-reg="challenge" hidden></div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
   </div>
 
   <div class="section" id="analyticsSection" hidden>
@@ -349,16 +359,6 @@
       <div class="body">
         <div class="name">自己紹介<wbr>カード<wbr>（試用）</div>
         <div class="desc">新機能の試用版。本番の自己紹介カードへ反映する前に確認（運営者専用）</div>
-      </div>
-      <div class="arrow">&rsaquo;</div>
-    </a>
-    <!-- ㊵ チャレンジミッションチェッカー（試用中）。一般公開は「チェッカー」欄（.route）へ移し、challenge.html の adminGate を外す -->
-    <a class="navcard" href="/challenge.html">
-      <div class="icon" data-pool="challenge"><img class="icoImg" alt="" aria-hidden="true"></div>
-      <div class="body">
-        <div class="name">チャレンジ<wbr>ミッション<wbr>チェッカー<wbr>（試用）</div>
-        <div class="desc">メインステージCHALLENGE HARD全15ステージ・30ミッションの達成状況を記録（運営者専用）</div>
-        <div class="regBadge" data-reg="challenge" hidden></div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
@@ -650,7 +650,7 @@
     if (!section) return;
     fetch('/api/admin/me', { credentials: 'same-origin' })
       .then(function(res){ return res.json(); })
-      .then(function(data){ if (data && data.admin === true) { section.hidden = false; showChallengeRegStatus(); } })
+      .then(function(data){ if (data && data.admin === true) { section.hidden = false; } })
       .catch(function(){ /* 失敗時は非表示のまま */ });
   }
 
@@ -658,6 +658,7 @@
      登録済みならDBに登録されている所持率、未登録ならデータ登録を促す。取得失敗時は何も表示しない */
   function showRegStatus(){
     showEternalRoadRegStatus();
+    showChallengeRegStatus();
     var targets = [
       { key: 'unit', api: '/api/my-ownership', total: UNIT_IMAGES.length, word: '機' },
       { key: 'supporter', api: '/api/my-ownership-supporter', total: SUPPORTER_IMAGES.length, word: '体' }
@@ -711,8 +712,8 @@
       .catch(function(){ /* 失敗時は表示しない */ });
   }
 
-  /* ㊵ チャレンジミッションチェッカー（運営者試用）の登録状況。分母（15ステージ・30ミッション）はマスターから算出し、
-     マスターに無いIDは数えない（エタロと同じ扱い）。運営者だけがこのカードを見るため、toggleAdminNav()からのみ呼ぶ */
+  /* ㊵ チャレンジミッションチェッカーの登録状況。分母（15ステージ・30ミッション）はマスターから算出し、
+     マスターに無いIDは数えない（エタロと同じ扱い）。showRegStatus()から呼ぶ */
   function showChallengeRegStatus(){
     var el = document.querySelector('.regBadge[data-reg="challenge"]');
     if (!el) return;
