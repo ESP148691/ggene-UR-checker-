@@ -1752,7 +1752,7 @@ async function layoutCharacters(ctx,T,data){
     const un=wrapName(ctx,f.name,sw-us-8,sz=>`bold ${sz}px ${FONT}`,12,f.unitId);
     ctx.fillStyle=T.text; ctx.font=`bold ${un.size}px ${FONT}`;
     un.lines.forEach((ln,j)=>ctx.fillText(ln,ux+us+8,uy+12+j*15));
-    totsuStars(ctx,T,ux+us+8,uy+12+un.lines.length*15+6,6,f.level);   // 標準カードと同じ★表現
+    totsuStars(ctx,T,ux+us+8,uy0+uH-17,6,f.level);   // 標準カードと同じ★表現。高さはそろえて枠内の最下段
   }
   footer(ctx,T,data);
 }
@@ -1784,129 +1784,6 @@ function targetChips(ctx,T,x,y,maxW,items){
     cx+=w+6;
   }
   return cy+27;
-}
-async function layoutFormation(ctx,T,data){
-  await header(ctx,T,"FAVORITE FORMATION");
-  const F=data.formation, TC=T.dark?TYPE_COL.dark:TYPE_COL.light, G=T.dark?SYN_GOLD:T.gold;
-  const LX=36, LW=290;
-  let y=identity(ctx,T,data.profile,LX,LW,32,96);
-  if(!F||!F.supporter){
-    ctx.fillStyle=T.bgMuted||T.muted; ctx.font=`15px ${FONT}`; shadowText(ctx,T,"推し編成が未設定です",380,140);
-    footer(ctx,T,data); return;
-  }
-  const s=F.supporter, full=F.synergy.full;
-  // ---- 左：推しサポーター ----
-  const pTop=Math.max(y+8,178), pH=H-pTop-58;
-  panel(ctx,T,LX-8,pTop,LW+16,pH,"推しサポーター",G);
-  const imgH=Math.max(96,Math.min(150,pH-250)), imgW=Math.min(Math.round(imgH*1.45),LW-16-104), ix=LX+8, iy=pTop+42;
-  await supporterImage(ctx,T,s,ix,iy,imgW,imgH);
-  // 画像の右：凸
-  const sx0=ix+imgW+12;
-  ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("限界突破",sx0,iy+16);
-  totsuStars(ctx,T,sx0,iy+34,8,s.level);
-  ctx.fillStyle=s.level===3?rainbow(ctx,sx0,iy+44,sx0+50,iy+60):T.text; ctx.font=`bold 15px ${FONT}`;
-  ctx.fillText(LV_LABEL_C[s.level],sx0,iy+62);
-  if(s.heal){ ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("サポートスキル",sx0,iy+92);
-    ctx.fillStyle=T.cyan; ctx.font=`bold 14px ${FONT}`; ctx.fillText(s.heal,sx0,iy+112); }
-  let ty=iy+imgH+24;
-  const nm=wrapName(ctx,s.name,LW-16,sz=>`bold ${sz}px ${FONT}`,16,null);
-  ctx.fillStyle=T.text; ctx.font=`bold ${nm.size}px ${FONT}`; nm.lines.forEach((ln,i)=>ctx.fillText(ln,LX+8,ty+i*21)); ty+=nm.lines.length*21+4;
-  ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(LX+8,ty); ctx.lineTo(LX+LW-8,ty); ctx.stroke();
-  ty+=20;
-  ctx.fillStyle=G; ctx.font=`bold 13px ${FONT}`; ctx.fillText("リーダースキル",LX+8,ty);
-  ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.textAlign="right"; ctx.fillText("対象の全ステータス（EN除く）",LX+LW-8,ty); ctx.textAlign="left";
-  ty+=10;
-  for(const r of s.rules){
-    const ny=targetChips(ctx,T,LX+8,ty,LW-16-74,r.extra?r.items.map((it,k)=>k===0?Object.assign({},it,{label:"＋"+it.label}):it):r.items);
-    ctx.fillStyle=G; ctx.font=`bold 22px ${FONT}`; ctx.textAlign="right";
-    ctx.fillText(rateText(r.rates,s.level),LX+LW-8,ty+19); ctx.textAlign="left";
-    ty=ny+2;
-  }
-  if(s.targetUr){ ty+=4; ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("対象のURユニット",LX+8,ty+12);
-    ctx.fillStyle=T.text; ctx.font=`bold 14px ${FONT}`; ctx.textAlign="right";
-    ctx.fillText(`${s.targetUr.total}機中 所持${s.targetUr.owned}機`,LX+LW-8,ty+13); ctx.textAlign="left"; }
-  // ---- 右上：バフ対象のメーター ----
-  const GX=352, GW=W-36-GX;
-  const n=F.units.filter(Boolean).length;   // 空きの枠（手放した・未選択）は数えない
-  panel(ctx,T,GX,88,GW,70,null,null);
-  ctx.fillStyle=T.muted; ctx.font=`bold 13px ${FONT}`; ctx.fillText("バフ対象",GX+18,114);
-  ctx.fillStyle=full?rainbow(ctx,GX+18,120,GX+130,150):G; ctx.font=`bold 38px ${FONT}`; ctx.fillText(String(F.synergy.count),GX+18,148);
-  let mw=ctx.measureText(String(F.synergy.count)).width;
-  ctx.fillStyle=T.muted; ctx.font=`bold 18px ${FONT}`; ctx.fillText(`/ ${n}機`,GX+18+mw+6,148);
-  // 5分割のゲージ
-  const segX=GX+150, segW=(GW-150-250)/5;
-  for(let i=0;i<n;i++){   // ゲージは埋まっている枠の数だけ（分母と合わせる）
-    const on=i<F.synergy.count;
-    roundRect(ctx,segX+i*segW+3,118,segW-6,14,4);
-    if(on){ ctx.save(); ctx.shadowColor=G; ctx.shadowBlur=10; ctx.fillStyle=full?rainbow(ctx,segX,0,segX+5*segW,0):G; ctx.fill(); ctx.restore(); }
-    else { ctx.strokeStyle=T.dark?"rgba(255,255,255,.25)":"rgba(15,39,64,.25)"; ctx.lineWidth=1.2; ctx.stroke(); }
-  }
-  ctx.textAlign="right";
-  ctx.font=`bold 14px ${FONT}`; ctx.fillStyle=T.text; ctx.fillText(`サポーターの対象 ${F.synergy.count}機`,W-54,131);   // 全員が対象でも文言は出さない（ゲージ・線・枠を虹にするだけ。2026-10-04 ユーザー指示）
-  ctx.textAlign="left";
-  // ---- ユニット5機 ----
-  const gap=12, tw=(GW-gap*4)/5, tyTop=192, stripH=58, th=H-58-stripH-12-tyTop;
-  // バフ対象のリンク線：左パネルの右端からユニットの上へ横線、対象ユニットへ縦線（光る）
-  const hits=F.units.map((u,i)=>u&&u.hit?i:-1).filter(i=>i>=0);   // 枠の位置（slot-1）のまま。左から詰めない
-  if(hits.length){
-    const by=176, lastX=GX+hits[hits.length-1]*(tw+gap)+tw/2;
-    ctx.save(); ctx.strokeStyle=full?rainbow(ctx,LX+LW+8,by,lastX,by):G; ctx.lineWidth=2.5; ctx.shadowColor=G; ctx.shadowBlur=12; ctx.lineCap="round";
-    const sy0=pTop+23, jx=GX-12;
-    ctx.beginPath(); ctx.moveTo(LX+LW+8,sy0); ctx.lineTo(jx,sy0); ctx.lineTo(jx,by); ctx.lineTo(lastX,by);
-    for(const i of hits){ const cx=GX+i*(tw+gap)+tw/2; ctx.moveTo(cx,by); ctx.lineTo(cx,tyTop); }
-    ctx.stroke();
-    ctx.fillStyle=full?"#ffffff":G;
-    for(const i of hits){ const cx=GX+i*(tw+gap)+tw/2; ctx.beginPath(); ctx.arc(cx,by,4,0,Math.PI*2); ctx.fill(); }
-    ctx.beginPath(); ctx.arc(LX+LW+8,sy0,5,0,Math.PI*2); ctx.fill();
-    ctx.restore();
-  }
-  for(let i=0;i<5;i++){
-    const x=GX+i*(tw+gap), u=F.units[i];
-    if(!u){ roundRect(ctx,x,tyTop,tw,th,10); ctx.setLineDash([5,5]); ctx.strokeStyle=T.line; ctx.stroke(); ctx.setLineDash([]); continue; }
-    // 枠：対象＝金で光らせる、全員が対象＝虹、対象外＝通常
-    ctx.save(); if(u.hit){ ctx.shadowColor=G; ctx.shadowBlur=full?18:12; }
-    roundRect(ctx,x,tyTop,tw,th,10); ctx.fillStyle=T.panel; ctx.fill(); ctx.restore();
-    roundRect(ctx,x,tyTop,tw,th,10);
-    ctx.strokeStyle=u.hit?(full?rainbow(ctx,x,tyTop,x+tw,tyTop+th):G):T.line; ctx.lineWidth=u.hit?2:1; ctx.stroke();
-    ctx.fillStyle=T.goldDim; ctx.font=`bold 15px ${FONT}`; ctx.fillText(String(i+1).padStart(2,"0"),x+10,tyTop+22);
-    const size=tw-28, ix2=x+14, iy2=tyTop+30;
-    await unitImage(ctx,T,u,ix2,iy2,size,8);
-    await pilotBadge(ctx,T,u.pilot,ix2+size-16,iy2+size-16,44);
-    let yy=iy2+size+20;
-    const nmu=wrapName(ctx,u.name,tw-20,sz=>`bold ${sz}px ${FONT}`,14,u.unitId);
-    ctx.fillStyle=T.text; ctx.font=`bold ${nmu.size}px ${FONT}`;
-    nmu.lines.forEach((ln,j)=>ctx.fillText(ln,x+10,yy+j*18)); yy+=2*18;
-    const sx=totsuStars(ctx,T,x+10,yy-2,6,u.level);
-    chip(ctx,sx+6,yy-12,u.type,TC[u.type],false,12);
-    ctx.font=`bold 12px ${FONT}`;
-    const hitWork=u.hit&&u.hit.byWork;
-    chip(ctx,x+10,yy+14,workText(ctx,u.workShort,u.workId,tw-20-14),hitWork?G:T.cyan,false,12);
-    // 56：搭乗キャラ（特徴タグは表示しない。52の案D-2を外した。2026-10-04 ユーザー決定）
-    if(u.pilot){ const py=yy+50;
-      ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText(u.pilot.fav?"搭乗（推しキャラ）":"搭乗",x+10,py);
-      ctx.fillStyle=u.pilot.fav?(T.dark?PINK:"#c2185b"):T.text; ctx.font=`bold 13px ${FONT}`;
-      const pn=wrapName(ctx,u.pilot.name,tw-20,sz=>`bold ${sz}px ${FONT}`,13,null); ctx.font=`bold ${pn.size}px ${FONT}`;
-      pn.lines.forEach((ln,j)=>ctx.fillText(ln,x+10,py+19+j*17)); }
-    // 下部：バフ対象の結果
-    const by2=tyTop+th-46;
-    ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+10,by2-8); ctx.lineTo(x+tw-10,by2-8); ctx.stroke();
-    if(u.hit){
-      ctx.font=`bold 12px ${FONT}`;
-      const lab=fitText(ctx,u.hit.label,tw-20-14);
-      chip(ctx,x+10,by2-2,lab,G,true,12);
-      ctx.fillStyle=u.hit.top===false?T.text:G; ctx.font=`bold 20px ${FONT}`; ctx.textAlign="right";
-      ctx.fillText(u.hit.rateText,x+tw-10,by2+40); ctx.textAlign="left";
-      ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("全ステ",x+10,by2+38);
-    } else {
-      ctx.fillStyle=T.muted; ctx.font=`bold 13px ${FONT}`; ctx.fillText("対象外",x+10,by2+14);
-      ctx.font=`12px ${FONT}`; ctx.fillText("推しで編成",x+10,by2+34);
-    }
-  }
-  // ---- 下：UR所持率と推し作品（編成のタグの帯は廃止。ユーザー指示） ----
-  const sy=tyTop+th+12, sh=stripH;
-  panel(ctx,T,GX,sy,GW,sh,null,null);
-  await infoMini(ctx,T,data,GX+18,sy,GW-36,sh);
-  footer(ctx,T,data);
 }
 const LV_LABEL_C=["無凸","1凸","2凸","完凸"];
 
@@ -1994,7 +1871,8 @@ async function formationRow(ctx,T,F,label,x,y,w,h){
     totsuStars(ctx,T,ix+8,iy2+size-12.5,4.5,u.level);
     ctx.font=`bold 12px ${FONT}`; const tcw=ctx.measureText(u.type).width+14;
     chip(ctx,ix+size-tcw-4,iy2+4,u.type,TC[u.type],true,12);
-    await pilotBadge(ctx,T,u.pilot,ix+size-10,iy2+size-10,30);
+    const pd=Math.round(size*0.46);   // 搭乗キャラは画像の右下を埋める大きさ
+    await pilotBadge(ctx,T,u.pilot,ix+size-pd/2-1,iy2+size-pd/2-1,pd);
     ctx.font=`bold 12px ${FONT}`; ctx.fillStyle=T.text;
     const rt=u.hit?u.hit.rateText:"", rw=rt?ctx.measureText(rt).width+6:0;
     ctx.fillText(fitText(ctx,u.name,tw-14-rw),tx+7,iy2+size+15);
@@ -2047,7 +1925,7 @@ async function drawCardOnce(canvas,data,layout,themeKey,used){
   if(layout==="eternal") await layoutEternal(ctx,T,data);
   else if(layout==="units") await layoutUnits(ctx,T,data);
   else if(layout==="characters") await layoutCharacters(ctx,T,data);
-  else if(layout==="formation") await ((data.formations&&data.formations.filter(f=>f&&f.supporter).length===2)?layoutFormation2:layoutFormation)(ctx,T,data);
+  else if(layout==="formation") await layoutFormation2(ctx,T,data);   // 1編成のレイアウトは廃止。1編成だけのときは2編成の片方（編成1）だけ埋める
   else await layoutStandard(ctx,T,data);
 }
 // 51 バフ対象の結果チップ用の作品名（通称優先。SEED ASTRAY系の作品はまとめて「SEED ASTRAY」）
