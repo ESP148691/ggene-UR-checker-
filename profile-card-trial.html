@@ -934,12 +934,12 @@ function sparkle(ctx,cx,cy,r,col){
   for(let i=0;i<8;i++){ const a=i*Math.PI/4-Math.PI/2, rr=i%2?r*0.3:r; ctx.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr); }
   ctx.closePath(); ctx.fill(); ctx.restore();
 }
-function rankBadge(ctx,T,rank,xr,yc){
+function rankBadge(ctx,T,rank,xr,ytop){   // ytop＝バッジの上辺（見出し「ユーザーネーム」の金のバーの上辺に揃える）
   if(!rank) return;
   const tier=rank>=150?2:(rank>=100?1:0), label=`RANK ${rank}`;
   ctx.save(); ctx.textBaseline="middle"; ctx.textAlign="left";
   const fs=tier?16:14; ctx.font=`bold ${fs}px ${FONT}`;
-  const tw=ctx.measureText(label).width, w=tw+(tier===2?36:24), h=tier===2?30:(tier?27:24), x=xr-w, y=yc-h/2;
+  const tw=ctx.measureText(label).width, w=tw+(tier===2?36:24), h=tier===2?28:(tier?26:24), x=xr-w, y=ytop, yc=y+h/2;
   if(tier===0){
     roundRect(ctx,x,y,w,h,h/2); ctx.fillStyle=T.dark?"rgba(20,28,40,.72)":"rgba(255,255,255,.7)"; ctx.fill();
     ctx.strokeStyle=T.dark?"rgba(230,236,245,.5)":"rgba(15,39,64,.4)"; ctx.lineWidth=1.2; ctx.stroke();
@@ -953,17 +953,23 @@ function rankBadge(ctx,T,rank,xr,yc){
   } else {
     ctx.shadowColor="rgba(255,225,160,.9)"; ctx.shadowBlur=18;
     roundRect(ctx,x,y,w,h,h/2); ctx.fillStyle="#150f26"; ctx.fill(); ctx.shadowBlur=0;
+    // 虹のボディ（斜めのグラデーション＋上半分のつや）
+    const body=rainbow(ctx,x,y,x+w,y+h);
+    roundRect(ctx,x+2,y+2,w-4,h-4,(h-4)/2); ctx.fillStyle=body; ctx.fill();
+    const gl=ctx.createLinearGradient(0,y,0,y+h); gl.addColorStop(0,"rgba(255,255,255,.45)"); gl.addColorStop(0.55,"rgba(255,255,255,0)");
+    roundRect(ctx,x+2,y+2,w-4,h-4,(h-4)/2); ctx.fillStyle=gl; ctx.fill();
+    // 虹の輪郭
     roundRect(ctx,x,y,w,h,h/2); ctx.strokeStyle=rainbow(ctx,x,y,x+w,y); ctx.lineWidth=3; ctx.stroke();
-    roundRect(ctx,x+4,y+4,w-8,h-8,(h-8)/2); ctx.strokeStyle="rgba(255,240,190,.55)"; ctx.lineWidth=1; ctx.stroke();
-    ctx.fillStyle="#ffffff"; ctx.shadowColor="rgba(255,200,120,.9)"; ctx.shadowBlur=6; ctx.fillText(label,x+18,yc+0.5); ctx.shadowBlur=0;
+    ctx.lineJoin="round"; ctx.lineWidth=4; ctx.strokeStyle="rgba(30,12,60,.8)"; ctx.strokeText(label,x+18,yc+0.5);
+    ctx.fillStyle="#ffffff"; ctx.fillText(label,x+18,yc+0.5);
     sparkle(ctx,x-4,y+3,7,"#fff6c8"); sparkle(ctx,x+w+3,y+h-3,6,"#ffe9a8"); sparkle(ctx,x+w-10,y-3,4,"#ffffff");
   }
   ctx.restore();
 }
 // 追加改修：推し編成・推しキャラ用の簡易情報（UR所持率＋推し作品のロゴ最大5つ）。h>=56なら2段、それ未満は1行
 async function infoMini(ctx,T,data,x,y,w,h){
-  const u=data.units, fav=(data.favorites||[]).slice(0,5), two=h>=56;
-  const y1=two?y+19:y+h/2, y2=two?y+h-20:y+h/2, lw=two?56:64, lh=two?25:28;
+  const u=data.units, fav=(data.favorites||[]).slice(0,5), two=h>=56&&w<600;   // 狭い枠（1編成の右上パネル）は2段、広い帯（2編成）は1行
+  const y1=two?y+19:y+h/2, y2=two?y+h-20:y+h/2, lw=two?56:96, lh=two?25:42;   // 1行版（2編成）は作品ロゴを大きめに
   ctx.save(); ctx.textBaseline="middle"; ctx.textAlign="left";
   let cx=x;
   if(u&&u.registered){
@@ -985,7 +991,7 @@ function identity(ctx,T,p,LX,LW,nameMax=38,nameY=98){
   ctx.fillStyle=T.gold; ctx.fillRect(LX-8,hy-9,3,18);
   ctx.fillStyle=T.bgText||T.text; ctx.font=`bold 15px ${FONT}`; ctx.textBaseline="middle"; ctx.textAlign="left";
   shadowText(ctx,T,"ユーザーネーム",LX+6,hy); ctx.textBaseline="alphabetic";
-  rankBadge(ctx,T,p.rank,LX+LW,hy);
+  rankBadge(ctx,T,p.rank,LX+LW,hy-9);
   nameY+=20;
   ctx.fillStyle=T.bgText||T.text;
   let fs=nameMax; ctx.font=`bold ${fs}px ${FONT}`;
@@ -1423,9 +1429,10 @@ async function unitImage(ctx,T,u,x,y,size,radius){
   roundRect(ctx,x,y,size,size,radius);
   ctx.strokeStyle=u.level===3?rainbow(ctx,x,y,x+size,y+size):T.frame; ctx.lineWidth=u.level===3?3:1.2; ctx.stroke();
   if(u.limited){ // 期間限定バッジ（既存チェッカーと同じ表現）
-    ctx.font=`bold ${Math.max(12,size/14)}px ${FONT}`; const t="期間限定", bw=ctx.measureText(t).width+10, bh=Math.max(18,size/10);   // ㉚ 最小9→12px
-    roundRect(ctx,x+6,y+6,bw,bh,3); ctx.fillStyle="rgba(10,14,20,.8)"; ctx.fill(); ctx.strokeStyle="#8a7128"; ctx.lineWidth=1; ctx.stroke();
-    ctx.fillStyle="#dab949"; ctx.textBaseline="middle"; ctx.fillText(t,x+11,y+6+bh/2+0.5); ctx.textBaseline="alphabetic";
+    const mini=!!u.limitedMini;   // 追加改修：2編成のカードでは「限定」だけの小さいバッジ
+    ctx.font=`bold ${mini?12:Math.max(12,size/14)}px ${FONT}`; const t=mini?"限定":"期間限定", bw=ctx.measureText(t).width+(mini?8:10), bh=mini?16:Math.max(18,size/10), o=mini?4:6;   // ㉚ 最小9→12px
+    roundRect(ctx,x+o,y+o,bw,bh,3); ctx.fillStyle="rgba(10,14,20,.8)"; ctx.fill(); ctx.strokeStyle="#8a7128"; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle="#dab949"; ctx.textBaseline="middle"; ctx.fillText(t,x+o+(mini?4:5),y+o+bh/2+0.5); ctx.textBaseline="alphabetic";
   }
 }
 // ㉙ 入手記録（入手日・ガシャ回数・メモ）の表示用。rec = {d:"YYYY-MM-DD"|"YYYY-MM", n:回数, m:メモ}
@@ -1700,12 +1707,12 @@ async function layoutCharacters(ctx,T,data){
   // ---- 右：推しキャラ5人を同じ大きさで横並び（追加改修）＋下段に推し作品・推しユニット ----
   const GX=352, GY=90, GW=W-36-GX, GH=H-58-GY-6;
   if(!favs.length){ ctx.fillStyle=T.bgMuted||T.muted; ctx.font=`15px ${FONT}`; shadowText(ctx,T,"推しキャラが未設定です",GX,GY+40); footer(ctx,T,data); return; }
-  const gap=12, bandH=124, cardH=GH-bandH-gap, cw=(GW-gap*4)/5;
+  const gap=12, cardH=300, cw=(GW-gap*4)/5;
   for(let i=0;i<favs.length;i++){
     const f=favs[i], x=GX+i*(cw+gap), y0=GY;
     panel(ctx,T,x,y0,cw,cardH,null,null);
     ctx.fillStyle=T.gold; ctx.font=`bold 13px ${FONT}`; ctx.fillText(`${heading} ${String(i+1).padStart(2,"0")}`,x+12,y0+24);
-    const size=Math.min(cw-24,cardH-250), ix=x+(cw-size)/2, iy=y0+34;
+    const size=Math.min(cw-24,cardH-200), ix=x+(cw-size)/2, iy=y0+34;
     await charImage(ctx,T,f,ix,iy,size,12);
     roundRect(ctx,ix,iy,size,size,12); ctx.strokeStyle=T.frame; ctx.lineWidth=1.2; ctx.stroke();
     let ty=iy+size+24;
@@ -1724,24 +1731,27 @@ async function layoutCharacters(ctx,T,data){
       const uy=sy+10+24-(un.lines.length-1)*8+5; un.lines.forEach((ln,j)=>ctx.fillText(ln,x+10+48+8,uy+j*16));
     } else { ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("入手",x+10,sy+4); chip(ctx,x+10,sy+14,"イベント配布",T.gold,false,12); }
   }
-  // 下段：推し作品（ロゴ）と推しユニット（画像）
-  const by=GY+cardH+gap, bw=(GW-gap)/2, slotW=(bw-36-4*8)/5;
-  panel(ctx,T,GX,by,bw,bandH,"推し作品",T.gold);
-  panel(ctx,T,GX+bw+gap,by,bw,bandH,"推しユニット",T.gold);
+  // 下段：推し作品（標準カードと同じ大きさのロゴ）と推しユニット（凸あり・限定表示なし）を全幅で2段に
   const works=(data.favorites||[]).slice(0,5), units=(data.favoriteUnits||[]).slice(0,5);
+  const wy=GY+cardH+10, wH=100, uy0=wy+wH+10, uH=GY+GH-uy0;
+  panel(ctx,T,GX,wy,GW,wH,"推し作品",T.gold);
+  panel(ctx,T,GX,uy0,GW,uH,"推しユニット",T.gold);
   ctx.font=`12px ${FONT}`; ctx.fillStyle=T.muted;
-  if(!works.length) ctx.fillText("未設定",GX+18,by+bandH/2+14);
-  for(let i=0;i<works.length;i++){
-    const wx=GX+18+i*(slotW+8), lh=Math.round(slotW*32/73);
-    await workLogo(ctx,T,works[i].iconNo,wx,by+46,slotW,lh,5);
-    ctx.fillStyle=T.text; ctx.font=`bold 12px ${FONT}`; ctx.fillText(fitText(ctx,works[i].shortName,slotW+6),wx,by+46+lh+18);
-  }
+  if(!works.length) ctx.fillText("未設定",GX+18,wy+wH/2+14);
+  const lw=Math.min(146,(GW-36-4*8)/5), lh=Math.round(lw*140/320), lgap=(GW-36-lw*5)/4;
+  for(let i=0;i<works.length;i++) await workLogo(ctx,T,works[i].iconNo,GX+18+i*(lw+lgap),wy+32,lw,lh,7);
   ctx.font=`12px ${FONT}`; ctx.fillStyle=T.muted;
-  if(!units.length) ctx.fillText("未設定",GX+bw+gap+18,by+bandH/2+14);
+  if(!units.length) ctx.fillText("未設定",GX+18,uy0+uH/2+14);
+  const sw=(GW-36-4*10)/5, us=Math.min(52,uH-44);
   for(let i=0;i<units.length;i++){
-    const ux=GX+bw+gap+18+i*(slotW+8), us=Math.min(slotW,64);
-    await unitImage(ctx,T,Object.assign({},units[i],{level:0,limited:false}),ux,by+44,us,6);
-    ctx.fillStyle=T.text; ctx.font=`bold 12px ${FONT}`; ctx.fillText(fitText(ctx,units[i].name,slotW+6),ux,by+44+us+16);
+    const f=units[i], ux=GX+18+i*(sw+10), uy=uy0+36;
+    await unitImage(ctx,T,Object.assign({},f,{limited:false}),ux,uy,us,6);
+    const un=wrapName(ctx,f.name,sw-us-8,sz=>`bold ${sz}px ${FONT}`,12,f.unitId);
+    ctx.fillStyle=T.text; ctx.font=`bold ${un.size}px ${FONT}`;
+    un.lines.forEach((ln,j)=>ctx.fillText(ln,ux+us+8,uy+12+j*15));
+    const lvY=uy+12+un.lines.length*15+2;
+    ctx.font=`bold 12px ${FONT}`; ctx.fillStyle=f.level===3?rainbow(ctx,ux+us+8,lvY-12,ux+us+8+40,lvY):T.cyan;
+    ctx.fillText(LV_LABEL_C[f.level]||"",ux+us+8,lvY);
   }
   footer(ctx,T,data);
 }
@@ -1913,7 +1923,7 @@ function identityBand(ctx,T,p,x,y,w){
   ctx.fillStyle=T.bgText||T.text; ctx.font=`bold 15px ${FONT}`; ctx.textBaseline="middle"; ctx.textAlign="left";
   shadowText(ctx,T,"ユーザーネーム",x+6,y); ctx.textBaseline="alphabetic";
   const NW=300;
-  rankBadge(ctx,T,p.rank,x+NW,y); let fs=32; ctx.font=`bold ${fs}px ${FONT}`;
+  rankBadge(ctx,T,p.rank,x+NW,y-9); let fs=32; ctx.font=`bold ${fs}px ${FONT}`;
   while(fs>18&&ctx.measureText(p.displayName).width>NW){ fs-=2; ctx.font=`bold ${fs}px ${FONT}`; }
   ctx.fillStyle=T.bgText||T.text; shadowText(ctx,T,fitText(ctx,p.displayName,NW),x,y+38);
   if(p.comment){
@@ -1984,7 +1994,7 @@ async function formationRow(ctx,T,F,label,x,y,w,h){
     roundRect(ctx,tx,tTop,tw,th,8); ctx.strokeStyle=u.hit?(full?rainbow(ctx,tx,tTop,tx+tw,tTop+th):G):T.line; ctx.lineWidth=u.hit?2:1; ctx.stroke();
     // 画像（左上に番号）→ 名前（2行まで）→ ★・タイプ → バフの結果
     const size=th-100, ix=tx+(tw-size)/2, iy2=tTop+8;
-    await unitImage(ctx,T,u,ix,iy2,size,7);
+    await unitImage(ctx,T,Object.assign({},u,{limitedMini:true}),ix,iy2,size,7);
     await pilotBadge(ctx,T,u.pilot,ix+size-10,iy2+size-10,30);
     ctx.fillStyle=T.goldDim; ctx.font=`bold 13px ${FONT}`; ctx.fillText(String(i+1).padStart(2,"0"),tx+7,tTop+20);
     const nmu=wrapName(ctx,u.name,tw-14,sz=>`bold ${sz}px ${FONT}`,13,u.unitId);
@@ -2002,8 +2012,8 @@ async function formationRow(ctx,T,F,label,x,y,w,h){
 async function layoutFormation2(ctx,T,data){
   await header(ctx,T,"FAVORITE FORMATION");
   identityBand(ctx,T,data.profile,44,82,W-80);
-  panel(ctx,T,28,138,W-56,34,null,null); await infoMini(ctx,T,data,44,138,W-88,34);   // 追加改修：簡易情報の帯
-  const fs=data.formations, top=180, gap=10, rh=(H-58-top-gap)/2;
+  panel(ctx,T,28,138,W-56,60,null,null); await infoMini(ctx,T,data,44,138,W-88,60);   // 追加改修：簡易情報の帯（行を圧縮した分、推し作品を大きく）
+  const fs=data.formations, top=206, gap=10, rh=(H-58-top-gap)/2;
   for(let k=0;k<2;k++) await formationRow(ctx,T,fs[k],fs[k]&&fs[k].label||`編成${k+1}`,28,top+k*(rh+gap),W-56,rh);
   footer(ctx,T,data);
 }
