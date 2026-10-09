@@ -1341,9 +1341,7 @@ function totsuStars(ctx,T,x,y,R,lv){
   }
   return x+3*R*2.3;
 }
-const TYPE_COL={dark:{"攻撃":"#ff8a73","支援":"#6cc8ff","耐久":"#8fd870"},light:{"攻撃":"#c9442e","支援":"#1a78b8","耐久":"#3f8a2c"}};
-// 推しキャラ・推し編成のタイプ色：攻撃＝赤・支援＝黄・耐久＝青（ユーザー指示。推しユニット・標準は従来のTYPE_COL）
-const TYPE_COL2={dark:{"攻撃":"#ff8a73","支援":"#ffd84d","耐久":"#6aa8ff"},light:{"攻撃":"#c9442e","支援":"#a87400","耐久":"#1f5fc4"}};
+const TYPE_COL={dark:{"攻撃":"#ff8a73","支援":"#ffd84d","耐久":"#6aa8ff"},light:{"攻撃":"#c9442e","支援":"#a87400","耐久":"#1f5fc4"}};   // 攻撃＝赤・支援＝黄・耐久＝青（ユーザー指示。全テンプレート共通）
 function chip(ctx,x,y,text,col,fill,fs=11){
   ctx.font=`bold ${fs}px ${FONT}`; const w=ctx.measureText(text).width+14, h=fs+9;
   roundRect(ctx,x,y,w,h,h/2);
@@ -1458,21 +1456,21 @@ async function charImage(ctx,T,c,x,y,size,radius){   // radius<0 のときは丸
     ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText([...c.name][0],x+size/2,y+size/2+1); ctx.textAlign="left"; ctx.textBaseline="alphabetic"; }
   ctx.restore();
 }
-function heart(ctx,cx,cy,s){   // 推しキャラの印
-  ctx.save(); ctx.beginPath();
-  ctx.moveTo(cx,cy+s*0.35);
-  ctx.bezierCurveTo(cx-s*0.9,cy-s*0.25,cx-s*0.45,cy-s*0.95,cx,cy-s*0.45);
-  ctx.bezierCurveTo(cx+s*0.45,cy-s*0.95,cx+s*0.9,cy-s*0.25,cx,cy+s*0.35);
-  ctx.closePath(); ctx.fillStyle=PINK; ctx.shadowColor="rgba(0,0,0,.5)"; ctx.shadowBlur=3; ctx.fill(); ctx.shadowBlur=0;
-  ctx.lineWidth=1.4; ctx.strokeStyle="#ffffff"; ctx.stroke(); ctx.restore();
+function oshiBadge(ctx,cx,cy,r){   // 推しキャラの印：ピンクの丸に白抜きの「推」
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+  const g=ctx.createLinearGradient(cx,cy-r,cx,cy+r); g.addColorStop(0,"#ff8fbb"); g.addColorStop(1,"#e0457f");
+  ctx.shadowColor="rgba(0,0,0,.5)"; ctx.shadowBlur=4; ctx.fillStyle=g; ctx.fill(); ctx.shadowBlur=0;
+  ctx.lineWidth=1.6; ctx.strokeStyle="#ffffff"; ctx.stroke();
+  ctx.fillStyle="#ffffff"; ctx.font=`bold ${Math.round(r*1.35)}px ${FONT}`; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText("推",cx,cy+1); ctx.restore();
 }
-// ユニット画像の右下に重ねる搭乗キャラの丸（推しキャラならハート）
+// ユニット画像の右下に重ねる搭乗キャラの丸（推しキャラなら「推」バッジ）
 async function pilotBadge(ctx,T,p,cx,cy,d){
   if(!p) return;
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,d/2+2.5,0,Math.PI*2); ctx.fillStyle=T.dark?"#0b1018":"#ffffff"; ctx.shadowColor="rgba(0,0,0,.45)"; ctx.shadowBlur=6; ctx.fill(); ctx.restore();
   await charImage(ctx,T,p,cx-d/2,cy-d/2,d,-1);
   ctx.beginPath(); ctx.arc(cx,cy,d/2,0,Math.PI*2); ctx.strokeStyle=p.fav?PINK:(T.dark?"#e6d9a8":"#9a7b22"); ctx.lineWidth=p.fav?2.2:1.4; ctx.stroke();
-  if(p.fav) heart(ctx,cx+d*0.36,cy+d*0.38,Math.max(9,d*0.3));   // 推しキャラのハートは顔の右下
+  if(p.fav) oshiBadge(ctx,cx+d*0.36,cy+d*0.38,Math.max(9,d*0.22));   // 推しキャラの「推」バッジは顔の右下
 }
 // ㉙ 入手記録（入手日・ガシャ回数・メモ）の表示用。rec = {d:"YYYY-MM-DD"|"YYYY-MM", n:回数, m:メモ}
 function acqDateLabel(d){ return d ? d.replace(/-/g,"/") : ""; }
@@ -1663,7 +1661,7 @@ async function layoutUnits(ctx,T,data){
 // data.ownedChars＝推しキャラ未設定のときの代わり（セットのキャラを凸の高い順）
 async function layoutCharacters(ctx,T,data){
   await header(ctx,T,"FAVORITE CHARACTERS");
-  const u=data.units, TC=T.dark?TYPE_COL2.dark:TYPE_COL2.light;
+  const u=data.units, TC=T.dark?TYPE_COL.dark:TYPE_COL.light;
   let favs=(data.favoriteChars||[]).slice(0,5), heading="推し";
   if(!favs.length&&data.ownedChars){ favs=data.ownedChars.slice(0,5); heading="所持"; }   // 未設定：所持キャラ（セットの凸の高い順）
   // ---- 左カラム：プロフィール＋UR所持サマリー＋（㉙）URサポート・エタロの実績 ----
@@ -1817,7 +1815,7 @@ function identityBand(ctx,T,p,x,y,w){
   }
 }
 async function formationRow(ctx,T,F,label,x,y,w,h){
-  const TC=T.dark?TYPE_COL2.dark:TYPE_COL2.light, G=T.dark?SYN_GOLD:T.gold;
+  const TC=T.dark?TYPE_COL.dark:TYPE_COL.light, G=T.dark?SYN_GOLD:T.gold;
   panel(ctx,T,x,y,w,h,null,null);
   if(!F||!F.supporter){ ctx.fillStyle=T.muted; ctx.font=`14px ${FONT}`; ctx.fillText(`${label}：未設定`,x+18,y+h/2); return; }
   const s=F.supporter, full=F.synergy.full, n=F.units.filter(Boolean).length;
@@ -2374,7 +2372,7 @@ function fmFormationData(f){
   f.units.forEach((id, i) => { if (id != null) units.push({ slot: i + 1, unitId: id }); });
   const F = FormationLogic.formationData(fmIx, { label: f.label.trim() || null, supporterId: f.supporterId, units },
     unitById, supporterById, { supporters: sOwn, units: own }, fmWorkLabel, fmWorkLabel, ownedUnitIds());
-  // 56 搭乗キャラ（推しキャラならfav＝ハート）
+  // 56 搭乗キャラ（推しキャラならfav＝「推」バッジ）
   if (F && charsAvailable()) F.units.forEach((u, i) => {
     const c = u && f.pilots[i] != null ? CHARS.get(f.pilots[i]) : null;
     if (c) u.pilot = { charId: c.charId, name: c.name, fav: draft.favoriteCharacters.includes(c.charId) };
@@ -2811,7 +2809,7 @@ function renderFormation(){
       btn.addEventListener("click", () => openPilotPicker(f, i, ""));
       slots.appendChild(el("div", { class: "fmPilot" }, [
         pc ? charFace(pid, "thumb") : null,
-        el("span", { class: "pn" + (fav ? " fav" : ""), text: pc ? `搭乗：${fav ? "♥ " : ""}${pc.name}` : "搭乗キャラなし" }),
+        el("span", { class: "pn" + (fav ? " fav" : ""), text: pc ? `搭乗：${fav ? "【推】" : ""}${pc.name}` : "搭乗キャラなし" }),
         btn
       ]));
     }
