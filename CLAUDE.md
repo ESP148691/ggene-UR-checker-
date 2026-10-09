@@ -89,7 +89,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0029〜0030 | 51 推し編成：TBL4つ（`supporters_leader_rules`・`supporters_leader_targets`・`user_formations`・`user_formation_units`。0029）／URサポーター50体のリーダースキル（ルール55・条件75。0030。先頭で2TBLを全削除するので再実行可） | 適用済み（2026-10-04 Claude Code。確認SQLは期待値どおり） |
 | 0031 | 54 パスワードのハッシュ化：`users`に`password_hash`・`password_changed_at`・`must_change_password`、新TBL`auth_rate_limits`（**1回だけ**。再実行は先頭ALTERが`duplicate column`で止まる） | 適用済み（2026-10-04 Claude Code。736人・未移行736・`auth_rate_limits`0件で期待どおり） |
 | 0032 | 日別利用集計`daily_stats`（`stat_key`＝login／checker_use）・ビグ・ラングをMS IGLOO(23)、グレート・ジオング／ザンスパインをG GENERATION(106)へ（`unit_work_map`のUPDATE） | 適用済み（2026-10-06 Claude Code） |
-| 次の空き | 0033 | ― |
+| 0033〜0034 | 56 推しURキャラクター：TBL`characters_master`・`user_favorite_characters`新設＋`user_formation_units.pilot_char_id`（0033。**1回だけ**。再実行は`duplicate column name: pilot_char_id`で止まる）／キャラのマスター投入78件（セット74・イベント配布4。0034。先頭で全削除するので**何度でも流し直せる**。未確認14人が確定したらCoworkが作り直し→流し直し。コード変更なし） | 適用済み（2026-10-09 Claude Code。確認SQLは期待値どおり：total 78・event 4・set_chars 74、bad_id 0、orphan 0、pilots_null 0＝URの編成10行） |
+| 次の空き | 0035 | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
 - **適用はD1が先、pushが後**。逆にすると新コードが未作成のTBL・列を読んで500や保存漏れになる（⑬のデプロイギャップ）。**バックフィルは必ず冪等に書き、間が空いたら再実行する**
@@ -111,7 +112,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 - `restoreOwnershipFromServer()`は`data.registered`のときだけ上書きする（新規登録直後に端末の状態を消さない。㉘）
 - **同じものを複数か所に持っている箇所**（変えるときは全部そろえる）
   - ミッションの短い表示名：`eternal-road.html`の`missionLabel()`・`profile-card.html`の`CardRenderer`内・`analytics.html`の`erMissionLabel()`
-  - カードのテンプレート：`worker.js`の`CARD_TEMPLATES`と`profile-card*.html`の`TEMPLATE_LABEL`（`formation`＝推し編成）
+  - カードのテンプレート：`worker.js`の`CARD_TEMPLATES`と`profile-card*.html`の`TEMPLATE_LABEL`（`formation`＝推し編成、`characters`＝推しキャラ）
+  - 搭乗キャラの補充規則：`worker.js`の`normalizePilots()`と`profile-card-trial.html`の`normalizeDraftPilots()`／`onUnitChanged()`（順番・規則を同じに保つ。依頼書57の4.3）
   - カード表示設定の既定値`CARD_OPTIONS_DEFAULT`（`{acq:true, memo:false}`）：`profile-card.html`と`worker.js`
   - 作品ID：`worker.js`の`WORK_IDS`・`works_master`・`images/series/`
   - ユニット件数：`ur-units.js`・`top.html`の`UNIT_IMAGES`・`worker.js`の`MAX_UNIT_ID`・D1（サポートも同様）
@@ -148,6 +150,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 6. **URユニットのみ：スクショ読み取りの位置合わせ値`SCAN_FIT`を`unit-scan.js`に追加**。無いと自動判定されない（「判定できなかったカード」に入る）。運営者がそのユニットの写ったスクショで`/unit?scandebug=1`を開いて読み取り、手動で割り当て → 画面下の「学習した位置合わせ値」のJSONの該当IDを追記。2026-09-30時点で87機中69機にあり
 7. **URサポートのみ：`supporter-scan.js`の`SCAN_FIT`を追加**。手順は同じで`/supporter?scandebug=1`（「強化 > サポーター」一覧のスクショ）。50体中31体にあり
 8. ㊶・㊾の適用後：新URの**タグ**を`INSERT OR REPLACE INTO units_tags (rarity_code, unit_id, tag_id, source, updated_at) VALUES (1, …, …, 'game', '…');`で入れる（運営者がゲーム内ユニット詳細の「タグ」欄で確認。**「シリーズ」欄の作品名はタグではない**）。新しいタグ名が出たら`tags_master`に次の`tag_id`（144〜）で追加。その後、㊳詳細設計5章の確認SQL（3本とも0件が正常）を流す
+
+**URユニットのセットのキャラ（56）**：新URユニットを足したら、`characters_master`に1行（`char_id = unit_id`・`set_rarity_code = 1`・`set_unit_id = unit_id`・名前）と`images/characters/{id}.jpg`（150×150）を足す（次の番号のマイグレーションとして）。名前が分からないうちは入れなくてよい（搭乗キャラの補充規則で動く）。**新しいイベント配布キャラ**は`char_id`を1001番台の次の番号・`set_*`はNULL・`type`・`work_id`を入れる＋画像。`char_id`の範囲は`worker.js`の`CHAR_ID`のコメント（1〜999＝URセット、1001〜1999＝イベント配布、10001〜＝将来のSSRセット）。0034の再投入は`docs/04_自己紹介カード/データ/56_build_characters_sql.py <CSV>`で作る
 
 **URサポーターを追加するとき（51）**：上の手順に加えて、`supporters_leader_rules`・`supporters_leader_targets`に行を足す（Coworkが攻略サイト・ゲーム内で対象を確認して下書き）。`docs/04_自己紹介カード/データ/51_シナジー判定_確認SQL.sql`の先頭3本で孤児0件を確認。新しいタグがリーダースキルの対象になるなら、`tags_master`に先に追加する
 
@@ -196,6 +200,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 51・52 推し編成・タグ傾向（段階1） | 10-04 | 0029・0030をD1適用済み。`worker.js`：`GET /api/leader-skills`、`/api/profile-card`に`profile.formations`・`supporters.ownership`・`supporters.master`（依頼書に無い追加。サポーター名・限定・skillを画面側が持たないため）、`POST /api/profile`の`formations`（別バッチ・送らなければ不変・2編成の重複は後ろを読み飛ばす）。`profile-card-trial.html`：テンプレート「推し編成」（1編成・2編成の描画、フォーム、Xシェア）と推しユニットカードの特徴タグ・得意タグ。**本番`profile-card.html`への反映と`scripts/card_check/`への追加は段階2（運営者の確認後）**。左パネル・結果の「サポートスキル」表示は`supporters_master.skill`（HP回復/EN回復/複合）で、試作の「HP回復/防御UP」等の詳細表記は出ない。`scripts/card_check/seed.sql`は`user_favorite_units`の列数が0024以降に合わず古い（段階2で直す） |
 | 54 パスワード変更・運営者リセット・ハッシュ化（段階A-1） | 10-04 | 0031をD1適用→push。`worker.js`：PBKDF2ヘルパー・`KEEP_PLAINTEXT_PASSWORD = true`・回数制限（`auth_rate_limits`）・登録/ログイン/`/api/me`の変更（ログイン時に未移行者を自動ハッシュ化、`mustChangePassword`）・`POST /api/account/password`・`POST /api/admin/reset-password`・`GET /api/admin/password-status`・`POST /api/admin/hash-migrate`・`scheduled()`で古い制限記録の掃除。画面：`account.html`・`admin-account.html`・`auth.js`（ユーザー名リンク・「パスワードを忘れた方」・仮パスワードログイン後の遷移）・`top.html`の運営者欄に導線。0031未適用でも動くフォールバックあり。案内文のXアカウントは`@polarbear148691`で実装（依頼書の確認事項1）。仮パスワードのままでも他ページは使える（確認事項2）。**A-2（平文を消す）は約1週間後**。依頼書：`docs/05_機能拡張_有料プラン/54_…実装依頼書.md` |
 | チャレンジ公開・作品紐付け修正・利用集計 | 10-06 | ㊵チャレンジを一般公開（`challenge.html`のadminGate削除、`top.html`の導線を「チェッカー」欄へ）。0032適用（上表）。`worker.js`：`bumpDailyStat`（登録・ログイン成功時に`login`、`/api/log`・`/api/log-supporter`・`/api/log-eternal-road-missions`・`/api/log-challenge`の200で`checker_use`）・`GET /api/admin/usage-stats`。`admin-account.html`に「利用状況」（累計／本日のログイン数・チェッカー利用数。集計は0032適用後から。日付JST） |
+| 56・57 推しURキャラクター（段階1） | 10-09 | 0033・0034をD1適用済み（上表）。`worker.js`：`GET /api/characters`、`loadSelectableCharacters()`・`normalizePilots()`（補充規則）、`/api/profile-card`に`profile.favoriteCharacters`と`formations[].units[].pilotCharId`、`POST /api/profile`の`favoriteCharacters`・`formations[].pilots`（別バッチ・未適用ならフォールバック）、`CARD_TEMPLATES`に`characters`。`profile-card-trial.html`：テンプレート「推しキャラ」（`layoutCharacters`。イベント配布キャラは「セット」の代わりに「イベント配布」チップ）、推しキャラ欄、推し編成の搭乗キャラ（顔・名前・推しはピンク＋ハート）・乗せ替え画面（搭乗中のキャラを選ぶと入れ替え）、1編成の特徴タグを外した（「編成のタグ」の帯は残す）、Xシェア。`images/characters/`（78枚）。**本番`profile-card.html`への反映と`scripts/card_check/`への追加は段階2（運営者の確認後。`seed.sql`が古い件は53の段階2と合わせて直す）**。確認待ち：依頼書57の8章の画面観点。未確認14人（33・38・39・54・55・58・63・66・67・68・72・76・83・1005）は確定後にデータだけ差し替え |
 | ㊼ | 10-03 | エタロ攻略にステージ30（機動戦士Vガンダム）を追加：全30ステージ・71ミッション（`eternal-road.html`の表記・合計、一括達成の確認文は`stages.length`参照に）、`images/eternal-road/30.jpg`・`icon/30.jpg`（`scripts/make_eternal_road_icons.py`更新）、`worker.js`、`top.html`、自己紹介カード`profile-card.html`・`profile-card-trial.html`のエタロ分母を30に、`migrations/0023_eternal_road_stage30.sql`（ミッション301・302）。0023はD1適用済み（2026-10-03ユーザー確認）。本番確認が残り |
 
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）

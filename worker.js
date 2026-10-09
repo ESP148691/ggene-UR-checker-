@@ -1233,12 +1233,17 @@ async function handleAnalyticsTrend(request, env, url) {
 // 作品マスター（works_master）の正規ID集合。work_id＝ゲーム内「シリーズ絞り込み」の並び順＝images/series/{id}.png。
 // migrations/0012で作品を追加・変更した場合は、この集合も必ず更新すること（ETERNAL_ROAD_MISSION_IDSと同じ運用）
 const WORK_IDS = new Set(Array.from({ length: 106 }, (_, i) => i + 1));
-const CARD_TEMPLATES = new Set(["standard", "eternal", "units", "formation"]);   // 51：推し編成を追加
+const CARD_TEMPLATES = new Set(["standard", "eternal", "units", "formation", "characters"]);   // 51：推し編成、56：推しキャラを追加
 const FORMATIONS_MAX = 2, FORMATION_SLOTS = 5, FORMATION_LABEL_MAX = 10;
 // ジャングル（"jungle"）は2026-09-24に選択肢から削除。保存済みの"jungle"は読み出し時に"galaxy"として返す
 const CARD_THEMES = new Set(["galaxy", "earth", "sky"]);
 const PROFILE_BODY_MAX_BYTES = 4096;
 const FAVORITES_MAX = 5;
+// 56 キャラID（characters_master.char_id）の範囲。
+//   1〜UR_SET_MAX            : URユニットのセットのキャラ。char_id ＝ セットのユニットのunit_id（set_rarity_code = 1・set_unit_id = char_id）
+//   EVENT_MIN〜EVENT_MAX     : イベント配布キャラ。1001から追加順（set_*はNULL。type・work_idを持つ）
+//   10001〜（将来）          : SSRのセットのキャラ。10000＋SSRのunit_id
+const CHAR_ID = { UR_SET_MAX: 999, EVENT_MIN: 1001, EVENT_MAX: 1999 };
 const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/;
 
 // GET /api/works（認証不要）。作品マスター＋作品ごとのURユニット。0011未適用なら{works:[]}を返す
@@ -1321,6 +1326,72 @@ async function handleLeaderSkills(request, env) {
   }, 200, { "Cache-Control": "public, max-age=3600" });
 }
 
+// 56 GET /api/characters（認証不要）。キャラのマスター。0033未適用・0件なら空配列
+async function handleCharacters(request, env) {
+  let rows;
+  try {
+    ({ results: rows } = await env.DB.prepare(
+      "SELECT char_id, name, set_unit_id, type, work_id FROM characters_master ORDER BY char_id"
+    ).all());
+  } catch (e) {
+    return jsonResponse({ characters: [] }, 200);
+  }
+  return jsonResponse({
+    characters: rows.map(r => {
+      const c = { charId: r.char_id, name: r.name, setUnitId: r.set_unit_id };
+      if (r.type != null) c.type = r.type;
+      if (r.work_id != null) c.workId = r.work_id;
+      return c;
+    })
+  }, 200, { "Cache-Control": "public, max-age=3600" });
+}
+
+// 56 選べるキャラ：イベント配布キャラ全員＋所持しているユニットがセットのキャラ。0033未適用（TBLが無い）ならnull
+// 戻り値：{ all:Set<charId>, setByUnit:Map<unitId, charId>, setIds:number[]（昇順）, eventIds:number[]（昇順） }
+async function loadSelectableCharacters(env, uid) {
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT m.char_id, m.set_unit_id
+       FROM characters_master m
+       WHERE m.set_unit_id IS NULL
+          OR (m.set_rarity_code = ? AND EXISTS (SELECT 1 FROM units_ownership o WHERE o.user_uid = ? AND o.unit_id = m.set_unit_id))
+       ORDER BY m.char_id`
+    ).bind(RARITY_CODE.UR, uid).all();
+    const sel = { all: new Set(), setByUnit: new Map(), setIds: [], eventIds: [] };
+    for (const r of results) {
+      sel.all.add(r.char_id);
+      if (r.set_unit_id == null) sel.eventIds.push(r.char_id);
+      else { sel.setByUnit.set(r.set_unit_id, r.char_id); sel.setIds.push(r.char_id); }
+    }
+    return sel;
+  } catch (e) {
+    return null;
+  }
+}
+
+// 56 搭乗キャラの補充規則。保存時も読み込み時も同じ関数を使う（画面側profile-card*.htmlにも同じ規則がある。そろえて変えること）。
+// formations：[{ units:[{ unitId, req }] }]。reqは指定されたキャラ（保存時は送られたpilots[i]、読み込み時は保存済みpilot_char_id。undefinedなら指定なし）。
+// 各unitに結果のpilot（charIdかnull）を書き込む。編成1の1枠目→…→編成2の最後の枠の順に、同じキャラは1か所だけ
+function normalizePilots(formations, sel) {
+  const used = new Set();
+  const take = id => { used.add(id); return id; };
+  for (const f of formations) {
+    for (const u of f.units) {
+      let pilot = null;
+      if (Number.isInteger(u.req) && sel.all.has(u.req) && !used.has(u.req)) pilot = take(u.req);
+      else {
+        const own = sel.setByUnit.get(u.unitId);
+        if (own != null && !used.has(own)) pilot = take(own);
+        else {
+          const id = sel.setIds.find(c => !used.has(c)) ?? sel.eventIds.find(c => !used.has(c));
+          if (id != null) pilot = take(id);
+        }
+      }
+      u.pilot = pilot;
+    }
+  }
+}
+
 // 所持データの集計（unit.html／supporter.htmlのcomputeStats()と同じ定義）
 async function computeOwnershipStats(env, userUid, isSupporter) {
   const masterTable = isSupporter ? "supporters_master" : "units_master";
@@ -1400,7 +1471,8 @@ async function loadProfile(env, userUid, earnedTitles) {
     cardTemplate: "standard", cardTheme: "galaxy",
     favoriteWorks: [], favoriteUnits: [], updatedAt: null,
     cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT),
-    formations: []
+    formations: [],
+    favoriteCharacters: []
   };
   let row, works, units;
   try {
@@ -1433,6 +1505,17 @@ async function loadProfile(env, userUid, earnedTitles) {
     return empty;
   }
   const titleIds = new Set((earnedTitles || []).map(t => t.missionId));
+  // 56 推しキャラ。選べなくなったもの（手放した・マスターに無い）は除く（slotは詰め直さない）。0033未適用・失敗時は[]
+  const sel = await loadSelectableCharacters(env, userUid);
+  let favoriteCharacters = [];
+  if (sel) {
+    try {
+      const { results } = await env.DB.prepare(
+        "SELECT slot, char_id FROM user_favorite_characters WHERE user_uid = ? ORDER BY slot"
+      ).bind(userUid).all();
+      favoriteCharacters = results.filter(r => sel.all.has(r.char_id)).map(r => ({ slot: r.slot, charId: r.char_id }));
+    } catch (e) { /* migrations/0033 未適用 */ }
+  }
   return {
     displayName: row ? row.display_name : null,
     comment: row ? row.comment : null,
@@ -1443,13 +1526,15 @@ async function loadProfile(env, userUid, earnedTitles) {
     favoriteUnits: units.map(r => ({ slot: r.slot, unitId: r.unit_id, rarityCode: RARITY_CODE.UR })),
     updatedAt: row ? row.updated_at : null,
     cardOptions: row ? await loadCardOptions(env, userUid) : Object.assign({}, CARD_OPTIONS_DEFAULT),
-    formations: await loadFormations(env, userUid)
+    formations: await loadFormations(env, userUid, sel),
+    favoriteCharacters
   };
 }
 
 // 51 推し編成（user_formations・user_formation_units）。現在所持していないサポーターはnull、所持していないユニットは除く（slotは詰めない）。
 // サポーターもユニットも無い編成は返さない。0029未適用なら空配列
-async function loadFormations(env, userUid) {
+// 56 selが非nullなら、各ユニットにpilotCharId（数値かnull）を付ける（補充規則normalizePilots。DBは書き換えない）
+async function loadFormations(env, userUid, sel) {
   try {
     const { results: fRows } = await env.DB.prepare(
       `SELECT f.formation_no, f.label,
@@ -1457,19 +1542,33 @@ async function loadFormations(env, userUid) {
                    THEN f.supporter_id ELSE NULL END AS supporter_id
        FROM user_formations f WHERE f.user_uid = ? ORDER BY f.formation_no`
     ).bind(userUid).all();
-    const { results: uRows } = await env.DB.prepare(
-      `SELECT u.formation_no, u.slot, u.rarity_code, u.unit_id FROM user_formation_units u
+    const unitsSql = cols =>
+      `SELECT u.formation_no, u.slot, u.rarity_code, u.unit_id${cols} FROM user_formation_units u
        WHERE u.user_uid = ? AND u.rarity_code = ?
          AND EXISTS (SELECT 1 FROM units_ownership o WHERE o.user_uid = u.user_uid AND o.unit_id = u.unit_id)
-       ORDER BY u.formation_no, u.slot`
-    ).bind(userUid, RARITY_CODE.UR).all();
+       ORDER BY u.formation_no, u.slot`;
+    let uRows, hasPilotCol = false;
+    try {
+      if (!sel) throw new Error("no characters");
+      ({ results: uRows } = await env.DB.prepare(unitsSql(", u.pilot_char_id")).bind(userUid, RARITY_CODE.UR).all());
+      hasPilotCol = true;
+    } catch (e) {
+      // 0033未適用（pilot_char_id列が無い）：従来のSQL
+      ({ results: uRows } = await env.DB.prepare(unitsSql("")).bind(userUid, RARITY_CODE.UR).all());
+    }
     const out = [];
     for (const f of fRows) {
       const units = uRows.filter(u => u.formation_no === f.formation_no)
-        .map(u => ({ slot: u.slot, rarityCode: u.rarity_code, unitId: u.unit_id }));
+        .map(u => ({ slot: u.slot, rarityCode: u.rarity_code, unitId: u.unit_id, req: hasPilotCol ? u.pilot_char_id : undefined }));
       if (f.supporter_id == null && !units.length) continue;
       out.push({ formationNo: f.formation_no, label: f.label, supporterId: f.supporter_id, units });
     }
+    // 56 搭乗キャラ。2つの編成を通して補充規則を適用し、保存値が選べない・重複なら返す値だけ直す
+    if (sel) {
+      normalizePilots(out, sel);
+      for (const f of out) for (const u of f.units) { u.pilotCharId = u.pilot; delete u.pilot; }
+    }
+    for (const f of out) for (const u of f.units) delete u.req;
     return out;
   } catch (e) {
     return [];
@@ -1584,9 +1683,14 @@ async function normalizeFormations(env, uid, value) {
     const supporterId = Number.isInteger(f.supporterId) && ownedSupporters.has(f.supporterId) && !usedSupporters.has(f.supporterId)
       ? f.supporterId : null;
     if (supporterId != null) usedSupporters.add(supporterId);
+    // 56 pilots：unitsと同じ長さの配列（要素はcharIdかnull）。無ければ指定なし（旧画面からの保存）
+    if (f.pilots != null && (!Array.isArray(f.pilots) || f.pilots.length !== (f.units || []).length)) return undefined;
     const units = [];
     (f.units || []).forEach((id, i) => {
-      if (Number.isInteger(id) && ownedU.has(id) && !usedUnits.has(id)) { usedUnits.add(id); units.push({ slot: i + 1, unitId: id }); }
+      if (Number.isInteger(id) && ownedU.has(id) && !usedUnits.has(id)) {
+        usedUnits.add(id);
+        units.push({ slot: i + 1, unitId: id, req: f.pilots ? f.pilots[i] : undefined });
+      }
     });
     if (supporterId == null && !units.length) continue;
     out.push({ label, supporterId, units });
@@ -1633,6 +1737,15 @@ async function handleSaveProfile(request, env) {
   const formations = await normalizeFormations(env, uid, body.formations);
   if (formations === undefined) return jsonResponse({ error: "invalid_formations" }, 400);
 
+  // 56 推しキャラ・搭乗キャラ。favoriteCharactersが送られてこなければ保存済みの値を変えない（nullなら触らない）
+  const sel = await loadSelectableCharacters(env, uid);
+  let favoriteChars = null;
+  if (body.favoriteCharacters != null) {
+    favoriteChars = normalizeFavoriteIds(body.favoriteCharacters, sel ? sel.all : new Set());
+    if (!favoriteChars) return jsonResponse({ error: "invalid_favorite_characters" }, 400);
+  }
+  if (formations && sel) normalizePilots(formations, sel);
+
   const nowJst = toJstIsoString(new Date());
   const statements = [
     env.DB.prepare(
@@ -1662,19 +1775,39 @@ async function handleSaveProfile(request, env) {
 
   // 51 推し編成は別のバッチ。0029未適用でも他の保存は成功させる
   if (formations) {
+    const formationBatch = withPilot => [
+      env.DB.prepare("DELETE FROM user_formation_units WHERE user_uid = ?").bind(uid),
+      env.DB.prepare("DELETE FROM user_formations WHERE user_uid = ?").bind(uid),
+      ...formations.flatMap((f, i) => [
+        env.DB.prepare("INSERT INTO user_formations (user_uid, formation_no, label, supporter_id, updated_at) VALUES (?, ?, ?, ?, ?)")
+          .bind(uid, i + 1, f.label, f.supporterId, nowJst),
+        ...f.units.map(u => withPilot
+          ? env.DB.prepare("INSERT INTO user_formation_units (user_uid, formation_no, slot, rarity_code, unit_id, pilot_char_id) VALUES (?, ?, ?, ?, ?, ?)")
+              .bind(uid, i + 1, u.slot, RARITY_CODE.UR, u.unitId, u.pilot)
+          : env.DB.prepare("INSERT INTO user_formation_units (user_uid, formation_no, slot, rarity_code, unit_id) VALUES (?, ?, ?, ?, ?)")
+              .bind(uid, i + 1, u.slot, RARITY_CODE.UR, u.unitId))
+      ])
+    ];
+    try {
+      try {
+        if (!sel) throw new Error("no characters");
+        await env.DB.batch(formationBatch(true));
+      } catch (e) {
+        // 0033未適用（pilot_char_id列が無い）：従来のINSERT
+        await env.DB.batch(formationBatch(false));
+      }
+    } catch (e) { /* migrations/0029 未適用 */ }
+  }
+
+  // 56 推しキャラは別のバッチ。0033未適用でも他の保存は成功させる
+  if (favoriteChars && sel) {
     try {
       await env.DB.batch([
-        env.DB.prepare("DELETE FROM user_formation_units WHERE user_uid = ?").bind(uid),
-        env.DB.prepare("DELETE FROM user_formations WHERE user_uid = ?").bind(uid),
-        ...formations.flatMap((f, i) => [
-          env.DB.prepare("INSERT INTO user_formations (user_uid, formation_no, label, supporter_id, updated_at) VALUES (?, ?, ?, ?, ?)")
-            .bind(uid, i + 1, f.label, f.supporterId, nowJst),
-          ...f.units.map(u =>
-            env.DB.prepare("INSERT INTO user_formation_units (user_uid, formation_no, slot, rarity_code, unit_id) VALUES (?, ?, ?, ?, ?)")
-              .bind(uid, i + 1, u.slot, RARITY_CODE.UR, u.unitId))
-        ])
+        env.DB.prepare("DELETE FROM user_favorite_characters WHERE user_uid = ?").bind(uid),
+        ...favoriteChars.map((id, i) =>
+          env.DB.prepare("INSERT INTO user_favorite_characters (user_uid, slot, char_id) VALUES (?, ?, ?)").bind(uid, i + 1, id))
       ]);
-    } catch (e) { /* migrations/0029 未適用 */ }
+    } catch (e) { /* migrations/0033 未適用 */ }
   }
 
   const profile = await loadProfile(env, uid, eternalRoad ? eternalRoad.earnedTitles : []);
@@ -1983,6 +2116,9 @@ export default {
     }
     if (url.pathname === "/api/leader-skills" && request.method === "GET") {
       return handleLeaderSkills(request, env);
+    }
+    if (url.pathname === "/api/characters" && request.method === "GET") {
+      return handleCharacters(request, env);
     }
     if (url.pathname === "/api/profile-card" && request.method === "GET") {
       return handleProfileCard(request, env);
