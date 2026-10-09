@@ -1707,7 +1707,7 @@ async function layoutCharacters(ctx,T,data){
   // ---- 右：推しキャラ5人を同じ大きさで横並び（追加改修）＋下段に推し作品・推しユニット ----
   const GX=352, GY=90, GW=W-36-GX, GH=H-58-GY-6;
   if(!favs.length){ ctx.fillStyle=T.bgMuted||T.muted; ctx.font=`15px ${FONT}`; shadowText(ctx,T,"推しキャラが未設定です",GX,GY+40); footer(ctx,T,data); return; }
-  const gap=12, cardH=300, cw=(GW-gap*4)/5;
+  const gap=12, cardH=296, cw=(GW-gap*4)/5;
   for(let i=0;i<favs.length;i++){
     const f=favs[i], x=GX+i*(cw+gap), y0=GY;
     panel(ctx,T,x,y0,cw,cardH,null,null);
@@ -1731,15 +1731,18 @@ async function layoutCharacters(ctx,T,data){
       const uy=sy+10+24-(un.lines.length-1)*8+5; un.lines.forEach((ln,j)=>ctx.fillText(ln,x+10+48+8,uy+j*16));
     } else { ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("入手",x+10,sy+4); chip(ctx,x+10,sy+14,"イベント配布",T.gold,false,12); }
   }
-  // 下段：推し作品（標準カードと同じ大きさのロゴ）と推しユニット（凸あり・限定表示なし）を全幅で2段に
+  // 下段：推し作品（標準カードと同じ大きさのロゴ）と推しユニット（★の凸・限定表示なし）を全幅で2段に。
+  // 推しユニット欄の下辺は左のユーザー情報パネルの下辺（H-58）に合わせる。見出しは枠の上寄りに置き、アイコンと重ならないようにする
   const works=(data.favorites||[]).slice(0,5), units=(data.favoriteUnits||[]).slice(0,5);
-  const wy=GY+cardH+10, wH=100, uy0=wy+wH+10, uH=GY+GH-uy0;
-  panel(ctx,T,GX,wy,GW,wH,"推し作品",T.gold);
-  panel(ctx,T,GX,uy0,GW,uH,"推しユニット",T.gold);
+  const bottom=H-58, wy=GY+cardH+8, uH=100, wH=bottom-uH-8-wy, uy0=wy+wH+8;
+  const lab=(x,y,text)=>{ ctx.fillStyle=T.gold; ctx.fillRect(x,y+8,3,18); ctx.fillStyle=T.text; ctx.font=`bold 15px ${FONT}`;
+    ctx.textBaseline="middle"; ctx.textAlign="left"; ctx.fillText(text,x+14,y+17); ctx.textBaseline="alphabetic"; };
+  panel(ctx,T,GX,wy,GW,wH,null,null); lab(GX,wy,"推し作品");
+  panel(ctx,T,GX,uy0,GW,uH,null,null); lab(GX,uy0,"推しユニット");
   ctx.font=`12px ${FONT}`; ctx.fillStyle=T.muted;
   if(!works.length) ctx.fillText("未設定",GX+18,wy+wH/2+14);
   const lw=Math.min(146,(GW-36-4*8)/5), lh=Math.round(lw*140/320), lgap=(GW-36-lw*5)/4;
-  for(let i=0;i<works.length;i++) await workLogo(ctx,T,works[i].iconNo,GX+18+i*(lw+lgap),wy+32,lw,lh,7);
+  for(let i=0;i<works.length;i++) await workLogo(ctx,T,works[i].iconNo,GX+18+i*(lw+lgap),wy+36,lw,lh,7);
   ctx.font=`12px ${FONT}`; ctx.fillStyle=T.muted;
   if(!units.length) ctx.fillText("未設定",GX+18,uy0+uH/2+14);
   const sw=(GW-36-4*10)/5, us=Math.min(52,uH-44);
@@ -1749,9 +1752,7 @@ async function layoutCharacters(ctx,T,data){
     const un=wrapName(ctx,f.name,sw-us-8,sz=>`bold ${sz}px ${FONT}`,12,f.unitId);
     ctx.fillStyle=T.text; ctx.font=`bold ${un.size}px ${FONT}`;
     un.lines.forEach((ln,j)=>ctx.fillText(ln,ux+us+8,uy+12+j*15));
-    const lvY=uy+12+un.lines.length*15+2;
-    ctx.font=`bold 12px ${FONT}`; ctx.fillStyle=f.level===3?rainbow(ctx,ux+us+8,lvY-12,ux+us+8+40,lvY):T.cyan;
-    ctx.fillText(LV_LABEL_C[f.level]||"",ux+us+8,lvY);
+    totsuStars(ctx,T,ux+us+8,uy+12+un.lines.length*15+6,6,f.level);   // 標準カードと同じ★表現
   }
   footer(ctx,T,data);
 }
@@ -1833,18 +1834,18 @@ async function layoutFormation(ctx,T,data){
   let mw=ctx.measureText(String(F.synergy.count)).width;
   ctx.fillStyle=T.muted; ctx.font=`bold 18px ${FONT}`; ctx.fillText(`/ ${n}機`,GX+18+mw+6,148);
   // 5分割のゲージ
-  const segX=GX+150, segW=48;   // 追加改修：右に簡易情報（UR所持率・推し作品）を置くためゲージを短くした
+  const segX=GX+150, segW=(GW-150-250)/5;
   for(let i=0;i<n;i++){   // ゲージは埋まっている枠の数だけ（分母と合わせる）
     const on=i<F.synergy.count;
     roundRect(ctx,segX+i*segW+3,118,segW-6,14,4);
     if(on){ ctx.save(); ctx.shadowColor=G; ctx.shadowBlur=10; ctx.fillStyle=full?rainbow(ctx,segX,0,segX+5*segW,0):G; ctx.fill(); ctx.restore(); }
     else { ctx.strokeStyle=T.dark?"rgba(255,255,255,.25)":"rgba(15,39,64,.25)"; ctx.lineWidth=1.2; ctx.stroke(); }
   }
-  // 追加改修：「サポーターの対象 n機」（左パネルの対象表示と重複）を、簡易情報（UR所持率・推し作品）に置き換え
-  ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(GX+GW-390,100); ctx.lineTo(GX+GW-390,146); ctx.stroke();
-  await infoMini(ctx,T,data,GX+GW-372,88,354,70);
+  ctx.textAlign="right";
+  ctx.font=`bold 14px ${FONT}`; ctx.fillStyle=T.text; ctx.fillText(`サポーターの対象 ${F.synergy.count}機`,W-54,131);   // 全員が対象でも文言は出さない（ゲージ・線・枠を虹にするだけ。2026-10-04 ユーザー指示）
+  ctx.textAlign="left";
   // ---- ユニット5機 ----
-  const gap=12, tw=(GW-gap*4)/5, tyTop=192, stripH=50, th=H-58-stripH-12-tyTop;
+  const gap=12, tw=(GW-gap*4)/5, tyTop=192, stripH=58, th=H-58-stripH-12-tyTop;
   // バフ対象のリンク線：左パネルの右端からユニットの上へ横線、対象ユニットへ縦線（光る）
   const hits=F.units.map((u,i)=>u&&u.hit?i:-1).filter(i=>i>=0);   // 枠の位置（slot-1）のまま。左から詰めない
   if(hits.length){
@@ -1901,16 +1902,10 @@ async function layoutFormation(ctx,T,data){
       ctx.font=`12px ${FONT}`; ctx.fillText("推しで編成",x+10,by2+34);
     }
   }
-  // ---- 下：編成のタグ（案D-1：2機以上に共通するタグ） ----
+  // ---- 下：UR所持率と推し作品（編成のタグの帯は廃止。ユーザー指示） ----
   const sy=tyTop+th+12, sh=stripH;
   panel(ctx,T,GX,sy,GW,sh,null,null);
-  ctx.fillStyle=T.muted; ctx.font=`bold 13px ${FONT}`; ctx.fillText("編成のタグ",GX+16,sy+sh/2+5);
-  let cx=GX+100;
-  for(const t of F.sharedTags){
-    ctx.font=`bold 12px ${FONT}`; const label=`${t.name} ×${t.count}`, w=ctx.measureText(label).width+14;
-    if(cx+w>GX+GW-16) break;
-    cx=chip(ctx,cx,sy+sh/2-10,label,t.count===n?G:T.cyan,t.count===n,12);
-  }
+  await infoMini(ctx,T,data,GX+18,sy,GW-36,sh);
   footer(ctx,T,data);
 }
 const LV_LABEL_C=["無凸","1凸","2凸","完凸"];
@@ -1966,7 +1961,7 @@ async function formationRow(ctx,T,F,label,x,y,w,h){
     ty+=25;
   }
   // ---- 右：バフ対象のゲージ（見出しの行）とユニット5枠 ----
-  const GX=x+SW+30, GW=x+w-14-GX, gap=10, tw=(GW-gap*4)/5, tTop=y+48, th=y+h-10-tTop;
+  const GX=x+SW+30, GW=x+w-14-GX, gap=10, tw=(GW-gap*4)/5, tTop=y+42, th=y+h-10-tTop;
   ctx.fillStyle=T.muted; ctx.font=`bold 12px ${FONT}`; ctx.fillText("バフ対象",GX,y+27);
   ctx.fillStyle=full?rainbow(ctx,GX+56,y+12,GX+110,y+30):G; ctx.font=`bold 20px ${FONT}`; ctx.fillText(String(F.synergy.count),GX+56,y+29);
   let mw=ctx.measureText(String(F.synergy.count)).width;
@@ -1992,21 +1987,18 @@ async function formationRow(ctx,T,F,label,x,y,w,h){
     ctx.save(); if(u.hit){ ctx.shadowColor=G; ctx.shadowBlur=full?14:9; }
     roundRect(ctx,tx,tTop,tw,th,8); ctx.fillStyle=T.panel; ctx.fill(); ctx.restore();
     roundRect(ctx,tx,tTop,tw,th,8); ctx.strokeStyle=u.hit?(full?rainbow(ctx,tx,tTop,tx+tw,tTop+th):G):T.line; ctx.lineWidth=u.hit?2:1; ctx.stroke();
-    // 画像（左上に番号）→ 名前（2行まで）→ ★・タイプ → バフの結果
-    const size=th-100, ix=tx+(tw-size)/2, iy2=tTop+8;
-    await unitImage(ctx,T,Object.assign({},u,{limitedMini:true}),ix,iy2,size,7);
+    // ユニット画像を最大に。★・タイプ・名前は補足の小さい表示で、タグ・対象外の表記は出さない
+    const cap=20, size=Math.min(tw-12,th-8-cap), ix=tx+(tw-size)/2, iy2=tTop+6;
+    await unitImage(ctx,T,Object.assign({},u,{limitedMini:true}),ix,iy2,size,8);
+    ctx.save(); roundRect(ctx,ix+4,iy2+size-21,41,17,5); ctx.fillStyle="rgba(10,14,20,.72)"; ctx.fill(); ctx.restore();
+    totsuStars(ctx,T,ix+8,iy2+size-12.5,4.5,u.level);
+    ctx.font=`bold 12px ${FONT}`; const tcw=ctx.measureText(u.type).width+14;
+    chip(ctx,ix+size-tcw-4,iy2+4,u.type,TC[u.type],true,12);
     await pilotBadge(ctx,T,u.pilot,ix+size-10,iy2+size-10,30);
-    ctx.fillStyle=T.goldDim; ctx.font=`bold 13px ${FONT}`; ctx.fillText(String(i+1).padStart(2,"0"),tx+7,tTop+20);
-    const nmu=wrapName(ctx,u.name,tw-14,sz=>`bold ${sz}px ${FONT}`,13,u.unitId);
-    ctx.fillStyle=T.text; ctx.font=`bold ${nmu.size}px ${FONT}`;
-    nmu.lines.forEach((ln,j)=>ctx.fillText(ln,tx+7,iy2+size+16+j*15));
-    const by2=tTop+th-30;
-    const stx=totsuStars(ctx,T,tx+7,by2-14,5,u.level);
-    chip(ctx,stx+6,by2-25,u.type,TC[u.type],false,12);
-    if(u.hit){
-      ctx.font=`bold 12px ${FONT}`; chip(ctx,tx+7,by2-1,fitText(ctx,u.hit.label,tw-14-14-50),G,true,12);
-      ctx.fillStyle=u.hit.top===false?T.text:G; ctx.font=`bold 16px ${FONT}`; ctx.textAlign="right"; ctx.fillText(u.hit.rateText,tx+tw-7,by2+16); ctx.textAlign="left";
-    } else { ctx.fillStyle=T.muted; ctx.font=`bold 12px ${FONT}`; ctx.fillText("対象外",tx+7,by2+15); }
+    ctx.font=`bold 12px ${FONT}`; ctx.fillStyle=T.text;
+    const rt=u.hit?u.hit.rateText:"", rw=rt?ctx.measureText(rt).width+6:0;
+    ctx.fillText(fitText(ctx,u.name,tw-14-rw),tx+7,iy2+size+15);
+    if(rt){ ctx.fillStyle=u.hit.top===false?T.text:G; ctx.textAlign="right"; ctx.fillText(rt,tx+tw-7,iy2+size+15); ctx.textAlign="left"; }
   }
 }
 async function layoutFormation2(ctx,T,data){
