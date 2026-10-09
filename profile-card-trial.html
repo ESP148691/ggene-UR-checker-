@@ -189,7 +189,7 @@
   .fmPilot .thumb{width:28px;height:28px;object-fit:cover;flex:0 0 auto;border:1px solid var(--line-strong);}
   .fmPilot .noimg{width:28px;height:28px;}
   .fmPilot .pn{flex:1;min-width:0;overflow-wrap:anywhere;color:var(--text);}
-  .fmPilot .pn.fav{color:#ff6fa8;}
+  .fmPilot .pn.fav{color:#b9a6ee;}
   .fmPilot button{flex:0 0 auto;font:inherit;font-size:12px;color:var(--cyan);background:transparent;border:1px solid var(--line-strong);border-radius:4px;padding:4px 10px;cursor:pointer;}
   .pilotModal{position:fixed;inset:0;background:rgba(5,7,10,.94);display:none;align-items:center;justify-content:center;padding:16px;z-index:105;}
   .pilotModal.show{display:flex;}
@@ -1444,7 +1444,7 @@ async function unitImage(ctx,T,u,x,y,size,radius){
 // ㉙ 入手記録（入手日・ガシャ回数・メモ）の表示用。rec = {d:"YYYY-MM-DD"|"YYYY-MM", n:回数, m:メモ}
 /* ======================= 56 推しURキャラクター ======================= */
 // 画像 images/characters/{charId}.jpg（150×150）。無ければ頭文字の丸
-const PINK="#ff6fa8";
+const OSHI="#a994e0";   // 推しキャラの印の色（落ち着いた紫。ユーザー指示でピンクから変更）
 async function charImage(ctx,T,c,x,y,size,radius){   // radius<0 のときは丸
   const round=radius<0;
   const pathFn=()=>{ if(round){ ctx.beginPath(); ctx.arc(x+size/2,y+size/2,size/2,0,Math.PI*2); } else roundRect(ctx,x,y,size,size,radius); };
@@ -1456,12 +1456,12 @@ async function charImage(ctx,T,c,x,y,size,radius){   // radius<0 のときは丸
     ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText([...c.name][0],x+size/2,y+size/2+1); ctx.textAlign="left"; ctx.textBaseline="alphabetic"; }
   ctx.restore();
 }
-function oshiBadge(ctx,cx,cy,r){   // 推しキャラの印：ピンクの丸に白抜きの「推」
+function oshiBadge(ctx,cx,cy,r){   // 推しキャラの印：紫の丸に白抜きの「推」
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-  const g=ctx.createLinearGradient(cx,cy-r,cx,cy+r); g.addColorStop(0,"#ff8fbb"); g.addColorStop(1,"#e0457f");
+  const g=ctx.createLinearGradient(cx,cy-r,cx,cy+r); g.addColorStop(0,"#7a65b0"); g.addColorStop(1,"#4a3a7a");
   ctx.shadowColor="rgba(0,0,0,.5)"; ctx.shadowBlur=4; ctx.fillStyle=g; ctx.fill(); ctx.shadowBlur=0;
-  ctx.lineWidth=1.6; ctx.strokeStyle="#ffffff"; ctx.stroke();
-  ctx.fillStyle="#ffffff"; ctx.font=`bold ${Math.round(r*1.35)}px ${FONT}`; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.lineWidth=1.4; ctx.strokeStyle="rgba(255,255,255,.85)"; ctx.stroke();
+  ctx.fillStyle="#ffffff"; ctx.font=`${Math.round(r*1.35)}px ${FONT}`; ctx.textAlign="center"; ctx.textBaseline="middle";
   ctx.fillText("推",cx,cy+1); ctx.restore();
 }
 // ユニット画像の右下に重ねる搭乗キャラの丸（推しキャラなら「推」バッジ）
@@ -1469,7 +1469,7 @@ async function pilotBadge(ctx,T,p,cx,cy,d){
   if(!p) return;
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,d/2+2.5,0,Math.PI*2); ctx.fillStyle=T.dark?"#0b1018":"#ffffff"; ctx.shadowColor="rgba(0,0,0,.45)"; ctx.shadowBlur=6; ctx.fill(); ctx.restore();
   await charImage(ctx,T,p,cx-d/2,cy-d/2,d,-1);
-  ctx.beginPath(); ctx.arc(cx,cy,d/2,0,Math.PI*2); ctx.strokeStyle=p.fav?PINK:(T.dark?"#e6d9a8":"#9a7b22"); ctx.lineWidth=p.fav?2.2:1.4; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx,cy,d/2,0,Math.PI*2); ctx.strokeStyle=p.fav?OSHI:(T.dark?"#e6d9a8":"#9a7b22"); ctx.lineWidth=p.fav?2.2:1.4; ctx.stroke();
   if(p.fav) oshiBadge(ctx,cx+d*0.36,cy+d*0.38,Math.max(9,d*0.22));   // 推しキャラの「推」バッジは顔の右下
 }
 // ㉙ 入手記録（入手日・ガシャ回数・メモ）の表示用。rec = {d:"YYYY-MM-DD"|"YYYY-MM", n:回数, m:メモ}
