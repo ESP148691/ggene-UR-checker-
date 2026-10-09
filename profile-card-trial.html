@@ -189,7 +189,7 @@
   .fmPilot .thumb{width:28px;height:28px;object-fit:cover;flex:0 0 auto;border:1px solid var(--line-strong);}
   .fmPilot .noimg{width:28px;height:28px;}
   .fmPilot .pn{flex:1;min-width:0;overflow-wrap:anywhere;color:var(--text);}
-  .fmPilot .pn.fav{color:#b9a6ee;}
+  .fmPilot .pn.fav{background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);-webkit-background-clip:text;background-clip:text;color:transparent;}
   .fmPilot button{flex:0 0 auto;font:inherit;font-size:12px;color:var(--cyan);background:transparent;border:1px solid var(--line-strong);border-radius:4px;padding:4px 10px;cursor:pointer;}
   .pilotModal{position:fixed;inset:0;background:rgba(5,7,10,.94);display:none;align-items:center;justify-content:center;padding:16px;z-index:105;}
   .pilotModal.show{display:flex;}
@@ -313,7 +313,6 @@
         <div class="field">
           <label class="fieldLabel" for="inRank">ランク（1〜999・空欄なら非表示）</label>
           <input type="number" id="inRank" min="1" max="999" step="1" inputmode="numeric" autocomplete="off" style="max-width:8em">
-          <p class="rankHint">カードの名前の上に表示します。100以上は金、150以上は虹色の豪華な表示になります。</p>
         </div>
         <!-- 表示称号の欄は2026-09-27に削除（ユーザー指示）。空いたスペースはカードのひとことに回した -->
       </section>
@@ -1444,7 +1443,7 @@ async function unitImage(ctx,T,u,x,y,size,radius){
 // ㉙ 入手記録（入手日・ガシャ回数・メモ）の表示用。rec = {d:"YYYY-MM-DD"|"YYYY-MM", n:回数, m:メモ}
 /* ======================= 56 推しURキャラクター ======================= */
 // 画像 images/characters/{charId}.jpg（150×150）。無ければ頭文字の丸
-const OSHI="#a994e0";   // 推しキャラの印の色（落ち着いた紫。ユーザー指示でピンクから変更）
+// 推しキャラの印（顔の縁・星バッジ）は虹色（ユーザー指示）
 async function charImage(ctx,T,c,x,y,size,radius){   // radius<0 のときは丸
   const round=radius<0;
   const pathFn=()=>{ if(round){ ctx.beginPath(); ctx.arc(x+size/2,y+size/2,size/2,0,Math.PI*2); } else roundRect(ctx,x,y,size,size,radius); };
@@ -1456,19 +1455,18 @@ async function charImage(ctx,T,c,x,y,size,radius){   // radius<0 のときは丸
     ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText([...c.name][0],x+size/2,y+size/2+1); ctx.textAlign="left"; ctx.textBaseline="alphabetic"; }
   ctx.restore();
 }
-function oshiBadge(ctx,cx,cy,r){   // 推しキャラの印：紫の丸に白抜きの星
+function oshiBadge(ctx,cx,cy,r){   // 推しキャラの印：虹色の丸に白抜きの星
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-  const g=ctx.createLinearGradient(cx,cy-r,cx,cy+r); g.addColorStop(0,"#7a65b0"); g.addColorStop(1,"#4a3a7a");
-  ctx.shadowColor="rgba(0,0,0,.5)"; ctx.shadowBlur=4; ctx.fillStyle=g; ctx.fill(); ctx.shadowBlur=0;
-  ctx.lineWidth=1.4; ctx.strokeStyle="rgba(255,255,255,.85)"; ctx.stroke();
-  starPath(ctx,cx,cy+0.5,r*0.68); ctx.fillStyle="#ffffff"; ctx.fill(); ctx.restore();
+  ctx.shadowColor="rgba(0,0,0,.5)"; ctx.shadowBlur=4; ctx.fillStyle=rainbow(ctx,cx-r,cy-r,cx+r,cy+r); ctx.fill(); ctx.shadowBlur=0;
+  ctx.lineWidth=1.4; ctx.strokeStyle="rgba(255,255,255,.9)"; ctx.stroke();
+  starPath(ctx,cx,cy+0.5,r*0.68); ctx.shadowColor="rgba(40,10,60,.6)"; ctx.shadowBlur=3; ctx.fillStyle="#ffffff"; ctx.fill(); ctx.restore();
 }
 // ユニット画像の右下に重ねる搭乗キャラの丸（推しキャラなら星バッジ）
 async function pilotBadge(ctx,T,p,cx,cy,d){
   if(!p) return;
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,d/2+2.5,0,Math.PI*2); ctx.fillStyle=T.dark?"#0b1018":"#ffffff"; ctx.shadowColor="rgba(0,0,0,.45)"; ctx.shadowBlur=6; ctx.fill(); ctx.restore();
   await charImage(ctx,T,p,cx-d/2,cy-d/2,d,-1);
-  ctx.beginPath(); ctx.arc(cx,cy,d/2,0,Math.PI*2); ctx.strokeStyle=p.fav?OSHI:(T.dark?"#e6d9a8":"#9a7b22"); ctx.lineWidth=p.fav?2.2:1.4; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx,cy,d/2,0,Math.PI*2); ctx.strokeStyle=p.fav?rainbow(ctx,cx-d/2,cy-d/2,cx+d/2,cy+d/2):(T.dark?"#e6d9a8":"#9a7b22"); ctx.lineWidth=p.fav?2.2:1.4; ctx.stroke();
   if(p.fav) oshiBadge(ctx,cx+d*0.36,cy+d*0.38,Math.max(9,d*0.22));   // 推しキャラの星バッジは顔の右下
 }
 // ㉙ 入手記録（入手日・ガシャ回数・メモ）の表示用。rec = {d:"YYYY-MM-DD"|"YYYY-MM", n:回数, m:メモ}
@@ -1531,10 +1529,6 @@ async function layoutUnits(ctx,T,data){
   // タイプ別の所持（攻撃・支援・耐久）
   let tx=LX+8;
   for(const t of ["攻撃","支援","耐久"]) tx=chip(ctx,tx,yy-8,`${t} ${u.byType[t].owned}/${u.byType[t].total}`,TC[t],false,12);   // ㉚ 11→12px
-  // 案D-3：得意タグ（URが3機以上あるタグのうち所持率の高い順に3つ）
-  if(data.tagTrend&&data.tagTrend.length){ yy+=30; ctx.fillStyle=T.muted; ctx.font=`bold 12px ${FONT}`; ctx.fillText("得意タグ",LX+8,yy+7);
-    let gx=LX+64; for(const t of data.tagTrend){ ctx.font=`bold 12px ${FONT}`; const lab=`${t.name} ${t.owned}/${t.total}`;
-      if(gx+ctx.measureText(lab).width+14>LX+LW-4) break; gx=chip(ctx,gx,yy-8,lab,t.owned===t.total?(T.dark?"#f2cf5b":T.gold):T.cyan,t.owned===t.total,12); } }
   // ㉙ URサポート・エタロ：チップ1行だった表示を、所持率・凸・ステージクリアなどの小ブロックに拡充（登録済みのものだけ。2つなら左右半分ずつ）
   const blocks=[];
   const s=data.supporters;
@@ -1546,7 +1540,7 @@ async function layoutUnits(ctx,T,data){
       rows:[["クリア率",`${st.clearPct}%`],["全達成",`${st.perfect}/${st.stageTotal}`],["ミッション",`${st.missions}/${st.missionTotal}`],["称号",`${st.titles}/${st.titleTotal}`]]}); }
   if(blocks.length){
     // ブロックの高さは約105px。パネルの下端に揃える（上のタイプ別チップとの間が詰まらないよう、最低でもチップの下28px）
-    const by=Math.max(yy+34,pTop+pH-118);
+    const by=Math.max(yy+40,pTop+pH-118);
     ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(LX+8,by-24); ctx.lineTo(LX+LW-8,by-24); ctx.stroke();
     const bw=blocks.length===2?(LW-16-16)/2:LW-16;
     blocks.forEach((bk,i)=>{
@@ -1723,7 +1717,8 @@ async function layoutCharacters(ctx,T,data){
     if(f.unit&&f.unit.limited) limitedBadgeMini(ctx,ix,iy);   // セットのユニットが期間限定なら、そのキャラも「限定」
     let ty=iy+size+24;
     const nm=wrapName(ctx,f.name,cw-20,sz=>`bold ${sz}px ${FONT}`,16,null);
-    ctx.fillStyle=T.text; ctx.font=`bold ${nm.size}px ${FONT}`; nm.lines.forEach((ln,j)=>ctx.fillText(ln,x+10,ty+j*20)); ty+=nm.lines.length*20-6;
+    ctx.fillStyle=T.text; ctx.font=`bold ${nm.size}px ${FONT}`; nm.lines.forEach((ln,j)=>ctx.fillText(ln,x+10,ty+j*20));
+    ty=y0+cardH-12-62-37;   // タイプ・作品チップは名前の行数によらず同じ高さ（セット欄の区切り線のすぐ上）
     let chx=x+10; chx=chip(ctx,chx,ty,f.type,TC[f.type],false,12);
     ctx.font=`bold 12px ${FONT}`; chip(ctx,chx,ty,workText(ctx,f.workShort,f.workId,Math.max(30,x+cw-10-chx-14)),T.cyan,false,12);
     // 下：セットのユニット（イベント配布は「イベント配布」）
