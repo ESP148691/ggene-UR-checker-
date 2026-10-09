@@ -178,6 +178,9 @@
   #formationSection .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;}
   #formationSection .chk input{width:16px;height:16px;accent-color:var(--gold);}
   .seg[hidden],.seg button[hidden]{display:none;}
+  #tplButtons{display:grid;grid-template-columns:repeat(3,1fr);}
+  #tplButtons button{font-size:12.5px;padding:9px 2px;}
+  .rankHint{font-size:11px;color:var(--muted);margin:4px 0 0;}
   /* 56 推しキャラ・搭乗キャラ */
   .cface{border-radius:50% !important;}
   .noimg{display:inline-flex;align-items:center;justify-content:center;background:#1a2433;color:var(--muted);font-weight:700;font-size:14px;flex:0 0 auto;}
@@ -306,6 +309,11 @@
           <label class="fieldLabel" for="inComment">ひとこと（60文字まで）</label>
           <input type="text" id="inComment" maxlength="60" autocomplete="off">
           <div class="counter" id="commentCounter">残り60文字</div>
+        </div>
+        <div class="field">
+          <label class="fieldLabel" for="inRank">ランク（1〜999・空欄なら非表示）</label>
+          <input type="number" id="inRank" min="1" max="999" step="1" inputmode="numeric" autocomplete="off" style="max-width:8em">
+          <p class="rankHint">カードの名前の上に表示します。100以上は金、150以上は虹色の豪華な表示になります。</p>
         </div>
         <!-- 表示称号の欄は2026-09-27に削除（ユーザー指示）。空いたスペースはカードのひとことに回した -->
       </section>
@@ -920,6 +928,56 @@ async function header(ctx,T,sub){
 }
 // 表示名・ひとこと。戻り値は次に描けるy
 // 2026-09-27：称号のピルを廃止し、空いた高さをひとことに回した（最大60文字・最大3行。17pxから、3行に収まるまで13pxまで縮める）
+// 追加改修：ランク表示。100未満は控えめ、100以上は金、150以上は虹の縁取り＋光＋きらめき
+function sparkle(ctx,cx,cy,r,col){
+  ctx.save(); ctx.fillStyle=col; ctx.beginPath();
+  for(let i=0;i<8;i++){ const a=i*Math.PI/4-Math.PI/2, rr=i%2?r*0.3:r; ctx.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr); }
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function rankBadge(ctx,T,rank,xr,yc){
+  if(!rank) return;
+  const tier=rank>=150?2:(rank>=100?1:0), label=`RANK ${rank}`;
+  ctx.save(); ctx.textBaseline="middle"; ctx.textAlign="left";
+  const fs=tier?16:14; ctx.font=`bold ${fs}px ${FONT}`;
+  const tw=ctx.measureText(label).width, w=tw+(tier===2?36:24), h=tier===2?30:(tier?27:24), x=xr-w, y=yc-h/2;
+  if(tier===0){
+    roundRect(ctx,x,y,w,h,h/2); ctx.fillStyle=T.dark?"rgba(20,28,40,.72)":"rgba(255,255,255,.7)"; ctx.fill();
+    ctx.strokeStyle=T.dark?"rgba(230,236,245,.5)":"rgba(15,39,64,.4)"; ctx.lineWidth=1.2; ctx.stroke();
+    ctx.fillStyle=T.text; ctx.fillText(label,x+12,yc+0.5);
+  } else if(tier===1){
+    ctx.shadowColor="rgba(255,206,90,.75)"; ctx.shadowBlur=12;
+    const g=ctx.createLinearGradient(x,y,x,y+h); g.addColorStop(0,"#fff0a8"); g.addColorStop(0.5,"#e9bd45"); g.addColorStop(1,"#b98622");
+    roundRect(ctx,x,y,w,h,h/2); ctx.fillStyle=g; ctx.fill(); ctx.shadowBlur=0;
+    ctx.strokeStyle="#fff6c8"; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle="#2a1d02"; ctx.fillText(label,x+12,yc+0.5);
+  } else {
+    ctx.shadowColor="rgba(255,225,160,.9)"; ctx.shadowBlur=18;
+    roundRect(ctx,x,y,w,h,h/2); ctx.fillStyle="#150f26"; ctx.fill(); ctx.shadowBlur=0;
+    roundRect(ctx,x,y,w,h,h/2); ctx.strokeStyle=rainbow(ctx,x,y,x+w,y); ctx.lineWidth=3; ctx.stroke();
+    roundRect(ctx,x+4,y+4,w-8,h-8,(h-8)/2); ctx.strokeStyle="rgba(255,240,190,.55)"; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle="#ffffff"; ctx.shadowColor="rgba(255,200,120,.9)"; ctx.shadowBlur=6; ctx.fillText(label,x+18,yc+0.5); ctx.shadowBlur=0;
+    sparkle(ctx,x-4,y+3,7,"#fff6c8"); sparkle(ctx,x+w+3,y+h-3,6,"#ffe9a8"); sparkle(ctx,x+w-10,y-3,4,"#ffffff");
+  }
+  ctx.restore();
+}
+// 追加改修：推し編成・推しキャラ用の簡易情報（UR所持率＋推し作品のロゴ最大5つ）。h>=56なら2段、それ未満は1行
+async function infoMini(ctx,T,data,x,y,w,h){
+  const u=data.units, fav=(data.favorites||[]).slice(0,5), two=h>=56;
+  const y1=two?y+19:y+h/2, y2=two?y+h-20:y+h/2, lw=two?56:64, lh=two?25:28;
+  ctx.save(); ctx.textBaseline="middle"; ctx.textAlign="left";
+  let cx=x;
+  if(u&&u.registered){
+    ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("UR所持率",cx,y1); cx+=ctx.measureText("UR所持率").width+8;
+    const pct=`${u.pct}%`; ctx.fillStyle=T.gold; ctx.font=`bold 22px ${FONT}`; ctx.fillText(pct,cx,y1); cx+=ctx.measureText(pct).width+8;
+    const cnt=`${u.owned}/${u.total}機`; ctx.fillStyle=T.muted; ctx.font=`bold 13px ${FONT}`; ctx.fillText(cnt,cx,y1); cx+=ctx.measureText(cnt).width+8;
+  }
+  if(two) cx=x; else { cx+=10; ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(cx,y+6); ctx.lineTo(cx,y+h-6); ctx.stroke(); cx+=16; }
+  ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`;
+  if(!fav.length){ ctx.fillText("推し作品 未設定",cx,y2); ctx.restore(); return; }
+  ctx.fillText("推し作品",cx,y2); cx+=ctx.measureText("推し作品").width+8;
+  ctx.restore();
+  for(const f of fav){ await workLogo(ctx,T,f.iconNo,cx,y2-lh/2,lw,lh,5); cx+=lw+6; }
+}
 function identity(ctx,T,p,LX,LW,nameMax=38,nameY=98){
   // ㉟ 表示名の上に「推し作品」等のパネル見出しと同じ体裁（金のバー3×18＋bold 15px）の見出し「ユーザーネーム」を置く。
   // x位置もパネル見出しと揃える（バー＝LX-8、文字＝LX+6）。背景に直接載るため影付き。表示名はその分20px下げる
@@ -927,6 +985,7 @@ function identity(ctx,T,p,LX,LW,nameMax=38,nameY=98){
   ctx.fillStyle=T.gold; ctx.fillRect(LX-8,hy-9,3,18);
   ctx.fillStyle=T.bgText||T.text; ctx.font=`bold 15px ${FONT}`; ctx.textBaseline="middle"; ctx.textAlign="left";
   shadowText(ctx,T,"ユーザーネーム",LX+6,hy); ctx.textBaseline="alphabetic";
+  rankBadge(ctx,T,p.rank,LX+LW,hy);
   nameY+=20;
   ctx.fillStyle=T.bgText||T.text;
   let fs=nameMax; ctx.font=`bold ${fs}px ${FONT}`;
@@ -1638,57 +1697,51 @@ async function layoutCharacters(ctx,T,data){
     });
   }
 
-  // ---- 右：推しキャラ（1位を大きく、2〜5位をリスト） ----
+  // ---- 右：推しキャラ5人を同じ大きさで横並び（追加改修）＋下段に推し作品・推しユニット ----
   const GX=352, GY=90, GW=W-36-GX, GH=H-58-GY-6;
   if(!favs.length){ ctx.fillStyle=T.bgMuted||T.muted; ctx.font=`15px ${FONT}`; shadowText(ctx,T,"推しキャラが未設定です",GX,GY+40); footer(ctx,T,data); return; }
-  const heroW=favs.length>1?330:GW, heroH=GH;
-  async function setUnit(f,x,y,w,imgS){   // 「セット」：ユニットの小画像＋機体名（凸は出さない）
-    ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("セット",x,y);
-    await unitImage(ctx,T,Object.assign({},f.unit,{level:0,limited:false}),x,y+8,imgS,6);
-    const nm=wrapName(ctx,f.unit.name,w-imgS-10,sz=>`bold ${sz}px ${FONT}`,12,f.unit.unitId);
-    ctx.fillStyle=T.text; ctx.font=`bold ${nm.size}px ${FONT}`;
-    const ny=y+8+imgS/2-(nm.lines.length-1)*8+5; nm.lines.forEach((ln,j)=>ctx.fillText(ln,x+imgS+10,ny+j*16));
+  const gap=12, bandH=124, cardH=GH-bandH-gap, cw=(GW-gap*4)/5;
+  for(let i=0;i<favs.length;i++){
+    const f=favs[i], x=GX+i*(cw+gap), y0=GY;
+    panel(ctx,T,x,y0,cw,cardH,null,null);
+    ctx.fillStyle=T.gold; ctx.font=`bold 13px ${FONT}`; ctx.fillText(`${heading} ${String(i+1).padStart(2,"0")}`,x+12,y0+24);
+    const size=Math.min(cw-24,cardH-250), ix=x+(cw-size)/2, iy=y0+34;
+    await charImage(ctx,T,f,ix,iy,size,12);
+    roundRect(ctx,ix,iy,size,size,12); ctx.strokeStyle=T.frame; ctx.lineWidth=1.2; ctx.stroke();
+    let ty=iy+size+24;
+    const nm=wrapName(ctx,f.name,cw-20,sz=>`bold ${sz}px ${FONT}`,16,null);
+    ctx.fillStyle=T.text; ctx.font=`bold ${nm.size}px ${FONT}`; nm.lines.forEach((ln,j)=>ctx.fillText(ln,x+10,ty+j*20)); ty+=nm.lines.length*20-6;
+    let chx=x+10; chx=chip(ctx,chx,ty,f.type,TC[f.type],false,12);
+    ctx.font=`bold 12px ${FONT}`; chip(ctx,chx,ty,workText(ctx,f.workShort,f.workId,Math.max(30,x+cw-10-chx-14)),T.cyan,false,12);
+    // 下：セットのユニット（イベント配布は「イベント配布」）
+    const sy=y0+cardH-12-62;
+    ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+10,sy-10); ctx.lineTo(x+cw-10,sy-10); ctx.stroke();
+    if(f.unit){
+      ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("セット",x+10,sy+4);
+      await unitImage(ctx,T,Object.assign({},f.unit,{level:0,limited:false}),x+10,sy+10,48,6);
+      const un=wrapName(ctx,f.unit.name,cw-20-48-8,sz=>`bold ${sz}px ${FONT}`,12,f.unit.unitId);
+      ctx.fillStyle=T.text; ctx.font=`bold ${un.size}px ${FONT}`;
+      const uy=sy+10+24-(un.lines.length-1)*8+5; un.lines.forEach((ln,j)=>ctx.fillText(ln,x+10+48+8,uy+j*16));
+    } else { ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("入手",x+10,sy+4); chip(ctx,x+10,sy+14,"イベント配布",T.gold,false,12); }
   }
-  { // 1位
-    const f=favs[0], x=GX, y0=GY;
-    panel(ctx,T,x,y0,heroW,heroH,null,null);
-    ctx.fillStyle=T.gold; ctx.font=`bold 13px ${FONT}`; ctx.fillText(`${heading} No.1`,x+18,y0+30);
-    ctx.fillStyle=T.goldDim; ctx.font=`bold 30px ${FONT}`; ctx.textAlign="right"; ctx.fillText("01",x+heroW-18,y0+38); ctx.textAlign="left";
-    const heroName=wrapName(ctx,f.name,heroW-36,sz=>`bold ${sz}px ${FONT}`,22,null), nl=heroName.lines.length;
-    const fixedH=34+nl*27+4+26+18+72;
-    const size=Math.max(140,Math.min(230,heroW-60,heroH-46-20-fixedH));
-    const ix=x+(heroW-size)/2, iy=y0+46+Math.max(0,(heroH-46-size-fixedH-16)/2);
-    await charImage(ctx,T,f,ix,iy,size,14);
-    roundRect(ctx,ix,iy,size,size,14); ctx.strokeStyle=T.frame; ctx.lineWidth=1.2; ctx.stroke();
-    let ty=iy+size+34;
-    ctx.fillStyle=T.text; ctx.font=`bold ${heroName.size}px ${FONT}`; heroName.lines.forEach((ln,i)=>ctx.fillText(ln,x+18,ty+i*27)); ty+=nl*27-8;
-    let chx=x+18; chx=chip(ctx,chx,ty,f.type,TC[f.type],false,12);
-    ctx.font=`bold 12px ${FONT}`; chip(ctx,chx,ty,workText(ctx,f.workShort,f.workId,x+heroW-18-chx-14),T.cyan,false,12);
-    ty+=21+14; ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+18,ty); ctx.lineTo(x+heroW-18,ty); ctx.stroke();
-    if(f.unit) await setUnit(f,x+18,ty+20,heroW-36,52);
-    else { ctx.fillStyle=T.muted; ctx.font=`12px ${FONT}`; ctx.fillText("入手",x+18,ty+20); chip(ctx,x+18,ty+30,"イベント配布",T.gold,false,12); }
+  // 下段：推し作品（ロゴ）と推しユニット（画像）
+  const by=GY+cardH+gap, bw=(GW-gap)/2, slotW=(bw-36-4*8)/5;
+  panel(ctx,T,GX,by,bw,bandH,"推し作品",T.gold);
+  panel(ctx,T,GX+bw+gap,by,bw,bandH,"推しユニット",T.gold);
+  const works=(data.favorites||[]).slice(0,5), units=(data.favoriteUnits||[]).slice(0,5);
+  ctx.font=`12px ${FONT}`; ctx.fillStyle=T.muted;
+  if(!works.length) ctx.fillText("未設定",GX+18,by+bandH/2+14);
+  for(let i=0;i<works.length;i++){
+    const wx=GX+18+i*(slotW+8), lh=Math.round(slotW*32/73);
+    await workLogo(ctx,T,works[i].iconNo,wx,by+46,slotW,lh,5);
+    ctx.fillStyle=T.text; ctx.font=`bold 12px ${FONT}`; ctx.fillText(fitText(ctx,works[i].shortName,slotW+6),wx,by+46+lh+18);
   }
-  const rest=favs.slice(1);
-  if(rest.length){
-    const lx=GX+heroW+12, lw=GW-heroW-12, gap=10, rh=(GH-gap*3)/4, SETW=170;
-    for(let i=0;i<rest.length;i++){
-      const f=rest[i], y0=GY+i*(rh+gap);
-      panel(ctx,T,lx,y0,lw,rh,null,null);
-      const size=rh-20, ix=lx+46, iy=y0+10;
-      ctx.fillStyle=T.goldDim; ctx.font=`bold 22px ${FONT}`; ctx.textBaseline="middle"; ctx.fillText(String(i+2).padStart(2,"0"),lx+12,y0+rh/2); ctx.textBaseline="alphabetic";
-      await charImage(ctx,T,f,ix,iy,size,10);
-      roundRect(ctx,ix,iy,size,size,10); ctx.strokeStyle=T.frame; ctx.lineWidth=1.2; ctx.stroke();
-      const tx0=ix+size+14, tRight=lx+lw-12-SETW-14;
-      const nm=wrapName(ctx,f.name,tRight-tx0,sz=>`bold ${sz}px ${FONT}`,17,null);
-      ctx.fillStyle=T.text; ctx.font=`bold ${nm.size}px ${FONT}`; nm.lines.forEach((ln,j)=>ctx.fillText(ln,tx0,iy+24+j*21));
-      const cyy=iy+24+nm.lines.length*21+2;
-      let chx=tx0; chx=chip(ctx,chx,cyy,f.type,TC[f.type],false,12);
-      ctx.font=`bold 12px ${FONT}`; chip(ctx,chx,cyy,workText(ctx,f.workShort,f.workId,Math.max(30,tRight-chx-14)),T.cyan,false,12);
-      const ax=lx+lw-12-SETW;
-      ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(ax-10,y0+14); ctx.lineTo(ax-10,y0+rh-14); ctx.stroke();
-      if(f.unit) await setUnit(f,ax,y0+26,SETW,44);
-      else chip(ctx,ax,y0+rh/2-6,"イベント配布",T.gold,false,12);
-    }
+  ctx.font=`12px ${FONT}`; ctx.fillStyle=T.muted;
+  if(!units.length) ctx.fillText("未設定",GX+bw+gap+18,by+bandH/2+14);
+  for(let i=0;i<units.length;i++){
+    const ux=GX+bw+gap+18+i*(slotW+8), us=Math.min(slotW,64);
+    await unitImage(ctx,T,Object.assign({},units[i],{level:0,limited:false}),ux,by+44,us,6);
+    ctx.fillStyle=T.text; ctx.font=`bold 12px ${FONT}`; ctx.fillText(fitText(ctx,units[i].name,slotW+6),ux,by+44+us+16);
   }
   footer(ctx,T,data);
 }
@@ -1770,16 +1823,16 @@ async function layoutFormation(ctx,T,data){
   let mw=ctx.measureText(String(F.synergy.count)).width;
   ctx.fillStyle=T.muted; ctx.font=`bold 18px ${FONT}`; ctx.fillText(`/ ${n}機`,GX+18+mw+6,148);
   // 5分割のゲージ
-  const segX=GX+150, segW=(GW-150-250)/5;
+  const segX=GX+150, segW=48;   // 追加改修：右に簡易情報（UR所持率・推し作品）を置くためゲージを短くした
   for(let i=0;i<n;i++){   // ゲージは埋まっている枠の数だけ（分母と合わせる）
     const on=i<F.synergy.count;
     roundRect(ctx,segX+i*segW+3,118,segW-6,14,4);
     if(on){ ctx.save(); ctx.shadowColor=G; ctx.shadowBlur=10; ctx.fillStyle=full?rainbow(ctx,segX,0,segX+5*segW,0):G; ctx.fill(); ctx.restore(); }
     else { ctx.strokeStyle=T.dark?"rgba(255,255,255,.25)":"rgba(15,39,64,.25)"; ctx.lineWidth=1.2; ctx.stroke(); }
   }
-  ctx.textAlign="right";
-  ctx.font=`bold 14px ${FONT}`; ctx.fillStyle=T.text; ctx.fillText(`サポーターの対象 ${F.synergy.count}機`,W-54,131);   // 全員が対象でも文言は出さない（ゲージ・線・枠を虹にするだけ。2026-10-04 ユーザー指示）
-  ctx.textAlign="left";
+  // 追加改修：「サポーターの対象 n機」（左パネルの対象表示と重複）を、簡易情報（UR所持率・推し作品）に置き換え
+  ctx.strokeStyle=T.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(GX+GW-390,100); ctx.lineTo(GX+GW-390,146); ctx.stroke();
+  await infoMini(ctx,T,data,GX+GW-372,88,354,70);
   // ---- ユニット5機 ----
   const gap=12, tw=(GW-gap*4)/5, tyTop=192, stripH=50, th=H-58-stripH-12-tyTop;
   // バフ対象のリンク線：左パネルの右端からユニットの上へ横線、対象ユニットへ縦線（光る）
@@ -1859,7 +1912,8 @@ function identityBand(ctx,T,p,x,y,w){
   ctx.fillStyle=T.gold; ctx.fillRect(x-8,y-9,3,18);
   ctx.fillStyle=T.bgText||T.text; ctx.font=`bold 15px ${FONT}`; ctx.textBaseline="middle"; ctx.textAlign="left";
   shadowText(ctx,T,"ユーザーネーム",x+6,y); ctx.textBaseline="alphabetic";
-  const NW=300; let fs=32; ctx.font=`bold ${fs}px ${FONT}`;
+  const NW=300;
+  rankBadge(ctx,T,p.rank,x+NW,y); let fs=32; ctx.font=`bold ${fs}px ${FONT}`;
   while(fs>18&&ctx.measureText(p.displayName).width>NW){ fs-=2; ctx.font=`bold ${fs}px ${FONT}`; }
   ctx.fillStyle=T.bgText||T.text; shadowText(ctx,T,fitText(ctx,p.displayName,NW),x,y+38);
   if(p.comment){
@@ -1948,7 +2002,8 @@ async function formationRow(ctx,T,F,label,x,y,w,h){
 async function layoutFormation2(ctx,T,data){
   await header(ctx,T,"FAVORITE FORMATION");
   identityBand(ctx,T,data.profile,44,82,W-80);
-  const fs=data.formations, top=146, gap=10, rh=(H-58-top-gap)/2;
+  panel(ctx,T,28,138,W-56,34,null,null); await infoMini(ctx,T,data,44,138,W-88,34);   // 追加改修：簡易情報の帯
+  const fs=data.formations, top=180, gap=10, rh=(H-58-top-gap)/2;
   for(let k=0;k<2;k++) await formationRow(ctx,T,fs[k],fs[k]&&fs[k].label||`編成${k+1}`,28,top+k*(rh+gap),W-56,rh);
   footer(ctx,T,data);
 }
@@ -2181,7 +2236,7 @@ let fmTab = 0;            // 編成フォームで開いているタブ（0／1�
 // ㉚ cardOptions：推しユニットカードに出す入手記録（acq＝入手日・ガシャ回数、memo＝メモ）。worker.jsのCARD_OPTIONS_DEFAULTと同じ既定値
 const CARD_OPTIONS_DEFAULT = { acq: true, memo: false };
 const emptyFormation = () => ({ label: "", supporterId: null, units: [null, null, null, null, null], pilots: [null, null, null, null, null] });   // pilots＝units と同じ位置の搭乗キャラ（charId）
-const draft = { displayName: "", comment: "", titleMissionId: null, cardTemplate: "standard", cardTheme: "galaxy", favoriteWorks: [], favoriteUnits: [], favoriteCharacters: [],
+const draft = { displayName: "", comment: "", titleMissionId: null, cardTemplate: "standard", cardTheme: "galaxy", favoriteWorks: [], favoriteUnits: [], favoriteCharacters: [], playerRank: null,
                 cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT),
                 formations: [emptyFormation(), emptyFormation()], useFm2: false };   // 51 推し編成（units＝slotの位置どおり。空き枠はnull）
 // ㉚ ur-units.js（unit.htmlと共有するURユニットのマスター）から実装日と改行位置の指定を読む
@@ -2287,6 +2342,7 @@ function assignPilot(f, i, cid){
   if (holder) draft.formations[holder.gi].pilots[holder.j] = f.pilots[i];   // 搭乗中のキャラを選ぶと入れ替え
   f.pilots[i] = cid;
 }
+function validRank(v){ return Number.isInteger(v) && v >= 1 && v <= 999 ? v : null; }   // worker.jsのPLAYER_RANK_MAXと同じ範囲
 function sanitizeDraft(){
   const owned = ownedUnitIds();
   draft.favoriteWorks = [...new Set(draft.favoriteWorks)].filter(id => worksById.has(id)).slice(0, MAX_FAV);
@@ -2337,6 +2393,7 @@ function draftFromProfile(p){
     favoriteWorks: bySlot(p.favoriteWorks).map(f => f.workId),
     favoriteUnits: bySlot(p.favoriteUnits).map(f => f.unitId),
     favoriteCharacters: bySlot(p.favoriteCharacters).map(f => f.charId),
+    playerRank: validRank(p.playerRank),
     cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT, p.cardOptions || {}),
     formations: [0, 1].map(i => {
       const f = (p.formations || [])[i], out = emptyFormation();
@@ -2361,7 +2418,7 @@ function draftJson(){
     displayName: draft.displayName.trim(), comment: draft.comment.trim(), titleMissionId: draft.titleMissionId,
     cardTemplate: draft.cardTemplate, cardTheme: draft.cardTheme,
     favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits, cardOptions: draft.cardOptions,
-    favoriteCharacters: draft.favoriteCharacters, formations: formationsPayload()
+    favoriteCharacters: draft.favoriteCharacters, playerRank: validRank(draft.playerRank), formations: formationsPayload()
   });
 }
 
@@ -2471,7 +2528,7 @@ function buildCardData(){
   } : null;
   const cardData = {
     // 称号はカードに表示しない（2026-09-27 表示称号欄を削除）。titleMissionIdは保存データの互換のためAPIへはそのまま送る
-    profile: { displayName: draft.displayName.trim() || api.username, title: null, comment: draft.comment.trim() || null },
+    profile: { displayName: draft.displayName.trim() || api.username, title: null, comment: draft.comment.trim() || null, rank: validRank(draft.playerRank) },
     favorites, favoriteUnits, units, supporters: api.supporters || null, eternalRoad: er,
     formations: fmCardFormations(),   // 51 推し編成（最大2件）。1件なら1編成のレイアウト
     favoriteChars: charsAvailable() ? draft.favoriteCharacters.map(cardChar).filter(Boolean) : [],   // 56 推しキャラ
@@ -2556,13 +2613,19 @@ function renderRegList(){
     { k: "URサポート", st: api.supporters, href: "/supporter.html" }
   ];
   if (api.eternalRoad) rows.push({ k: "エタロ攻略", st: api.eternalRoad, href: "/eternal-road.html" });
+  // 保存済みの設定があれば登録済み
+  const prof = api.profile || {};
+  rows.push({ k: "推し編成", st: { registered: (prof.formations || []).length > 0 },
+    todo: formationAvailable() ? "未設定 — 下の「推し編成」で設定して保存すると表示されます" : "URユニットとURサポートを登録すると設定できます" });
+  if (charsAvailable()) rows.push({ k: "推しキャラ", st: { registered: (prof.favoriteCharacters || []).length > 0 },
+    todo: "未設定 — 下の「推しキャラ」で選んで保存すると表示されます" });
   for (const r of rows) {
     const ok = !!(r.st && r.st.registered);
     list.appendChild(el("div", { class: "regRow" }, [
       el("span", { class: "k", text: r.k }),
       ok ? el("span", { class: "ok", text: "✓ 登録済み（カードに表示）" })
-         : el("span", { class: "todo", text: "データ未登録 — チェッカーで所持データを登録すると表示されます" }),
-      ok ? null : el("a", { href: r.href, text: "チェッカーを開く" })
+         : el("span", { class: "todo", text: r.todo || "データ未登録 — チェッカーで所持データを登録すると表示されます" }),
+      ok || !r.href ? null : el("a", { href: r.href, text: "チェッカーを開く" })
     ]));
   }
 }
@@ -2571,6 +2634,7 @@ function renderProfileFields(){
   $("inName").value = draft.displayName;
   $("inName").placeholder = api.username;
   $("inComment").value = draft.comment;
+  $("inRank").value = draft.playerRank == null ? "" : String(draft.playerRank);
   updateCommentCounter();
 }
 function updateCommentCounter(){
@@ -2889,6 +2953,7 @@ $("themeButtons").addEventListener("click", e => {
   draft.cardTheme = b.dataset.theme; renderDesign(); onChange();
 });
 $("inName").addEventListener("input", () => { draft.displayName = $("inName").value; onChange(); });
+$("inRank").addEventListener("input", () => { const v = $("inRank").value.trim(); draft.playerRank = v === "" ? null : Number(v); onChange(); });
 $("inComment").addEventListener("input", () => { draft.comment = $("inComment").value; updateCommentCounter(); onChange(); });
 $("workTabs").addEventListener("click", e => {
   const b = e.target.closest("button[data-era]"); if (!b) return;
@@ -2918,7 +2983,7 @@ function profileBody(){
     displayName: draft.displayName.trim(), comment: draft.comment.trim(), titleMissionId: draft.titleMissionId,
     cardTemplate: draft.cardTemplate, cardTheme: draft.cardTheme,
     favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits, cardOptions: draft.cardOptions,
-    formations: formationsPayload(), ...(charsAvailable() ? { favoriteCharacters: draft.favoriteCharacters } : {})
+    playerRank: validRank(draft.playerRank), formations: formationsPayload(), ...(charsAvailable() ? { favoriteCharacters: draft.favoriteCharacters } : {})
   });
 }
 const SAVE_ERRORS = {
@@ -2927,6 +2992,7 @@ const SAVE_ERRORS = {
   invalid_comment: "ひとことは60文字以内で入力してください",
   invalid_favorites: "推し作品は5つまでです",
   invalid_favorite_units: "推しユニットは5機までです",
+  invalid_rank: "ランクは1〜999の整数で入力してください",
   invalid_favorite_characters: "推しキャラは5人までです",
   invalid_body: "入力内容を送信できませんでした"
 };
@@ -2947,6 +3013,7 @@ async function saveProfile(keepalive){
     return { ok: false, message: (data && SAVE_ERRORS[data.error]) || "保存に失敗しました。時間をおいて再度お試しください" };
   }
   api.profile = data.profile;
+  renderRegList();
   savedJson = draftJson();
   clearDraft();
   updateDirty();

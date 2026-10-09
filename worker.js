@@ -1239,6 +1239,7 @@ const FORMATIONS_MAX = 2, FORMATION_SLOTS = 5, FORMATION_LABEL_MAX = 10;
 const CARD_THEMES = new Set(["galaxy", "earth", "sky"]);
 const PROFILE_BODY_MAX_BYTES = 4096;
 const FAVORITES_MAX = 5;
+const PLAYER_RANK_MAX = 999;   // 自己紹介カードのランク入力（1〜PLAYER_RANK_MAX。user_profiles.player_rank。0035）
 // 56 キャラID（characters_master.char_id）の範囲。
 //   1〜UR_SET_MAX            : URユニットのセットのキャラ。char_id ＝ セットのユニットのunit_id（set_rarity_code = 1・set_unit_id = char_id）
 //   EVENT_MIN〜EVENT_MAX     : イベント配布キャラ。1001から追加順（set_*はNULL。type・work_idを持つ）
@@ -1472,7 +1473,8 @@ async function loadProfile(env, userUid, earnedTitles) {
     favoriteWorks: [], favoriteUnits: [], updatedAt: null,
     cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT),
     formations: [],
-    favoriteCharacters: []
+    favoriteCharacters: [],
+    playerRank: null
   };
   let row, works, units;
   try {
@@ -1526,6 +1528,7 @@ async function loadProfile(env, userUid, earnedTitles) {
     favoriteUnits: units.map(r => ({ slot: r.slot, unitId: r.unit_id, rarityCode: RARITY_CODE.UR })),
     updatedAt: row ? row.updated_at : null,
     cardOptions: row ? await loadCardOptions(env, userUid) : Object.assign({}, CARD_OPTIONS_DEFAULT),
+    playerRank: row ? await loadPlayerRank(env, userUid) : null,
     formations: await loadFormations(env, userUid, sel),
     favoriteCharacters
   };
@@ -1593,6 +1596,16 @@ async function loadCardOptions(env, userUid) {
     return normalizeCardOptions(r && r.card_options ? JSON.parse(r.card_options) : null);
   } catch (e) {
     return Object.assign({}, CARD_OPTIONS_DEFAULT);
+  }
+}
+
+// ランク（user_profiles.player_rank）。0035未適用（列が無い）でもプロフィールの読み書きが壊れないよう、別のクエリで読み、失敗したらnull
+async function loadPlayerRank(env, userUid) {
+  try {
+    const r = await env.DB.prepare("SELECT player_rank FROM user_profiles WHERE user_uid = ?").bind(userUid).first();
+    return r && Number.isInteger(r.player_rank) ? r.player_rank : null;
+  } catch (e) {
+    return null;
   }
 }
 
@@ -1719,6 +1732,14 @@ async function handleSaveProfile(request, env) {
   const comment = normalizeProfileText(body.comment, 60, true);   // 2026-09-27に40→60（profile-card.htmlのCOMMENT_MAXと合わせる）
   if (comment === undefined) return jsonResponse({ error: "invalid_comment" }, 400);
 
+  // ランク：送られてこなければ保存済みの値を変えない（undefined）。nullは消去。範囲外・整数でない→400
+  let playerRank;
+  if (body.playerRank !== undefined) {
+    if (body.playerRank === null) playerRank = null;
+    else if (Number.isInteger(body.playerRank) && body.playerRank >= 1 && body.playerRank <= PLAYER_RANK_MAX) playerRank = body.playerRank;
+    else return jsonResponse({ error: "invalid_rank" }, 400);
+  }
+
   const favoriteWorks = normalizeFavoriteIds(body.favoriteWorks, WORK_IDS);
   if (!favoriteWorks) return jsonResponse({ error: "invalid_favorites" }, 400);
   const { results: ownedRows } = await env.DB.prepare(
@@ -1771,6 +1792,12 @@ async function handleSaveProfile(request, env) {
       await env.DB.prepare("UPDATE user_profiles SET card_options = ? WHERE user_uid = ?")
         .bind(JSON.stringify(normalizeCardOptions(body.cardOptions)), uid).run();
     } catch (e) { /* migrations/0016 未適用 */ }
+  }
+
+  if (playerRank !== undefined) {
+    try {
+      await env.DB.prepare("UPDATE user_profiles SET player_rank = ? WHERE user_uid = ?").bind(playerRank, uid).run();
+    } catch (e) { /* migrations/0035 未適用 */ }
   }
 
   // 51 推し編成は別のバッチ。0029未適用でも他の保存は成功させる
