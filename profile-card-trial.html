@@ -1342,6 +1342,8 @@ function totsuStars(ctx,T,x,y,R,lv){
   return x+3*R*2.3;
 }
 const TYPE_COL={dark:{"攻撃":"#ff8a73","支援":"#6cc8ff","耐久":"#8fd870"},light:{"攻撃":"#c9442e","支援":"#1a78b8","耐久":"#3f8a2c"}};
+// 推しキャラ・推し編成のタイプ色：攻撃＝赤・支援＝黄・耐久＝青（ユーザー指示。推しユニット・標準は従来のTYPE_COL）
+const TYPE_COL2={dark:{"攻撃":"#ff8a73","支援":"#ffd84d","耐久":"#6aa8ff"},light:{"攻撃":"#c9442e","支援":"#a87400","耐久":"#1f5fc4"}};
 function chip(ctx,x,y,text,col,fill,fs=11){
   ctx.font=`bold ${fs}px ${FONT}`; const w=ctx.measureText(text).width+14, h=fs+9;
   roundRect(ctx,x,y,w,h,h/2);
@@ -1661,7 +1663,7 @@ async function layoutUnits(ctx,T,data){
 // data.ownedChars＝推しキャラ未設定のときの代わり（セットのキャラを凸の高い順）
 async function layoutCharacters(ctx,T,data){
   await header(ctx,T,"FAVORITE CHARACTERS");
-  const u=data.units, TC=T.dark?TYPE_COL.dark:TYPE_COL.light;
+  const u=data.units, TC=T.dark?TYPE_COL2.dark:TYPE_COL2.light;
   let favs=(data.favoriteChars||[]).slice(0,5), heading="推し";
   if(!favs.length&&data.ownedChars){ favs=data.ownedChars.slice(0,5); heading="所持"; }   // 未設定：所持キャラ（セットの凸の高い順）
   // ---- 左カラム：プロフィール＋UR所持サマリー＋（㉙）URサポート・エタロの実績 ----
@@ -1815,7 +1817,7 @@ function identityBand(ctx,T,p,x,y,w){
   }
 }
 async function formationRow(ctx,T,F,label,x,y,w,h){
-  const TC=T.dark?TYPE_COL.dark:TYPE_COL.light, G=T.dark?SYN_GOLD:T.gold;
+  const TC=T.dark?TYPE_COL2.dark:TYPE_COL2.light, G=T.dark?SYN_GOLD:T.gold;
   panel(ctx,T,x,y,w,h,null,null);
   if(!F||!F.supporter){ ctx.fillStyle=T.muted; ctx.font=`14px ${FONT}`; ctx.fillText(`${label}：未設定`,x+18,y+h/2); return; }
   const s=F.supporter, full=F.synergy.full, n=F.units.filter(Boolean).length;
