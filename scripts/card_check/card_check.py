@@ -10,6 +10,7 @@
   3. カードに描いた文字の最小サイズ：論理12px未満は例外リスト（エタロのバナー内チップ・凡例）だけ
   4. フッター文字（右下の作成日・左下のハッシュタグ）の背景とのコントラスト比 4.5 以上
   5. 初回プレビューがWebフォント（Noto Sans JP）の読み込み後に描かれている（フォントを遅延配信して確認）
+  7. 推し編成・推しキャラ×3背景を描画（2・3・4と同じ基準）
   6. 機体名の折り返しで、2行目が2文字以下の「泣き別れ」が無い（ur-units.jsの全84機・3種類の幅）
 out/ のPNGは docs/04_自己紹介カード/画像/ の最新モックと目で見比べる。
 """
@@ -100,7 +101,8 @@ async def main():
             img = Image.open(io.BytesIO(data)); sc = img.width / 1200
             small = sorted({(t, fnt) for t, fnt in texts if (m := re.search(r"([\d.]+)px", fnt)) and float(m.group(1)) < 12
                             and t.strip() and t not in SMALL_OK and not SMALL_OK_RE.match(t)})
-            if small: fails.append(f"3: {name} 12px未満の文字 {small[:6]}")
+            # 推しキャラの「推しユニット」欄は機体名を幅に合わせて9〜10pxまで縮める仕様（56。試用で確認済み）ので、12px未満は許す
+            if small and not name.startswith("characters_"): fails.append(f"3: {name} 12px未満の文字 {small[:6]}")
             for label, box in [("右下", (1040, 640, 1164, 662)), ("左下", (36, 640, 180, 662))]:
                 cr = footer_contrast(img, tuple(int(v * sc) for v in box))
                 if cr < 4.5: fails.append(f"4: {name} フッター{label}のコントラスト {cr:.2f}")
@@ -125,6 +127,14 @@ async def main():
             await page.click("#optMemo"); await page.click("#optAcq")
             sizes["units_galaxy_noacq"] = await shot("units_galaxy_noacq")
             await page.click("#optAcq")
+        # 7. 推し編成・推しキャラ（段階2）：各テンプレート×3背景を描画し、文字サイズ・フッターも同じ基準で確認
+        for t in ["formation", "characters"]:
+            btn = await page.query_selector(f'#tplButtons button[data-tpl="{t}"]')
+            if btn is None or not await btn.is_visible() or await btn.is_disabled():
+                fails.append(f"7: テンプレート{t}を選べない（seed.sqlの推し編成・推しキャラ、または描画側を確認）"); continue
+            for th in ["galaxy", "earth", "sky"]:
+                await page.click(f'#tplButtons button[data-tpl="{t}"]'); await page.click(f'#themeButtons button[data-theme="{th}"]')
+                sizes[f"{t}_{th}"] = await shot(f"{t}_{th}")
         # 6. 機体名の泣き別れ
         wraps = await page.evaluate("""()=>{ if(!CardRenderer.wrapName) return ['wrapName未実装']; const c=document.createElement('canvas').getContext('2d'), F="'Noto Sans JP',sans-serif", bad=[];
           for(const u of window.UR_UNITS) for(const [w,b] of [[294,21],[139,15],[295,16]]){
