@@ -1235,6 +1235,7 @@ async function handleAnalyticsTrend(request, env, url) {
 const WORK_IDS = new Set(Array.from({ length: 106 }, (_, i) => i + 1));
 const CARD_TEMPLATES = new Set(["standard", "eternal", "units", "formation", "characters"]);   // 51：推し編成、56：推しキャラを追加
 const FORMATIONS_MAX = 2, FORMATION_SLOTS = 5, FORMATION_LABEL_MAX = 10;
+const FORMATION_LEVEL_MAX = 3;   // 66 枠ごとの凸（0＝無凸〜3＝完凸）。null＝ユニットチェッカーの凸（登録の凸）。登録の凸が上限
 // ジャングル（"jungle"）は2026-09-24に選択肢から削除。保存済みの"jungle"は読み出し時に"galaxy"として返す
 const CARD_THEMES = new Set(["galaxy", "earth", "sky"]);
 const PROFILE_BODY_MAX_BYTES = 4096;
@@ -1373,9 +1374,12 @@ async function loadSelectableCharacters(env, uid) {
 // 56 搭乗キャラの補充規則。保存時も読み込み時も同じ関数を使う（画面側profile-card*.htmlにも同じ規則がある。そろえて変えること）。
 // formations：[{ units:[{ unitId, req }] }]。reqは指定されたキャラ（保存時は送られたpilots[i]、読み込み時は保存済みpilot_char_id。undefinedなら指定なし）。
 // 各unitに結果のpilot（charIdかnull）を書き込む。編成1の1枠目→…→編成2の最後の枠の順に、同じキャラは1か所だけ
+// 66 補充の候補は「編成に入っているユニットのセットキャラ」を後回しにする（同じユニットの2体目以降が、後ろの枠のユニットのキャラを先に取らないように）
 function normalizePilots(formations, sel) {
   const used = new Set();
   const take = id => { used.add(id); return id; };
+  const reserved = new Set();
+  for (const f of formations) for (const u of f.units) { const own = sel.setByUnit.get(u.unitId); if (own != null) reserved.add(own); }
   for (const f of formations) {
     for (const u of f.units) {
       let pilot = null;
@@ -1384,7 +1388,7 @@ function normalizePilots(formations, sel) {
         const own = sel.setByUnit.get(u.unitId);
         if (own != null && !used.has(own)) pilot = take(own);
         else {
-          const id = sel.setIds.find(c => !used.has(c)) ?? sel.eventIds.find(c => !used.has(c));
+          const id = sel.setIds.find(c => !used.has(c) && !reserved.has(c)) ?? sel.eventIds.find(c => !used.has(c)) ?? sel.setIds.find(c => !used.has(c));
           if (id != null) pilot = take(id);
         }
       }
@@ -1537,6 +1541,7 @@ async function loadProfile(env, userUid, earnedTitles) {
 // 51 推し編成（user_formations・user_formation_units）。現在所持していないサポーターはnull、所持していないユニットは除く（slotは詰めない）。
 // サポーターもユニットも無い編成は返さない。0029未適用なら空配列
 // 56 selが非nullなら、各ユニットにpilotCharId（数値かnull）を付ける（補充規則normalizePilots。DBは書き換えない）
+// 66 同じユニットを複数の枠に置ける。各ユニットにlevel（枠ごとの凸。null＝ユニットチェッカーの凸）を付ける
 async function loadFormations(env, userUid, sel) {
   try {
     const { results: fRows } = await env.DB.prepare(
@@ -1546,23 +1551,28 @@ async function loadFormations(env, userUid, sel) {
        FROM user_formations f WHERE f.user_uid = ? ORDER BY f.formation_no`
     ).bind(userUid).all();
     const unitsSql = cols =>
-      `SELECT u.formation_no, u.slot, u.rarity_code, u.unit_id${cols} FROM user_formation_units u
+      `SELECT u.formation_no, u.slot, u.rarity_code, u.unit_id${cols},
+              (SELECT MAX(o2.level) FROM units_ownership o2 WHERE o2.user_uid = u.user_uid AND o2.unit_id = u.unit_id) AS own_level
+       FROM user_formation_units u
        WHERE u.user_uid = ? AND u.rarity_code = ?
          AND EXISTS (SELECT 1 FROM units_ownership o WHERE o.user_uid = u.user_uid AND o.unit_id = u.unit_id)
        ORDER BY u.formation_no, u.slot`;
     let uRows, hasPilotCol = false;
-    try {
-      if (!sel) throw new Error("no characters");
-      ({ results: uRows } = await env.DB.prepare(unitsSql(", u.pilot_char_id")).bind(userUid, RARITY_CODE.UR).all());
-      hasPilotCol = true;
-    } catch (e) {
-      // 0033未適用（pilot_char_id列が無い）：従来のSQL
-      ({ results: uRows } = await env.DB.prepare(unitsSql("")).bind(userUid, RARITY_CODE.UR).all());
+    // 66 列の有無で読み方を変える：pilot_char_id＋level → pilot_char_id → level → どちらも無し（0036・0033未適用の環境）
+    const tries = [[", u.pilot_char_id, u.level", true], [", u.pilot_char_id", true], [", u.level", false], ["", false]];
+    for (const [cols, pilot] of tries) {
+      if (pilot && !sel) continue;
+      try {
+        ({ results: uRows } = await env.DB.prepare(unitsSql(cols)).bind(userUid, RARITY_CODE.UR).all());
+        hasPilotCol = pilot;
+        break;
+      } catch (e) { if (cols === "") throw e; }
     }
     const out = [];
     for (const f of fRows) {
       const units = uRows.filter(u => u.formation_no === f.formation_no)
-        .map(u => ({ slot: u.slot, rarityCode: u.rarity_code, unitId: u.unit_id, req: hasPilotCol ? u.pilot_char_id : undefined }));
+        .map(u => ({ slot: u.slot, rarityCode: u.rarity_code, unitId: u.unit_id, level: validFormationLevel(u.level, u.own_level),
+                     req: hasPilotCol ? u.pilot_char_id : undefined }));
       if (f.supporter_id == null && !units.length) continue;
       out.push({ formationNo: f.formation_no, label: f.label, supporterId: f.supporter_id, units });
     }
@@ -1673,36 +1683,46 @@ function normalizeFavoriteIds(value, allowed) {
   return out;
 }
 
+// 66 枠ごとの凸。登録の凸（units_ownership.level）が上限で、登録より低い0〜3の整数だけを持つ。
+// それ以外（登録と同じ・登録より高い・整数でない）はnull＝登録の凸で表示（登録の凸が後で下がった場合も読み出し時にnullになる）
+function validFormationLevel(v, ownLevel) {
+  const cap = Number.isInteger(ownLevel) ? Math.min(ownLevel, FORMATION_LEVEL_MAX) : FORMATION_LEVEL_MAX;
+  return Number.isInteger(v) && v >= 0 && v < cap ? v : null;
+}
+
 // 51 推し編成の保存値を検証・正規化する。formationsが無い→null（保存しない）。不正→undefined（400）。
-// 戻り値：[{ label, supporterId, units:[{slot, unitId}] }]（最大2件。サポーターもユニットも無い編成は除く）
+// 戻り値：[{ label, supporterId, units:[{slot, unitId, level}] }]（最大2件。サポーターもユニットも無い編成は除く）
+// 66 同じユニットは編成の中でも2つの編成をまたいでも何度でも置ける（複数所持の表現）。サポーターの重複は従来どおり後ろを読み飛ばす
 async function normalizeFormations(env, uid, value) {
   if (value == null) return null;
   if (!Array.isArray(value) || value.length > FORMATIONS_MAX) return undefined;
-  const { results: ownedUnits } = await env.DB.prepare("SELECT DISTINCT unit_id FROM units_ownership WHERE user_uid = ?").bind(uid).all();
+  // 66 登録の凸も読む（枠ごとの凸の上限）
+  const { results: ownedUnits } = await env.DB.prepare("SELECT unit_id, MAX(level) AS level FROM units_ownership WHERE user_uid = ? GROUP BY unit_id").bind(uid).all();
   let ownedSupporters = new Set();
   try {
     const { results } = await env.DB.prepare("SELECT supporter_id FROM supporters_ownership WHERE user_uid = ?").bind(uid).all();
     ownedSupporters = new Set(results.map(r => r.supporter_id));
   } catch (e) { /* 所持なし扱い */ }
-  const ownedU = new Set(ownedUnits.map(r => r.unit_id));
-  const usedUnits = new Set(), usedSupporters = new Set();
+  const ownedU = new Map(ownedUnits.map(r => [r.unit_id, r.level]));
+  const usedSupporters = new Set();
   const out = [];
   for (const f of value) {
     if (!f || typeof f !== "object" || Array.isArray(f)) return undefined;
     const label = normalizeProfileText(f.label, FORMATION_LABEL_MAX, false);
     if (label === undefined) return undefined;
     if (f.units != null && (!Array.isArray(f.units) || f.units.length > FORMATION_SLOTS)) return undefined;
-    // 2つの編成で同じサポーター・ユニットは使えない（後の編成の重複は読み飛ばす）
+    // 2つの編成で同じサポーターは使えない（後の編成の重複は読み飛ばす）。ユニットの重複は66で許可
     const supporterId = Number.isInteger(f.supporterId) && ownedSupporters.has(f.supporterId) && !usedSupporters.has(f.supporterId)
       ? f.supporterId : null;
     if (supporterId != null) usedSupporters.add(supporterId);
     // 56 pilots：unitsと同じ長さの配列（要素はcharIdかnull）。無ければ指定なし（旧画面からの保存）
     if (f.pilots != null && (!Array.isArray(f.pilots) || f.pilots.length !== (f.units || []).length)) return undefined;
+    // 66 levels：unitsと同じ長さの配列（要素は登録の凸より低い0〜3かnull）。無ければすべてnull（旧画面からの保存）
+    if (f.levels != null && (!Array.isArray(f.levels) || f.levels.length !== (f.units || []).length)) return undefined;
     const units = [];
     (f.units || []).forEach((id, i) => {
-      if (Number.isInteger(id) && ownedU.has(id) && !usedUnits.has(id)) {
-        usedUnits.add(id);
-        units.push({ slot: i + 1, unitId: id, req: f.pilots ? f.pilots[i] : undefined });
+      if (Number.isInteger(id) && ownedU.has(id)) {
+        units.push({ slot: i + 1, unitId: id, level: f.levels ? validFormationLevel(f.levels[i], ownedU.get(id)) : null, req: f.pilots ? f.pilots[i] : undefined });
       }
     });
     if (supporterId == null && !units.length) continue;
@@ -1802,26 +1822,27 @@ async function handleSaveProfile(request, env) {
 
   // 51 推し編成は別のバッチ。0029未適用でも他の保存は成功させる
   if (formations) {
-    const formationBatch = withPilot => [
+    // 66 level列（0036）を足す。列が無い環境では列を減らして書く
+    const insertUnit = (withPilot, withLevel) => {
+      const cols = ["user_uid", "formation_no", "slot", "rarity_code", "unit_id"].concat(withPilot ? ["pilot_char_id"] : [], withLevel ? ["level"] : []);
+      return env.DB.prepare(`INSERT INTO user_formation_units (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`);
+    };
+    const formationBatch = (withPilot, withLevel) => [
       env.DB.prepare("DELETE FROM user_formation_units WHERE user_uid = ?").bind(uid),
       env.DB.prepare("DELETE FROM user_formations WHERE user_uid = ?").bind(uid),
       ...formations.flatMap((f, i) => [
         env.DB.prepare("INSERT INTO user_formations (user_uid, formation_no, label, supporter_id, updated_at) VALUES (?, ?, ?, ?, ?)")
           .bind(uid, i + 1, f.label, f.supporterId, nowJst),
-        ...f.units.map(u => withPilot
-          ? env.DB.prepare("INSERT INTO user_formation_units (user_uid, formation_no, slot, rarity_code, unit_id, pilot_char_id) VALUES (?, ?, ?, ?, ?, ?)")
-              .bind(uid, i + 1, u.slot, RARITY_CODE.UR, u.unitId, u.pilot)
-          : env.DB.prepare("INSERT INTO user_formation_units (user_uid, formation_no, slot, rarity_code, unit_id) VALUES (?, ?, ?, ?, ?)")
-              .bind(uid, i + 1, u.slot, RARITY_CODE.UR, u.unitId))
+        ...f.units.map(u => insertUnit(withPilot, withLevel)
+          .bind(uid, i + 1, u.slot, RARITY_CODE.UR, u.unitId, ...(withPilot ? [u.pilot] : []), ...(withLevel ? [u.level] : [])))
       ])
     ];
     try {
-      try {
-        if (!sel) throw new Error("no characters");
-        await env.DB.batch(formationBatch(true));
-      } catch (e) {
-        // 0033未適用（pilot_char_id列が無い）：従来のINSERT
-        await env.DB.batch(formationBatch(false));
+      // 0036未適用（level列が無い）・0033未適用（pilot_char_id列が無い）なら、列を減らして書き直す
+      const combos = [[true, true], [true, false], [false, true], [false, false]].filter(([p]) => !p || sel);
+      for (let k = 0; k < combos.length; k++) {
+        try { await env.DB.batch(formationBatch(...combos[k])); break; }
+        catch (e) { if (k === combos.length - 1) throw e; }
       }
     } catch (e) { /* migrations/0029 未適用 */ }
   }
@@ -2151,7 +2172,8 @@ async function handleAnalyticsOshi(request, env) {
       return { key: `1:${r.id}`, rarityCode: 1, id: r.id, name: m.name, type: m.type, limited: !!m.limited, users: r.users };
     }).sort(byUsers);
     const mineLeaders = (await q(`SELECT f.supporter_id AS id FROM user_formations f WHERE f.user_uid = ? AND ${leaderCond} ORDER BY f.formation_no`, uid)).map(r => r.id);
-    const mineUnits = (await q(`SELECT fu.unit_id AS id FROM user_formation_units fu WHERE fu.user_uid = ? AND ${unitCond} ORDER BY fu.formation_no, fu.slot`, uid)).map(r => `1:${r.id}`);
+    const mineUnits = [...new Set((await q(`SELECT fu.unit_id AS id FROM user_formation_units fu WHERE fu.user_uid = ? AND ${unitCond} ORDER BY fu.formation_no, fu.slot`, uid)).map(r => `1:${r.id}`))]
+      .filter((k, i, a) => a.indexOf(k) === i);   // 66 同じユニットを複数の枠に置いても「自分の推し」は1回
     formations = { totalUsers: total, noLeaderUsers: total - withLeader, leaders, units, mine: { leaders: mineLeaders, units: mineUnits } };
   } catch (e) { console.error("analytics oshi formations error", e); formations = null; }
 

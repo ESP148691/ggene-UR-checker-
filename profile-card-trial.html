@@ -167,6 +167,10 @@
   .fmSlot{display:flex;align-items:center;gap:8px;margin:0 0 8px;}
   .fmSlot .no{flex:0 0 24px;font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;}
   .fmSlot select{flex:1;min-width:0;}
+  /* 66 枠ごとの凸と「n体目」（ユニット選択のすぐ下の行） */
+  .fmOpt{display:flex;align-items:center;gap:8px;margin:-2px 0 6px 32px;font-size:12px;color:var(--muted);}
+  .fmOpt select{flex:0 0 auto;width:auto;min-width:8.5em;font-size:13px;padding:4px 6px;}
+  .fmOpt .dup{flex:0 0 auto;font-size:11px;color:var(--gold);border:1px solid var(--gold);border-radius:3px;padding:1px 6px;white-space:nowrap;}
   .fmInfo{font-size:12.5px;line-height:1.6;color:var(--muted);margin:0 0 10px;overflow-wrap:anywhere;}
   .fmInfo b{color:var(--text);}
   .fmGauge{display:flex;align-items:center;gap:10px;margin:10px 0 0;font-size:13px;}
@@ -390,7 +394,7 @@
         <div id="fmSlots"></div>
         <label class="chk"><input type="checkbox" id="fmOnlyHit"> 候補をバフ対象のユニットだけにする</label>
         <div class="fmGauge" id="fmGauge"></div>
-        <p class="hint">サポーターのリーダースキルの対象になるユニットがカードで金色に光ります。2つの編成で同じサポーター・ユニットは使えません。『推し編成』のカードに表示されます。</p>
+        <p class="hint">サポーターのリーダースキルの対象になるユニットがカードで金色に光ります。同じユニットを複数所持している場合は、同じユニットを何枠でも選べます（2つの編成をまたいでも可）。凸は枠ごとに、ユニットチェッカーで登録した凸まで選べます。2つの編成で同じサポーターは使えません。『推し編成』のカードに表示されます。</p>
       </section>
     </div>
   </div>
@@ -2070,7 +2074,7 @@ return { drawProfileCard, drawThemeBackground, THEMES, eternalSummary, wrapName,
     for (const s of f.units) {
       const u = unitById.get(s.unitId); if (!u || s.slot < 1 || s.slot > 5) continue;
       const hit = judge(ix, f.supporterId, lv, s.unitId, workLabel);
-      slots[s.slot - 1] = Object.assign({}, u, { level: levels.units[s.unitId] ?? 0, hit,
+      slots[s.slot - 1] = Object.assign({}, u, { level: s.level ?? levels.units[s.unitId] ?? 0, hit,   // 66 枠ごとの凸を優先
         featureTags: featureTags(ix, s.unitId, 2, hit ? hit.tags : []) });
     }
     const filled = slots.filter(Boolean), count = filled.filter(u => u.hit).length;
@@ -2116,7 +2120,7 @@ let fmIx = null;          // 51 FormationLogic.buildIndex()の結果。/api/tags
 let fmTab = 0;            // 編成フォームで開いているタブ（0／1）
 // ㉚ cardOptions：推しユニットカードに出す入手記録（acq＝入手日・ガシャ回数、memo＝メモ）。worker.jsのCARD_OPTIONS_DEFAULTと同じ既定値
 const CARD_OPTIONS_DEFAULT = { acq: true, memo: false };
-const emptyFormation = () => ({ label: "", supporterId: null, units: [null, null, null, null, null], pilots: [null, null, null, null, null] });   // pilots＝units と同じ位置の搭乗キャラ（charId）
+const emptyFormation = () => ({ label: "", supporterId: null, units: [null, null, null, null, null], pilots: [null, null, null, null, null], levels: [null, null, null, null, null] });   // pilots＝units と同じ位置の搭乗キャラ（charId）。66 levels＝枠ごとの凸（null＝ユニットチェッカーの凸）
 const draft = { displayName: "", comment: "", titleMissionId: null, cardTemplate: "standard", cardTheme: "galaxy", favoriteWorks: [], favoriteUnits: [], favoriteCharacters: [], playerRank: null,
                 cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT),
                 formations: [emptyFormation(), emptyFormation()], useFm2: false };   // 51 推し編成（units＝slotの位置どおり。空き枠はnull）
@@ -2180,9 +2184,15 @@ function charWorkId(c){ const u = charUnit(c); return u ? u.workId : (c.workId =
 function charSubText(c){ const u = charUnit(c); return u ? `セット：${u.name}` : ""; }
 function activeFormations(){ return draft.useFm2 ? draft.formations : [draft.formations[0]]; }
 // 搭乗キャラの補充規則（worker.jsのnormalizePilots()と同じ順番・規則。変えるときは両方そろえる）
+// 66 編成に入っているユニットのセットキャラは後回し（worker.jsのnormalizePilots()と同じ）
+function reservedChars(sel){
+  const r = new Set();
+  for (const f of activeFormations()) for (const id of f.units) { const own = id == null ? null : sel.setByUnit.get(id); if (own != null) r.add(own); }
+  return r;
+}
 function firstUnusedChar(sel, used){
-  const id = sel.setIds.find(c => !used.has(c));
-  return id != null ? id : (sel.eventIds.find(c => !used.has(c)) ?? null);
+  const reserved = reservedChars(sel);
+  return sel.setIds.find(c => !used.has(c) && !reserved.has(c)) ?? sel.eventIds.find(c => !used.has(c)) ?? sel.setIds.find(c => !used.has(c)) ?? null;
 }
 function normalizeDraftPilots(){
   if (!charsAvailable()) { for (const f of draft.formations) f.pilots = f.units.map(() => null); return; }
@@ -2210,13 +2220,27 @@ function pilotHolders(f, i){
 }
 // ユニットを選んだ・外したときの搭乗キャラ。セットのキャラが他の枠で搭乗中なら { own, holder } を返す（乗せ替えの選択画面を開く用）
 function onUnitChanged(f, i){
+  f.levels[i] = null;   // 66 ユニットを変えたら凸はユニットチェッカーの値に戻す
   if (!charsAvailable()) return null;
   f.pilots[i] = null;
   if (f.units[i] == null) return null;
   const sel = selectableChars(), holders = pilotHolders(f, i), own = sel.setByUnit.get(f.units[i]);
   if (own != null && !holders.has(own)) { f.pilots[i] = own; return null; }
   f.pilots[i] = firstUnusedChar(sel, new Set(holders.keys()));
-  return own != null ? { own, holder: holders.get(own) } : null;
+  if (own == null) return null;
+  // 66 セットのキャラが同じユニットの別の枠（2体目以降）に搭乗中なら、選択画面は開かずに補充規則のまま（乗せ替えボタンで変えられる）
+  const h = holders.get(own);
+  if (activeFormations()[h.gi].units[h.j] === f.units[i]) return null;
+  return { own, holder: h };
+}
+// 66 同じユニットの何体目か（編成1の1枠目→…→編成2の最後の枠の順）。1体目なら1
+function unitOrdinal(f, i){
+  let n = 0;
+  for (const g of activeFormations()) for (let j = 0; j < g.units.length; j++) {
+    if (g.units[j] === f.units[i]) n++;
+    if (g === f && j === i) return n;
+  }
+  return n;
 }
 function assignPilot(f, i, cid){
   const holder = pilotHolders(f, i).get(cid);
@@ -2240,7 +2264,13 @@ function sanitizeDraft(){
   draft.displayName = String(draft.displayName || "").slice(0, 32);
   draft.comment = String(draft.comment || "").slice(0, 120);
 }
-// 51 所持していないサポーター・ユニットを外し、2つの編成の重複（サポーター・ユニット）は後ろを落とす。slotは詰めない
+// 51 所持していないサポーター・ユニットを外し、2つの編成の重複サポーターは後ろを落とす。slotは詰めない
+// 66 ユニットの重複は許す（同じユニットの複数所持）。枠ごとの凸levelsは登録の凸より低い0〜3かnull（worker.jsのvalidFormationLevel()と同じ）
+function fmValidLevel(v, unitId){
+  const own = ((api && api.units && api.units.ownership) || {})[String(unitId)];
+  const cap = Number.isInteger(own) ? Math.min(own, 3) : 3;
+  return Number.isInteger(v) && v >= 0 && v < cap ? v : null;
+}
 function sanitizeFormations(owned){
   const supOwned = new Set(ownedSupporterList().map(s => s.id));
   if (!Array.isArray(draft.formations)) draft.formations = [];
@@ -2248,18 +2278,16 @@ function sanitizeFormations(owned){
     const f = draft.formations[i] && typeof draft.formations[i] === "object" ? draft.formations[i] : {};
     const units = Array.isArray(f.units) ? f.units.slice(0, FM_SLOTS) : [];
     while (units.length < FM_SLOTS) units.push(null);
-    const rawPilots = Array.isArray(f.pilots) ? f.pilots : [];
+    const rawPilots = Array.isArray(f.pilots) ? f.pilots : [], rawLevels = Array.isArray(f.levels) ? f.levels : [];
+    const okUnit = id => Number.isInteger(id) && owned.has(id);
     return { label: String(f.label || "").slice(0, FM_LABEL_MAX),
              supporterId: Number.isInteger(f.supporterId) && supOwned.has(f.supporterId) ? f.supporterId : null,
-             units: units.map(id => Number.isInteger(id) && owned.has(id) ? id : null),
-             pilots: units.map((id, i) => Number.isInteger(id) && owned.has(id) && Number.isInteger(rawPilots[i]) ? rawPilots[i] : null) };
+             units: units.map(id => okUnit(id) ? id : null),
+             pilots: units.map((id, i) => okUnit(id) && Number.isInteger(rawPilots[i]) ? rawPilots[i] : null),
+             levels: units.map((id, i) => okUnit(id) ? fmValidLevel(rawLevels[i], id) : null) };
   });
   const [a, b] = draft.formations;
   if (b.supporterId != null && b.supporterId === a.supporterId) b.supporterId = null;
-  b.units = b.units.map(id => id != null && a.units.includes(id) ? null : id);
-  const seen = new Set();
-  for (const f of draft.formations) f.units = f.units.map(id => { if (id == null || seen.has(id)) return null; seen.add(id); return id; });
-  for (const f of draft.formations) f.pilots = f.pilots.map((c, i) => f.units[i] == null ? null : c);
   draft.useFm2 = !!draft.useFm2;
   normalizeDraftPilots();
 }
@@ -2280,7 +2308,10 @@ function draftFromProfile(p){
       const f = (p.formations || [])[i], out = emptyFormation();
       if (f) {
         out.label = f.label || ""; out.supporterId = f.supporterId == null ? null : f.supporterId;
-        for (const u of f.units || []) if (u.slot >= 1 && u.slot <= FM_SLOTS) { out.units[u.slot - 1] = u.unitId; out.pilots[u.slot - 1] = u.pilotCharId == null ? null : u.pilotCharId; }
+        for (const u of f.units || []) if (u.slot >= 1 && u.slot <= FM_SLOTS) {
+          out.units[u.slot - 1] = u.unitId; out.pilots[u.slot - 1] = u.pilotCharId == null ? null : u.pilotCharId;
+          out.levels[u.slot - 1] = Number.isInteger(u.level) ? u.level : null;   // 66
+        }
       }
       return out;
     }),
@@ -2290,7 +2321,8 @@ function draftFromProfile(p){
 // 51 保存・未保存判定に使う編成（使わない2つ目と、空の編成は除く。サーバーも空の編成は保存しない）
 function formationsPayload(){
   const act = draft.useFm2 ? draft.formations : [draft.formations[0]];
-  return act.map(f => Object.assign({ label: f.label.trim() || null, supporterId: f.supporterId, units: f.units.slice() },
+  return act.map(f => Object.assign({ label: f.label.trim() || null, supporterId: f.supporterId, units: f.units.slice(),
+      levels: f.levels.map((lv, i) => f.units[i] == null ? null : lv) },   // 66 枠ごとの凸
       charsAvailable() ? { pilots: f.pilots.slice() } : {}))
     .filter(f => f.supporterId != null || f.units.some(id => id != null));
 }
@@ -2363,7 +2395,7 @@ function fmFormationData(f){
   for (const id of f.units) if (id != null && !unitById.has(id)) { const o = fmUnitObj(id); if (o) unitById.set(id, o); }
   for (const s of (api.supporters && api.supporters.master) || []) supporterById.set(s.id, { id: s.id, name: s.name, limited: s.limited, heal: s.skill });
   const units = [];
-  f.units.forEach((id, i) => { if (id != null) units.push({ slot: i + 1, unitId: id }); });
+  f.units.forEach((id, i) => { if (id != null) units.push({ slot: i + 1, unitId: id, level: f.levels[i] }); });   // 66 枠ごとの凸
   const F = FormationLogic.formationData(fmIx, { label: f.label.trim() || null, supporterId: f.supporterId, units },
     unitById, supporterById, { supporters: sOwn, units: own }, fmWorkLabel, fmWorkLabel, ownedUnitIds());
   // 56 搭乗キャラ（推しキャラならfav＝星バッジ）
@@ -2771,7 +2803,6 @@ function renderFormation(){
   }
   // ユニット5枠（位置どおり。途中を空けてよい）
   const onlyHit = $("fmOnlyHit").checked && f.supporterId != null;
-  const usedElsewhere = new Set(draft.useFm2 ? other.units.filter(id => id != null) : []);
   const slots = $("fmSlots"); slots.textContent = "";
   const ids = Object.keys(own).map(Number).filter(id => unitsById.has(id)).sort((a, b) => a - b);
   f.units.forEach((cur, i) => {
@@ -2780,11 +2811,8 @@ function renderFormation(){
     for (const id of ids) {
       const hit = fmJudge(f.supporterId, id);
       if (onlyHit && !hit && id !== cur) continue;
-      const taken = f.units.some((x, j) => j !== i && x === id) || usedElsewhere.has(id);
       const u = unitsById.get(id);
-      const o = el("option", { value: String(id), text: `${hit ? "◎対象 " + hit.rateText + "｜" : ""}${u.name}（${u.type}・${LV_LABEL[own[String(id)]] || ""}）${taken ? " ※使用中" : ""}` });
-      if (taken) o.disabled = true;
-      s.appendChild(o);
+      s.appendChild(el("option", { value: String(id), text: `${hit ? "◎対象 " + hit.rateText + "｜" : ""}${u.name}（${u.type}・${LV_LABEL[own[String(id)]] || ""}）` }));   // 66 選択中のユニットも選べる
     }
     s.value = cur == null ? "" : String(cur);
     s.addEventListener("change", () => {
@@ -2796,7 +2824,22 @@ function renderFormation(){
         openPilotPicker(f, i, `${c.name}は編成${conflict.holder.gi + 1}の${String(conflict.holder.j + 1).padStart(2, "0")}に搭乗中です。乗せるキャラを選んでください`);
       }
     });
+    // 66 枠ごとの凸（既定＝ユニットチェッカーの凸）と「n体目」
+    let lvSel = null, dup = null;
+    if (cur != null) {
+      // 登録の凸が上限：先頭「{登録の凸}（登録）」＋登録より低い凸だけ。登録が無凸なら選べない
+      const reg = Number.isInteger(own[String(cur)]) ? own[String(cur)] : 0;
+      lvSel = el("select", { "aria-label": `ユニット${i + 1}の凸` });
+      lvSel.appendChild(el("option", { value: "", text: `${LV_LABEL[reg]}（登録）` }));
+      for (let lv = 0; lv < reg; lv++) lvSel.appendChild(el("option", { value: String(lv), text: LV_LABEL[lv] }));
+      lvSel.disabled = reg === 0;
+      lvSel.value = f.levels[i] == null ? "" : String(f.levels[i]);
+      lvSel.addEventListener("change", () => { f.levels[i] = lvSel.value === "" ? null : Number(lvSel.value); onChange(); });
+      const n = unitOrdinal(f, i);
+      if (n > 1) dup = el("span", { class: "dup", text: `${n}体目` });
+    }
     slots.appendChild(el("div", { class: "fmSlot" }, [el("span", { class: "no", text: String(i + 1).padStart(2, "0") }), s]));
+    if (lvSel) slots.appendChild(el("div", { class: "fmOpt" }, [el("span", { text: "凸" }), lvSel, dup]));
     if (charsAvailable() && cur != null) {
       const pid = f.pilots[i], pc = pid == null ? null : CHARS.get(pid), fav = pc && draft.favoriteCharacters.includes(pid);
       const btn = el("button", { type: "button", text: "乗せ替え" });
