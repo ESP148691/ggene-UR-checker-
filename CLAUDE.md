@@ -41,7 +41,7 @@ Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェ�
 | `supporter.html` | URサポート所持率チェッカー（50体。データは`const UNITS`）。スクショ読み取り（`supporter-scan.js`）つき。**改行コードCRLF**（CRLFのまま編集） |
 | `unit-scan.js` / `supporter-scan.js` | スクショ読み取りの判定（`window.UnitScan`／`SupporterScan`、位置合わせ値`SCAN_FIT`） |
 | `analytics.html` | データ登録結果レポート（ログイン限定。ユニット・サポートのティアリスト＋エタロ攻略タブ） |
-| `analytics-trial.html` | 分析ページ拡張の試用版（**運営者専用**`adminGate()`。推し統計・所持率分布。64。API`/api/analytics/oshi`・`/distribution`も`requireAdmin`） |
+| `analytics-admin.html` | 運営者向け分析（**運営者専用・恒久**＝ESPのみ。`adminGate()`。推し統計・所持率分布。64。API`/api/analytics/oshi`・`/distribution`も`requireAdmin`。一般公開しない） |
 | `eternal-road.html` | エタロ攻略チェッカー（EXPERT・29ステージ・69ミッション） |
 | `challenge.html` | チャレンジミッションチェッカー（HARDのみ・5シリーズ・15ステージ・30ミッション。㊵）。**一般公開済み**（2026-10-06。adminGate解除・トップの「チェッカー」欄へ移動） |
 | `profile-card.html` | 自己紹介カード（テンプレート3×背景3の16:9 Canvas。描画は`CardRenderer`）。**運営者専用で試用中**（`adminGate()`）。一般公開の変更はブランチ`release/profile-card-public`に準備済み |
@@ -213,7 +213,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 56追加改修8（試用版） | 10-09 | 「推」バッジをピンクから落ち着いた紫に、文字は細字（標準の太さ）に。顔の縁（`OSHI`）とフォームの搭乗表示の色も紫にそろえた |
 | 56追加改修9（試用版） | 10-09 | 推しキャラの印を「推」から星に変更（紫の丸に白抜きの星。`oshiBadge`）。フォームの搭乗表示は「★」 |
 | 56追加改修10（試用版） | 10-09 | 推しキャラの星バッジ・顔の縁を虹色に（フォームの搭乗表示も虹色の文字）。推しユニットの左パネルの「得意タグ」（52案D-3）を廃止し推しキャラと同じ表示に（`by`の余白も40pxに戻した。`tagTrend`の計算とデータは残置・1位カードの特徴タグは据え置き）。ランク欄の「100以上は金…」の説明文を削除。推しキャラのタイプ・作品チップを名前の行数によらず同じ高さ（セット欄の区切り線のすぐ上）に |
-| 64 分析ページ拡張（推し統計・所持率分布）（運営者専用の試用） | 10-10 | ブランチ`feature/analytics-oshi-distribution`（**未push**。ユーザー指示で運営者専用の試用ページにした）。`worker.js`：`GET /api/analytics/oshi`・`GET /api/analytics/distribution?kind=`（どちらも`requireAdmin`。D1変更なし）、定数`OSHI_SLOT_POINTS`・`OSHI_RATE_MIN_OWNERS`。新ページ`analytics-trial.html`（`analytics.html`は無変更）、`top.html`運営者欄に導線。動画SQL`shorts/sql/export_oshi_data.sql`・`export_oshi_chars.sql`を63の定義にそろえ`score`列を追加（親リポジトリのブランチ`feature/oshi-sql-sync`・未push）。API検証はNode＋`node:sqlite`のハーネス（依頼書8章の1〜12・14の観点。無凸79機→90%以上を確認）、画面は320/390/1024px。**公開する場合**：`analytics-trial.html`の`adminGate()`除去・APIの`requireAdmin`→`getSessionUser`・`analytics.html`へのタブ統合（依頼書64の5章）。53・57の段階2のpush後に判断 |
+| 64 運営者向け分析（推し統計・所持率分布） | 10-10 | **ユーザー決定：今後も運営者専用（ESPのみ）**。。`worker.js`：`GET /api/analytics/oshi`・`GET /api/analytics/distribution?kind=`（どちらも`requireAdmin`。D1変更なし）、定数`OSHI_SLOT_POINTS`・`OSHI_RATE_MIN_OWNERS`。新ページ`analytics-admin.html`（`analytics.html`は無変更）、`top.html`運営者欄に導線。動画SQL`shorts/sql/export_oshi_data.sql`・`export_oshi_chars.sql`を63の定義にそろえ`score`列を追加。API検証はNode＋`node:sqlite`のハーネス（依頼書8章の1〜12・14の観点。無凸79機→90%以上を確認）、画面は320/390/1024px。一般公開の予定なし（公開するなら要再相談） |
 | ㊼ | 10-03 | エタロ攻略にステージ30（機動戦士Vガンダム）を追加：全30ステージ・71ミッション（`eternal-road.html`の表記・合計、一括達成の確認文は`stages.length`参照に）、`images/eternal-road/30.jpg`・`icon/30.jpg`（`scripts/make_eternal_road_icons.py`更新）、`worker.js`、`top.html`、自己紹介カード`profile-card.html`・`profile-card-trial.html`のエタロ分母を30に、`migrations/0023_eternal_road_stage30.sql`（ミッション301・302）。0023はD1適用済み（2026-10-03ユーザー確認）。本番確認が残り |
 
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>分析ページ拡張（試用） | Gジェネエターナル ファンツール</title>
+<title>運営者向け分析（推し統計・所持率分布） | Gジェネエターナル ファンツール</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
@@ -98,15 +98,15 @@
 </head>
 <body>
 <main class="wrap">
-  <p class="eyebrow">TRIAL / ADMIN ONLY</p>
-  <h1>分析ページ拡張（試用）</h1>
-  <p class="sub">推し統計と、URユニット・URサポートの所持率分布を試せる運営者専用のページです。一般公開の「データ登録結果レポート」には影響しません。</p>
+  <p class="eyebrow">ADMIN ONLY</p>
+  <h1>運営者向け分析</h1>
+  <p class="sub">推し統計と、URユニット・URサポートの所持率分布を見られる運営者専用のページです（ESPのみ参照可能）。一般公開の「データ登録結果レポート」とは別のページです。</p>
 
   <div id="guardView" class="guardCard" hidden>
     <p>この機能はログイン済みの方のみご利用いただけます。</p>
     <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
   </div>
-  <div id="adminOnlyView" class="stateMsg" hidden>分析ページ拡張は試用版のため、運営者専用ページです。一般向けは「データ登録結果レポート」をご利用ください。</div>
+  <div id="adminOnlyView" class="stateMsg" hidden>運営者専用ページです。一般向けは「データ登録結果レポート」をご利用ください。</div>
   <div id="loadingView" class="stateMsg">読み込み中...</div>
 
   <div id="contentView" hidden>
@@ -393,8 +393,8 @@
     });
   }
 
-  // 試用中は運営者専用：ログイン済みでも /api/admin/me が admin:true のときだけ本体を読み込む
-  // （profile-card-trial.html と同じ判定。公開するときは adminGate を外して init() を直接呼ぶ）
+  // 運営者専用（恒久）：ログイン済みでも /api/admin/me が admin:true のときだけ本体を読み込む。
+  // 運営者はwrangler.jsoncのADMIN_USERNAMES（現在ESPのみ）。APIも同じ判定（requireAdmin）で守っている
   async function adminGate(){
     try {
       const r = await fetch("/api/admin/me", { credentials: "same-origin" });

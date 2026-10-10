@@ -2030,7 +2030,7 @@ async function queryChallengeCounts(env) {
   return { totalUsers, missionRows, clearRows, perfectRows };
 }
 
-// ---- 分析ページ拡張（64）：推し統計・所持率分布（運営者専用の試用。analytics-trial.html から使う）----
+// ---- 分析ページ拡張（64）：推し統計・所持率分布（運営者専用・恒久。analytics-admin.html から使う）----
 const OSHI_SLOT_POINTS = [5, 4, 3, 2, 1];   // 推しの1〜5位の点数（63の1.1）
 const OSHI_RATE_MIN_OWNERS = 10;           // 推し率を出す所持者数の下限
 const DIST_BAND_LABELS = ["10%未満", "10%台", "20%台", "30%台", "40%台", "50%台", "60%台", "70%台", "80%台", "90%以上"];
@@ -2324,7 +2324,7 @@ export default {
     if (url.pathname === "/api/admin/report/ownership" && request.method === "GET") {
       return withJsonError(() => handleAdminReportOwnership(request, env, url), "report-ownership");
     }
-    // 64 分析ページ拡張（推し統計・所持率分布）。運営者専用（analytics-trial.html。APIもrequireAdminで守る）
+    // 64 分析ページ拡張（推し統計・所持率分布）。運営者専用・恒久（analytics-admin.html。APIもrequireAdminで守る。一般公開はしない）
     if (url.pathname === "/api/analytics/oshi" && request.method === "GET") {
       return withJsonError(() => handleAnalyticsOshi(request, env), "oshi");
     }
