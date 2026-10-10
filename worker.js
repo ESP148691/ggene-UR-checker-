@@ -2030,6 +2030,199 @@ async function queryChallengeCounts(env) {
   return { totalUsers, missionRows, clearRows, perfectRows };
 }
 
+// ---- 分析ページ拡張（64）：推し統計・所持率分布（運営者専用の試用。analytics-trial.html から使う）----
+const OSHI_SLOT_POINTS = [5, 4, 3, 2, 1];   // 推しの1〜5位の点数（63の1.1）
+const OSHI_RATE_MIN_OWNERS = 10;           // 推し率を出す所持者数の下限
+const DIST_BAND_LABELS = ["10%未満", "10%台", "20%台", "30%台", "40%台", "50%台", "60%台", "70%台", "80%台", "90%以上"];
+
+// (id, rnk, cnt) の行を id ごとの {users, bySlot, score, top1} にまとめる
+function tallyOshi(rows) {
+  const map = new Map();
+  for (const r of rows) {
+    const rnk = Number(r.rnk);
+    if (!(rnk >= 1 && rnk <= OSHI_SLOT_POINTS.length)) continue;
+    let e = map.get(r.id);
+    if (!e) { e = { id: r.id, users: 0, bySlot: OSHI_SLOT_POINTS.map(() => 0), score: 0, top1: 0 }; map.set(r.id, e); }
+    e.bySlot[rnk - 1] += r.cnt;
+    e.users += r.cnt;
+    e.score += r.cnt * OSHI_SLOT_POINTS[rnk - 1];
+  }
+  for (const e of map.values()) e.top1 = e.bySlot[0];
+  return map;
+}
+function compareOshi(a, b) {
+  return (b.score - a.score) || (b.top1 - a.top1) || (b.users - a.users) || (a.id - b.id);
+}
+
+// GET /api/analytics/oshi（運営者のみ）：推しユニット・推し作品・推しキャラ・推し編成の集計
+async function handleAnalyticsOshi(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
+  const uid = admin.userUid;
+  const q = (sql, ...args) => env.DB.prepare(sql).bind(...args).all().then(r => r.results || []);
+  const one = (sql, ...args) => env.DB.prepare(sql).bind(...args).first();
+
+  // --- 推しユニット（UR・今も所持しているものだけ。順位は詰め直す）
+  const unitValid = `WITH valid AS (
+      SELECT f.user_uid, f.unit_id, f.slot FROM user_favorite_units f
+      WHERE f.rarity_code = 1
+        AND EXISTS (SELECT 1 FROM units_ownership o WHERE o.user_uid = f.user_uid AND o.unit_id = f.unit_id)
+    ), ranked AS (
+      SELECT user_uid, unit_id, ROW_NUMBER() OVER (PARTITION BY user_uid ORDER BY slot) AS rnk FROM valid
+    )`;
+  const unitRows = await q(`${unitValid} SELECT unit_id AS id, rnk, COUNT(*) AS cnt FROM ranked GROUP BY unit_id, rnk`);
+  const unitTotal = (await one(`${unitValid} SELECT COUNT(DISTINCT user_uid) AS c FROM valid`)).c;
+  const unitMaster = new Map((await q(`SELECT unit_id, name, type, limited FROM units_master`)).map(r => [r.unit_id, r]));
+  const ownerMap = new Map((await q(
+    `SELECT o.unit_id AS id, COUNT(DISTINCT o.user_uid) AS owners
+     FROM units_ownership o JOIN users u ON u.user_uid = o.user_uid
+     WHERE u.units_first_registered_at IS NOT NULL GROUP BY o.unit_id`)).map(r => [r.id, r.owners]));
+  const unitItems = [];
+  for (const e of tallyOshi(unitRows).values()) {
+    const m = unitMaster.get(e.id);
+    if (!m) continue;
+    const owners = ownerMap.get(e.id) || 0;
+    unitItems.push({
+      key: `1:${e.id}`, rarityCode: 1, id: e.id, name: m.name, type: m.type, limited: !!m.limited,
+      score: e.score, users: e.users, top1: e.top1, bySlot: e.bySlot,
+      owners, oshiRate: owners >= OSHI_RATE_MIN_OWNERS ? e.users / owners : null
+    });
+  }
+  unitItems.sort(compareOshi);
+  const unitMine = (await q(`${unitValid} SELECT unit_id AS id FROM ranked WHERE user_uid = ? ORDER BY rnk`, uid)).map(r => `1:${r.id}`);
+
+  // --- 推し作品（所持の概念なし）
+  const workRows = await q(`SELECT work_id AS id, ROW_NUMBER() OVER (PARTITION BY user_uid ORDER BY slot) AS rnk, 1 AS cnt FROM user_favorite_works`);
+  const workTotal = (await one(`SELECT COUNT(DISTINCT user_uid) AS c FROM user_favorite_works`)).c;
+  const workMaster = new Map((await q(`SELECT work_id, name, short_name FROM works_master`)).map(r => [r.work_id, r]));
+  const workItems = [];
+  for (const e of tallyOshi(workRows).values()) {
+    const m = workMaster.get(e.id);
+    if (!m) continue;
+    workItems.push({ id: e.id, name: m.name, shortName: m.short_name, score: e.score, users: e.users, top1: e.top1, bySlot: e.bySlot });
+  }
+  workItems.sort(compareOshi);
+  const workMine = (await q(`SELECT work_id AS id FROM user_favorite_works WHERE user_uid = ? ORDER BY slot`, uid)).map(r => r.id);
+
+  // --- 推しキャラ（0033が無い環境では null）
+  let characters = null;
+  try {
+    const charValid = `WITH valid AS (
+        SELECT f.user_uid, f.char_id, f.slot FROM user_favorite_characters f
+        JOIN characters_master m ON m.char_id = f.char_id
+        WHERE m.set_unit_id IS NULL
+           OR (m.set_rarity_code = 1 AND EXISTS (SELECT 1 FROM units_ownership o WHERE o.user_uid = f.user_uid AND o.unit_id = m.set_unit_id))
+      ), ranked AS (
+        SELECT user_uid, char_id, ROW_NUMBER() OVER (PARTITION BY user_uid ORDER BY slot) AS rnk FROM valid
+      )`;
+    const rows = await q(`${charValid} SELECT char_id AS id, rnk, COUNT(*) AS cnt FROM ranked GROUP BY char_id, rnk`);
+    const total = (await one(`${charValid} SELECT COUNT(DISTINCT user_uid) AS c FROM valid`)).c;
+    const master = new Map((await q(`SELECT char_id, name, set_unit_id, type, work_id FROM characters_master`)).map(r => [r.char_id, r]));
+    const items = [];
+    for (const e of tallyOshi(rows).values()) {
+      const m = master.get(e.id);
+      if (!m) continue;
+      items.push({ id: e.id, name: m.name, setUnitId: m.set_unit_id, type: m.type, workId: m.work_id, score: e.score, users: e.users, top1: e.top1, bySlot: e.bySlot });
+    }
+    items.sort(compareOshi);
+    const mine = (await q(`${charValid} SELECT char_id AS id FROM ranked WHERE user_uid = ? ORDER BY rnk`, uid)).map(r => r.id);
+    characters = { totalUsers: total, items, mine };
+  } catch (e) { console.error("analytics oshi characters error", e); characters = null; }
+
+  // --- 推し編成（0029が無い環境では null）
+  let formations = null;
+  try {
+    const leaderCond = `f.supporter_id IS NOT NULL
+      AND EXISTS (SELECT 1 FROM supporters_ownership o WHERE o.user_uid = f.user_uid AND o.supporter_id = f.supporter_id)`;
+    const unitCond = `fu.rarity_code = 1
+      AND EXISTS (SELECT 1 FROM units_ownership o WHERE o.user_uid = fu.user_uid AND o.unit_id = fu.unit_id)`;
+    const total = (await one(`SELECT COUNT(DISTINCT user_uid) AS c FROM user_formations`)).c;
+    const withLeader = (await one(`SELECT COUNT(DISTINCT f.user_uid) AS c FROM user_formations f WHERE ${leaderCond}`)).c;
+    const leaderRows = await q(`SELECT f.supporter_id AS id, COUNT(DISTINCT f.user_uid) AS users FROM user_formations f WHERE ${leaderCond} GROUP BY f.supporter_id`);
+    const unitFRows = await q(`SELECT fu.unit_id AS id, COUNT(DISTINCT fu.user_uid) AS users FROM user_formation_units fu WHERE ${unitCond} GROUP BY fu.unit_id`);
+    const supMaster = new Map((await q(`SELECT supporter_id, name, limited FROM supporters_master`)).map(r => [r.supporter_id, r]));
+    const byUsers = (a, b) => (b.users - a.users) || (a.id - b.id);
+    const leaders = leaderRows.filter(r => supMaster.has(r.id)).map(r => {
+      const m = supMaster.get(r.id);
+      return { id: r.id, name: m.name, limited: !!m.limited, users: r.users };
+    }).sort(byUsers);
+    const units = unitFRows.filter(r => unitMaster.has(r.id)).map(r => {
+      const m = unitMaster.get(r.id);
+      return { key: `1:${r.id}`, rarityCode: 1, id: r.id, name: m.name, type: m.type, limited: !!m.limited, users: r.users };
+    }).sort(byUsers);
+    const mineLeaders = (await q(`SELECT f.supporter_id AS id FROM user_formations f WHERE f.user_uid = ? AND ${leaderCond} ORDER BY f.formation_no`, uid)).map(r => r.id);
+    const mineUnits = (await q(`SELECT fu.unit_id AS id FROM user_formation_units fu WHERE fu.user_uid = ? AND ${unitCond} ORDER BY fu.formation_no, fu.slot`, uid)).map(r => `1:${r.id}`);
+    formations = { totalUsers: total, noLeaderUsers: total - withLeader, leaders, units, mine: { leaders: mineLeaders, units: mineUnits } };
+  } catch (e) { console.error("analytics oshi formations error", e); formations = null; }
+
+  return jsonResponse({
+    points: OSHI_SLOT_POINTS,
+    units: { totalUsers: unitTotal, items: unitItems, mine: unitMine },
+    works: { totalUsers: workTotal, items: workItems, mine: workMine },
+    characters,
+    formations
+  }, 200);
+}
+
+// GET /api/analytics/distribution?kind=unit|supporter（運営者のみ）：所持率の分布（10%刻み）
+async function handleAnalyticsDistribution(request, env, url) {
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
+  const kind = url.searchParams.get("kind");
+  if (kind !== "unit" && kind !== "supporter") return jsonResponse({ error: "invalid_params" }, 400);
+  const isSup = kind === "supporter";
+  const master = isSup ? "supporters_master" : "units_master";
+  const own = isSup ? "supporters_ownership" : "units_ownership";
+  const idc = isSup ? "supporter_id" : "unit_id";
+  const reg = isSup ? "supporters_first_registered_at" : "units_first_registered_at";
+
+  const totalItems = (await env.DB.prepare(`SELECT COUNT(*) AS c FROM ${master}`).first()).c;
+  // level は問わない（行がある＝所持。level 0 は無凸）
+  const { results } = await env.DB.prepare(
+    `SELECT u.user_uid AS uid, COUNT(m.${idc}) AS owned
+     FROM users u
+     LEFT JOIN ${own} o ON o.user_uid = u.user_uid
+     LEFT JOIN ${master} m ON m.${idc} = o.${idc}
+     WHERE u.${reg} IS NOT NULL
+     GROUP BY u.user_uid`
+  ).all();
+  const rows = results || [];
+  const totalUsers = rows.length;
+
+  const counts = new Array(10).fill(0);
+  const rates = [];
+  let mineOwned = null;
+  for (const r of rows) {
+    const band = totalItems > 0 ? Math.min(9, Math.floor(r.owned * 10 / totalItems)) : 0;
+    counts[band]++;
+    rates.push(totalItems > 0 ? r.owned * 100 / totalItems : 0);
+    if (r.uid === admin.userUid) mineOwned = r.owned;
+  }
+  const bands = [];
+  for (let b = 9; b >= 0; b--) {
+    bands.push({ band: b, label: DIST_BAND_LABELS[b], users: counts[b], share: totalUsers > 0 ? counts[b] / totalUsers : 0 });
+  }
+  let avgRate = null, medianRate = null;
+  if (totalUsers > 0) {
+    const r1 = x => Math.round(x * 10) / 10;
+    avgRate = r1(rates.reduce((a, b) => a + b, 0) / totalUsers);
+    const s = rates.slice().sort((a, b) => a - b);
+    const mid = Math.floor(totalUsers / 2);
+    medianRate = r1(totalUsers % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2);
+  }
+  let mine = { registered: false };
+  if (mineOwned !== null) {
+    const higher = rows.filter(r => r.owned > mineOwned).length;
+    mine = {
+      registered: true, owned: mineOwned,
+      rate: totalItems > 0 ? Math.floor(mineOwned * 100 / totalItems) : 0,
+      band: totalItems > 0 ? Math.min(9, Math.floor(mineOwned * 10 / totalItems)) : 0,
+      topPercent: Math.ceil((higher + 1) / totalUsers * 100)
+    };
+  }
+  return jsonResponse({ kind, totalUsers, totalItems, bands, avgRate, medianRate, mine }, 200);
+}
+
 async function withJsonError(fn, label) {
   try {
     return await fn();
@@ -2130,6 +2323,13 @@ export default {
     // ㉘ X投稿用レポート（6種類）の共通データ。weeklyはreport.htmlから使わなくなったが互換のため残す
     if (url.pathname === "/api/admin/report/ownership" && request.method === "GET") {
       return withJsonError(() => handleAdminReportOwnership(request, env, url), "report-ownership");
+    }
+    // 64 分析ページ拡張（推し統計・所持率分布）。運営者専用（analytics-trial.html。APIもrequireAdminで守る）
+    if (url.pathname === "/api/analytics/oshi" && request.method === "GET") {
+      return withJsonError(() => handleAnalyticsOshi(request, env), "oshi");
+    }
+    if (url.pathname === "/api/analytics/distribution" && request.method === "GET") {
+      return withJsonError(() => handleAnalyticsDistribution(request, env, url), "distribution");
     }
     if (url.pathname === "/api/analytics/trend" && request.method === "GET") {
       return withJsonError(() => handleAnalyticsTrend(request, env, url), "trend");

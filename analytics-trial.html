@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分析ページ拡張（試用） | Gジェネエターナル ファンツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+<style>
+  :root{
+    --void:#05070d; --panel:rgba(16,22,32,.68); --panel-2:#0e141d; --panel-solid:#121924;
+    --line:rgba(107,224,224,.16); --line-strong:rgba(140,160,180,.28);
+    --gold:#dab949; --gold-dim:#8a7128; --cyan:#6be0e0; --cyan-dim:#3f8f8f;
+    --text:#eef3f6; --muted:#93a3b3;
+    /* 1〜5位の積み上げ棒の色。analytics.html のティアリストの帯の色を流用 */
+    --s1:#6be0e0; --s2:#4fbcbf; --s3:#3b9599; --s4:#2e6f75; --s5:#24515a;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{margin:0;background:var(--void);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100%;-webkit-font-smoothing:antialiased;}
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 60vmax 60vmax at 10% -10%, rgba(122,95,207,.28), transparent 60%),
+      radial-gradient(ellipse 55vmax 55vmax at 110% 10%, rgba(52,224,177,.16), transparent 60%),
+      radial-gradient(ellipse 70vmax 70vmax at 50% 120%, rgba(44,63,122,.35), transparent 60%);
+  }
+  main.wrap{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 18px calc(48px + env(safe-area-inset-bottom,0px));}
+  .eyebrow{font-family:'Share Tech Mono',monospace;letter-spacing:.16em;font-size:11px;color:var(--cyan);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin:0 0 14px;opacity:.9;}
+  .eyebrow::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);display:inline-block;border-radius:1px;}
+  h1{font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:23px;margin:0 0 12px;word-break:keep-all;overflow-wrap:break-word;}
+  .sub{color:#c7d2dc;font-size:13.5px;margin:0 0 22px;line-height:1.85;word-break:keep-all;overflow-wrap:break-word;}
+  .stateMsg{color:var(--muted);font-size:12.5px;text-align:center;padding:28px 0;}
+  .guardCard{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:28px 22px;text-align:center;}
+  .guardCard p{color:var(--muted);font-size:13px;line-height:1.8;margin:0 0 18px;}
+  .guardCard button{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border:1px solid var(--gold);border-radius:3px;padding:10px 26px;cursor:pointer;}
+
+  /* タブ：320pxで収まらなければ折り返す（横スクロールしない） */
+  .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;}
+  .tabs button{flex:1 1 30%;min-width:0;font-family:'Rajdhani','Noto Sans JP',sans-serif;font-weight:700;font-size:14px;background:var(--panel-2);border:1px solid var(--line-strong);color:var(--muted);padding:10px 6px;cursor:pointer;border-radius:4px;}
+  .tabs button.active{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold);}
+  .subtabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;}
+  .chip{font-family:'Rajdhani','Noto Sans JP',sans-serif;font-weight:600;font-size:12px;background:var(--panel-2);border:1px solid var(--line-strong);color:var(--muted);padding:5px 11px;border-radius:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+  .chip.active{background:linear-gradient(135deg,var(--cyan),var(--cyan-dim));color:#04262b;border-color:var(--cyan);font-weight:700;}
+  .filterRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;}
+  .filterLabel{font-size:11.5px;color:var(--muted);flex:0 0 auto;}
+  .note{font-size:11.5px;color:var(--muted);background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;padding:9px 12px;margin:0 0 12px;line-height:1.75;}
+  .note strong{color:var(--cyan);font-family:'Share Tech Mono',monospace;font-weight:400;}
+  .note.warn{border-color:var(--gold-dim);color:#d9c77a;}
+  .legend{font-size:11px;color:var(--muted);margin:0 0 10px;display:flex;gap:6px 12px;flex-wrap:wrap;align-items:center;}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px;}
+
+  /* 推しの行 */
+  .oList{display:flex;flex-direction:column;gap:8px;}
+  .oRow{display:block;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:9px 10px;cursor:pointer;color:inherit;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+  .oRow:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
+  .oRow.mine{border-color:var(--gold-dim);}
+  .oTop{display:grid;grid-template-columns:2.2em 44px 1fr auto;gap:8px;align-items:center;}
+  .oRank{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--cyan);text-align:center;}
+  .oImg{width:44px;height:44px;border-radius:6px;overflow:hidden;background:var(--panel-solid);border:1px solid var(--line-strong);}
+  .oImg img{width:100%;height:100%;object-fit:cover;display:block;}
+  .oImg.series{background:#fff1;}
+  .oImg.series img{object-fit:contain;}
+  .oName{min-width:0;font-size:13px;font-weight:700;line-height:1.35;word-break:break-all;}
+  .oName small{display:block;font-size:10.5px;font-weight:400;color:var(--muted);margin-top:2px;}
+  .badge{font-size:9px;font-weight:700;background:var(--gold);color:#1b1503;border-radius:2px;padding:1px 3px;margin-right:4px;font-family:'Share Tech Mono',monospace;vertical-align:1px;}
+  .oVal{text-align:right;font-family:'Share Tech Mono',monospace;font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .oVal small{display:block;font-size:10.5px;color:var(--muted);}
+  .oVal .chk{color:var(--gold);}
+  .oBar{display:flex;height:8px;margin:8px 0 0;border-radius:0 4px 4px 0;overflow:hidden;background:rgba(147,163,179,.14);}
+  .oBar span{display:block;height:100%;}
+  .oDetail{margin:8px 0 0;font-size:11.5px;color:var(--muted);line-height:1.8;border-top:1px solid var(--line);padding-top:8px;}
+  .oDetail span{white-space:nowrap;margin-right:10px;}
+  .moreBtn{display:block;margin:12px auto 0;}
+  .secHead{font-size:12px;color:var(--muted);margin:14px 0 8px;}
+
+  /* 所持率分布 */
+  .distHead{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;margin:0 0 12px;}
+  .distHead .big{font-size:16px;font-weight:700;line-height:1.5;}
+  .distHead .big b{color:var(--gold);font-family:'Share Tech Mono',monospace;font-weight:400;font-size:22px;}
+  .distHead .meta{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.8;}
+  .dRow{display:grid;grid-template-columns:5.2em 1fr 8.5em;gap:8px;align-items:center;font-size:12px;margin:0 0 7px;padding:3px 4px;border-radius:4px;border:1px solid transparent;}
+  .dRow.mine{border-color:var(--gold);background:rgba(218,185,73,.08);}
+  .dTrack{height:14px;background:rgba(147,163,179,.14);border-radius:0 4px 4px 0;overflow:hidden;}
+  .dFill{display:block;height:100%;background:var(--cyan-dim);}
+  .dRow.mine .dFill{background:var(--gold);}
+  .dVal{font-family:'Share Tech Mono',monospace;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .dVal small{color:var(--muted);margin-left:3px;}
+  @media (max-width:380px){ .dRow{grid-template-columns:4.6em 1fr 7.4em;gap:5px;font-size:11px;} }
+
+  .pageFooter{margin-top:36px;padding-top:16px;border-top:1px solid var(--line);font-size:10.5px;line-height:1.9;color:var(--muted);}
+  .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
+  .pageFooter a{color:var(--cyan);text-decoration:none;}
+  [hidden]{display:none !important;}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="eyebrow">TRIAL / ADMIN ONLY</p>
+  <h1>分析ページ拡張（試用）</h1>
+  <p class="sub">推し統計と、URユニット・URサポートの所持率分布を試せる運営者専用のページです。一般公開の「データ登録結果レポート」には影響しません。</p>
+
+  <div id="guardView" class="guardCard" hidden>
+    <p>この機能はログイン済みの方のみご利用いただけます。</p>
+    <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
+  </div>
+  <div id="adminOnlyView" class="stateMsg" hidden>分析ページ拡張は試用版のため、運営者専用ページです。一般向けは「データ登録結果レポート」をご利用ください。</div>
+  <div id="loadingView" class="stateMsg">読み込み中...</div>
+
+  <div id="contentView" hidden>
+    <div class="tabs">
+      <button type="button" data-tab="oshi" class="active">推し統計</button>
+      <button type="button" data-tab="dist-unit">URユニット所持率分布</button>
+      <button type="button" data-tab="dist-supporter">URサポート所持率分布</button>
+    </div>
+
+    <section id="areaOshi">
+      <div class="subtabs" id="subtabs"></div>
+      <div class="filterRow" id="sortRow">
+        <span class="filterLabel" id="sortLabel">並び順</span>
+        <div class="subtabs" id="sortChips" style="margin:0"></div>
+      </div>
+      <div class="note" id="oshiNote"></div>
+      <div class="note warn" id="oshiFew" hidden>集計対象が少ないため参考値です</div>
+      <div class="legend" id="oshiLegend"></div>
+      <div id="oshiMsg" class="stateMsg" hidden></div>
+      <div id="oshiList" class="oList"></div>
+      <button type="button" class="chip moreBtn" id="moreBtn" hidden>すべて表示</button>
+    </section>
+
+    <section id="areaDist" hidden>
+      <div id="distMsg" class="stateMsg" hidden></div>
+      <div id="distBody">
+        <div class="note" id="distSync" hidden>所持データがまだ登録されていません。チェッカーで所持データを登録すると、ここに反映されます</div>
+        <div class="distHead">
+          <div class="big" id="distMine"></div>
+          <div class="meta" id="distMeta"></div>
+        </div>
+        <div id="distBars"></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="errorView" class="stateMsg" hidden>データの取得に失敗しました。時間をおいて再度お試しください。</div>
+
+  <footer class="pageFooter">
+    <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
+    <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
+    <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+  </footer>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const SLOT_COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
+  const FEW_USERS = 30;       // 集計対象がこれ未満なら「参考値」
+  const INITIAL_ROWS = 30;
+  const CATS = [
+    { key: "units", label: "推しユニット", unit: "ユニット" },
+    { key: "works", label: "推し作品", unit: "作品" },
+    { key: "characters", label: "推しキャラ", unit: "キャラ" },
+    { key: "formations", label: "推し編成", unit: "編成" }
+  ];
+
+  let oshi = null;            // /api/analytics/oshi の結果（初回表示時に1回だけ取得）
+  let oshiLoading = false;
+  const dist = {};            // kind → 結果
+  const ui = { tab: "oshi", cat: "units", sort: "score", fmode: "leaders", showAll: false };
+
+  function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+  function pct(n, d){ return d > 0 ? Math.round(n * 1000 / d) / 10 : 0; }
+  function fmtPct(share){ return (Math.round(share * 1000) / 10).toFixed(1) + "%"; }
+  function show(id, on){ $(id).hidden = !on; }
+
+  // ---------- 起動 ----------
+  function showGuard(){ show("loadingView", false); show("guardView", true); }
+  function showAdminOnly(){ show("loadingView", false); show("adminOnlyView", true); }
+  function init(){
+    show("loadingView", false); show("contentView", true);
+    document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => selectTab(b.dataset.tab)));
+    $("moreBtn").addEventListener("click", () => { ui.showAll = true; renderOshi(); });
+    $("guardLoginBtn").addEventListener("click", () => { const l = $("authOpenLink"); if (l) l.click(); });
+    selectTab("oshi");
+  }
+  function selectTab(tab){
+    ui.tab = tab;
+    document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+    show("areaOshi", tab === "oshi"); show("areaDist", tab !== "oshi");
+    show("errorView", false);
+    if (tab === "oshi") loadOshi(); else loadDist(tab === "dist-unit" ? "unit" : "supporter");
+  }
+
+  // ---------- 推し統計 ----------
+  function loadOshi(){
+    if (oshi) { renderOshi(); return; }
+    if (oshiLoading) return;
+    oshiLoading = true;
+    $("oshiMsg").textContent = "読み込み中..."; show("oshiMsg", true);
+    fetch("/api/analytics/oshi", { credentials: "same-origin" })
+      .then(r => { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+      .then(d => { oshi = d; oshiLoading = false; renderOshi(); })
+      .catch(() => { oshiLoading = false; show("oshiMsg", false); show("errorView", true); });
+  }
+  function renderSubtabs(){
+    const box = $("subtabs"); box.textContent = "";
+    CATS.forEach(c => {
+      const b = el("button", "chip" + (c.key === ui.cat ? " active" : ""), c.label);
+      b.type = "button";
+      b.addEventListener("click", () => { ui.cat = c.key; ui.sort = "score"; ui.showAll = false; renderOshi(); });
+      box.appendChild(b);
+    });
+  }
+  function renderSortChips(){
+    const box = $("sortChips"); box.textContent = "";
+    let opts;
+    if (ui.cat === "formations") {
+      $("sortLabel").textContent = "表示";
+      opts = [["leaders", "リーダー人気"], ["units", "編成されたユニット"]];
+    } else {
+      $("sortLabel").textContent = "並び順";
+      opts = [["score", "総合"], ["top1", "1位の数"]];
+      if (ui.cat === "units") opts.push(["rate", "推し率"]);
+    }
+    const cur = ui.cat === "formations" ? ui.fmode : ui.sort;
+    opts.forEach(([k, label]) => {
+      const b = el("button", "chip" + (k === cur ? " active" : ""), label);
+      b.type = "button";
+      b.addEventListener("click", () => { if (ui.cat === "formations") ui.fmode = k; else ui.sort = k; ui.showAll = false; renderOshi(); });
+      box.appendChild(b);
+    });
+  }
+  // 並べ替えと同順位の付与（並べ替えキーが全部同じなら同順位：1,2,2,4…）
+  function sortedWithRank(items, keyFns){
+    const arr = items.slice();
+    arr.sort((a, b) => {
+      for (const f of keyFns) { const d = f(b) - f(a); if (d) return d; }
+      return (a.id || 0) - (b.id || 0);
+    });
+    let prev = null, rank = 0;
+    return arr.map((it, i) => {
+      const k = keyFns.map(f => f(it)).join("|");
+      if (k !== prev) { rank = i + 1; prev = k; }
+      return { it, rank };
+    });
+  }
+  function imgSrc(cat, it){
+    if (cat === "units") return "images/units/" + it.id + ".jpg";
+    if (cat === "works") return "images/series/" + it.id + ".png";
+    if (cat === "characters") return "images/characters/" + it.id + ".jpg";
+    return null;
+  }
+  function makeRow(cat, it, rank, opt){
+    const row = el("button", "oRow" + (opt.mine ? " mine" : ""));
+    row.type = "button";
+    const top = el("div", "oTop");
+    top.appendChild(el("div", "oRank", String(rank)));
+    const imgBox = el("div", "oImg" + (cat === "works" ? " series" : ""));
+    const src = opt.img;
+    if (src) { const im = el("img"); im.src = src; im.alt = ""; im.loading = "lazy"; im.addEventListener("error", () => { im.remove(); }); imgBox.appendChild(im); }
+    top.appendChild(imgBox);
+    const name = el("div", "oName");
+    if (it.limited) name.appendChild(el("span", "badge", "限"));
+    name.appendChild(document.createTextNode(opt.name));
+    if (opt.sub) name.appendChild(el("small", "", opt.sub));
+    top.appendChild(name);
+    const val = el("div", "oVal");
+    if (opt.mine) val.appendChild(el("span", "chk", "✓ "));
+    val.appendChild(document.createTextNode(opt.main));
+    val.appendChild(el("small", "", opt.subVal));
+    top.appendChild(val);
+    row.appendChild(top);
+    let detail = null;
+    if (it.bySlot) {
+      const bar = el("div", "oBar");
+      const sum = it.bySlot.reduce((a, b) => a + b, 0) || 1;
+      it.bySlot.forEach((n, i) => {
+        if (!n) return;
+        const s = el("span"); s.style.width = (n * 100 / sum) + "%"; s.style.background = SLOT_COLORS[i]; bar.appendChild(s);
+      });
+      row.appendChild(bar);
+      detail = el("div", "oDetail");
+      it.bySlot.forEach((n, i) => detail.appendChild(el("span", "", (i + 1) + "位 " + n + "人")));
+      detail.hidden = true;
+      row.appendChild(detail);
+      row.addEventListener("click", () => { detail.hidden = !detail.hidden; });
+    }
+    return row;
+  }
+  function renderOshi(){
+    show("oshiMsg", false);
+    renderSubtabs(); renderSortChips();
+    const list = $("oshiList"); list.textContent = "";
+    show("moreBtn", false);
+    const cat = ui.cat;
+    const data = oshi[cat];
+    const catInfo = CATS.find(c => c.key === cat);
+    const pts = oshi.points || [5, 4, 3, 2, 1];
+    $("oshiLegend").textContent = "";
+    if (!data) {
+      $("oshiNote").textContent = catInfo.label + "は準備中です";
+      show("oshiFew", false);
+      return;
+    }
+    const isForm = cat === "formations";
+    const total = data.totalUsers;
+    const note = $("oshiNote"); note.textContent = "";
+    const label = isForm ? "推し編成" : catInfo.label;
+    note.appendChild(document.createTextNode("集計対象：" + label + "を設定した "));
+    note.appendChild(el("strong", "", String(total)));
+    note.appendChild(document.createTextNode(" 人" + (isForm ? "" : "（" + pts.map((p, i) => (i + 1) + "位" + p + "点").join("・") + "）")));
+    if (isForm && data.noLeaderUsers > 0) note.appendChild(document.createTextNode("　※リーダー未設定 " + data.noLeaderUsers + "人"));
+    show("oshiFew", total < FEW_USERS);
+    if (!isForm) {
+      const lg = $("oshiLegend");
+      SLOT_COLORS.forEach((c, i) => { const s = el("span"); const k = el("i"); k.style.background = c; s.appendChild(k); s.appendChild(document.createTextNode((i + 1) + "位")); lg.appendChild(s); });
+      lg.appendChild(el("span", "", "✓＝自分が設定"));
+    } else {
+      $("oshiLegend").appendChild(el("span", "", "✓＝自分の編成に含む　限＝期間限定"));
+    }
+
+    let rows = [];
+    if (isForm) {
+      const arr = ui.fmode === "leaders" ? data.leaders : data.units;
+      const mineSet = new Set(ui.fmode === "leaders" ? data.mine.leaders : data.mine.units);
+      const withRank = sortedWithRank(arr.map(x => Object.assign({ _k: x.key || x.id }, x)), [x => x.users]);
+      rows = withRank.map(({ it, rank }) => makeRow(ui.fmode === "leaders" ? "supporters" : "units", it, rank, {
+        mine: mineSet.has(it.key || it.id), name: it.name, sub: it.type || "",
+        img: ui.fmode === "leaders" ? "images/supporters/" + it.id + ".jpg" : "images/units/" + it.id + ".jpg",
+        main: it.users + "人", subVal: fmtPct(total ? it.users / total : 0)
+      }));
+    } else {
+      let items = data.items;
+      let keys;
+      if (ui.sort === "top1") keys = [x => x.top1, x => x.score];
+      else if (ui.sort === "rate") { items = items.filter(x => x.oshiRate !== null && x.oshiRate !== undefined); keys = [x => x.oshiRate, x => x.users]; }
+      else keys = [x => x.score, x => x.top1, x => x.users];
+      const mineSet = new Set(data.mine);
+      const withRank = sortedWithRank(items, keys);
+      rows = withRank.map(({ it, rank }) => {
+        const id = cat === "units" ? it.key : it.id;
+        let main, subVal;
+        if (ui.sort === "top1") { main = it.top1 + "人"; subVal = "1位（" + it.score + "点）"; }
+        else if (ui.sort === "rate") { main = fmtPct(it.oshiRate); subVal = it.users + "/" + it.owners + "人"; }
+        else { main = it.score + "点"; subVal = it.users + "人 " + fmtPct(total ? it.users / total : 0); }
+        const sub = cat === "units" ? (it.type || "") : (cat === "works" ? "" : (it.type || ""));
+        return makeRow(cat, it, rank, { mine: mineSet.has(id), name: cat === "works" ? (it.shortName || it.name) : it.name, sub, img: imgSrc(cat, it), main, subVal });
+      });
+    }
+    if (!rows.length) {
+      $("oshiMsg").textContent = ui.sort === "rate" ? "推し率を出せるユニットがまだありません（所持者" + 10 + "人以上が対象）" : "まだデータがありません";
+      show("oshiMsg", true);
+      return;
+    }
+    const limit = ui.showAll ? rows.length : INITIAL_ROWS;
+    rows.slice(0, limit).forEach(r => list.appendChild(r));
+    if (rows.length > limit) { $("moreBtn").textContent = "すべて表示（" + rows.length + "件）"; show("moreBtn", true); }
+  }
+
+  // ---------- 所持率分布 ----------
+  function loadDist(kind){
+    if (dist[kind]) { renderDist(kind); return; }
+    $("distMsg").textContent = "読み込み中..."; show("distMsg", true); show("distBody", false);
+    fetch("/api/analytics/distribution?kind=" + kind, { credentials: "same-origin" })
+      .then(r => { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+      .then(d => { dist[kind] = d; if (ui.tab === (kind === "unit" ? "dist-unit" : "dist-supporter")) renderDist(kind); })
+      .catch(() => { show("distMsg", false); show("errorView", true); });
+  }
+  function renderDist(kind){
+    const d = dist[kind];
+    const word = kind === "unit" ? "機" : "体";
+    show("distMsg", false); show("distBody", true);
+    const mine = d.mine || { registered: false };
+    show("distSync", !mine.registered);
+    const big = $("distMine"); big.textContent = "";
+    if (mine.registered) {
+      big.appendChild(document.createTextNode("あなたの所持率 "));
+      big.appendChild(el("b", "", mine.rate + "%"));
+      big.appendChild(document.createTextNode("（" + mine.owned + word + "／" + d.totalItems + word + "）・上位" + mine.topPercent + "%"));
+    } else big.appendChild(document.createTextNode("あなたの所持率はデータ登録後に表示されます"));
+    $("distMeta").textContent = "集計対象 " + d.totalUsers + "人　平均 " + (d.avgRate === null ? "-" : d.avgRate + "%") + "　中央値 " + (d.medianRate === null ? "-" : d.medianRate + "%");
+    const bars = $("distBars"); bars.textContent = "";
+    const max = Math.max(1, ...d.bands.map(b => b.users));
+    d.bands.forEach(b => {
+      const row = el("div", "dRow" + (mine.registered && mine.band === b.band ? " mine" : ""));
+      row.appendChild(el("div", "", b.label));
+      const tr = el("div", "dTrack"); const f = el("span", "dFill"); f.style.width = (b.users * 100 / max) + "%"; tr.appendChild(f); row.appendChild(tr);
+      const v = el("div", "dVal", b.users + "人"); v.appendChild(el("small", "", fmtPct(b.share))); row.appendChild(v);
+      bars.appendChild(row);
+    });
+  }
+
+  // 試用中は運営者専用：ログイン済みでも /api/admin/me が admin:true のときだけ本体を読み込む
+  // （profile-card-trial.html と同じ判定。公開するときは adminGate を外して init() を直接呼ぶ）
+  async function adminGate(){
+    try {
+      const r = await fetch("/api/admin/me", { credentials: "same-origin" });
+      const d = await r.json();
+      if (d && d.admin === true) init(); else showAdminOnly();
+    } catch (e) { showAdminOnly(); }
+  }
+  fetch("/api/me", { credentials: "same-origin" })
+    .then(r => r.json())
+    .then(d => { if (d && d.loggedIn) adminGate(); else showGuard(); })
+    .catch(showGuard);
+  $("guardLoginBtn").addEventListener("click", () => { const l = $("authOpenLink"); if (l) l.click(); });
+})();
+</script>
+<script src="auth.js" defer></script>
+</body>
+</html>
