@@ -1,0 +1,87 @@
+/* favorite-form.css（68）：推し4欄（推し作品・推しユニット・推しキャラ・推し編成）と乗せ替え画面のスタイル。
+ * profile-card*.html・favorite-info.html 共通。.section・.seg・.hint・.field・.fieldLabel・.stateMsg・:rootの色変数はページ側に置く */
+  .acqOpts{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);}
+  .acqOpts .chk{display:inline-flex;align-items:center;gap:6px;margin:4px 16px 0 0;font-size:13px;cursor:pointer;}
+  .acqOpts .chk input{width:16px;height:16px;accent-color:var(--gold);}
+  /* 推し作品・推しユニット：選択済みリスト */
+  .picked{display:flex;flex-direction:column;gap:6px;margin:0 0 10px;}
+  .picked .empty{font-size:12px;color:var(--muted);padding:6px 0;}
+  .pickedRow{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:5px;padding:6px 8px;}
+  .pickedRow .no{font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;width:1.6em;flex:0 0 auto;}
+  .pickedRow .logo{width:64px;height:28px;object-fit:contain;background:#c6c7d6;border-radius:4px;flex:0 0 auto;}
+  .pickedRow .thumb{width:36px;height:36px;object-fit:cover;border-radius:4px;flex:0 0 auto;border:1px solid var(--line-strong);}
+  .pickedRow .nm{flex:1;min-width:0;font-size:12.5px;line-height:1.4;overflow-wrap:anywhere;}
+  .pickedRow .nm small{display:block;color:var(--muted);font-size:10.5px;}
+  .eraChip{display:inline-block;font-size:10px;border:1px solid currentColor;border-radius:3px;padding:0 5px;margin-right:4px;}
+  .eraChip.UC{color:var(--gold);} .eraChip.ALT{color:var(--cyan);} .eraChip.ETC{color:var(--violet);}
+  .pickedRow .ops{display:flex;gap:3px;flex:0 0 auto;}
+  .pickedRow .ops button{
+    width:28px;height:28px;padding:0;font-size:12px;color:var(--text);background:transparent;
+    border:1px solid var(--line-strong);border-radius:3px;cursor:pointer;
+  }
+  .pickedRow .ops button:disabled{opacity:.3;cursor:default;}
+
+
+  /* ピッカー */
+  .pickTabs{display:flex;gap:4px;margin:0 0 8px;}
+  .pickTabs button{
+    flex:1;min-width:0;font:inherit;font-size:12px;font-weight:700;color:var(--muted);background:transparent;
+    border:none;border-bottom:2px solid var(--line-strong);padding:7px 2px;cursor:pointer;white-space:nowrap;
+  }
+  .pickTabs button.active{color:var(--gold);border-bottom-color:var(--gold);}
+  .pickList{max-height:360px;overflow-y:auto;border:1px solid var(--line);border-radius:5px;background:rgba(5,7,13,.35);}
+  .pickHead{position:sticky;top:0;z-index:1;font-size:11px;color:var(--cyan);background:#0b1119;padding:5px 10px;border-bottom:1px solid var(--line);}
+  .pickItem{
+    display:flex;align-items:center;gap:9px;width:100%;text-align:left;font:inherit;color:var(--text);
+    background:transparent;border:none;border-bottom:1px solid rgba(107,224,224,.07);padding:7px 10px;cursor:pointer;
+  }
+  .pickItem:disabled{opacity:.35;cursor:not-allowed;}
+  .pickItem.sel{background:rgba(218,185,73,.12);}
+  .pickItem .logo{width:73px;height:32px;object-fit:contain;background:#c6c7d6;border-radius:4px;flex:0 0 auto;}
+  .pickItem .thumb{width:40px;height:40px;object-fit:cover;border-radius:4px;flex:0 0 auto;border:1px solid var(--line-strong);}
+  .pickItem .nm{flex:1;min-width:0;font-size:12.5px;line-height:1.45;overflow-wrap:anywhere;}
+  .pickItem .nm small{display:block;font-family:'Share Tech Mono',monospace;color:var(--muted);font-size:10.5px;}
+  .pickItem .mark{flex:0 0 auto;width:20px;text-align:center;color:var(--gold);font-weight:700;}
+  .filterRow{display:flex;gap:8px;margin:0 0 8px;}
+  /* 51 推し編成フォーム */
+  .fmSlot{display:flex;align-items:center;gap:8px;margin:0 0 8px;}
+  .fmSlot .no{flex:0 0 24px;font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;}
+  .fmSlot select{flex:1;min-width:0;}
+  /* 66 枠ごとの凸と「n体目」（ユニット選択のすぐ下の行） */
+  .fmOpt{display:flex;align-items:center;gap:8px;margin:-2px 0 6px 32px;font-size:12px;color:var(--muted);}
+  .fmOpt select{flex:0 0 auto;width:auto;min-width:8.5em;font-size:13px;padding:4px 6px;}
+  .fmOpt .dup{flex:0 0 auto;font-size:11px;color:var(--gold);border:1px solid var(--gold);border-radius:3px;padding:1px 6px;white-space:nowrap;}
+  .fmInfo{font-size:12.5px;line-height:1.6;color:var(--muted);margin:0 0 10px;overflow-wrap:anywhere;}
+  .fmInfo b{color:var(--text);}
+  .fmGauge{display:flex;align-items:center;gap:10px;margin:10px 0 0;font-size:13px;}
+  .fmGauge .bar{display:flex;gap:3px;}
+  .fmGauge .bar i{display:block;width:22px;height:8px;border-radius:3px;border:1px solid var(--line-strong);}
+  .fmGauge .bar i.on{background:var(--gold);border-color:var(--gold);}
+  .fmGauge .bar.full i.on{background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);border-color:transparent;}
+  .fmUse2{margin:0 0 12px;}
+  #formationSection .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;}
+  #formationSection .chk input{width:16px;height:16px;accent-color:var(--gold);}
+  /* 56 推しキャラ・搭乗キャラ */
+  .cface{border-radius:50% !important;}
+  .noimg{display:inline-flex;align-items:center;justify-content:center;background:#1a2433;color:var(--muted);font-weight:700;font-size:14px;flex:0 0 auto;}
+  .evBadge{display:inline-block;font-size:10px;color:var(--gold);border:1px solid var(--gold);border-radius:3px;padding:0 4px;margin-right:4px;}
+  .fmPilot{display:flex;align-items:center;gap:8px;margin:-2px 0 10px 32px;font-size:12px;color:var(--muted);}
+  .fmPilot .thumb{width:28px;height:28px;object-fit:cover;flex:0 0 auto;border:1px solid var(--line-strong);}
+  .fmPilot .noimg{width:28px;height:28px;}
+  .fmPilot .pn{flex:1;min-width:0;overflow-wrap:anywhere;color:var(--text);}
+  .fmPilot .pn.fav{background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .fmPilot button{flex:0 0 auto;font:inherit;font-size:12px;color:var(--cyan);background:transparent;border:1px solid var(--line-strong);border-radius:4px;padding:4px 10px;cursor:pointer;}
+  .pilotModal{position:fixed;inset:0;background:rgba(5,7,10,.94);display:none;align-items:center;justify-content:center;padding:16px;z-index:105;}
+  .pilotModal.show{display:flex;}
+  .pilotModal .box{width:100%;max-width:460px;max-height:90vh;display:flex;flex-direction:column;gap:10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;padding:14px;}
+  .pilotModal h3{margin:0;font-size:14px;color:var(--gold);}
+  .pilotModal .msg{margin:0;font-size:12.5px;line-height:1.6;color:var(--cyan);}
+  .pilotModal .pickList{max-height:none;flex:1;min-height:120px;}
+  .pilotModal .row{display:flex;gap:8px;}
+  .pilotModal .row button{flex:1;font:inherit;font-size:13px;color:var(--text);background:transparent;border:1px solid var(--line-strong);border-radius:4px;padding:8px;cursor:pointer;}
+  .pilotModal .row button:disabled{opacity:.35;cursor:default;}
+  .filterRow select{
+    flex:1;min-width:0;font:inherit;font-size:12.5px;color:var(--text);background:var(--panel-2);
+    border:1px solid var(--line-strong);border-radius:4px;padding:7px 6px;
+  }
+

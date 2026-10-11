@@ -44,7 +44,9 @@ Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェ�
 | `analytics-admin.html` | 運営者向け分析（**運営者専用・恒久**＝ESPのみ。`adminGate()`。推し統計・所持率分布。64。API`/api/analytics/oshi`・`/distribution`も`requireAdmin`。一般公開しない） |
 | `eternal-road.html` | エタロ攻略チェッカー（EXPERT・29ステージ・69ミッション） |
 | `challenge.html` | チャレンジミッションチェッカー（HARDのみ・5シリーズ・15ステージ・30ミッション。㊵）。**一般公開済み**（2026-10-06。adminGate解除・トップの「チェッカー」欄へ移動） |
-| `profile-card.html` | 自己紹介カード（テンプレート3×背景3の16:9 Canvas。描画は`CardRenderer`）。**運営者専用で試用中**（`adminGate()`）。一般公開の変更はブランチ`release/profile-card-public`に準備済み |
+| `profile-card.html` | 自己紹介カード（テンプレート5〔標準・エタロ攻略・推しユニット・推し編成・推しキャラ〕×背景3の16:9 Canvas。描画は`CardRenderer`）。**一般公開中**（10-01夜〜。推し編成・推しキャラは10-10〜）。追加改修は`profile-card-trial.html`（運営者専用）で試してから反映 |
+| `favorite-info.html` | 推し情報設定（68。推し4項目だけを登録。`/favorite-info`）。**段階1は運営者専用**（`adminGate()`）。本体は`#favoriteForm`だけで、`FavoriteForm`（`emptyMode:"hint"`）が4欄を出す。保存は`POST /api/favorite-info` |
+| `favorite-form.js` / `favorite-form.css` / `favorite-logic.js` | 推し4欄の共通部品（68。`window.FavoriteForm`）／そのCSS／`FormationLogic`（バフ対象判定）＋`WorkLabel`（作品名の通称）。`favorite-info.html`・`profile-card-trial.html`が使う（`profile-card.html`は段階2で切り替え） |
 | `report.html` | X投稿用レポート（運営者専用。6種類×並び順3種。`GET /api/admin/report/ownership`） |
 | `auth.css` / `auth.js` | ログイン・新規登録の共通UI。成功後は`/top`へ。`<body data-auth-stay>`のページはその場でリロード |
 | `worker.js` | Cloudflare Workers（API・定期実行・静的配信）。API一覧は仕様書3章 |
@@ -116,8 +118,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 - **同じものを複数か所に持っている箇所**（変えるときは全部そろえる）
   - ミッションの短い表示名：`eternal-road.html`の`missionLabel()`・`profile-card.html`の`CardRenderer`内・`analytics.html`の`erMissionLabel()`
   - カードのテンプレート：`worker.js`の`CARD_TEMPLATES`と`profile-card*.html`の`TEMPLATE_LABEL`（`formation`＝推し編成、`characters`＝推しキャラ）
-  - 搭乗キャラの補充規則：`worker.js`の`normalizePilots()`と`profile-card-trial.html`の`normalizeDraftPilots()`／`onUnitChanged()`（順番・規則を同じに保つ。依頼書57の4.3。**66で候補順を変更**：①編成に入っていないユニットのセットキャラ→②イベント配布キャラ→③編成に入っているユニットのセットキャラ。画面側は`firstUnusedChar()`／`reservedChars()`）
-  - カード表示設定の既定値`CARD_OPTIONS_DEFAULT`（`{acq:true, memo:false}`）：`profile-card.html`と`worker.js`
+  - 搭乗キャラの補充規則：`worker.js`の`normalizePilots()`と`favorite-form.js`の`normalizeDraftPilots()`／`onUnitChanged()`（※本番`profile-card.html`は段階2までは自前のコピーを持つ。順番・規則を同じに保つ。依頼書57の4.3。**66で候補順を変更**：①編成に入っていないユニットのセットキャラ→②イベント配布キャラ→③編成に入っているユニットのセットキャラ。画面側は`firstUnusedChar()`／`reservedChars()`）
+  - カード表示設定の既定値`CARD_OPTIONS_DEFAULT`（`{acq:true, memo:false}`）：`favorite-form.js`と`worker.js`（`profile-card.html`は段階2までは自前のコピー）
   - 作品ID：`worker.js`の`WORK_IDS`・`works_master`・`images/series/`
   - ユニット件数：`ur-units.js`・`top.html`の`UNIT_IMAGES`・`worker.js`の`MAX_UNIT_ID`・D1（サポートも同様）
 
@@ -216,6 +218,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 56追加改修9（試用版） | 10-09 | 推しキャラの印を「推」から星に変更（紫の丸に白抜きの星。`oshiBadge`）。フォームの搭乗表示は「★」 |
 | 56追加改修10（試用版） | 10-09 | 推しキャラの星バッジ・顔の縁を虹色に（フォームの搭乗表示も虹色の文字）。推しユニットの左パネルの「得意タグ」（52案D-3）を廃止し推しキャラと同じ表示に（`by`の余白も40pxに戻した。`tagTrend`の計算とデータは残置・1位カードの特徴タグは据え置き）。ランク欄の「100以上は金…」の説明文を削除。推しキャラのタイプ・作品チップを名前の行数によらず同じ高さ（セット欄の区切り線のすぐ上）に |
 | 64 運営者向け分析（推し統計・所持率分布） | 10-10 | **ユーザー決定：今後も運営者専用（ESPのみ）**。。`worker.js`：`GET /api/analytics/oshi`・`GET /api/analytics/distribution?kind=`（どちらも`requireAdmin`。D1変更なし）、定数`OSHI_SLOT_POINTS`・`OSHI_RATE_MIN_OWNERS`。新ページ`analytics-admin.html`（`analytics.html`は無変更）、`top.html`運営者欄に導線。動画SQL`shorts/sql/export_oshi_data.sql`・`export_oshi_chars.sql`を63の定義にそろえ`score`列を追加。API検証はNode＋`node:sqlite`のハーネス（依頼書8章の1〜12・14の観点。無凸79機→90%以上を確認）、画面は320/390/1024px。一般公開の予定なし（公開するなら要再相談） |
+| 68 推し情報設定ページ（段階1） | 10-11 | D1変更なし。新規`favorite-logic.js`（`FormationLogic`を移動＋`WorkLabel`。`CardRenderer`は`WorkLabel`を参照）・`favorite-form.js`/`.css`（試用版カードの推し4欄を動きを変えずに移した`FavoriteForm`。`emptyMode:"hide"`＝カード／`"hint"`＝推し情報設定）・`favorite-info.html`（運営者専用・下書き`favoriteinfo_draft_v1`・未保存表示・「自己紹介カードを作る ›」）。`worker.js`：`favoriteWorkStatements()`・`favoriteUnitStatements()`・`saveFormations()`・`saveFavoriteCharacters()`を`handleSaveProfile()`から切り出し、`POST /api/favorite-info`（送ったキーだけ処理・`user_profiles`行が無くても作る）・`GET /api/favorite-info/summary`。`profile-card-trial.html`を共通部品へ切り替え（推し欄の上に推し情報設定への案内を1行追加）。`top.html`運営者欄に導線と登録状況バッジ（`showFavoriteRegStatus()`）。検証：切り替え前後でカード画像15枚・`/api/profile`の送信本文・4欄の操作結果が一致、`/api/favorite-info`の保存・null・不正値・行なしユーザー、320/390/1024px、運営者以外・未ログイン・未登録ユーザーの案内。**`profile-card.html`への反映・一般公開は段階2（ESPの確認後）** |
 | ㊼ | 10-03 | エタロ攻略にステージ30（機動戦士Vガンダム）を追加：全30ステージ・71ミッション（`eternal-road.html`の表記・合計、一括達成の確認文は`stages.length`参照に）、`images/eternal-road/30.jpg`・`icon/30.jpg`（`scripts/make_eternal_road_icons.py`更新）、`worker.js`、`top.html`、自己紹介カード`profile-card.html`・`profile-card-trial.html`のエタロ分母を30に、`migrations/0023_eternal_road_stage30.sql`（ミッション301・302）。0023はD1適用済み（2026-10-03ユーザー確認）。本番確認が残り |
 
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
@@ -230,8 +233,10 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 - `SCAN_FIT`の学習：ユニット18機（新85〜87を含む）・サポート19体（新50を含む）。新3機・新サポートは写ったスクショで`?scandebug=1`から学習
 - 本番・実機で未確認：iOS Safariでのエタロ画像（1640×3140）とカード画像（2400×1350）の保存、カードのフォント読み込み待ち、入手記録の表示
 - 継続案（⑦⑨）：凸レベル別内訳、PCでのポップオーバー、タイル長押し比較、絞り込みの複数選択と保存、並べ替え切り替え
-- **51・52 推し編成・タグ傾向（53依頼書）**：段階1（D1・`worker.js`・試用版`profile-card-trial.html`）は実装済み（10-04）。追加改修（56と共通の10件・10-09）も試用版に反映済み。**段階2（本番`profile-card.html`への反映・`scripts/card_check/`追加）は運営者の試用確認後**。`scripts/card_check/seed.sql`の列数不整合（0024以降）も段階2で直す
-- **55〜57 推しURキャラクター**：段階1は実装済み（10-09）。未確認14人も確定し91件版0034へ流し直し済み（10-10）。**段階2（本番`profile-card.html`への反映・`scripts/card_check/`追加）は運営者の試用確認後**（53の段階2と同時か後）。設計書（51・52・55〜57）への追加改修の反映はCowork側の作業として残っている
+- **51・52 推し編成・タグ傾向（53依頼書）**：段階1（10-04）・段階2（本番`profile-card.html`への反映。commit「自己紹介カード：推し編成・推しキャラを本番profile-card.htmlへ反映」）とも完了。**2026-10-10に一般公開済み**（ESP確認。2026-10-11 Coworkが進捗を反映）
+- **55〜57 推しURキャラクター**：段階1（10-09）・段階2（本番反映。53と同じcommit）とも完了。**2026-10-10に一般公開済み**。設計書（51・52・55〜57）への試用版追加改修の反映はCowork側の作業として残っている
+- **66 推し編成：同一ユニットの複数選択**：段階1（D1 0036・`worker.js`・試用版）は10-11に完了。**段階2（本番カード）は68の段階2に含める**（単独で本番反映しない）
+- **67・68 推し情報設定ページ`favorite-info.html`**（`../docs/04_自己紹介カード/68_推し情報設定ページ_実装依頼書.md`。10-11 ESP承認済み・D1変更なし）：**段階1は10-11に実装・push済み**（運営者専用。ESPがトップの運営者欄 → 推し情報設定 → 保存 → 試用版カードに反映、を本番で確認する）。残り＝段階2（ESPの確認後・来週めど）＝本番カードの切り替え（66段階2を兼ねる）・`adminGate()`を外す・トップの導線を一般の欄へ・`scripts/card_check/`に推し情報設定の確認を追加（`seed.sql`の古い件も）・仕様書の更新
 - 次にどのテーマに着手するかは、セッション冒頭でユーザーに確認する
 
 ## 作業上の注意

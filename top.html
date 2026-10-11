@@ -175,6 +175,8 @@
   /* サポート画像はキャラクターが右側に描かれているため、右寄りをトリミングして表示 */
   .navcard .icon .icoImg.poolSupporter{object-position:78% center;}
   /* ㊵ チャレンジミッションチェッカーのアイコンは推し作品ロゴ（320×140・地色#c6c7d6）。coverだとロゴが切れるためcontainで収める */
+  /* 68 推し情報設定のアイコンは推しキャラの顔（正方形）。他のプールと同じ要領で円形にする */
+  .navcard .icon .icoImg.poolFavorite{border-radius:50%;}
   .navcard .icon .icoImg.poolChallenge{object-fit:contain;background:#c6c7d6;padding:2px;}
   .navcard .body{flex:1;min-width:0;}
   .navcard .name{
@@ -353,6 +355,16 @@
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
+    <!-- 推し情報設定（68。段階1は運営者専用。段階2で一般の欄へ移す） -->
+    <a class="navcard" href="/favorite-info">
+      <div class="icon" data-pool="favorite"><img class="icoImg" alt="" aria-hidden="true"></div>
+      <div class="body">
+        <div class="name">推し情報<wbr>設定<wbr>（試用）</div>
+        <div class="desc">推し作品・推しユニット・推しキャラ・推し編成を登録（運営者専用）</div>
+        <div class="regBadge" data-reg="favorite" hidden></div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
     <!-- 自己紹介カード（試用版・運営者専用）。追加改修はここで試してから profile-card.html へ反映する -->
     <a class="navcard" href="/profile-card-trial.html">
       <div class="icon" data-pool="profile"><img class="icoImg" alt="" aria-hidden="true"></div>
@@ -404,6 +416,8 @@
      work_idはchallenge_series.work_id（ガンダム=1・SEED=13・Ζ=42・W=10・ΖΖ=3） */
   var CHALLENGE_IMAGES = [1, 13, 42, 10, 3].map(function(id){ return 'images/series/' + id + '.png'; });
   /* ㊹ 自己紹介カードのアイコン：試作カード（㉟のモック）3テンプレート（標準・推しユニット・エタロ攻略）を縮小した静止画。カードのデザインを大きく変えたら作り直す */
+  /* 68 推し情報設定のアイコン：推しキャラの顔（images/characters/{charId}.jpg。URセットのキャラ1〜87・イベント配布1001〜1004） */
+  var FAVORITE_IMAGES = Array.from({length:87}, function(_, i){ return 'images/characters/' + (i+1) + '.jpg'; }).concat([1001, 1002, 1003, 1004].map(function(id){ return 'images/characters/' + id + '.jpg'; }));
   var PROFILE_CARD_IMAGES = ['standard', 'units', 'eternal'].map(function(k){ return 'images/profile-card/' + k + '.jpg'; });
 
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -601,7 +615,7 @@
 
     function poolFor(el){
       var pool = el.getAttribute('data-pool');
-      return pool === 'unit' ? UNIT_IMAGES : pool === 'eternal' ? ETERNAL_ROAD_IMAGES : pool === 'challenge' ? CHALLENGE_IMAGES : pool === 'profile' ? PROFILE_CARD_IMAGES : SUPPORTER_IMAGES;
+      return pool === 'unit' ? UNIT_IMAGES : pool === 'eternal' ? ETERNAL_ROAD_IMAGES : pool === 'challenge' ? CHALLENGE_IMAGES : pool === 'profile' ? PROFILE_CARD_IMAGES : pool === 'favorite' ? FAVORITE_IMAGES : SUPPORTER_IMAGES;
     }
 
     function setImage(img, src){
@@ -618,6 +632,7 @@
       var img = el.querySelector('.icoImg');
       if(el.getAttribute('data-pool') === 'supporter'){ img.classList.add('poolSupporter'); }
       if(el.getAttribute('data-pool') === 'challenge'){ img.classList.add('poolChallenge'); }
+      if(el.getAttribute('data-pool') === 'favorite'){ img.classList.add('poolFavorite'); }
       var idx = Math.floor(Math.random()*pool.length);
       img.src = pool[idx];
       img.onload = function(){ img.classList.add('show'); };
@@ -659,7 +674,7 @@
     if (!section) return;
     fetch('/api/admin/me', { credentials: 'same-origin' })
       .then(function(res){ return res.json(); })
-      .then(function(data){ if (data && data.admin === true) { section.hidden = false; } })
+      .then(function(data){ if (data && data.admin === true) { section.hidden = false; showFavoriteRegStatus(); } })
       .catch(function(){ /* 失敗時は非表示のまま */ });
   }
 
@@ -692,6 +707,26 @@
         })
         .catch(function(){ /* 失敗時は表示しない */ });
     });
+  }
+
+  /* 68 推し情報設定の登録状況（段階1は運営者欄。toggleAdminNav()から呼ぶ。段階2でshowRegStatus()へ移す）。0件の項目も出す */
+  function showFavoriteRegStatus(){
+    var el = document.querySelector('.regBadge[data-reg="favorite"]');
+    if (!el) return;
+    fetch('/api/favorite-info/summary', { credentials: 'same-origin' })
+      .then(function(res){ return res.json(); })
+      .then(function(d){
+        if (!d || !d.loggedIn) return;
+        if (d.works + d.units + d.characters + d.formations > 0) {
+          el.className = 'regBadge ok';
+          el.innerHTML = '<span class="st">✓ 推し登録済み</span><span>作品' + d.works + '・ユニット' + d.units + '・キャラ' + d.characters + '・編成' + d.formations + '</span>';
+        } else {
+          el.className = 'regBadge todo';
+          el.innerHTML = '<span class="st">推し未登録</span><span><span style="white-space:nowrap">推しを</span><span style="white-space:nowrap">登録ください。</span></span>';
+        }
+        el.hidden = false;
+      })
+      .catch(function(){ /* 失敗時は表示しない */ });
   }
 
   /* エタロ攻略チェッカーの登録状況。分母（30ステージ・71ミッション）はeternal-road.htmlと同じくマスターから算出し、

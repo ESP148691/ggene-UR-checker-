@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="auth.css">
+<link rel="stylesheet" href="favorite-form.css">
 <!-- "/"ではなく"/top"を対象にする。過去の"/"→/unit 301キャッシュを引き当てても意味がないため（⑧） -->
 <link rel="prefetch" href="/top">
 <style>
@@ -84,9 +85,6 @@
   .section h2::before{content:"";width:3px;height:15px;background:var(--gold);display:inline-block;}
   .section h2 .cnt{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted);font-weight:400;margin-left:auto;}
   .hint{font-size:11.5px;color:var(--muted);line-height:1.6;margin:6px 0 0;}
-  .acqOpts{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);}
-  .acqOpts .chk{display:inline-flex;align-items:center;gap:6px;margin:4px 16px 0 0;font-size:13px;cursor:pointer;}
-  .acqOpts .chk input{width:16px;height:16px;accent-color:var(--gold);}
   .fieldLabel{display:block;font-size:12px;color:var(--muted);margin:0 0 5px;}
   .field{margin:0 0 14px;}
   .field:last-child{margin-bottom:0;}
@@ -124,90 +122,10 @@
   .regRow .todo{color:var(--gold);}
   .regRow a{color:var(--cyan);font-size:12px;}
 
-  /* 推し作品・推しユニット：選択済みリスト */
-  .picked{display:flex;flex-direction:column;gap:6px;margin:0 0 10px;}
-  .picked .empty{font-size:12px;color:var(--muted);padding:6px 0;}
-  .pickedRow{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:5px;padding:6px 8px;}
-  .pickedRow .no{font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;width:1.6em;flex:0 0 auto;}
-  .pickedRow .logo{width:64px;height:28px;object-fit:contain;background:#c6c7d6;border-radius:4px;flex:0 0 auto;}
-  .pickedRow .thumb{width:36px;height:36px;object-fit:cover;border-radius:4px;flex:0 0 auto;border:1px solid var(--line-strong);}
-  .pickedRow .nm{flex:1;min-width:0;font-size:12.5px;line-height:1.4;overflow-wrap:anywhere;}
-  .pickedRow .nm small{display:block;color:var(--muted);font-size:10.5px;}
-  .eraChip{display:inline-block;font-size:10px;border:1px solid currentColor;border-radius:3px;padding:0 5px;margin-right:4px;}
-  .eraChip.UC{color:var(--gold);} .eraChip.ALT{color:var(--cyan);} .eraChip.ETC{color:var(--violet);}
-  .pickedRow .ops{display:flex;gap:3px;flex:0 0 auto;}
-  .pickedRow .ops button{
-    width:28px;height:28px;padding:0;font-size:12px;color:var(--text);background:transparent;
-    border:1px solid var(--line-strong);border-radius:3px;cursor:pointer;
-  }
-  .pickedRow .ops button:disabled{opacity:.3;cursor:default;}
-
-  /* ピッカー */
-  .pickTabs{display:flex;gap:4px;margin:0 0 8px;}
-  .pickTabs button{
-    flex:1;min-width:0;font:inherit;font-size:12px;font-weight:700;color:var(--muted);background:transparent;
-    border:none;border-bottom:2px solid var(--line-strong);padding:7px 2px;cursor:pointer;white-space:nowrap;
-  }
-  .pickTabs button.active{color:var(--gold);border-bottom-color:var(--gold);}
-  .pickList{max-height:360px;overflow-y:auto;border:1px solid var(--line);border-radius:5px;background:rgba(5,7,13,.35);}
-  .pickHead{position:sticky;top:0;z-index:1;font-size:11px;color:var(--cyan);background:#0b1119;padding:5px 10px;border-bottom:1px solid var(--line);}
-  .pickItem{
-    display:flex;align-items:center;gap:9px;width:100%;text-align:left;font:inherit;color:var(--text);
-    background:transparent;border:none;border-bottom:1px solid rgba(107,224,224,.07);padding:7px 10px;cursor:pointer;
-  }
-  .pickItem:disabled{opacity:.35;cursor:not-allowed;}
-  .pickItem.sel{background:rgba(218,185,73,.12);}
-  .pickItem .logo{width:73px;height:32px;object-fit:contain;background:#c6c7d6;border-radius:4px;flex:0 0 auto;}
-  .pickItem .thumb{width:40px;height:40px;object-fit:cover;border-radius:4px;flex:0 0 auto;border:1px solid var(--line-strong);}
-  .pickItem .nm{flex:1;min-width:0;font-size:12.5px;line-height:1.45;overflow-wrap:anywhere;}
-  .pickItem .nm small{display:block;font-family:'Share Tech Mono',monospace;color:var(--muted);font-size:10.5px;}
-  .pickItem .mark{flex:0 0 auto;width:20px;text-align:center;color:var(--gold);font-weight:700;}
-  .filterRow{display:flex;gap:8px;margin:0 0 8px;}
-  /* 51 推し編成フォーム */
-  .fmSlot{display:flex;align-items:center;gap:8px;margin:0 0 8px;}
-  .fmSlot .no{flex:0 0 24px;font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;}
-  .fmSlot select{flex:1;min-width:0;}
-  /* 66 枠ごとの凸と「n体目」（ユニット選択のすぐ下の行） */
-  .fmOpt{display:flex;align-items:center;gap:8px;margin:-2px 0 6px 32px;font-size:12px;color:var(--muted);}
-  .fmOpt select{flex:0 0 auto;width:auto;min-width:8.5em;font-size:13px;padding:4px 6px;}
-  .fmOpt .dup{flex:0 0 auto;font-size:11px;color:var(--gold);border:1px solid var(--gold);border-radius:3px;padding:1px 6px;white-space:nowrap;}
-  .fmInfo{font-size:12.5px;line-height:1.6;color:var(--muted);margin:0 0 10px;overflow-wrap:anywhere;}
-  .fmInfo b{color:var(--text);}
-  .fmGauge{display:flex;align-items:center;gap:10px;margin:10px 0 0;font-size:13px;}
-  .fmGauge .bar{display:flex;gap:3px;}
-  .fmGauge .bar i{display:block;width:22px;height:8px;border-radius:3px;border:1px solid var(--line-strong);}
-  .fmGauge .bar i.on{background:var(--gold);border-color:var(--gold);}
-  .fmGauge .bar.full i.on{background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);border-color:transparent;}
-  .fmUse2{margin:0 0 12px;}
-  #formationSection .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;}
-  #formationSection .chk input{width:16px;height:16px;accent-color:var(--gold);}
   .seg[hidden],.seg button[hidden]{display:none;}
   #tplButtons{display:grid;grid-template-columns:repeat(3,1fr);}
   #tplButtons button{font-size:12.5px;padding:9px 2px;}
   .rankHint{font-size:11px;color:var(--muted);margin:4px 0 0;}
-  /* 56 推しキャラ・搭乗キャラ */
-  .cface{border-radius:50% !important;}
-  .noimg{display:inline-flex;align-items:center;justify-content:center;background:#1a2433;color:var(--muted);font-weight:700;font-size:14px;flex:0 0 auto;}
-  .evBadge{display:inline-block;font-size:10px;color:var(--gold);border:1px solid var(--gold);border-radius:3px;padding:0 4px;margin-right:4px;}
-  .fmPilot{display:flex;align-items:center;gap:8px;margin:-2px 0 10px 32px;font-size:12px;color:var(--muted);}
-  .fmPilot .thumb{width:28px;height:28px;object-fit:cover;flex:0 0 auto;border:1px solid var(--line-strong);}
-  .fmPilot .noimg{width:28px;height:28px;}
-  .fmPilot .pn{flex:1;min-width:0;overflow-wrap:anywhere;color:var(--text);}
-  .fmPilot .pn.fav{background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .fmPilot button{flex:0 0 auto;font:inherit;font-size:12px;color:var(--cyan);background:transparent;border:1px solid var(--line-strong);border-radius:4px;padding:4px 10px;cursor:pointer;}
-  .pilotModal{position:fixed;inset:0;background:rgba(5,7,10,.94);display:none;align-items:center;justify-content:center;padding:16px;z-index:105;}
-  .pilotModal.show{display:flex;}
-  .pilotModal .box{width:100%;max-width:460px;max-height:90vh;display:flex;flex-direction:column;gap:10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;padding:14px;}
-  .pilotModal h3{margin:0;font-size:14px;color:var(--gold);}
-  .pilotModal .msg{margin:0;font-size:12.5px;line-height:1.6;color:var(--cyan);}
-  .pilotModal .pickList{max-height:none;flex:1;min-height:120px;}
-  .pilotModal .row{display:flex;gap:8px;}
-  .pilotModal .row button{flex:1;font:inherit;font-size:13px;color:var(--text);background:transparent;border:1px solid var(--line-strong);border-radius:4px;padding:8px;cursor:pointer;}
-  .pilotModal .row button:disabled{opacity:.35;cursor:default;}
-  .filterRow select{
-    flex:1;min-width:0;font:inherit;font-size:12.5px;color:var(--text);background:var(--panel-2);
-    border:1px solid var(--line-strong);border-radius:4px;padding:7px 6px;
-  }
 
   /* アクションバー（既存チェッカーと同じ3ボタン構成） */
   .actionbar{
@@ -321,81 +239,8 @@
         <!-- 表示称号の欄は2026-09-27に削除（ユーザー指示）。空いたスペースはカードのひとことに回した -->
       </section>
 
-      <section class="section">
-        <h2>推し作品<span class="cnt" id="workCount">0 / 5</span></h2>
-        <div class="picked" id="pickedWorks"></div>
-        <div class="pickTabs" id="workTabs" role="tablist">
-          <button type="button" data-era="UC">宇宙世紀</button>
-          <button type="button" data-era="ALT">オルタナティブ</button>
-          <button type="button" data-era="ETC">SD・ビルド・その他</button>
-        </div>
-        <div class="pickList" id="workList"></div>
-        <p class="hint">タップで追加・もう一度タップで解除。最大5作品まで選べます。</p>
-      </section>
-
-      <section class="section">
-        <h2>推しユニット<span class="cnt" id="unitCount">0 / 5</span></h2>
-        <div class="picked" id="pickedUnits"></div>
-        <div id="unitPicker">
-          <div class="filterRow">
-            <select id="unitTypeFilter" aria-label="タイプで絞り込み">
-              <option value="">タイプ：すべて</option>
-              <option value="攻撃">攻撃</option><option value="支援">支援</option><option value="耐久">耐久</option>
-            </select>
-            <select id="unitWorkFilter" aria-label="作品で絞り込み"><option value="">作品：すべて</option></select>
-          </div>
-          <div class="pickList" id="unitList"></div>
-          <p class="hint">登録済みの所持URユニットから最大5機まで選べます。『標準』『推しユニット』のカードに表示されます。</p>
-          <!-- ㉚ 入手記録（ユニットチェッカーの📝）をカードに出すかどうか。メモは本人用に書かれることが多いため既定では出さない -->
-          <div class="acqOpts" id="acqOpts">
-            <div class="fieldLabel">『推しユニット』カードに表示する入手記録</div>
-            <label class="chk"><input type="checkbox" id="optAcq"> 入手日・ガシャ回数</label>
-            <label class="chk"><input type="checkbox" id="optMemo"> メモ</label>
-            <p class="hint">入手記録はユニットチェッカーで『データ登録』した内容です。メモもカード画像に載るため、公開してよい内容か確認してください。各ユニットの実装日は常に表示します（入手日が実装日と同じ日のときは入手日を省きます）。</p>
-          </div>
-        </div>
-        <p class="hint" id="unitEmptyHint" hidden>URユニット所持率チェッカーで所持データを登録すると選べます。</p>
-      </section>
-
-      <section class="section" id="charSection" hidden>
-        <h2>推しキャラ<span class="cnt" id="charCount">0 / 5</span></h2>
-        <div class="picked" id="pickedChars"></div>
-        <div id="charPicker">
-          <div class="filterRow">
-            <select id="charTypeFilter" aria-label="タイプで絞り込み">
-              <option value="">タイプ：すべて</option>
-              <option value="攻撃">攻撃</option><option value="支援">支援</option><option value="耐久">耐久</option>
-            </select>
-            <select id="charWorkFilter" aria-label="作品で絞り込み"><option value="">作品：すべて</option></select>
-          </div>
-          <div class="pickList" id="charList"></div>
-          <p class="hint">最大5人まで選べます。『推しキャラ』のカードに表示されます。所持しているURユニットがセットのキャラと、イベント配布キャラから選べます。ユニットを未所持にすると、そのキャラも推しキャラから外れます。</p>
-        </div>
-        <p class="hint" id="charEmptyHint" hidden>URユニットを登録すると、セットのキャラを推しキャラに選べます。<a href="/unit" style="color:var(--cyan)">ユニットチェッカーを開く</a></p>
-      </section>
-
-      <section class="section" id="formationSection" hidden>
-        <h2>推し編成</h2>
-        <label class="chk fmUse2"><input type="checkbox" id="fmUse2"> 2つ目の編成を使う</label>
-        <div class="seg" id="fmTabs" role="group" aria-label="編成の切り替え" style="margin:0 0 12px">
-          <button type="button" data-fm="0">編成1</button>
-          <button type="button" data-fm="1">編成2</button>
-        </div>
-        <div class="field">
-          <label class="fieldLabel" for="fmLabel">編成名（10文字まで・空でもOK）</label>
-          <input type="text" id="fmLabel" maxlength="10" autocomplete="off">
-        </div>
-        <div class="field">
-          <label class="fieldLabel" for="fmSupporter">推しサポーター</label>
-          <select id="fmSupporter"></select>
-        </div>
-        <div class="fmInfo" id="fmSupInfo"></div>
-        <div class="fieldLabel">ユニット（位置どおりにカードへ並びます。途中を空けてもOK）</div>
-        <div id="fmSlots"></div>
-        <label class="chk"><input type="checkbox" id="fmOnlyHit"> 候補をバフ対象のユニットだけにする</label>
-        <div class="fmGauge" id="fmGauge"></div>
-        <p class="hint">サポーターのリーダースキルの対象になるユニットがカードで金色に光ります。同じユニットを複数所持している場合は、同じユニットを何枠でも選べます（2つの編成をまたいでも可）。凸は枠ごとに、ユニットチェッカーで登録した凸まで選べます。2つの編成で同じサポーターは使えません。『推し編成』のカードに表示されます。</p>
-      </section>
+      <p class="hint" style="margin:0 0 10px">推しは<a href="/favorite-info" style="color:var(--cyan)">『推し情報設定』ページ</a>でも登録できます ›</p>
+      <div id="favoriteForm"></div>
     </div>
   </div>
 
@@ -414,15 +259,6 @@
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<div class="pilotModal" id="pilotModal" role="dialog" aria-modal="true" aria-labelledby="pilotTitle">
-  <div class="box">
-    <h3 id="pilotTitle">乗せ替え</h3>
-    <p class="msg" id="pilotMsg" hidden></p>
-    <div class="row"><button type="button" id="pilotReset">セットのキャラに戻す</button><button type="button" id="pilotClose">閉じる</button></div>
-    <div class="pickList" id="pilotList"></div>
-  </div>
-</div>
-
 <div class="previewModal" id="previewModal">
   <img id="previewImg" alt="自己紹介カード">
   <div class="msg">自動ダウンロードが始まらない場合は、画像を<b>長押し（スマホ）</b>または<b>右クリック</b>して「画像を保存」を選んでください。</div>
@@ -433,6 +269,8 @@
 </div>
 
 <script src="ur-units.js"></script>
+<script src="favorite-logic.js"></script>
+<script src="favorite-form.js"></script>
 <script>
 /* =====================================================================
  * カード描画：docs/㉑自己紹介カード_試作5_プロトタイプ.html の描画コードをそのまま移植（㉒6.1）。
@@ -466,12 +304,9 @@ function fitText(ctx,text,maxW){
 }
 // ㉟ 作品名の通称（work_id → 通称）。カード内で短縮名（short_name）が枠に収まらないときだけ使い、「鉄血のオル…」のような途中切れを避ける
 // 通称でも収まらないときは通称を「…」で省略する。フォームの一覧・Xのシェア文は従来どおり短縮名
-const WORK_NICK={1:"ファースト",2:"Ζ新訳",3:"ΖΖ",5:"UC",6:"NT",7:"閃ハサ",9:"Gガンダム",10:"ガンダムW",11:"W EW",12:"ガンダムX",
-  13:"SEED",14:"DESTINY",17:"鉄血",28:"BLUE DESTINY",42:"Ζガンダム",46:"センチネル",48:"ライデンの帰還",60:"クロスボーン",
-  61:"Vガンダム",67:"ASTRAY",75:"天空の皇女",85:"Gレコ",88:"鉄血MSV",89:"PROLOGUE",91:"GBF",94:"SD外伝",106:"Gジェネ"};
 function workText(ctx,short,workId,maxW){
   if(ctx.measureText(short).width<=maxW) return short;
-  const nick=WORK_NICK[workId];
+  const nick=WorkLabel.WORK_NICK[workId];
   return nick?fitText(ctx,nick,maxW):fitText(ctx,short,maxW);
 }
 function drawCover(ctx,im,x,y,w,h){
@@ -1933,164 +1768,11 @@ async function drawCardOnce(canvas,data,layout,themeKey,used){
   else if(layout==="formation") await layoutFormation2(ctx,T,data);   // 1編成のレイアウトは廃止。1編成だけのときは2編成の片方（編成1）だけ埋める
   else await layoutStandard(ctx,T,data);
 }
-// 51 バフ対象の結果チップ用の作品名（通称優先。SEED ASTRAY系の作品はまとめて「SEED ASTRAY」）
-const ASTRAY_WORKS=new Set([67,68,69,70,74,75]);
-function workLabel(workId,short){ return ASTRAY_WORKS.has(workId)?"SEED ASTRAY":(WORK_NICK[workId]||short||""); }
+function workLabel(workId,short){ return WorkLabel.workLabel(workId,short); }   // 51 バフ対象の結果チップ用の作品名（favorite-logic.js）
 return { drawProfileCard, drawThemeBackground, THEMES, eternalSummary, wrapName, setWrapHints, workLabel, W, H };
 })();
 </script>
 
-<script>
-/* 51・52 推し編成のバフ対象判定とタグ傾向の計算（参考実装。profile-card.html の画面側に移植する想定）
- * 入力はどれも既存／新設APIの応答そのまま：
- *   leader  = GET /api/leader-skills  → { rules:[{supporterId,ruleNo,rates:[lv0,lv1,lv2,lv3]}], targets:[{supporterId,ruleNo,condNo,kind:'tag'|'work',id}] }
- *   tagsApi = GET /api/tags           → { tags:[{tagId,name,...}], unitTags:[{rarityCode,unitId,tagId}] }
- *   unitWork= Map(unitId → workId)    → GET /api/works から（画面は既に unitsById で持っている）
- *   workLabel(workId) → カードに出す作品名（短縮名。収まらなければ WORK_NICK の通称）
- * 判定の規則（51 4.4）：ルール内の条件(condNo)はすべて満たす（AND）、条件内の候補はどれか1つ（OR）。
- *   該当ルールのうち、サポーターの凸での上昇率が一番高い1つをそのユニットの結果にする（効果は重複しない）。
- *   凸の値が null のルールは完凸(lv3)の値で比べ、表示は「+lv0〜lv3%」。
- * UR以外（rarityCode≠1）は今回は判定しない（SSRは㊻の再開後に unitTags の rarityCode=2 を足すだけで動く形）。
- */
-(function (root) {
-  "use strict";
-  const RARITY_UR = 1;
-  const TAG_SHORT = { "阿頼耶識システム": "阿頼耶識", "モビル・トレース・システム": "MTS" };   // 結果チップ用の短い表記
-
-  function buildIndex(leader, tagsApi, unitWork) {
-    const tagName = new Map((tagsApi.tags || []).map(t => [t.tagId, t.name]));
-    const unitTagIds = new Map();                       // unitId → Set(tagId)（URだけ）
-    for (const r of tagsApi.unitTags || []) {
-      if (r.rarityCode !== RARITY_UR || !tagName.has(r.tagId)) continue;
-      if (!unitTagIds.has(r.unitId)) unitTagIds.set(r.unitId, new Set());
-      unitTagIds.get(r.unitId).add(r.tagId);
-    }
-    const freq = new Map();                             // tagId → そのタグを持つURの数
-    for (const set of unitTagIds.values()) for (const t of set) freq.set(t, (freq.get(t) || 0) + 1);
-    const rules = new Map();                            // supporterId → [{ruleNo, rates, conds: Map(condNo → [{kind,id}])}]
-    for (const r of leader.rules || []) {
-      if (!rules.has(r.supporterId)) rules.set(r.supporterId, []);
-      rules.get(r.supporterId).push({ ruleNo: r.ruleNo, rates: r.rates, conds: new Map() });
-    }
-    for (const t of leader.targets || []) {
-      const rule = (rules.get(t.supporterId) || []).find(x => x.ruleNo === t.ruleNo);
-      if (!rule) continue;
-      if (!rule.conds.has(t.condNo)) rule.conds.set(t.condNo, []);
-      rule.conds.get(t.condNo).push({ kind: t.kind, id: t.id });
-    }
-    for (const list of rules.values()) list.sort((a, b) => a.ruleNo - b.ruleNo);
-    return { tagName, unitTagIds, freq, rules, unitWork };
-  }
-
-  function rateAt(rates, lv) { const v = rates[lv]; return v == null ? null : v; }
-  function rateText(rates, lv) { const v = rateAt(rates, lv); return v == null ? `+${rates[0]}〜${rates[3]}%` : `+${v}%`; }
-  function hasKey(ix, unitId, c) {
-    return c.kind === "tag" ? !!(ix.unitTagIds.get(unitId) && ix.unitTagIds.get(unitId).has(c.id))
-                            : ix.unitWork.get(unitId) === c.id;
-  }
-
-  // ユニット1機の判定。対象外は null
-  function judge(ix, supporterId, level, unitId, workLabel) {
-    const list = ix.rules.get(supporterId) || [];
-    let best = null;
-    const comparable = r => rateAt(r.rates, level) ?? r.rates[3];
-    for (const r of list) {
-      const matched = [];
-      let ok = r.conds.size > 0;
-      for (const cands of r.conds.values()) {
-        const m = cands.find(c => hasKey(ix, unitId, c));
-        if (!m) { ok = false; break; }
-        matched.push(m);
-      }
-      if (!ok) continue;
-      const rate = comparable(r);
-      if (best && best.rate >= rate) continue;
-      best = {
-        rate, rateText: rateText(r.rates, level), ruleNo: r.ruleNo,
-        label: matched.map(m => m.kind === "tag" ? (TAG_SHORT[ix.tagName.get(m.id)] || ix.tagName.get(m.id)) : workLabel(m.id)).join("＋"),
-        byWork: matched.some(m => m.kind === "work"),
-        tags: matched.filter(m => m.kind === "tag").map(m => ix.tagName.get(m.id))
-      };
-    }
-    if (best && list.length > 1) best.top = best.rate === Math.max(...list.map(comparable));   // 低い方のルールに該当＝数字を白に
-    return best;
-  }
-
-  // 左パネルのリーダースキル表示。2つ目以降のルールが1つ目の対象をすべて含むなら差分だけ（extra=true。「＋阿頼耶識システム」）
-  function ruleView(ix, supporterId, workLabelFull) {
-    const list = ix.rules.get(supporterId) || [];
-    const keys = r => new Set([...r.conds.values()].flat().map(c => c.kind + ":" + c.id));
-    const first = list[0] ? keys(list[0]) : new Set();
-    return list.map((r, i) => {
-      const k = keys(r), extra = i > 0 && [...first].every(x => k.has(x));
-      const items = [], seen = new Set();
-      for (const c of [...r.conds.values()].flat()) {
-        if (extra && first.has(c.kind + ":" + c.id)) continue;
-        const label = c.kind === "tag" ? ix.tagName.get(c.id) : workLabelFull(c.id);
-        if (seen.has(label)) continue;                  // SEED ASTRAY系の6作品は1つのラベルにまとまる
-        seen.add(label); items.push({ kind: c.kind, label });
-      }
-      return { rates: r.rates, items, extra };
-    });
-  }
-
-  // 「対象のURユニット n機中 所持m機」
-  function targetCount(ix, supporterId, ownedSet) {
-    const all = [...ix.unitWork.keys()].filter(u => judge(ix, supporterId, 3, u, () => ""));
-    return { total: all.length, owned: all.filter(u => ownedSet.has(u)).length };
-  }
-
-  // 52 案D-2：特徴タグ（URの中で付いている機体が少ない順。同じなら tagId 順）
-  function featureTags(ix, unitId, n, exclude) {
-    const ex = new Set(exclude || []);
-    return [...(ix.unitTagIds.get(unitId) || [])]
-      .sort((a, b) => ix.freq.get(a) - ix.freq.get(b) || a - b)
-      .map(t => ix.tagName.get(t)).filter(name => !ex.has(name)).slice(0, n);
-  }
-  // 52 案D-1：編成の共通タグ（2機以上。多い順、同じなら名前順）
-  function sharedTags(ix, unitIds) {
-    const cnt = new Map();
-    for (const u of unitIds) for (const t of ix.unitTagIds.get(u) || []) { const nm = ix.tagName.get(t); cnt.set(nm, (cnt.get(nm) || 0) + 1); }
-    return [...cnt].filter(([, c]) => c >= 2).map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-  }
-  // 52 案D-3：得意タグ（URが3機以上あるタグのうち、所持率の高い順。同じなら総数の多い順、さらに同じなら tagId 順）
-  function tagTrend(ix, ownedSet, n) {
-    const rows = [];
-    for (const [t, total] of ix.freq) {
-      if (total < 3) continue;
-      let owned = 0;
-      for (const u of ownedSet) if (ix.unitTagIds.get(u) && ix.unitTagIds.get(u).has(t)) owned++;
-      rows.push({ tagId: t, name: ix.tagName.get(t), owned, total });
-    }
-    return rows.sort((a, b) => b.owned / b.total - a.owned / a.total || b.total - a.total || a.tagId - b.tagId).slice(0, n);
-  }
-
-  // 編成1つ分のカード用データ（slotの位置のまま。空き枠は null）
-  function formationData(ix, f, unitById, supporterById, levels, workLabel, workLabelFull, ownedSet) {
-    if (!f || !f.supporterId) return null;
-    const lv = levels.supporters[f.supporterId] ?? 0;
-    const slots = [null, null, null, null, null];
-    for (const s of f.units) {
-      const u = unitById.get(s.unitId); if (!u || s.slot < 1 || s.slot > 5) continue;
-      const hit = judge(ix, f.supporterId, lv, s.unitId, workLabel);
-      slots[s.slot - 1] = Object.assign({}, u, { level: s.level ?? levels.units[s.unitId] ?? 0, hit,   // 66 枠ごとの凸を優先
-        featureTags: featureTags(ix, s.unitId, 2, hit ? hit.tags : []) });
-    }
-    const filled = slots.filter(Boolean), count = filled.filter(u => u.hit).length;
-    const sup = supporterById.get(f.supporterId);
-    return {
-      label: f.label || null,
-      supporter: Object.assign({}, sup, { level: lv, rules: ruleView(ix, f.supporterId, workLabelFull), targetUr: targetCount(ix, f.supporterId, ownedSet) }),
-      units: slots,
-      synergy: { count, total: filled.length, full: filled.length > 0 && count === filled.length },   // 描画側の既存名（synergy）のまま。表示文言は「バフ対象」
-      sharedTags: sharedTags(ix, filled.map(u => u.unitId))
-    };
-  }
-
-  root.FormationLogic = { buildIndex, judge, ruleView, targetCount, featureTags, sharedTags, tagTrend, formationData, rateText };
-})(typeof window !== "undefined" ? window : globalThis);
-</script>
 <script>
 (function(){
 "use strict";
@@ -2102,33 +1784,22 @@ const CONFIG = {
   quotePostUrl: "https://x.com/polarbear148691/status/2103111095745675510?s=46" // Xでシェア時にこのポストへの引用RTになる（2026-09-24、4ページ共通。㉒6.4の「未設定」から変更）
 };
 const DRAFT_KEY = "profilecard_draft_v1";
-const MAX_FAV = 5;
 const COMMENT_MAX = 60;   // ひとことの上限（2026-09-27に40→60。worker.jsのhandleSaveProfile()と合わせる）
-const ERA_LABEL = { UC: "宇宙世紀", ALT: "オルタナティブ", ETC: "SD・ビルド他" };   // 2026-09-27「アナザー」から改称（略称は「オルタナ」）
-const LV_LABEL = ["無凸", "1凸", "2凸", "完凸"];
 const TEMPLATE_LABEL = { standard: "標準", eternal: "エタロ攻略", units: "推しユニット", formation: "推し編成", characters: "推しキャラ" };   // worker.jsのCARD_TEMPLATESと対応
-const FM_SLOTS = 5, FM_LABEL_MAX = 10;
 
 // ---- 状態 ----
 let api = null;           // GET /api/profile-card の応答
-let works = [];           // GET /api/works
-const worksById = new Map();
-const unitsById = new Map();  // unitId -> {unitId,name,type,limited,workId}
 let erStages = null;      // カード用のエタロ構成 [{id, missions:[{id,type,title,tag}]}]
-const CHARS = new Map();  // 56 GET /api/characters：charId -> {charId,name,setUnitId,type,workId}（char_id昇順）。空なら推しキャラ・乗せ替えは無効
-let fmIx = null;          // 51 FormationLogic.buildIndex()の結果。/api/tags・/api/leader-skillsが取れなければnull（推し編成は無効）
-let fmTab = 0;            // 編成フォームで開いているタブ（0／1）
-// ㉚ cardOptions：推しユニットカードに出す入手記録（acq＝入手日・ガシャ回数、memo＝メモ）。worker.jsのCARD_OPTIONS_DEFAULTと同じ既定値
-const CARD_OPTIONS_DEFAULT = { acq: true, memo: false };
-const emptyFormation = () => ({ label: "", supporterId: null, units: [null, null, null, null, null], pilots: [null, null, null, null, null], levels: [null, null, null, null, null] });   // pilots＝units と同じ位置の搭乗キャラ（charId）。66 levels＝枠ごとの凸（null＝ユニットチェッカーの凸）
 const draft = { displayName: "", comment: "", titleMissionId: null, cardTemplate: "standard", cardTheme: "galaxy", favoriteWorks: [], favoriteUnits: [], favoriteCharacters: [], playerRank: null,
-                cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT),
-                formations: [emptyFormation(), emptyFormation()], useFm2: false };   // 51 推し編成（units＝slotの位置どおり。空き枠はnull）
+                cardOptions: Object.assign({}, FavoriteForm.CARD_OPTIONS_DEFAULT),
+                formations: [FavoriteForm.emptyFormation(), FavoriteForm.emptyFormation()], useFm2: false };   // 51 推し編成（units＝slotの位置どおり。空き枠はnull）
+// 68 推し4欄（推し作品・推しユニット・推しキャラ・推し編成）は favorite-form.js。draftはこのページのものをそのまま読み書きさせる
+const form = FavoriteForm.create({ root: document.getElementById("favoriteForm"), draft, options: { emptyMode: "hide", acqOptions: true }, onChange: () => onChange() });
+const AVAIL = form.ctx.available, worksById = form.ctx.worksById, unitsById = form.ctx.unitsById;
 // ㉚ ur-units.js（unit.htmlと共有するURユニットのマスター）から実装日と改行位置の指定を読む
 const UR_UNITS_BY_ID = new Map((window.UR_UNITS || []).map(u => [u.id, u]));
 CardRenderer.setWrapHints(Object.fromEntries((window.UR_UNITS || []).filter(u => u.wrap).map(u => [u.id, u.wrap])));
 let savedJson = "";       // 最後にサーバーと一致していた内容（未保存表示の判定用）
-let currentEra = "UC";
 
 const $ = id => document.getElementById(id);
 function el(tag, attrs, children){
@@ -2152,186 +1823,44 @@ function toast(msg){
 
 // ---- テンプレートの選択可否 ----
 function eternalAvailable(){ return !!(api && api.eternalRoad && api.eternalRoad.registered && erStages); }
-function unitsAvailable(){ return !!(api && api.units && api.units.registered && api.units.owned > 0); }
-function supportersAvailable(){ return ownedSupporterList().length > 0; }
-function formationAvailable(){ return !!fmIx && unitsAvailable() && supportersAvailable(); }
-function charsAvailable(){ return CHARS.size > 0; }
-function charactersAvailable(){ return charsAvailable() && unitsAvailable() && selectableChars().setIds.length > 0; }
 function effectiveTemplate(){
   if (draft.cardTemplate === "eternal" && !eternalAvailable()) return "standard";
-  if (draft.cardTemplate === "units" && !unitsAvailable()) return "standard";
-  if (draft.cardTemplate === "formation" && !formationAvailable()) return "standard";
-  if (draft.cardTemplate === "characters" && !charactersAvailable()) return "standard";
+  if (draft.cardTemplate === "units" && !AVAIL.units()) return "standard";
+  if (draft.cardTemplate === "formation" && !AVAIL.formation()) return "standard";
+  if (draft.cardTemplate === "characters" && !AVAIL.characters()) return "standard";
   return draft.cardTemplate;
 }
 
 // ---- 入力値の正規化（サーバーと同じ条件で、存在しない・選べない値を落とす） ----
-function ownedUnitIds(){ return new Set(Object.keys((api && api.units && api.units.ownership) || {}).map(Number)); }
 function earnedTitleIds(){ return new Set(((api && api.eternalRoad && api.eternalRoad.earnedTitles) || []).map(t => t.missionId)); }
-// ---- 56 キャラ ----
-// 選べるキャラ（worker.jsのloadSelectableCharacters()と同じ判定）：イベント配布キャラ全員＋所持しているユニットがセットのキャラ
-function selectableChars(){
-  const own = ownedUnitIds(), sel = { all: new Set(), setByUnit: new Map(), setIds: [], eventIds: [] };
-  for (const c of CHARS.values()) {
-    if (c.setUnitId == null) { sel.all.add(c.charId); sel.eventIds.push(c.charId); }
-    else if (own.has(c.setUnitId)) { sel.all.add(c.charId); sel.setByUnit.set(c.setUnitId, c.charId); sel.setIds.push(c.charId); }
-  }
-  return sel;
-}
-function charUnit(c){ return c.setUnitId == null ? null : unitsById.get(c.setUnitId) || null; }
-function charType(c){ const u = charUnit(c); return u ? u.type : (c.type || ""); }
-function charWorkId(c){ const u = charUnit(c); return u ? u.workId : (c.workId == null ? null : c.workId); }
-function charSubText(c){ const u = charUnit(c); return u ? `セット：${u.name}` : ""; }
-function activeFormations(){ return draft.useFm2 ? draft.formations : [draft.formations[0]]; }
-// 搭乗キャラの補充規則（worker.jsのnormalizePilots()と同じ順番・規則。変えるときは両方そろえる）
-// 66 編成に入っているユニットのセットキャラは後回し（worker.jsのnormalizePilots()と同じ）
-function reservedChars(sel){
-  const r = new Set();
-  for (const f of activeFormations()) for (const id of f.units) { const own = id == null ? null : sel.setByUnit.get(id); if (own != null) r.add(own); }
-  return r;
-}
-function firstUnusedChar(sel, used){
-  const reserved = reservedChars(sel);
-  return sel.setIds.find(c => !used.has(c) && !reserved.has(c)) ?? sel.eventIds.find(c => !used.has(c)) ?? sel.setIds.find(c => !used.has(c)) ?? null;
-}
-function normalizeDraftPilots(){
-  if (!charsAvailable()) { for (const f of draft.formations) f.pilots = f.units.map(() => null); return; }
-  const sel = selectableChars(), used = new Set();
-  for (const f of activeFormations()) {
-    f.units.forEach((unitId, i) => {
-      if (unitId == null) { f.pilots[i] = null; return; }
-      const req = f.pilots[i];
-      let pilot = null;
-      if (Number.isInteger(req) && sel.all.has(req) && !used.has(req)) pilot = req;
-      else {
-        const own = sel.setByUnit.get(unitId);
-        pilot = own != null && !used.has(own) ? own : firstUnusedChar(sel, used);
-      }
-      if (pilot != null) used.add(pilot);
-      f.pilots[i] = pilot;
-    });
-  }
-}
-// slot(f,i)以外で搭乗中のキャラ → 位置
-function pilotHolders(f, i){
-  const m = new Map();
-  activeFormations().forEach((g, gi) => g.pilots.forEach((cid, j) => { if (cid != null && !(g === f && j === i)) m.set(cid, { gi, j }); }));
-  return m;
-}
-// ユニットを選んだ・外したときの搭乗キャラ。セットのキャラが他の枠で搭乗中なら { own, holder } を返す（乗せ替えの選択画面を開く用）
-function onUnitChanged(f, i){
-  f.levels[i] = null;   // 66 ユニットを変えたら凸はユニットチェッカーの値に戻す
-  if (!charsAvailable()) return null;
-  f.pilots[i] = null;
-  if (f.units[i] == null) return null;
-  const sel = selectableChars(), holders = pilotHolders(f, i), own = sel.setByUnit.get(f.units[i]);
-  if (own != null && !holders.has(own)) { f.pilots[i] = own; return null; }
-  f.pilots[i] = firstUnusedChar(sel, new Set(holders.keys()));
-  if (own == null) return null;
-  // 66 セットのキャラが同じユニットの別の枠（2体目以降）に搭乗中なら、選択画面は開かずに補充規則のまま（乗せ替えボタンで変えられる）
-  const h = holders.get(own);
-  if (activeFormations()[h.gi].units[h.j] === f.units[i]) return null;
-  return { own, holder: h };
-}
-// 66 同じユニットの何体目か（編成1の1枠目→…→編成2の最後の枠の順）。1体目なら1
-function unitOrdinal(f, i){
-  let n = 0;
-  for (const g of activeFormations()) for (let j = 0; j < g.units.length; j++) {
-    if (g.units[j] === f.units[i]) n++;
-    if (g === f && j === i) return n;
-  }
-  return n;
-}
-function assignPilot(f, i, cid){
-  const holder = pilotHolders(f, i).get(cid);
-  if (holder) draft.formations[holder.gi].pilots[holder.j] = f.pilots[i];   // 搭乗中のキャラを選ぶと入れ替え
-  f.pilots[i] = cid;
-}
 function validRank(v){ return Number.isInteger(v) && v >= 1 && v <= 999 ? v : null; }   // worker.jsのPLAYER_RANK_MAXと同じ範囲
 function sanitizeDraft(){
-  const owned = ownedUnitIds();
-  draft.favoriteWorks = [...new Set(draft.favoriteWorks)].filter(id => worksById.has(id)).slice(0, MAX_FAV);
-  draft.favoriteUnits = [...new Set(draft.favoriteUnits)].filter(id => owned.has(id)).slice(0, MAX_FAV);
+  form.sanitize();   // 推し4項目（推し作品・推しユニット・推し編成・推しキャラ）
   if (!earnedTitleIds().has(draft.titleMissionId)) draft.titleMissionId = null;
   if (!["standard", "eternal", "units", "formation", "characters"].includes(draft.cardTemplate)) draft.cardTemplate = "standard";
-  sanitizeFormations(owned);
-  const selOk = charsAvailable() ? selectableChars().all : new Set();
-  draft.favoriteCharacters = [...new Set(Array.isArray(draft.favoriteCharacters) ? draft.favoriteCharacters : [])].filter(id => selOk.has(id)).slice(0, MAX_FAV);
   // ジャングル背景は2026-09-24に選択肢から削除（ユーザー指示）。保存済み・下書きの"jungle"は宇宙世紀で描く
   if (!["galaxy", "earth", "sky"].includes(draft.cardTheme)) draft.cardTheme = "galaxy";
   const o = draft.cardOptions && typeof draft.cardOptions === "object" ? draft.cardOptions : {};
-  draft.cardOptions = { acq: typeof o.acq === "boolean" ? o.acq : CARD_OPTIONS_DEFAULT.acq, memo: typeof o.memo === "boolean" ? o.memo : CARD_OPTIONS_DEFAULT.memo };
+  draft.cardOptions = { acq: typeof o.acq === "boolean" ? o.acq : FavoriteForm.CARD_OPTIONS_DEFAULT.acq, memo: typeof o.memo === "boolean" ? o.memo : FavoriteForm.CARD_OPTIONS_DEFAULT.memo };
   draft.displayName = String(draft.displayName || "").slice(0, 32);
   draft.comment = String(draft.comment || "").slice(0, 120);
 }
-// 51 所持していないサポーター・ユニットを外し、2つの編成の重複サポーターは後ろを落とす。slotは詰めない
-// 66 ユニットの重複は許す（同じユニットの複数所持）。枠ごとの凸levelsは登録の凸より低い0〜3かnull（worker.jsのvalidFormationLevel()と同じ）
-function fmValidLevel(v, unitId){
-  const own = ((api && api.units && api.units.ownership) || {})[String(unitId)];
-  const cap = Number.isInteger(own) ? Math.min(own, 3) : 3;
-  return Number.isInteger(v) && v >= 0 && v < cap ? v : null;
-}
-function sanitizeFormations(owned){
-  const supOwned = new Set(ownedSupporterList().map(s => s.id));
-  if (!Array.isArray(draft.formations)) draft.formations = [];
-  draft.formations = [0, 1].map(i => {
-    const f = draft.formations[i] && typeof draft.formations[i] === "object" ? draft.formations[i] : {};
-    const units = Array.isArray(f.units) ? f.units.slice(0, FM_SLOTS) : [];
-    while (units.length < FM_SLOTS) units.push(null);
-    const rawPilots = Array.isArray(f.pilots) ? f.pilots : [], rawLevels = Array.isArray(f.levels) ? f.levels : [];
-    const okUnit = id => Number.isInteger(id) && owned.has(id);
-    return { label: String(f.label || "").slice(0, FM_LABEL_MAX),
-             supporterId: Number.isInteger(f.supporterId) && supOwned.has(f.supporterId) ? f.supporterId : null,
-             units: units.map(id => okUnit(id) ? id : null),
-             pilots: units.map((id, i) => okUnit(id) && Number.isInteger(rawPilots[i]) ? rawPilots[i] : null),
-             levels: units.map((id, i) => okUnit(id) ? fmValidLevel(rawLevels[i], id) : null) };
-  });
-  const [a, b] = draft.formations;
-  if (b.supporterId != null && b.supporterId === a.supporterId) b.supporterId = null;
-  draft.useFm2 = !!draft.useFm2;
-  normalizeDraftPilots();
-}
 function draftFromProfile(p){
-  const bySlot = arr => (arr || []).slice().sort((a, b) => a.slot - b.slot);
   return {
     displayName: p.displayName || "",
     comment: p.comment || "",
     titleMissionId: p.titleMissionId == null ? null : p.titleMissionId,
     cardTemplate: p.cardTemplate || "standard",
     cardTheme: p.cardTheme || "galaxy",
-    favoriteWorks: bySlot(p.favoriteWorks).map(f => f.workId),
-    favoriteUnits: bySlot(p.favoriteUnits).map(f => f.unitId),
-    favoriteCharacters: bySlot(p.favoriteCharacters).map(f => f.charId),
-    playerRank: validRank(p.playerRank),
-    cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT, p.cardOptions || {}),
-    formations: [0, 1].map(i => {
-      const f = (p.formations || [])[i], out = emptyFormation();
-      if (f) {
-        out.label = f.label || ""; out.supporterId = f.supporterId == null ? null : f.supporterId;
-        for (const u of f.units || []) if (u.slot >= 1 && u.slot <= FM_SLOTS) {
-          out.units[u.slot - 1] = u.unitId; out.pilots[u.slot - 1] = u.pilotCharId == null ? null : u.pilotCharId;
-          out.levels[u.slot - 1] = Number.isInteger(u.level) ? u.level : null;   // 66
-        }
-      }
-      return out;
-    }),
-    useFm2: (p.formations || []).length > 1
-  };
-}
-// 51 保存・未保存判定に使う編成（使わない2つ目と、空の編成は除く。サーバーも空の編成は保存しない）
-function formationsPayload(){
-  const act = draft.useFm2 ? draft.formations : [draft.formations[0]];
-  return act.map(f => Object.assign({ label: f.label.trim() || null, supporterId: f.supporterId, units: f.units.slice(),
-      levels: f.levels.map((lv, i) => f.units[i] == null ? null : lv) },   // 66 枠ごとの凸
-      charsAvailable() ? { pilots: f.pilots.slice() } : {}))
-    .filter(f => f.supporterId != null || f.units.some(id => id != null));
+    playerRank: validRank(p.playerRank)
+  };   // 推し4項目・表示設定は form.fromProfile(p)
 }
 function draftJson(){
   return JSON.stringify({
     displayName: draft.displayName.trim(), comment: draft.comment.trim(), titleMissionId: draft.titleMissionId,
     cardTemplate: draft.cardTemplate, cardTheme: draft.cardTheme,
     favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits, cardOptions: draft.cardOptions,
-    favoriteCharacters: draft.favoriteCharacters, playerRank: validRank(draft.playerRank), formations: formationsPayload()
+    favoriteCharacters: draft.favoriteCharacters, playerRank: validRank(draft.playerRank), formations: form.payload().formations
   });
 }
 
@@ -2378,48 +1907,9 @@ function cardAcq(){
   }
   return out;
 }
-// 51 推し編成・タグ傾向のカード用データ。fmIxが無ければ空（推し編成のバフ対象判定とタグ表示だけ無効）
-function ownedSupporterList(){
-  const own = (api && api.supporters && api.supporters.ownership) || {};
-  return ((api && api.supporters && api.supporters.master) || []).filter(s => own[String(s.id)] !== undefined && fmIx && fmIx.rules.has(s.id));
-}
-function fmWorkLabel(id){ const w = worksById.get(id); return CardRenderer.workLabel(id, w ? w.shortName : ""); }
-function fmUnitObj(id){
-  const u = unitsById.get(id); if (!u) return null;
-  return { unitId: u.unitId, name: u.name, type: u.type, limited: u.limited,
-           workShort: (worksById.get(u.workId) || {}).shortName || "", workId: u.workId };
-}
-function fmFormationData(f){
-  const own = (api.units && api.units.ownership) || {}, sOwn = (api.supporters && api.supporters.ownership) || {};
-  const unitById = new Map(), supporterById = new Map();
-  for (const id of f.units) if (id != null && !unitById.has(id)) { const o = fmUnitObj(id); if (o) unitById.set(id, o); }
-  for (const s of (api.supporters && api.supporters.master) || []) supporterById.set(s.id, { id: s.id, name: s.name, limited: s.limited, heal: s.skill });
-  const units = [];
-  f.units.forEach((id, i) => { if (id != null) units.push({ slot: i + 1, unitId: id, level: f.levels[i] }); });   // 66 枠ごとの凸
-  const F = FormationLogic.formationData(fmIx, { label: f.label.trim() || null, supporterId: f.supporterId, units },
-    unitById, supporterById, { supporters: sOwn, units: own }, fmWorkLabel, fmWorkLabel, ownedUnitIds());
-  // 56 搭乗キャラ（推しキャラならfav＝星バッジ）
-  if (F && charsAvailable()) F.units.forEach((u, i) => {
-    const c = u && f.pilots[i] != null ? CHARS.get(f.pilots[i]) : null;
-    if (c) u.pilot = { charId: c.charId, name: c.name, fav: draft.favoriteCharacters.includes(c.charId) };
-  });
-  return F;
-}
-// 56 推しキャラカード用のキャラ（セットのユニットの凸はカードに出さない）
-function cardChar(id){
-  const c = CHARS.get(id); if (!c) return null;
-  const u = charUnit(c), own = (api.units && api.units.ownership) || {}, wid = charWorkId(c);
-  return { charId: c.charId, name: c.name, type: charType(c), workId: wid, workShort: (worksById.get(wid) || {}).shortName || "",
-           unit: u ? { unitId: u.unitId, name: u.name, type: u.type, limited: u.limited, level: own[String(u.unitId)] || 0,
-                       workShort: (worksById.get(u.workId) || {}).shortName || "", workId: u.workId } : null };
-}
-function fmCardFormations(){
-  if (!fmIx) return [];
-  const act = draft.useFm2 ? draft.formations : [draft.formations[0]];
-  return act.filter(f => f.supporterId != null).map(fmFormationData).filter(Boolean).slice(0, 2);
-}
 function buildCardData(){
   const own = (api.units && api.units.ownership) || {};
+  const fmIx = form.ctx.fmIx;
   const favorites = draft.favoriteWorks.map(id => worksById.get(id)).filter(Boolean)
     .map(w => ({ shortName: w.shortName, era: w.era, timeline: w.timeline, iconNo: w.workId, workId: w.workId }));
   const favoriteUnits = draft.favoriteUnits.map(id => unitsById.get(id)).filter(u => u && own[String(u.unitId)] !== undefined)
@@ -2443,12 +1933,12 @@ function buildCardData(){
     // 称号はカードに表示しない（2026-09-27 表示称号欄を削除）。titleMissionIdは保存データの互換のためAPIへはそのまま送る
     profile: { displayName: draft.displayName.trim() || api.username, title: null, comment: draft.comment.trim() || null, rank: validRank(draft.playerRank) },
     favorites, favoriteUnits, units, supporters: api.supporters || null, eternalRoad: er,
-    formations: fmCardFormations(),   // 51 推し編成（最大2件）。1件なら1編成のレイアウト
-    favoriteChars: charsAvailable() ? draft.favoriteCharacters.map(cardChar).filter(Boolean) : [],   // 56 推しキャラ
+    formations: form.ctx.fmCardFormations(),   // 51 推し編成（最大2件）。1件なら1編成のレイアウト
+    favoriteChars: AVAIL.chars() ? draft.favoriteCharacters.map(form.ctx.cardChar).filter(Boolean) : [],   // 56 推しキャラ
     // 56 推しキャラ未設定のとき：選べるセットのキャラを、セットのユニットの凸の高い順（同じならID順）
-    ownedChars: charsAvailable() ? selectableChars().setIds.map(cardChar).filter(Boolean)
+    ownedChars: AVAIL.chars() ? form.ctx.selectableChars().setIds.map(form.ctx.cardChar).filter(Boolean)
       .sort((a, b) => b.unit.level - a.unit.level || a.charId - b.charId) : [],
-    tagTrend: fmIx ? FormationLogic.tagTrend(fmIx, ownedUnitIds(), 3) : [],   // 52 左パネルの得意タグ
+    tagTrend: fmIx ? FormationLogic.tagTrend(fmIx, form.ctx.ownedUnitIds(), 3) : [],   // 52 左パネルの得意タグ
     unitAcq: cardAcq(),   // ㉙ 推しユニットカードの入手記録（DB登録済みの値）。㉚ 表示オプションで絞り、実装日と同じ日付には「実装日」の印
     createdAt: jstToday()   // ㉟ 2026-09-28 右下のXアカウントID（siteLabel）はカードから削除（ユーザー指示）
   };
@@ -2500,16 +1990,16 @@ function renderDesign(){
   const tpl = effectiveTemplate();
   document.querySelectorAll("#tplButtons button").forEach(b => {
     const k = b.dataset.tpl;
-    b.disabled = (k === "eternal" && !eternalAvailable()) || (k === "units" && !unitsAvailable()) || (k === "formation" && !formationAvailable()) || (k === "characters" && !charactersAvailable());
-    if (k === "characters") b.hidden = !charsAvailable();
+    b.disabled = (k === "eternal" && !eternalAvailable()) || (k === "units" && !AVAIL.units()) || (k === "formation" && !AVAIL.formation()) || (k === "characters" && !AVAIL.characters());
+    if (k === "characters") b.hidden = !AVAIL.chars();
     b.classList.toggle("active", k === tpl);
     b.setAttribute("aria-pressed", k === tpl ? "true" : "false");
   });
   const hints = [];
   if (!eternalAvailable()) hints.push("「エタロ攻略」はエタロ攻略チェッカーでデータ登録すると選べます。");
-  if (!unitsAvailable()) hints.push("「推しユニット」はURユニットの所持データを登録すると選べます。");
-  if (!formationAvailable()) hints.push("「推し編成」はURユニットとURサポートの所持データを登録すると選べます。");
-  if (charsAvailable() && !charactersAvailable()) hints.push("「推しキャラ」はURユニットの所持データを登録すると選べます。");
+  if (!AVAIL.units()) hints.push("「推しユニット」はURユニットの所持データを登録すると選べます。");
+  if (!AVAIL.formation()) hints.push("「推し編成」はURユニットとURサポートの所持データを登録すると選べます。");
+  if (AVAIL.chars() && !AVAIL.characters()) hints.push("「推しキャラ」はURユニットの所持データを登録すると選べます。");
   $("tplHint").textContent = hints.join(" ");
   $("tplHint").hidden = !hints.length;
   document.querySelectorAll("#themeButtons button").forEach(b => {
@@ -2529,8 +2019,8 @@ function renderRegList(){
   // 保存済みの設定があれば登録済み
   const prof = api.profile || {};
   rows.push({ k: "推し編成", st: { registered: (prof.formations || []).length > 0 },
-    todo: formationAvailable() ? "未設定 — 下の「推し編成」で設定して保存すると表示されます" : "URユニットとURサポートを登録すると設定できます" });
-  if (charsAvailable()) rows.push({ k: "推しキャラ", st: { registered: (prof.favoriteCharacters || []).length > 0 },
+    todo: AVAIL.formation() ? "未設定 — 下の「推し編成」で設定して保存すると表示されます" : "URユニットとURサポートを登録すると設定できます" });
+  if (AVAIL.chars()) rows.push({ k: "推しキャラ", st: { registered: (prof.favoriteCharacters || []).length > 0 },
     todo: "未設定 — 下の「推しキャラ」で選んで保存すると表示されます" });
   for (const r of rows) {
     const ok = !!(r.st && r.st.registered);
@@ -2554,317 +2044,9 @@ function updateCommentCounter(){
   $("commentCounter").textContent = `残り${Math.max(0, COMMENT_MAX - [...$("inComment").value].length)}文字`;
 }
 
-// 選択済みリスト（推し作品・推しユニット共通）
-function renderPicked(container, ids, makeBody, onMove, onRemove){
-  container.textContent = "";
-  if (!ids.length) { container.appendChild(el("div", { class: "empty", text: "まだ選ばれていません" })); return; }
-  ids.forEach((id, i) => {
-    const up = el("button", { type: "button", text: "▲", "aria-label": "上へ" }); up.disabled = i === 0;
-    const down = el("button", { type: "button", text: "▼", "aria-label": "下へ" }); down.disabled = i === ids.length - 1;
-    const rm = el("button", { type: "button", text: "×", "aria-label": "解除" });
-    up.addEventListener("click", () => onMove(i, -1));
-    down.addEventListener("click", () => onMove(i, 1));
-    rm.addEventListener("click", () => onRemove(i));
-    container.appendChild(el("div", { class: "pickedRow" }, [
-      el("span", { class: "no", text: String(i + 1).padStart(2, "0") }),
-      ...makeBody(id),
-      el("span", { class: "ops" }, [up, down, rm])
-    ]));
-  });
-}
-function moveIn(arr, i, d){ const j = i + d; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; }
 
-function workLogoImg(id, cls){ return el("img", { class: cls, src: `images/series/${id}.png`, alt: "", loading: "lazy" }); }
-
-function renderWorks(){
-  $("workCount").textContent = `${draft.favoriteWorks.length} / ${MAX_FAV}`;
-  renderPicked($("pickedWorks"), draft.favoriteWorks, id => {
-    const w = worksById.get(id);
-    return [workLogoImg(id, "logo"), el("span", { class: "nm" }, [
-      document.createTextNode(w.shortName),
-      el("small", {}, [el("span", { class: "eraChip " + w.era, text: ERA_LABEL[w.era] }), document.createTextNode(w.timeline || "")])
-    ])];
-  }, (i, d) => { moveIn(draft.favoriteWorks, i, d); renderWorks(); onChange(); },
-     i => { draft.favoriteWorks.splice(i, 1); renderWorks(); onChange(); });
-
-  document.querySelectorAll("#workTabs button").forEach(b => {
-    b.classList.toggle("active", b.dataset.era === currentEra);
-    b.setAttribute("aria-selected", b.dataset.era === currentEra ? "true" : "false");
-  });
-  const list = $("workList"), keepScroll = list.scrollTop;
-  list.textContent = "";
-  const full = draft.favoriteWorks.length >= MAX_FAV;
-  let lastUniverse = null;
-  for (const w of works) {
-    if (w.era !== currentEra) continue;
-    if (w.universe !== lastUniverse) { list.appendChild(el("div", { class: "pickHead", text: w.universe })); lastUniverse = w.universe; }
-    const sel = draft.favoriteWorks.includes(w.workId);
-    const b = el("button", { type: "button", class: "pickItem" + (sel ? " sel" : ""), "data-work": String(w.workId),
-                             "aria-pressed": sel ? "true" : "false" }, [
-      workLogoImg(w.workId, "logo"),
-      el("span", { class: "nm" }, [document.createTextNode(w.name), el("small", { text: w.timeline || "" })]),
-      el("span", { class: "mark", text: sel ? "✓" : "" })
-    ]);
-    b.disabled = full && !sel;
-    b.addEventListener("click", () => {
-      const k = draft.favoriteWorks.indexOf(w.workId);
-      if (k >= 0) draft.favoriteWorks.splice(k, 1);
-      else if (draft.favoriteWorks.length < MAX_FAV) draft.favoriteWorks.push(w.workId);
-      renderWorks(); onChange();
-    });
-    list.appendChild(b);
-  }
-  list.scrollTop = keepScroll;
-}
-
-function renderUnits(){
-  const own = (api.units && api.units.ownership) || {};
-  const ownedIds = Object.keys(own).map(Number).filter(id => unitsById.has(id)).sort((a, b) => a - b);
-  $("unitPicker").hidden = ownedIds.length === 0;
-  $("unitEmptyHint").hidden = ownedIds.length > 0;
-  $("unitCount").textContent = `${draft.favoriteUnits.length} / ${MAX_FAV}`;
-  renderPicked($("pickedUnits"), draft.favoriteUnits, id => {
-    const u = unitsById.get(id);
-    return [el("img", { class: "thumb", src: `images/units/${id}.jpg`, alt: "", loading: "lazy" }),
-            el("span", { class: "nm" }, [document.createTextNode(u.name), el("small", { text: `${u.type}・${LV_LABEL[own[String(id)]] || ""}` })])];
-  }, (i, d) => { moveIn(draft.favoriteUnits, i, d); renderUnits(); onChange(); },
-     i => { draft.favoriteUnits.splice(i, 1); renderUnits(); onChange(); });
-
-  // 作品の絞り込み候補は所持ユニットのある作品だけ（作品の並び順）
-  const wf = $("unitWorkFilter"), keep = wf.value;
-  const workIds = new Set(ownedIds.map(id => unitsById.get(id).workId));
-  wf.textContent = "";
-  wf.appendChild(el("option", { value: "", text: "作品：すべて" }));
-  for (const w of works) if (workIds.has(w.workId)) wf.appendChild(el("option", { value: String(w.workId), text: w.shortName }));
-  wf.value = workIds.has(Number(keep)) ? keep : "";
-
-  const type = $("unitTypeFilter").value, work = Number(wf.value) || null;
-  const list = $("unitList"), keepScroll = list.scrollTop;
-  list.textContent = "";
-  const full = draft.favoriteUnits.length >= MAX_FAV;
-  let shown = 0;
-  for (const id of ownedIds) {
-    const u = unitsById.get(id);
-    if (type && u.type !== type) continue;
-    if (work && u.workId !== work) continue;
-    const sel = draft.favoriteUnits.includes(id);
-    const b = el("button", { type: "button", class: "pickItem" + (sel ? " sel" : ""), "data-unit": String(id),
-                             "aria-pressed": sel ? "true" : "false" }, [
-      el("img", { class: "thumb", src: `images/units/${id}.jpg`, alt: "", loading: "lazy" }),
-      el("span", { class: "nm" }, [document.createTextNode(u.name),
-        el("small", { text: `${u.type}・${LV_LABEL[own[String(id)]] || ""}・${(worksById.get(u.workId) || {}).shortName || ""}` })]),
-      el("span", { class: "mark", text: sel ? "✓" : "" })
-    ]);
-    b.disabled = full && !sel;
-    b.addEventListener("click", () => {
-      const k = draft.favoriteUnits.indexOf(id);
-      if (k >= 0) draft.favoriteUnits.splice(k, 1);
-      else if (draft.favoriteUnits.length < MAX_FAV) draft.favoriteUnits.push(id);
-      renderUnits(); onChange();
-    });
-    list.appendChild(b); shown++;
-  }
-  if (!shown && ownedIds.length) list.appendChild(el("div", { class: "stateMsg", text: "条件に一致するユニットがありません" }));
-  list.scrollTop = keepScroll;
-}
-
-// ---- 56 推しキャラ欄・乗せ替え ----
-function charFace(id, cls){
-  const c = CHARS.get(id), img = el("img", { class: cls + " cface", src: `images/characters/${id}.jpg`, alt: "", loading: "lazy" });
-  img.addEventListener("error", () => img.replaceWith(el("span", { class: cls + " cface noimg", text: c ? [...c.name][0] : "?" })));
-  return img;
-}
-function charSub(c){
-  const u = charUnit(c);
-  return u ? el("small", { text: `${u.type}・${charSubText(c)}` }) : el("small", {}, [el("span", { class: "evBadge", text: "イベント配布" }), document.createTextNode(c.type || "")]);
-}
-// 候補1件（推しキャラ欄・乗せ替えの選択画面で共用）
-function charPickItem(c, opts){
-  const b = el("button", { type: "button", class: "pickItem" + (opts.sel ? " sel" : ""), "data-char": String(c.charId), "aria-pressed": opts.sel ? "true" : "false" }, [
-    charFace(c.charId, "thumb"),
-    el("span", { class: "nm" }, [document.createTextNode(c.name), charSub(c), opts.note ? el("small", { text: opts.note }) : null]),
-    el("span", { class: "mark", text: opts.sel ? "✓" : "" })
-  ]);
-  b.disabled = !!opts.disabled;
-  b.addEventListener("click", opts.onClick);
-  return b;
-}
-function renderChars(){
-  const sec = $("charSection");
-  sec.hidden = !charsAvailable();
-  if (sec.hidden) return;
-  const sel = selectableChars(), ids = [...sel.all];
-  $("charEmptyHint").hidden = sel.setIds.length > 0;
-  $("charCount").textContent = `${draft.favoriteCharacters.length} / ${MAX_FAV}`;
-  const afterChange = () => { renderChars(); renderFormation(); onChange(); };
-  renderPicked($("pickedChars"), draft.favoriteCharacters, id => {
-    const c = CHARS.get(id);
-    return [charFace(id, "thumb"), el("span", { class: "nm" }, [document.createTextNode(c.name), charSub(c)])];
-  }, (i, d) => { moveIn(draft.favoriteCharacters, i, d); afterChange(); },
-     i => { draft.favoriteCharacters.splice(i, 1); afterChange(); });
-  // 作品の絞り込み候補は候補のキャラがいる作品だけ＋「イベント配布」
-  const wf = $("charWorkFilter"), keep = wf.value;
-  const workIds = new Set(ids.map(id => CHARS.get(id)).filter(c => c.setUnitId != null).map(charWorkId));
-  wf.textContent = "";
-  wf.appendChild(el("option", { value: "", text: "作品：すべて" }));
-  wf.appendChild(el("option", { value: "event", text: "イベント配布" }));
-  for (const w of works) if (workIds.has(w.workId)) wf.appendChild(el("option", { value: String(w.workId), text: w.shortName }));
-  wf.value = keep === "event" || workIds.has(Number(keep)) ? keep : "";
-  const type = $("charTypeFilter").value, work = wf.value;
-  const list = $("charList"), keepScroll = list.scrollTop;
-  list.textContent = "";
-  const full = draft.favoriteCharacters.length >= MAX_FAV;
-  let shown = 0;
-  for (const id of ids) {
-    const c = CHARS.get(id);
-    if (type && charType(c) !== type) continue;
-    if (work === "event" ? c.setUnitId != null : (work && charWorkId(c) !== Number(work))) continue;
-    const on = draft.favoriteCharacters.includes(id);
-    list.appendChild(charPickItem(c, { sel: on, disabled: full && !on, onClick: () => {
-      const k = draft.favoriteCharacters.indexOf(id);
-      if (k >= 0) draft.favoriteCharacters.splice(k, 1);
-      else if (draft.favoriteCharacters.length < MAX_FAV) draft.favoriteCharacters.push(id);
-      afterChange();
-    } }));
-    shown++;
-  }
-  if (!shown) list.appendChild(el("div", { class: "stateMsg", text: "条件に一致するキャラがいません" }));
-  list.scrollTop = keepScroll;
-}
-// 乗せ替えの選択画面。閉じたときの搭乗キャラは、開く前に補充規則で決めてある値のまま
-let pilotTarget = null;
-function openPilotPicker(f, i, message){
-  pilotTarget = { f, i };
-  const sel = selectableChars(), holders = pilotHolders(f, i), own = sel.setByUnit.get(f.units[i]);
-  const fi = draft.formations.indexOf(f) + 1;
-  $("pilotTitle").textContent = `乗せ替え（編成${fi}の${String(i + 1).padStart(2, "0")}）`;
-  $("pilotMsg").textContent = message || ""; $("pilotMsg").hidden = !message;
-  $("pilotReset").disabled = own == null;
-  const list = $("pilotList"); list.textContent = "";
-  for (const id of sel.all) {
-    const c = CHARS.get(id), h = holders.get(id);
-    list.appendChild(charPickItem(c, { sel: f.pilots[i] === id, note: h ? `搭乗中：編成${h.gi + 1}の${String(h.j + 1).padStart(2, "0")}（選ぶと入れ替え）` : "",
-      onClick: () => pilotChosen(id) }));
-  }
-  $("pilotModal").classList.add("show");
-}
-function pilotChosen(cid){
-  if (!pilotTarget) return;
-  assignPilot(pilotTarget.f, pilotTarget.i, cid);
-  closePilotPicker();
-}
-function closePilotPicker(){ pilotTarget = null; $("pilotModal").classList.remove("show"); renderFormation(); onChange(); }
-$("pilotClose").addEventListener("click", closePilotPicker);
-$("pilotReset").addEventListener("click", () => { if (pilotTarget) pilotChosen(selectableChars().setByUnit.get(pilotTarget.f.units[pilotTarget.i])); });
-$("pilotModal").addEventListener("click", e => { if (e.target === $("pilotModal")) closePilotPicker(); });
-
-// ---- 51 推し編成フォーム ----
-function fmSupporterLevel(id){ const o = (api.supporters && api.supporters.ownership) || {}; return o[String(id)] == null ? 0 : o[String(id)]; }
-function fmJudge(supporterId, unitId){
-  return supporterId == null || !fmIx ? null : FormationLogic.judge(fmIx, supporterId, fmSupporterLevel(supporterId), unitId, fmWorkLabel);
-}
-function renderFormation(){
-  const sec = $("formationSection");
-  sec.hidden = !(fmIx && unitsAvailable() && supportersAvailable());
-  if (sec.hidden) return;
-  if (!draft.useFm2 && fmTab === 1) fmTab = 0;
-  const f = draft.formations[fmTab], other = draft.formations[1 - fmTab];
-  const own = (api.units && api.units.ownership) || {};
-  $("fmUse2").checked = draft.useFm2;
-  $("fmTabs").hidden = !draft.useFm2;
-  document.querySelectorAll("#fmTabs button").forEach(b => {
-    const on = Number(b.dataset.fm) === fmTab;
-    b.classList.toggle("active", on); b.setAttribute("aria-pressed", on ? "true" : "false");
-  });
-  if ($("fmLabel") !== document.activeElement) $("fmLabel").value = f.label;
-  // サポーター（もう一方の編成で使用中のものは選べない）
-  const sel = $("fmSupporter"); sel.textContent = "";
-  sel.appendChild(el("option", { value: "", text: "未選択" }));
-  for (const s of ownedSupporterList()) {
-    const o = el("option", { value: String(s.id), text: `${s.name}（${LV_LABEL[fmSupporterLevel(s.id)]}）` });
-    if (other.supporterId === s.id && draft.useFm2) { o.disabled = true; o.text += " ※もう一方の編成で使用中"; }
-    sel.appendChild(o);
-  }
-  sel.value = f.supporterId == null ? "" : String(f.supporterId);
-  // リーダースキルの説明と対象ユニット数
-  const info = $("fmSupInfo"); info.textContent = "";
-  if (f.supporterId != null) {
-    const lv = fmSupporterLevel(f.supporterId);
-    const rules = FormationLogic.ruleView(fmIx, f.supporterId, fmWorkLabel);
-    for (const r of rules) {
-      const names = r.items.map(it => (it.kind === "work" ? "シリーズ " : "") + it.label).join("・");
-      info.appendChild(el("div", {}, [document.createTextNode("リーダースキル："),
-        el("b", { text: (r.extra ? "＋" : "") + names }), document.createTextNode(` ${FormationLogic.rateText(r.rates, lv)}`)]));
-    }
-    const tc = FormationLogic.targetCount(fmIx, f.supporterId, ownedUnitIds());
-    info.appendChild(el("div", { text: `対象のURユニット ${tc.total}機中 所持${tc.owned}機` }));
-  } else {
-    info.textContent = "サポーターを選ぶと、リーダースキルの対象になるユニットが分かります。";
-  }
-  // ユニット5枠（位置どおり。途中を空けてよい）
-  const onlyHit = $("fmOnlyHit").checked && f.supporterId != null;
-  const slots = $("fmSlots"); slots.textContent = "";
-  const ids = Object.keys(own).map(Number).filter(id => unitsById.has(id)).sort((a, b) => a - b);
-  f.units.forEach((cur, i) => {
-    const s = el("select", { "aria-label": `ユニット${i + 1}` });
-    s.appendChild(el("option", { value: "", text: "（空き枠）" }));
-    for (const id of ids) {
-      const hit = fmJudge(f.supporterId, id);
-      if (onlyHit && !hit && id !== cur) continue;
-      const u = unitsById.get(id);
-      s.appendChild(el("option", { value: String(id), text: `${hit ? "◎対象 " + hit.rateText + "｜" : ""}${u.name}（${u.type}・${LV_LABEL[own[String(id)]] || ""}）` }));   // 66 選択中のユニットも選べる
-    }
-    s.value = cur == null ? "" : String(cur);
-    s.addEventListener("change", () => {
-      f.units[i] = s.value === "" ? null : Number(s.value);
-      const conflict = onUnitChanged(f, i);
-      renderFormation(); onChange();
-      if (conflict) {
-        const c = CHARS.get(conflict.own);
-        openPilotPicker(f, i, `${c.name}は編成${conflict.holder.gi + 1}の${String(conflict.holder.j + 1).padStart(2, "0")}に搭乗中です。乗せるキャラを選んでください`);
-      }
-    });
-    // 66 枠ごとの凸（既定＝ユニットチェッカーの凸）と「n体目」
-    let lvSel = null, dup = null;
-    if (cur != null) {
-      // 登録の凸が上限：先頭「{登録の凸}（登録）」＋登録より低い凸だけ。登録が無凸なら選べない
-      const reg = Number.isInteger(own[String(cur)]) ? own[String(cur)] : 0;
-      lvSel = el("select", { "aria-label": `ユニット${i + 1}の凸` });
-      lvSel.appendChild(el("option", { value: "", text: `${LV_LABEL[reg]}（登録）` }));
-      for (let lv = 0; lv < reg; lv++) lvSel.appendChild(el("option", { value: String(lv), text: LV_LABEL[lv] }));
-      lvSel.disabled = reg === 0;
-      lvSel.value = f.levels[i] == null ? "" : String(f.levels[i]);
-      lvSel.addEventListener("change", () => { f.levels[i] = lvSel.value === "" ? null : Number(lvSel.value); onChange(); });
-      const n = unitOrdinal(f, i);
-      if (n > 1) dup = el("span", { class: "dup", text: `${n}体目` });
-    }
-    slots.appendChild(el("div", { class: "fmSlot" }, [el("span", { class: "no", text: String(i + 1).padStart(2, "0") }), s]));
-    if (lvSel) slots.appendChild(el("div", { class: "fmOpt" }, [el("span", { text: "凸" }), lvSel, dup]));
-    if (charsAvailable() && cur != null) {
-      const pid = f.pilots[i], pc = pid == null ? null : CHARS.get(pid), fav = pc && draft.favoriteCharacters.includes(pid);
-      const btn = el("button", { type: "button", text: "乗せ替え" });
-      btn.addEventListener("click", () => openPilotPicker(f, i, ""));
-      slots.appendChild(el("div", { class: "fmPilot" }, [
-        pc ? charFace(pid, "thumb") : null,
-        el("span", { class: "pn" + (fav ? " fav" : ""), text: pc ? `搭乗：${fav ? "★ " : ""}${pc.name}` : "搭乗キャラなし" }),
-        btn
-      ]));
-    }
-  });
-  // バフ対象のゲージ
-  const g = $("fmGauge"); g.textContent = "";
-  const filled = f.units.filter(id => id != null);
-  const cnt = f.supporterId == null ? 0 : filled.filter(id => fmJudge(f.supporterId, id)).length;
-  const bar = el("span", { class: "bar" + (filled.length && cnt === filled.length ? " full" : "") });
-  for (let i = 0; i < filled.length; i++) bar.appendChild(el("i", { class: i < cnt ? "on" : "" }));
-  g.appendChild(el("span", { text: "バフ対象" }));
-  g.appendChild(el("b", { text: `${cnt}/${filled.length}` }));
-  g.appendChild(bar);
-}
-
-function renderAcqOpts(){ $("optAcq").checked = !!draft.cardOptions.acq; $("optMemo").checked = !!draft.cardOptions.memo; }
 function renderAll(){
-  renderDesign(); renderRegList(); renderProfileFields(); renderWorks(); renderUnits(); renderChars(); renderFormation(); renderAcqOpts(); updateDirty();
+  renderDesign(); renderRegList(); renderProfileFields(); form.renderAll(); updateDirty();
 }
 
 // ---- 入力イベント ----
@@ -2879,35 +2061,15 @@ $("themeButtons").addEventListener("click", e => {
 $("inName").addEventListener("input", () => { draft.displayName = $("inName").value; onChange(); });
 $("inRank").addEventListener("input", () => { const v = $("inRank").value.trim(); draft.playerRank = v === "" ? null : Number(v); onChange(); });
 $("inComment").addEventListener("input", () => { draft.comment = $("inComment").value; updateCommentCounter(); onChange(); });
-$("workTabs").addEventListener("click", e => {
-  const b = e.target.closest("button[data-era]"); if (!b) return;
-  currentEra = b.dataset.era; $("workList").scrollTop = 0; renderWorks();
-});
-$("unitTypeFilter").addEventListener("change", () => { $("unitList").scrollTop = 0; renderUnits(); });
-$("unitWorkFilter").addEventListener("change", () => { $("unitList").scrollTop = 0; renderUnits(); });
-$("charTypeFilter").addEventListener("change", () => { $("charList").scrollTop = 0; renderChars(); });
-$("charWorkFilter").addEventListener("change", () => { $("charList").scrollTop = 0; renderChars(); });
-$("fmTabs").addEventListener("click", e => {
-  const b = e.target.closest("button[data-fm]"); if (!b) return;
-  fmTab = Number(b.dataset.fm); renderFormation();
-});
-$("fmUse2").addEventListener("change", () => { draft.useFm2 = $("fmUse2").checked; if (!draft.useFm2) fmTab = 0; sanitizeDraft(); renderFormation(); onChange(); });
-$("fmLabel").addEventListener("input", () => { draft.formations[fmTab].label = $("fmLabel").value.slice(0, FM_LABEL_MAX); onChange(); });
-$("fmOnlyHit").addEventListener("change", renderFormation);
-$("fmSupporter").addEventListener("change", () => {
-  const f = draft.formations[fmTab]; f.supporterId = $("fmSupporter").value === "" ? null : Number($("fmSupporter").value);
-  sanitizeDraft(); renderFormation(); onChange();
-});
-$("optAcq").addEventListener("change", () => { draft.cardOptions = Object.assign({}, draft.cardOptions, { acq: $("optAcq").checked }); onChange(); });
-$("optMemo").addEventListener("change", () => { draft.cardOptions = Object.assign({}, draft.cardOptions, { memo: $("optMemo").checked }); onChange(); });
 
 // ---- 保存 ----
 function profileBody(){
+  const fav = form.payload();   // 推し4項目（68）
   return JSON.stringify({
     displayName: draft.displayName.trim(), comment: draft.comment.trim(), titleMissionId: draft.titleMissionId,
     cardTemplate: draft.cardTemplate, cardTheme: draft.cardTheme,
-    favoriteWorks: draft.favoriteWorks, favoriteUnits: draft.favoriteUnits, cardOptions: draft.cardOptions,
-    playerRank: validRank(draft.playerRank), formations: formationsPayload(), ...(charsAvailable() ? { favoriteCharacters: draft.favoriteCharacters } : {})
+    favoriteWorks: fav.favoriteWorks, favoriteUnits: fav.favoriteUnits, cardOptions: draft.cardOptions,
+    playerRank: validRank(draft.playerRank), formations: fav.formations, ...(fav.favoriteCharacters ? { favoriteCharacters: fav.favoriteCharacters } : {})
   });
 }
 const SAVE_ERRORS = {
@@ -3056,17 +2218,7 @@ async function init(){
     if (cardRes.status === 401) { showGuard(); return; }
     if (!cardRes.ok) throw new Error("profile-card " + cardRes.status);
     api = await cardRes.json();
-    works = (worksRes && worksRes.works) || [];
-    for (const w of works) {
-      worksById.set(w.workId, w);
-      for (const u of w.units || []) unitsById.set(u.unitId, Object.assign({ workId: w.workId }, u));
-    }
-    for (const c of (charsRes && charsRes.characters) || []) CHARS.set(c.charId, c);
-    // 51・52 バフ対象の判定とタグ傾向の索引（両APIにデータがあるときだけ有効）
-    if (tagsRes && leaderRes && (tagsRes.tags || []).length && (leaderRes.rules || []).length) {
-      const unitWork = new Map(); for (const [id, u] of unitsById) unitWork.set(id, u.workId);
-      fmIx = FormationLogic.buildIndex(leaderRes, tagsRes, unitWork);
-    }
+    form.setData({ api, works: worksRes, characters: charsRes, tags: tagsRes, leaderSkills: leaderRes });   // worksById・unitsById・CHARS・fmIxを作る
     // エタロの構成（ステージごとのミッション）はマスターAPIから組み立てる（㉒6.2）
     const ms = (missionsRes && missionsRes.missions) || [];
     if (ms.length) {
@@ -3084,7 +2236,7 @@ async function init(){
   }
 
   const server = draftFromProfile(api.profile || {});
-  Object.assign(draft, server);
+  Object.assign(draft, server, form.fromProfile(api.profile || {}));
   sanitizeDraft();
   savedJson = draftJson();
   // 下書きがあり、サーバーの保存日時より新しければ下書きを使う（サーバーの方が新しければサーバーを優先）

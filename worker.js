@@ -1796,12 +1796,8 @@ async function handleSaveProfile(request, env) {
          title_mission_id = excluded.title_mission_id, card_template = excluded.card_template,
          card_theme = excluded.card_theme, updated_at = excluded.updated_at`
     ).bind(uid, displayName, comment, titleMissionId, cardTemplate, cardTheme, nowJst),
-    env.DB.prepare("DELETE FROM user_favorite_works WHERE user_uid = ?").bind(uid),
-    ...favoriteWorks.map((id, i) =>
-      env.DB.prepare("INSERT INTO user_favorite_works (user_uid, slot, work_id) VALUES (?, ?, ?)").bind(uid, i + 1, id)),
-    env.DB.prepare("DELETE FROM user_favorite_units WHERE user_uid = ?").bind(uid),
-    ...favoriteUnits.map((id, i) =>
-      env.DB.prepare("INSERT INTO user_favorite_units (user_uid, slot, unit_id) VALUES (?, ?, ?)").bind(uid, i + 1, id)),
+    ...favoriteWorkStatements(env, uid, favoriteWorks),
+    ...favoriteUnitStatements(env, uid, favoriteUnits),
     env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(new Date().toISOString(), uid)
   ];
   await env.DB.batch(statements);
@@ -1821,45 +1817,139 @@ async function handleSaveProfile(request, env) {
   }
 
   // 51 推し編成は別のバッチ。0029未適用でも他の保存は成功させる
-  if (formations) {
-    // 66 level列（0036）を足す。列が無い環境では列を減らして書く
-    const insertUnit = (withPilot, withLevel) => {
-      const cols = ["user_uid", "formation_no", "slot", "rarity_code", "unit_id"].concat(withPilot ? ["pilot_char_id"] : [], withLevel ? ["level"] : []);
-      return env.DB.prepare(`INSERT INTO user_formation_units (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`);
-    };
-    const formationBatch = (withPilot, withLevel) => [
-      env.DB.prepare("DELETE FROM user_formation_units WHERE user_uid = ?").bind(uid),
-      env.DB.prepare("DELETE FROM user_formations WHERE user_uid = ?").bind(uid),
-      ...formations.flatMap((f, i) => [
-        env.DB.prepare("INSERT INTO user_formations (user_uid, formation_no, label, supporter_id, updated_at) VALUES (?, ?, ?, ?, ?)")
-          .bind(uid, i + 1, f.label, f.supporterId, nowJst),
-        ...f.units.map(u => insertUnit(withPilot, withLevel)
-          .bind(uid, i + 1, u.slot, RARITY_CODE.UR, u.unitId, ...(withPilot ? [u.pilot] : []), ...(withLevel ? [u.level] : [])))
-      ])
-    ];
-    try {
-      // 0036未適用（level列が無い）・0033未適用（pilot_char_id列が無い）なら、列を減らして書き直す
-      const combos = [[true, true], [true, false], [false, true], [false, false]].filter(([p]) => !p || sel);
-      for (let k = 0; k < combos.length; k++) {
-        try { await env.DB.batch(formationBatch(...combos[k])); break; }
-        catch (e) { if (k === combos.length - 1) throw e; }
-      }
-    } catch (e) { /* migrations/0029 未適用 */ }
-  }
+  if (formations) await saveFormations(env, uid, formations, sel, nowJst);
 
   // 56 推しキャラは別のバッチ。0033未適用でも他の保存は成功させる
-  if (favoriteChars && sel) {
-    try {
-      await env.DB.batch([
-        env.DB.prepare("DELETE FROM user_favorite_characters WHERE user_uid = ?").bind(uid),
-        ...favoriteChars.map((id, i) =>
-          env.DB.prepare("INSERT INTO user_favorite_characters (user_uid, slot, char_id) VALUES (?, ?, ?)").bind(uid, i + 1, id))
-      ]);
-    } catch (e) { /* migrations/0033 未適用 */ }
-  }
+  if (favoriteChars) await saveFavoriteCharacters(env, uid, favoriteChars, sel);
 
   const profile = await loadProfile(env, uid, eternalRoad ? eternalRoad.earnedTitles : []);
   return jsonResponse({ ok: true, profile }, 200);
+}
+
+// 推し作品・推しユニットの書き込み文（/api/profile と /api/favorite-info で共用。slot＝順番+1）
+function favoriteWorkStatements(env, uid, ids) {
+  return [
+    env.DB.prepare("DELETE FROM user_favorite_works WHERE user_uid = ?").bind(uid),
+    ...ids.map((id, i) => env.DB.prepare("INSERT INTO user_favorite_works (user_uid, slot, work_id) VALUES (?, ?, ?)").bind(uid, i + 1, id))
+  ];
+}
+function favoriteUnitStatements(env, uid, ids) {
+  return [
+    env.DB.prepare("DELETE FROM user_favorite_units WHERE user_uid = ?").bind(uid),
+    ...ids.map((id, i) => env.DB.prepare("INSERT INTO user_favorite_units (user_uid, slot, unit_id) VALUES (?, ?, ?)").bind(uid, i + 1, id))
+  ];
+}
+
+// 推し編成の書き換え（別バッチ。未適用の環境では列を減らして書き、TBLが無ければ何もしない）
+async function saveFormations(env, uid, formations, sel, nowJst) {
+  // 66 level列（0036）を足す。列が無い環境では列を減らして書く
+  const insertUnit = (withPilot, withLevel) => {
+    const cols = ["user_uid", "formation_no", "slot", "rarity_code", "unit_id"].concat(withPilot ? ["pilot_char_id"] : [], withLevel ? ["level"] : []);
+    return env.DB.prepare(`INSERT INTO user_formation_units (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`);
+  };
+  const formationBatch = (withPilot, withLevel) => [
+    env.DB.prepare("DELETE FROM user_formation_units WHERE user_uid = ?").bind(uid),
+    env.DB.prepare("DELETE FROM user_formations WHERE user_uid = ?").bind(uid),
+    ...formations.flatMap((f, i) => [
+      env.DB.prepare("INSERT INTO user_formations (user_uid, formation_no, label, supporter_id, updated_at) VALUES (?, ?, ?, ?, ?)")
+        .bind(uid, i + 1, f.label, f.supporterId, nowJst),
+      ...f.units.map(u => insertUnit(withPilot, withLevel)
+        .bind(uid, i + 1, u.slot, RARITY_CODE.UR, u.unitId, ...(withPilot ? [u.pilot] : []), ...(withLevel ? [u.level] : [])))
+    ])
+  ];
+  try {
+    // 0036未適用（level列が無い）・0033未適用（pilot_char_id列が無い）なら、列を減らして書き直す
+    const combos = [[true, true], [true, false], [false, true], [false, false]].filter(([p]) => !p || sel);
+    for (let k = 0; k < combos.length; k++) {
+      try { await env.DB.batch(formationBatch(...combos[k])); break; }
+      catch (e) { if (k === combos.length - 1) throw e; }
+    }
+  } catch (e) { /* migrations/0029 未適用 */ }
+}
+
+// 推しキャラの書き換え（別バッチ。0033未適用でも他の保存は成功させる）
+async function saveFavoriteCharacters(env, uid, ids, sel) {
+  if (!sel) return;
+  try {
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM user_favorite_characters WHERE user_uid = ?").bind(uid),
+      ...ids.map((id, i) =>
+        env.DB.prepare("INSERT INTO user_favorite_characters (user_uid, slot, char_id) VALUES (?, ?, ?)").bind(uid, i + 1, id))
+    ]);
+  } catch (e) { /* migrations/0033 未適用 */ }
+}
+
+// POST /api/favorite-info（ログイン必須）。推し4項目だけを書く（表示名・ひとこと・ランク・カードのデザインは触らない）
+// 送られたキーだけ処理する：キー無し／undefined＝変えない、null＝空にする、配列＝置き換え
+async function handleSaveFavoriteInfo(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) return jsonResponse({ error: "not_logged_in" }, 401);
+  const uid = sessionUser.userUid;
+
+  let body;
+  try {
+    const text = await request.text();
+    if (new TextEncoder().encode(text).length > PROFILE_BODY_MAX_BYTES) throw new Error("too large");
+    body = JSON.parse(text);
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("not object");
+  } catch (e) {
+    return jsonResponse({ error: "invalid_body" }, 400);
+  }
+  const has = k => k in body && body[k] !== undefined;
+  const hasWorks = has("favoriteWorks"), hasUnits = has("favoriteUnits"), hasChars = has("favoriteCharacters"), hasFormations = has("formations");
+  if (!hasWorks && !hasUnits && !hasChars && !hasFormations) return jsonResponse({ error: "invalid_body" }, 400);
+
+  let favoriteWorks = null, favoriteUnits = null, favoriteChars = null, formations = null;
+  if (hasWorks) {
+    favoriteWorks = normalizeFavoriteIds(body.favoriteWorks, WORK_IDS);
+    if (!favoriteWorks) return jsonResponse({ error: "invalid_favorites" }, 400);
+  }
+  if (hasUnits) {
+    const { results: ownedRows } = await env.DB.prepare("SELECT DISTINCT unit_id FROM units_ownership WHERE user_uid = ?").bind(uid).all();
+    favoriteUnits = normalizeFavoriteIds(body.favoriteUnits, new Set(ownedRows.map(r => r.unit_id)));
+    if (!favoriteUnits) return jsonResponse({ error: "invalid_favorite_units" }, 400);
+  }
+  if (hasFormations) {
+    formations = await normalizeFormations(env, uid, body.formations === null ? [] : body.formations);   // null＝編成を空にする
+    if (formations === undefined) return jsonResponse({ error: "invalid_formations" }, 400);
+  }
+  const sel = await loadSelectableCharacters(env, uid);
+  if (hasChars) {
+    favoriteChars = normalizeFavoriteIds(body.favoriteCharacters, sel ? sel.all : new Set());
+    if (!favoriteChars) return jsonResponse({ error: "invalid_favorite_characters" }, 400);
+  }
+  if (formations && sel) normalizePilots(formations, sel);
+
+  const nowJst = toJstIsoString(new Date());
+  // 行が無い人も保存できるよう user_profiles を作り（既定のデザイン）、updated_at を進める（カードの古い下書きを無効にする）
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO user_profiles (user_uid, card_template, card_theme, updated_at)
+       VALUES (?, 'standard', 'galaxy', ?)
+       ON CONFLICT(user_uid) DO UPDATE SET updated_at = excluded.updated_at`
+    ).bind(uid, nowJst),
+    ...(favoriteWorks ? favoriteWorkStatements(env, uid, favoriteWorks) : []),
+    ...(favoriteUnits ? favoriteUnitStatements(env, uid, favoriteUnits) : []),
+    env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(new Date().toISOString(), uid)
+  ]);
+  if (formations) await saveFormations(env, uid, formations, sel, nowJst);
+  if (favoriteChars) await saveFavoriteCharacters(env, uid, favoriteChars, sel);
+
+  const eternalRoad = await loadEternalRoadForCard(env, uid);
+  const profile = await loadProfile(env, uid, eternalRoad ? eternalRoad.earnedTitles : []);
+  return jsonResponse({ ok: true, profile }, 200);
+}
+
+// GET /api/favorite-info/summary（ログイン任意）。トップの登録状況バッジ用の件数
+async function handleFavoriteInfoSummary(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser) return jsonResponse({ loggedIn: false }, 200);
+  const p = await loadProfile(env, sessionUser.userUid, []);
+  return jsonResponse({
+    loggedIn: true,
+    works: (p.favoriteWorks || []).length, units: (p.favoriteUnits || []).length,
+    characters: (p.favoriteCharacters || []).length, formations: (p.formations || []).length
+  }, 200);
 }
 
 // ⑮ エタロ攻略チェッカー起動時の復元用（handleMyOwnership()のエタロ版）
@@ -2374,6 +2464,12 @@ export default {
     }
     if (url.pathname === "/api/profile" && request.method === "POST") {
       return handleSaveProfile(request, env);
+    }
+    if (url.pathname === "/api/favorite-info" && request.method === "POST") {
+      return handleSaveFavoriteInfo(request, env);
+    }
+    if (url.pathname === "/api/favorite-info/summary" && request.method === "GET") {
+      return handleFavoriteInfoSummary(request, env);
     }
 
     // ルートURLはトップページ（top.html）を配信する。index.htmlは廃止済み（unit.htmlへリネーム済み）のため、

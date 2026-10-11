@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>推し情報設定｜Gジェネエターナル ファンツール</title>
+<!-- 推し情報設定（68）。段階1は運営者専用（adminGate）。一般公開はESPの確認後（段階2） -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+<link rel="stylesheet" href="favorite-form.css">
+<!-- "/"ではなく"/top"を対象にする。過去の"/"→/unit 301キャッシュを引き当てても意味がないため（⑧） -->
+<link rel="prefetch" href="/top">
+<style>
+  :root{
+    --void:#05070d;
+    --panel:rgba(16,22,32,.68);
+    --panel-2:#0e141d;
+    --panel-solid:#121924;
+    --line:rgba(107,224,224,.16);
+    --line-strong:rgba(140,160,180,.28);
+    --gold:#dab949;
+    --gold-dim:#8a7128;
+    --cyan:#6be0e0;
+    --cyan-dim:#3f8f8f;
+    --violet:#a58cf0;
+    --text:#eef3f6;
+    --muted:#93a3b3;
+    --register:#7fd9a0;
+  }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  html,body{height:100%;}
+  body{
+    margin:0;background:var(--void);color:var(--text);
+    font-family:'Noto Sans JP',sans-serif;min-height:100%;
+    -webkit-font-smoothing:antialiased;padding-bottom:96px;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 60vmax 60vmax at 10% -10%, rgba(122,95,207,.28), transparent 60%),
+      radial-gradient(ellipse 55vmax 55vmax at 110% 10%, rgba(52,224,177,.16), transparent 60%),
+      radial-gradient(ellipse 70vmax 70vmax at 50% 120%, rgba(44,63,122,.35), transparent 60%);
+  }
+  ::selection{background:rgba(107,224,224,.3);color:#fff;}
+
+  main.wrap{position:relative;z-index:1;max-width:720px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 16px calc(28px + env(safe-area-inset-bottom,0px));}
+  .eyebrow{
+    font-family:'Share Tech Mono',monospace;letter-spacing:.16em;font-size:11px;
+    color:var(--cyan);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin:0 0 14px;opacity:.9;
+  }
+  .eyebrow::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);display:inline-block;border-radius:1px;}
+  h1{font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:23px;margin:0 0 10px;word-break:keep-all;overflow-wrap:break-word;}
+  .sub{color:#c7d2dc;font-size:13px;margin:0 0 22px;line-height:1.8;word-break:keep-all;overflow-wrap:break-word;}
+
+  .guardCard{
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:28px 22px;text-align:center;
+  }
+  .guardCard p{color:var(--muted);font-size:13px;line-height:1.8;margin:0 0 18px;}
+  .guardCard button{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;
+    background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;
+    border:1px solid var(--gold);border-radius:3px;padding:10px 26px;cursor:pointer;
+  }
+  .stateMsg{color:var(--muted);font-size:12.5px;text-align:center;padding:28px 0;}
+
+  .section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px 14px;margin:0 0 14px;}
+  .section h2{font-size:14px;margin:0 0 12px;display:flex;align-items:center;gap:8px;}
+  .section h2::before{content:"";width:3px;height:15px;background:var(--gold);display:inline-block;}
+  .section h2 .cnt{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted);font-weight:400;margin-left:auto;}
+  .hint{font-size:11.5px;color:var(--muted);line-height:1.6;margin:6px 0 0;}
+  .fieldLabel{display:block;font-size:12px;color:var(--muted);margin:0 0 5px;}
+  .field{margin:0 0 14px;}
+  .field:last-child{margin-bottom:0;}
+  .field input[type=text], .field select{
+    width:100%;font:inherit;font-size:14px;color:var(--text);background:var(--panel-2);
+    border:1px solid var(--line-strong);border-radius:4px;padding:9px 10px;
+  }
+  .field input:focus, .field select:focus{outline:2px solid var(--cyan);outline-offset:1px;}
+  .field select:disabled{opacity:.55;}
+  .seg{display:flex;gap:6px;}
+  .seg button{
+    flex:1;min-width:0;font:inherit;font-size:13px;font-weight:700;color:var(--muted);background:var(--panel-2);
+    border:1px solid var(--line-strong);border-radius:4px;padding:9px 4px;cursor:pointer;white-space:nowrap;
+  }
+  .seg button.active{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold);}
+  .seg[hidden],.seg button[hidden]{display:none;}
+
+  /* アクションバー */
+  .actionbar{
+    position:fixed;left:0;right:0;bottom:0;background:rgba(10,14,20,.92);backdrop-filter:blur(6px);
+    border-top:1px solid var(--line-strong);padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    display:flex;gap:10px;max-width:720px;margin:0 auto;z-index:50;
+  }
+  .actionbar button{
+    flex:1;min-width:0;font-family:'Rajdhani','Noto Sans JP',sans-serif;font-weight:700;font-size:14px;letter-spacing:.02em;
+    padding:12px 4px;cursor:pointer;border:1px solid var(--line-strong);border-radius:3px;white-space:nowrap;position:relative;
+  }
+  .actionbar button:disabled{opacity:.6;cursor:default;}
+  .btn-save{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold) !important;}
+  .btn-card{background:transparent;color:var(--cyan);border-color:var(--cyan) !important;}
+  .dirtyMark{position:absolute;top:-9px;right:4px;font-size:10px;font-family:'Noto Sans JP',sans-serif;color:#1b1503;background:var(--gold);border-radius:8px;padding:1px 6px;letter-spacing:0;}
+  @media (max-width:360px){ .actionbar button{font-size:12.5px;} }
+
+  .toast{
+    position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,8px);
+    background:rgba(10,14,20,.95);border:1px solid var(--register);color:var(--text);
+    font-size:13px;padding:10px 18px;max-width:88%;text-align:center;border-radius:4px;
+    z-index:110;opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0);}
+
+  .pageFooter{margin-top:28px;padding-top:16px;border-top:1px solid var(--line-strong);font-size:10.5px;line-height:1.9;color:var(--muted);}
+  .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
+  .pageFooter a{color:var(--cyan);text-decoration:none;}
+</style>
+</head>
+<!-- data-auth-stay: ログイン案内からログインした人をトップへ飛ばさず、このページに戻す（auth.js） -->
+<body data-auth-stay>
+
+<main class="wrap">
+  <p class="eyebrow">FAVORITES</p>
+  <h1>推し情報設定</h1>
+  <p class="sub">推し作品・推しユニット・推しキャラ・推し編成を登録できます。登録した推しは自己紹介カードにも表示されます。</p>
+
+  <div id="guardView" class="guardCard" hidden>
+    <p>推し情報の設定にはログインが必要です。<br>ログインすると、推しを登録できるようになります。</p>
+    <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
+  </div>
+  <!-- 運営者専用（段階1）。運営者以外のログインユーザーにはこの案内だけを出す。公開時はこの判定を外す -->
+  <div id="adminOnlyView" class="stateMsg" hidden>推し情報設定は試用版のため、運営者専用ページです。</div>
+  <div id="loadingView" class="stateMsg">読み込み中...</div>
+  <div id="errorView" class="stateMsg" hidden>データの読み込みに失敗しました。時間をおいて再度お試しください。</div>
+
+  <div id="contentView" hidden>
+    <div id="favoriteForm"></div>
+  </div>
+
+  <footer class="pageFooter">
+    <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
+    <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
+    <p>掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
+    <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+  </footer>
+</main>
+
+<div class="actionbar" id="actionbar" hidden>
+  <button type="button" class="btn-save" id="btnSave">保存<span class="dirtyMark" id="dirtyMark" hidden>●未保存</span></button>
+  <button type="button" class="btn-card" id="btnCard">自己紹介カードを作る ›</button>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="favorite-logic.js"></script>
+<script src="favorite-form.js"></script>
+<script>
+(function(){
+"use strict";
+
+const DRAFT_KEY = "favoriteinfo_draft_v1";
+const CARD_URL = "/profile-card-trial.html";   // 段階2で "/profile-card"
+const $ = id => document.getElementById(id);
+
+let api = null;           // GET /api/profile-card の応答
+let savedJson = "";       // 最後にサーバーと一致していた内容（未保存表示の判定用）
+// 推し4項目だけを持つ。保存・下書きもこの部分だけ
+const draft = { favoriteWorks: [], favoriteUnits: [], favoriteCharacters: [], cardOptions: Object.assign({}, FavoriteForm.CARD_OPTIONS_DEFAULT),
+                formations: [FavoriteForm.emptyFormation(), FavoriteForm.emptyFormation()], useFm2: false };
+const form = FavoriteForm.create({ root: $("favoriteForm"), draft, options: { emptyMode: "hint", acqOptions: false }, onChange });
+
+// ---- トースト ----
+let toastTimer = null;
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+// 保存する内容。推し編成が選べない状態（ユニット・サポート未登録、タグ等の取得失敗）では編成は送らず、保存済みの編成を変えない
+function bodyObject(){
+  const p = form.payload();
+  if (!form.ctx.available.formation()) delete p.formations;
+  return p;
+}
+function currentJson(){ return JSON.stringify(bodyObject()); }
+function updateDirty(){ $("dirtyMark").hidden = currentJson() === savedJson; }
+
+// ---- 下書き（localStorage）。ユーザーごとに持ち、他のユーザーの下書きは使わない ----
+function pickDraft(){ const { favoriteWorks, favoriteUnits, favoriteCharacters, formations, useFm2 } = draft; return { favoriteWorks, favoriteUnits, favoriteCharacters, formations, useFm2 }; }
+function saveDraft(){
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ username: api.username, editedAt: new Date().toISOString(), draft: pickDraft() })); } catch (e) {}
+}
+function loadDraft(){
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+    if (d && d.username === api.username && d.draft && d.editedAt) return d;
+  } catch (e) {}
+  return null;
+}
+function clearDraft(){ try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+
+function onChange(){ saveDraft(); updateDirty(); }
+
+// ---- 保存 ----
+const SAVE_ERRORS = {
+  invalid_formations: "推し編成は2つまで・ユニットは5機まで・編成名は10文字以内です",
+  invalid_favorites: "推し作品は5つまでです",
+  invalid_favorite_units: "推しユニットは5機までです",
+  invalid_favorite_characters: "推しキャラは5人までです",
+  invalid_body: "入力内容を送信できませんでした"
+};
+// 戻り値：{ok, message}
+async function save(keepalive){
+  let res;
+  try {
+    res = await fetch("/api/favorite-info", {
+      method: "POST", credentials: "same-origin", keepalive: !!keepalive,
+      headers: { "Content-Type": "application/json" }, body: currentJson()
+    });
+  } catch (e) {
+    return { ok: false, message: "通信エラーが発生しました。時間をおいて再度お試しください" };
+  }
+  if (res.status === 401) return { ok: false, message: "保存にはログインが必要です" };
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data || !data.ok) {
+    return { ok: false, message: (data && SAVE_ERRORS[data.error]) || "保存に失敗しました。時間をおいて再度お試しください" };
+  }
+  api.profile = data.profile;
+  savedJson = currentJson();
+  clearDraft();
+  updateDirty();
+  return { ok: true, message: "保存しました" };
+}
+
+$("btnSave").addEventListener("click", async () => {
+  const btn = $("btnSave"); btn.disabled = true;
+  const r = await save(false);
+  toast(r.message);
+  btn.disabled = false;
+});
+// 未保存なら先に保存し、成功したらカードへ移動
+$("btnCard").addEventListener("click", async () => {
+  const btn = $("btnCard"); btn.disabled = true;
+  if (currentJson() !== savedJson) {
+    const r = await save(false);
+    if (!r.ok) { toast(r.message); btn.disabled = false; return; }
+  }
+  location.href = CARD_URL;
+});
+
+// ---- 起動 ----
+function showGuard(){ $("loadingView").hidden = true; $("guardView").hidden = false; }
+$("guardLoginBtn").addEventListener("click", () => { const l = document.getElementById("authOpenLink"); if (l) l.click(); });
+
+async function init(){
+  try {
+    const json = u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null);   // 取れなかったものはその欄だけ無効（form側で案内を出す）
+    const [cardRes, worksRes, tagsRes, leaderRes, charsRes] = await Promise.all([
+      fetch("/api/profile-card", { credentials: "same-origin" }),
+      json("/api/works"), json("/api/tags"), json("/api/leader-skills"), json("/api/characters")
+    ]);
+    if (cardRes.status === 401) { showGuard(); return; }
+    if (!cardRes.ok) throw new Error("profile-card " + cardRes.status);
+    api = await cardRes.json();
+    form.setData({ api, works: worksRes, characters: charsRes, tags: tagsRes, leaderSkills: leaderRes });
+  } catch (e) {
+    console.error(e);
+    $("loadingView").hidden = true; $("errorView").hidden = false;
+    return;
+  }
+
+  Object.assign(draft, form.fromProfile(api.profile || {}));
+  form.sanitize();
+  savedJson = currentJson();
+  // 下書きがあり、サーバーの保存日時より新しければ下書きを使う（サーバーの方が新しければサーバーを優先）
+  const d = loadDraft();
+  const serverTime = api.profile && api.profile.updatedAt ? Date.parse(api.profile.updatedAt) : 0;
+  if (d && Date.parse(d.editedAt) > serverTime) {
+    Object.assign(draft, d.draft);
+    form.sanitize();
+  } else if (d) {
+    clearDraft();
+  }
+
+  $("loadingView").hidden = true;
+  $("contentView").hidden = false;
+  $("actionbar").hidden = false;
+  form.renderAll();
+  updateDirty();
+}
+
+// /api/me失敗時は保守的にガード表示に倒し、他のAPIは呼ばない
+// 段階1は運営者専用：ログイン済みでも /api/admin/me が admin:true のときだけ本体を読み込む（公開するときは adminGate を外して init() を直接呼ぶ）
+function showAdminOnly(){ $("loadingView").hidden = true; $("adminOnlyView").hidden = false; }
+async function adminGate(){
+  try {
+    const r = await fetch("/api/admin/me", { credentials: "same-origin" });
+    const d = await r.json();
+    if (d && d.admin === true) init(); else showAdminOnly();
+  } catch (e) { showAdminOnly(); }
+}
+fetch("/api/me", { credentials: "same-origin" })
+  .then(r => r.json())
+  .then(d => { if (d && d.loggedIn) adminGate(); else showGuard(); })
+  .catch(showGuard);
+})();
+</script>
+<script src="auth.js" defer></script>
+</body>
+</html>
