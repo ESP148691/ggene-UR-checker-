@@ -2268,7 +2268,7 @@ function draftFromProfile(p){
     cardTemplate: p.cardTemplate || "standard",
     cardTheme: p.cardTheme || "galaxy",
     favoriteWorks: bySlot(p.favoriteWorks).map(f => f.workId),
-    favoriteUnits: bySlot(p.favoriteUnits).map(f => f.unitId),
+    favoriteUnits: bySlot(p.favoriteUnits).filter(f => f.rarityCode !== 2).map(f => f.unitId),   // ㊻ SSR（rarityCode 2）はこの画面では扱わない（URとして誤表示しない）
     favoriteCharacters: bySlot(p.favoriteCharacters).map(f => f.charId),
     playerRank: validRank(p.playerRank),
     cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT, p.cardOptions || {}),

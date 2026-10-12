@@ -269,6 +269,7 @@
 </div>
 
 <script src="ur-units.js"></script>
+<script src="ssr-units.js"></script>
 <script src="favorite-logic.js"></script>
 <script src="favorite-form.js"></script>
 <script>
@@ -967,7 +968,7 @@ async function layoutStandard(ctx,T,data){
       // ★（凸）を画像の下端に重ねる
       const R=6.5, starsW=3*R*2.3, stx=ix+(size-starsW)/2, sty=iy+size-11;
       ctx.save(); roundRect(ctx,stx-6,sty-10,starsW+10,20,10); ctx.fillStyle="rgba(8,10,16,.72)"; ctx.fill(); ctx.restore();
-      totsuStars(ctx,{...T,dark:true},stx,sty,R,f.level);
+      totsuStars(ctx,{...T,dark:true},stx,sty,R,f.ssr?"ssr":f.level);
     }
     py+=h+GAP;
   }
@@ -1167,6 +1168,13 @@ function starPath(ctx,cx,cy,R){
 }
 // 凸レベルを★3つで表現（既存チェッカーと同じ：完凸は虹色＋白グロー）
 function totsuStars(ctx,T,x,y,R,lv){
+  if(lv==="ssr"){   // ㊻ SSRは★の代わりに金のバッジ（★3つと同じ幅・位置）
+    const w=3*R*2.3, fs=Math.max(12,Math.round(R*1.9)), h=fs+4;
+    ctx.save(); roundRect(ctx,x,y-h/2,w,h,4); ctx.fillStyle="#dab949"; ctx.fill();
+    ctx.fillStyle="#1b1503"; ctx.font=`bold ${fs}px ${FONT}`; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("SSR",x+w/2,y+0.5); ctx.restore();
+    return x+w;
+  }
   for(let i=0;i<3;i++){
     const cx=x+R+i*(R*2.3);
     starPath(ctx,cx,y,R);
@@ -1268,7 +1276,7 @@ async function unitImage(ctx,T,u,x,y,size,radius){
   roundRect(ctx,x,y,size,size,radius); ctx.fillStyle=T.dark?"#101720":"#e3eef8"; ctx.fill(); ctx.restore();
   ctx.save(); roundRect(ctx,x,y,size,size,radius); ctx.clip();
   ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality="high";
-  const im=await loadImage(`${BASE}images/units/${u.unitId}.jpg`); if(im) drawCover(ctx,im,x,y,size,size);
+  const im=await loadImage(`${BASE}images/${u.ssr?"ssr":"units"}/${u.unitId}.jpg`); if(im) drawCover(ctx,im,x,y,size,size);   // ㊻ SSRは images/ssr/
   ctx.restore();
   roundRect(ctx,x,y,size,size,radius);
   ctx.strokeStyle=u.level===3?rainbow(ctx,x,y,x+size,y+size):T.frame; ctx.lineWidth=u.level===3?3:1.2; ctx.stroke();
@@ -1395,7 +1403,7 @@ async function layoutUnits(ctx,T,data){
     ctx.fillStyle=T.bgMuted||T.muted; ctx.font=`15px ${FONT}`; shadowText(ctx,T,"推しユニットが未設定です",GX,GY+40);
     footer(ctx,T,data); return;
   }
-  const acqOf=f=>(data.unitAcq||{})[String(f.unitId)]||null;
+  const acqOf=f=>f.ssr?null:(data.unitAcq||{})[String(f.unitId)]||null;   // ㊻ SSRに入手記録はない
   const heroW=favs.length>1?330:GW, heroH=GH;
   // 1位：ヒーローカード
   {
@@ -1406,7 +1414,7 @@ async function layoutUnits(ctx,T,data){
     const memoLines=hasA&&rec.m?wrapLines(ctx,rec.m,heroW-36-40,2):[];
     const acqH=hasA?(22+(rec.r?22:0)+((rec.d||rec.n)?22:0)+memoLines.length*19+4):0;
     // 内容の高さを見積もって縦中央に配置（画像は元画像150px幅のため270pxを上限にしてボケを抑える）
-    const heroName=wrapName(ctx,f.name,heroW-36,sz=>`bold ${sz}px ${FONT}`,21,f.unitId), nl=heroName.lines.length;   // ㉚ wrap2→wrapName
+    const heroName=wrapName(ctx,f.name,heroW-36,sz=>`bold ${sz}px ${FONT}`,21,f.ssr?null:f.unitId), nl=heroName.lines.length;   // ㉚ wrap2→wrapName
     const tagRow=(f.featureTags&&f.featureTags.length)?26:0;
     const fixedH=34+nl*26+4+18+26+tagRow+acqH;
     const size=Math.max(150,Math.min(270,heroW-50,heroH-46-20-fixedH));
@@ -1417,9 +1425,12 @@ async function layoutUnits(ctx,T,data){
     let ty=iy+size+34;
     ctx.fillStyle=T.text; ctx.font=`bold ${heroName.size}px ${FONT}`;
     const lines=heroName.lines; lines.forEach((ln,i)=>ctx.fillText(ln,x+18,ty+i*26)); ty+=lines.length*26+4;
-    const sx=totsuStars(ctx,T,x+18,ty,9,f.level);
-    ctx.fillStyle=f.level===3?rainbow(ctx,sx+6,ty-8,sx+50,ty+8):T.muted; ctx.font=`bold 14px ${FONT}`; ctx.textBaseline="middle";
-    ctx.fillText(LV_LABEL[f.level],sx+8,ty+1); ctx.textBaseline="alphabetic"; ty+=18;
+    const sx=totsuStars(ctx,T,x+18,ty,9,f.ssr?"ssr":f.level);
+    if(!f.ssr){
+      ctx.fillStyle=f.level===3?rainbow(ctx,sx+6,ty-8,sx+50,ty+8):T.muted; ctx.font=`bold 14px ${FONT}`; ctx.textBaseline="middle";
+      ctx.fillText(LV_LABEL[f.level],sx+8,ty+1); ctx.textBaseline="alphabetic";
+    }
+    ty+=18;
     let chx=x+18; chx=chip(ctx,chx,ty,f.type,TC[f.type],false,12);
     ctx.font=`bold 12px ${FONT}`; chip(ctx,chx,ty,workText(ctx,f.workShort,f.workId,x+heroW-18-chx-14),T.cyan,false,12);   // ㉟ 収まらなければ通称
     if(tagRow){ ty+=26; let gx=x+18; for(const tg of f.featureTags){ ctx.font=`bold 12px ${FONT}`; if(gx+ctx.measureText(tg).width+14>x+heroW-18) break;
@@ -1458,13 +1469,15 @@ async function layoutUnits(ctx,T,data){
       const tx0=ix+size+14, tRight=lx+lw-12-(hasA?ACQW+14:0), tw=tRight-tx0;
       // 入手記録の欄があるときは名前の幅が狭くなるため15pxに（2行で全角約18文字）
       // ㉚ wrap2→wrapName（区切りの良い位置で改行。必要なら最大3px縮める）
-      const nm=wrapName(ctx,f.name,tw,sz=>`bold ${sz}px ${FONT}`,hasA?15:16,f.unitId);
+      const nm=wrapName(ctx,f.name,tw,sz=>`bold ${sz}px ${FONT}`,hasA?15:16,f.ssr?null:f.unitId);
       ctx.fillStyle=T.text; ctx.font=`bold ${nm.size}px ${FONT}`;
       const lines=nm.lines; lines.forEach((ln,j)=>ctx.fillText(ln,tx0,iy+18+j*20));
       const sy=iy+18+lines.length*20+6;
-      const sx=totsuStars(ctx,T,tx0,sy,7,f.level);
-      ctx.fillStyle=f.level===3?rainbow(ctx,sx+4,sy-6,sx+40,sy+6):T.muted; ctx.font=`bold 12px ${FONT}`; ctx.textBaseline="middle";
-      ctx.fillText(LV_LABEL[f.level],sx+6,sy+1); ctx.textBaseline="alphabetic";
+      const sx=totsuStars(ctx,T,tx0,sy,7,f.ssr?"ssr":f.level);
+      if(!f.ssr){
+        ctx.fillStyle=f.level===3?rainbow(ctx,sx+4,sy-6,sx+40,sy+6):T.muted; ctx.font=`bold 12px ${FONT}`; ctx.textBaseline="middle";
+        ctx.fillText(LV_LABEL[f.level],sx+6,sy+1); ctx.textBaseline="alphabetic";
+      }
       let chx=tx0; const cyy=sy+12; chx=chip(ctx,chx,cyy,f.type,TC[f.type],false,12);   // ㉚ 10→12px
       ctx.font=`bold 12px ${FONT}`; chip(ctx,chx,cyy,workText(ctx,f.workShort,f.workId,Math.max(30,tRight-chx-14)),T.cyan,false,12);   // ㉟ 収まらなければ通称
       if(hasA){
@@ -1589,10 +1602,10 @@ async function layoutCharacters(ctx,T,data){
   for(let i=0;i<units.length;i++){
     const f=units[i], ux=GX+18+i*(sw+10), uy=uy0+36;
     await unitImage(ctx,T,Object.assign({},f,{limited:false}),ux,uy,us,6);
-    const un=wrapName(ctx,f.name,sw-us-8,sz=>`bold ${sz}px ${FONT}`,12,f.unitId);
+    const un=wrapName(ctx,f.name,sw-us-8,sz=>`bold ${sz}px ${FONT}`,12,f.ssr?null:f.unitId);
     ctx.fillStyle=T.text; ctx.font=`bold ${un.size}px ${FONT}`;
     un.lines.forEach((ln,j)=>ctx.fillText(ln,ux+us+8,uy+12+j*15));
-    totsuStars(ctx,T,ux+us+8,uy0+uH-17,6,f.level);   // 標準カードと同じ★表現。高さはそろえて枠内の最下段
+    totsuStars(ctx,T,ux+us+8,uy0+uH-17,6,f.ssr?"ssr":f.level);   // 標準カードと同じ★表現。高さはそろえて枠内の最下段
   }
   footer(ctx,T,data);
 }
@@ -1896,7 +1909,7 @@ function jstToday(){
 // 入手日が実装日と同じ日付なら入手日は省く（ユニットチェッカーが欄を開いた時点で実装日を自動記録するため、入手日としては出さない）
 function cardAcq(){
   const src = (api.units && api.units.acq) || {}, out = {}, opt = draft.cardOptions;
-  const ids = new Set([...Object.keys(src), ...draft.favoriteUnits.map(String)]);
+  const ids = new Set([...Object.keys(src), ...draft.favoriteUnits.filter(Number.isInteger).map(String)]);   // ㊻ SSR（{s:id}）は入手記録なし
   for (const id of ids) {
     const r = src[id] || {}, rec = {}, u = UR_UNITS_BY_ID.get(Number(id));
     if (u && u.released) rec.r = u.released;
@@ -1912,10 +1925,19 @@ function buildCardData(){
   const fmIx = form.ctx.fmIx;
   const favorites = draft.favoriteWorks.map(id => worksById.get(id)).filter(Boolean)
     .map(w => ({ shortName: w.shortName, era: w.era, timeline: w.timeline, iconNo: w.workId, workId: w.workId }));
-  const favoriteUnits = draft.favoriteUnits.map(id => unitsById.get(id)).filter(u => u && own[String(u.unitId)] !== undefined)
-    .map(u => ({ unitId: u.unitId, name: u.name, type: u.type, limited: u.limited, level: own[String(u.unitId)],
-                 workShort: (worksById.get(u.workId) || {}).shortName || "", workId: u.workId,
-                 featureTags: fmIx ? FormationLogic.featureTags(fmIx, u.unitId, 3) : [] }));   // 52 1位の特徴タグ
+  const favoriteUnits = draft.favoriteUnits.map(v => {
+    if (v && typeof v === "object") {   // ㊻ SSR（期間限定・凸・入手記録・特徴タグなし）
+      const s = form.ctx.ssrById.get(v.s);
+      return s ? { ssr: true, unitId: s.id, name: s.name, type: s.type, limited: false, level: null,
+                   workShort: (worksById.get(s.workId) || {}).shortName || "", workId: s.workId, featureTags: [] } : null;
+    }
+    const u = unitsById.get(v);
+    return u && own[String(u.unitId)] !== undefined
+      ? { unitId: u.unitId, name: u.name, type: u.type, limited: u.limited, level: own[String(u.unitId)],
+          workShort: (worksById.get(u.workId) || {}).shortName || "", workId: u.workId,
+          featureTags: fmIx ? FormationLogic.featureTags(fmIx, u.unitId, 3) : [] }   // 52 1位の特徴タグ
+      : null;
+  }).filter(Boolean);
   const units = api.units ? Object.assign({}, api.units, {
     maxUnitIds: Object.keys(own).filter(k => own[k] === 3).map(Number).sort((a, b) => a - b),   // ㉘ 新レイアウトでは未使用（残置）
     // ㉘ 標準カードで推しユニット未設定のときに並べる所持ユニット：凸Lvの高い順、同じならID順に5機（形はfavoriteUnitsと同じ）

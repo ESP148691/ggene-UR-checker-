@@ -56,6 +56,22 @@ function formHtml(acqOptions, hintMode) {
 <section class="section">
   <h2>推しユニット<span class="cnt" id="unitCount">0 / 5</span></h2>
   <div class="picked" id="pickedUnits"></div>
+  <div class="seg" id="unitSrcTabs" role="group" aria-label="ユニットの選び方" style="margin:0 0 10px" hidden>
+    <button type="button" data-src="ur">URから選ぶ</button>
+    <button type="button" data-src="ssr">SSRから選ぶ</button>
+  </div>
+  <div id="ssrPicker" hidden>
+    <div class="filterRow"><input type="search" id="ssrSearch" placeholder="機体名で検索" aria-label="機体名で検索" autocomplete="off"></div>
+    <div class="filterRow">
+      <select id="ssrTypeFilter" aria-label="タイプで絞り込み">
+        <option value="">タイプ：すべて</option>
+        <option value="攻撃">攻撃</option><option value="支援">支援</option><option value="耐久">耐久</option>
+      </select>
+      <select id="ssrWorkFilter" aria-label="作品で絞り込み"><option value="">作品：すべて</option></select>
+    </div>
+    <div class="pickList" id="ssrList"></div>
+    <p class="hint">SSRは所持の確認なしで選べます（同じ名前でタイプ違いの機体は別々に表示します）。URと合わせて最大5機まで。『標準』『推しユニット』のカードに表示されます。</p>
+  </div>
   <div id="unitPicker">
     <div class="filterRow">
       <select id="unitTypeFilter" aria-label="タイプで絞り込み">
@@ -146,6 +162,11 @@ function create(cfg) {
   let fmIx = null;          // 51 FormationLogic.buildIndex()の結果。/api/tags・/api/leader-skillsが取れなければnull（推し編成は無効）
   let fmTab = 0;            // 編成フォームで開いているタブ（0／1）
   let currentEra = "UC";
+  // ㊻ SSR（ssr-units.js の window.SSR_UNITS）。空なら「SSRから選ぶ」は出さない。推しユニットのdraftは UR＝整数・SSR＝{s: id}（送信形式と同じ）
+  const ssrById = new Map((root.SSR_UNITS || []).map(u => [u.id, u]));
+  let unitSrc = "ur";       // 推しユニット欄の「URから選ぶ／SSRから選ぶ」
+  const isSsr = v => !!v && typeof v === "object" && Number.isInteger(v.s);
+  const ssrNorm = s => String(s || "").normalize("NFKC").replace(/Ζ/g, "Z").toLowerCase();   // ㉚の表記ルール（Ζ→Z・全角括弧→半角）で検索語と名前を比べる
 
   function onChange() { if (cfg.onChange) cfg.onChange(); }
 
@@ -239,7 +260,12 @@ function create(cfg) {
   function sanitize() {
     const owned = ownedUnitIds();
     draft.favoriteWorks = [...new Set(draft.favoriteWorks)].filter(id => worksById.has(id)).slice(0, MAX_FAV);
-    draft.favoriteUnits = [...new Set(draft.favoriteUnits)].filter(id => owned.has(id)).slice(0, MAX_FAV);
+    const seenFav = new Set();
+    draft.favoriteUnits = (Array.isArray(draft.favoriteUnits) ? draft.favoriteUnits : []).filter(v => {
+      const key = isSsr(v) ? "s" + v.s : Number.isInteger(v) ? "u" + v : null;
+      if (key == null || seenFav.has(key) || !(isSsr(v) ? ssrById.has(v.s) : owned.has(v))) return false;
+      seenFav.add(key); return true;
+    }).slice(0, MAX_FAV);
     sanitizeFormations(owned);
     const selOk = charsAvailable() ? selectableChars().all : new Set();
     draft.favoriteCharacters = [...new Set(Array.isArray(draft.favoriteCharacters) ? draft.favoriteCharacters : [])].filter(id => selOk.has(id)).slice(0, MAX_FAV);
@@ -275,7 +301,7 @@ function create(cfg) {
     const bySlot = arr => (arr || []).slice().sort((a, b) => a.slot - b.slot);
     return {
       favoriteWorks: bySlot(p.favoriteWorks).map(f => f.workId),
-      favoriteUnits: bySlot(p.favoriteUnits).map(f => f.unitId),
+      favoriteUnits: bySlot(p.favoriteUnits).map(f => f.rarityCode === 2 ? { s: f.unitId } : f.unitId),   // ㊻ rarityCode 2＝SSR
       favoriteCharacters: bySlot(p.favoriteCharacters).map(f => f.charId),
       cardOptions: Object.assign({}, CARD_OPTIONS_DEFAULT, p.cardOptions || {}),
       formations: [0, 1].map(i => {
@@ -302,7 +328,7 @@ function create(cfg) {
   }
   // 保存する推し4項目（キーは /api/profile・/api/favorite-info と同じ。favoriteCharactersは選べるときだけ）
   function payload() {
-    return Object.assign({ favoriteWorks: draft.favoriteWorks.slice(), favoriteUnits: draft.favoriteUnits.slice(), formations: formationsPayload() },
+    return Object.assign({ favoriteWorks: draft.favoriteWorks.slice(), favoriteUnits: draft.favoriteUnits.map(v => isSsr(v) ? { s: v.s } : v), formations: formationsPayload() },
       charsAvailable() ? { favoriteCharacters: draft.favoriteCharacters.slice() } : {});
   }
 
@@ -415,15 +441,31 @@ function create(cfg) {
   function renderUnits(){
     const own = (api.units && api.units.ownership) || {};
     const ownedIds = Object.keys(own).map(Number).filter(id => unitsById.has(id)).sort((a, b) => a - b);
-    $("unitPicker").hidden = ownedIds.length === 0;
-    $("unitEmptyHint").hidden = ownedIds.length > 0;
+    // ㊻ SSRのデータ（ssr-units.js）があるときだけ「URから選ぶ／SSRから選ぶ」を出す。所持URが無ければSSRのみ
+    const ssrOn = ssrById.size > 0, hasUr = ownedIds.length > 0;
+    const src = ssrOn && (unitSrc === "ssr" || !hasUr) ? "ssr" : "ur";
+    $("unitSrcTabs").hidden = !ssrOn;
+    document.querySelectorAll("#unitSrcTabs button").forEach(b => {
+      b.classList.toggle("active", b.dataset.src === src);
+      b.setAttribute("aria-pressed", b.dataset.src === src ? "true" : "false");
+      if (b.dataset.src === "ur") b.disabled = !hasUr;
+    });
+    $("ssrPicker").hidden = src !== "ssr";
+    $("unitPicker").hidden = src !== "ur" || !hasUr;
+    $("unitEmptyHint").hidden = src !== "ur" || hasUr;
     $("unitCount").textContent = `${draft.favoriteUnits.length} / ${MAX_FAV}`;
-    renderPicked($("pickedUnits"), draft.favoriteUnits, id => {
-      const u = unitsById.get(id);
-      return [el("img", { class: "thumb", src: `images/units/${id}.jpg`, alt: "", loading: "lazy" }),
-              el("span", { class: "nm" }, [document.createTextNode(u.name), el("small", { text: `${u.type}・${LV_LABEL[own[String(id)]] || ""}` })])];
+    renderPicked($("pickedUnits"), draft.favoriteUnits, v => {
+      if (isSsr(v)) {
+        const s = ssrById.get(v.s);
+        return [el("img", { class: "thumb", src: `images/ssr/${v.s}.jpg`, alt: "", loading: "lazy" }),
+                el("span", { class: "nm" }, [document.createTextNode(s.name), el("small", {}, [el("span", { class: "ssrBadge", text: "SSR" }), document.createTextNode(s.type)])])];
+      }
+      const u = unitsById.get(v);
+      return [el("img", { class: "thumb", src: `images/units/${v}.jpg`, alt: "", loading: "lazy" }),
+              el("span", { class: "nm" }, [document.createTextNode(u.name), el("small", { text: `${u.type}・${LV_LABEL[own[String(v)]] || ""}` })])];
     }, (i, d) => { moveIn(draft.favoriteUnits, i, d); renderUnits(); onChange(); },
        i => { draft.favoriteUnits.splice(i, 1); renderUnits(); onChange(); });
+    if (src === "ssr") renderSsrList();
 
     // 作品の絞り込み候補は所持ユニットのある作品だけ（作品の並び順）
     const wf = $("unitWorkFilter"), keep = wf.value;
@@ -460,6 +502,44 @@ function create(cfg) {
       list.appendChild(b); shown++;
     }
     if (!shown && ownedIds.length) list.appendChild(el("div", { class: "stateMsg", text: "条件に一致するユニットがありません" }));
+    list.scrollTop = keepScroll;
+  }
+
+  // ㊻ SSR候補（所持の確認なし。約330機あるので、タイプ・作品の絞り込みか名前検索があるときだけ並べる）
+  function renderSsrList(){
+    const wf = $("ssrWorkFilter"), keep = wf.value;
+    if (!wf.dataset.built) {
+      const workIds = new Set([...ssrById.values()].map(s => s.workId));
+      for (const w of works) if (workIds.has(w.workId)) wf.appendChild(el("option", { value: String(w.workId), text: w.shortName }));
+      wf.dataset.built = "1"; wf.value = keep;
+    }
+    const q = ssrNorm($("ssrSearch").value.trim()), type = $("ssrTypeFilter").value, work = Number(wf.value) || null;
+    const list = $("ssrList"), keepScroll = list.scrollTop;
+    list.textContent = "";
+    if (!q && !type && !work) { list.appendChild(el("div", { class: "stateMsg", text: "タイプ・作品で絞り込むか、機体名で検索すると候補が表示されます" })); return; }
+    const full = draft.favoriteUnits.length >= MAX_FAV;
+    let shown = 0;
+    for (const s of ssrById.values()) {
+      if (type && s.type !== type) continue;
+      if (work && s.workId !== work) continue;
+      if (q && !ssrNorm(s.name).includes(q)) continue;
+      const k = draft.favoriteUnits.findIndex(v => isSsr(v) && v.s === s.id), sel = k >= 0;
+      const b = el("button", { type: "button", class: "pickItem" + (sel ? " sel" : ""), "data-ssr": String(s.id), "aria-pressed": sel ? "true" : "false" }, [
+        el("img", { class: "thumb", src: `images/ssr/${s.id}.jpg`, alt: "", loading: "lazy" }),
+        el("span", { class: "nm" }, [document.createTextNode(s.name),
+          el("small", {}, [el("span", { class: "ssrBadge", text: "SSR" }), document.createTextNode(`${s.type}・${(worksById.get(s.workId) || {}).shortName || ""}`)])]),
+        el("span", { class: "mark", text: sel ? "✓" : "" })
+      ]);
+      b.disabled = full && !sel;
+      b.addEventListener("click", () => {
+        const j = draft.favoriteUnits.findIndex(v => isSsr(v) && v.s === s.id);
+        if (j >= 0) draft.favoriteUnits.splice(j, 1);
+        else if (draft.favoriteUnits.length < MAX_FAV) draft.favoriteUnits.push({ s: s.id });
+        renderUnits(); onChange();
+      });
+      list.appendChild(b); shown++;
+    }
+    if (!shown) list.appendChild(el("div", { class: "stateMsg", text: "条件に一致するSSRがありません" }));
     list.scrollTop = keepScroll;
   }
 
@@ -693,6 +773,13 @@ function create(cfg) {
     });
     $("unitTypeFilter").addEventListener("change", () => { $("unitList").scrollTop = 0; renderUnits(); });
     $("unitWorkFilter").addEventListener("change", () => { $("unitList").scrollTop = 0; renderUnits(); });
+    $("unitSrcTabs").addEventListener("click", e => {
+      const b = e.target.closest("button[data-src]"); if (!b || b.disabled) return;
+      unitSrc = b.dataset.src; renderUnits();
+    });
+    $("ssrSearch").addEventListener("input", () => { $("ssrList").scrollTop = 0; renderSsrList(); });
+    $("ssrTypeFilter").addEventListener("change", () => { $("ssrList").scrollTop = 0; renderSsrList(); });
+    $("ssrWorkFilter").addEventListener("change", () => { $("ssrList").scrollTop = 0; renderSsrList(); });
     $("charTypeFilter").addEventListener("change", () => { $("charList").scrollTop = 0; renderChars(); });
     $("charWorkFilter").addEventListener("change", () => { $("charList").scrollTop = 0; renderChars(); });
     $("fmTabs").addEventListener("click", e => {
@@ -744,7 +831,7 @@ function create(cfg) {
   return {
     setData, fromProfile, sanitize, payload, renderAll,
     ctx: {
-      worksById, unitsById, chars: CHARS,
+      worksById, unitsById, ssrById, chars: CHARS,
       get fmIx() { return fmIx; },
       available: { units: unitsAvailable, supporters: supportersAvailable, formation: formationAvailable, chars: charsAvailable, characters: charactersAvailable },
       ownedUnitIds, ownedSupporterList, selectableChars, fmFormationData, fmCardFormations, cardChar, workLabel: fmWorkLabel

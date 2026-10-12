@@ -1510,6 +1510,16 @@ async function loadProfile(env, userUid, earnedTitles) {
   } catch (e) {
     return empty;
   }
+  // ㊻ SSRの推しユニット（所持の確認なし。マスターに無いIDは除く）。TBL・列が無ければSSRだけ空
+  let ssrUnits = [];
+  try {
+    ({ results: ssrUnits } = await env.DB.prepare(
+      `SELECT f.slot, f.unit_id FROM user_favorite_units f
+       WHERE f.user_uid = ? AND f.rarity_code = ?
+         AND EXISTS (SELECT 1 FROM ssr_units_master s WHERE s.unit_id = f.unit_id)
+       ORDER BY f.slot`
+    ).bind(userUid, RARITY_CODE.SSR).all());
+  } catch (e) { /* migrations/0024 未適用 */ }
   const titleIds = new Set((earnedTitles || []).map(t => t.missionId));
   // 56 推しキャラ。選べなくなったもの（手放した・マスターに無い）は除く（slotは詰め直さない）。0033未適用・失敗時は[]
   const sel = await loadSelectableCharacters(env, userUid);
@@ -1529,7 +1539,9 @@ async function loadProfile(env, userUid, earnedTitles) {
     cardTemplate: row && CARD_TEMPLATES.has(row.card_template) ? row.card_template : "standard",
     cardTheme: row && CARD_THEMES.has(row.card_theme) ? row.card_theme : "galaxy",
     favoriteWorks: works.map(r => ({ slot: r.slot, workId: r.work_id })),
-    favoriteUnits: units.map(r => ({ slot: r.slot, unitId: r.unit_id, rarityCode: RARITY_CODE.UR })),
+    favoriteUnits: units.map(r => ({ slot: r.slot, unitId: r.unit_id, rarityCode: RARITY_CODE.UR }))
+      .concat(ssrUnits.map(r => ({ slot: r.slot, unitId: r.unit_id, rarityCode: RARITY_CODE.SSR })))
+      .sort((a, b) => a.slot - b.slot),
     updatedAt: row ? row.updated_at : null,
     cardOptions: row ? await loadCardOptions(env, userUid) : Object.assign({}, CARD_OPTIONS_DEFAULT),
     playerRank: row ? await loadPlayerRank(env, userUid) : null,
@@ -1765,7 +1777,7 @@ async function handleSaveProfile(request, env) {
   const { results: ownedRows } = await env.DB.prepare(
     "SELECT DISTINCT unit_id FROM units_ownership WHERE user_uid = ?"
   ).bind(uid).all();
-  const favoriteUnits = normalizeFavoriteIds(body.favoriteUnits, new Set(ownedRows.map(r => r.unit_id)));
+  const favoriteUnits = await normalizeFavoriteUnits(env, body.favoriteUnits, new Set(ownedRows.map(r => r.unit_id)));
   if (!favoriteUnits) return jsonResponse({ error: "invalid_favorite_units" }, 400);
 
   const eternalRoad = await loadEternalRoadForCard(env, uid);
@@ -1833,11 +1845,38 @@ function favoriteWorkStatements(env, uid, ids) {
     ...ids.map((id, i) => env.DB.prepare("INSERT INTO user_favorite_works (user_uid, slot, work_id) VALUES (?, ?, ?)").bind(uid, i + 1, id))
   ];
 }
-function favoriteUnitStatements(env, uid, ids) {
+function favoriteUnitStatements(env, uid, units) {
   return [
     env.DB.prepare("DELETE FROM user_favorite_units WHERE user_uid = ?").bind(uid),
-    ...ids.map((id, i) => env.DB.prepare("INSERT INTO user_favorite_units (user_uid, slot, unit_id) VALUES (?, ?, ?)").bind(uid, i + 1, id))
+    ...units.map((u, i) => env.DB.prepare("INSERT INTO user_favorite_units (user_uid, slot, rarity_code, unit_id) VALUES (?, ?, ?, ?)").bind(uid, i + 1, u.rarityCode, u.unitId))
   ];
+}
+
+// ㊻ 推しユニットの検証。要素：整数＝UR（所持のものだけ。所持していない・重複は従来どおり黙って除く）、{"s": n}＝SSR（所持の確認なし。
+// ssr_units_masterに無いID・重複は不正）。合計FAVORITES_MAX件まで。不正ならnull、正常なら [{ rarityCode, unitId }]（送信順）
+async function normalizeFavoriteUnits(env, value, ownedIds) {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > FAVORITES_MAX) return null;
+  const out = [];
+  const ssrIds = [];
+  for (const v of value) {
+    if (Number.isInteger(v)) {
+      if (ownedIds.has(v) && !out.some(o => o.rarityCode === RARITY_CODE.UR && o.unitId === v)) out.push({ rarityCode: RARITY_CODE.UR, unitId: v });
+    } else if (v && typeof v === "object" && !Array.isArray(v) && "s" in v) {
+      if (!Number.isInteger(v.s) || ssrIds.includes(v.s)) return null;
+      ssrIds.push(v.s);
+      out.push({ rarityCode: RARITY_CODE.SSR, unitId: v.s });
+    }
+  }
+  if (ssrIds.length) {
+    try {
+      const { results } = await env.DB.prepare(
+        `SELECT unit_id FROM ssr_units_master WHERE unit_id IN (${ssrIds.map(() => "?").join(",")})`
+      ).bind(...ssrIds).all();
+      if (results.length !== ssrIds.length) return null;
+    } catch (e) { return null; }   // migrations/0024 未適用
+  }
+  return out;
 }
 
 // 推し編成の書き換え（別バッチ。未適用の環境では列を減らして書き、TBLが無ければ何もしない）
@@ -1906,7 +1945,7 @@ async function handleSaveFavoriteInfo(request, env) {
   }
   if (hasUnits) {
     const { results: ownedRows } = await env.DB.prepare("SELECT DISTINCT unit_id FROM units_ownership WHERE user_uid = ?").bind(uid).all();
-    favoriteUnits = normalizeFavoriteIds(body.favoriteUnits, new Set(ownedRows.map(r => r.unit_id)));
+    favoriteUnits = await normalizeFavoriteUnits(env, body.favoriteUnits, new Set(ownedRows.map(r => r.unit_id)));
     if (!favoriteUnits) return jsonResponse({ error: "invalid_favorite_units" }, 400);
   }
   if (hasFormations) {
