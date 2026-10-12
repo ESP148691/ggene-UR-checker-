@@ -35,7 +35,7 @@ Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェ�
 
 | ファイル | 役割 |
 |---|---|
-| `top.html` | トップ（`/`で配信）。チェッカー欄（ユニット・サポート・エタロ）、ログイン会員限定欄（データ登録結果レポート・自己紹介カード`#profileCardNav`＝**hidden**）、運営者欄`#adminSection`（X投稿用レポート・自己紹介カード（試用）・チャレンジ）、ROUTE 04 Coming Soon。導線カードの登録状況バッジ`.regBadge`、アイコンのランダム表示（`UNIT_IMAGES`・`SUPPORTER_IMAGES`・`ETERNAL_ROAD_IMAGES`・`data-pool`） |
+| `top.html` | トップ（`/`で配信）。チェッカー欄（ユニット・サポート・エタロ）、ログイン会員限定欄（データ登録結果レポート・自己紹介カード`#profileCardNav`＝**hidden**）、運営者欄`#adminSection`（X投稿用レポート・自己紹介カード（試用）・チャレンジ）、ROUTE 04 Coming Soon。導線カードの登録状況バッジ`.regBadge`、アイコンのランダム表示（`UNIT_IMAGES`・`SUPPORTER_IMAGES`・`ETERNAL_ROAD_IMAGES`・`data-pool`）、説明文の下のインフォバナー（`INFO_FEED`・71）、フッターの相互リンク |
 | `unit.html` | URユニット所持率チェッカー（87機）。スクショ読み取り（`unit-scan.js`）・入手記録（入手日・ガシャ回数・メモ）つき。データ本体は`ur-units.js` |
 | `ur-units.js` | URユニットの画面側マスター（`window.UR_UNITS`。`id`・`name`・`limited`・`type`・`imageUrl`・`released`（必須）・`wrap`（任意））。`unit.html`・`profile-card.html`が読む。**無いとユニットチェッカーが空になる**。実装日`released`はD1には無く、ここが正本 |
 | `supporter.html` | URサポート所持率チェッカー（50体。データは`const UNITS`）。スクショ読み取り（`supporter-scan.js`）つき。**改行コードCRLF**（CRLFのまま編集） |
@@ -141,6 +141,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 
 ## 新ユニット・作品の追加手順
 
+**トップのお知らせ・リンクを追加するとき**：`top.html`の`INFO_FEED`（配列）に1件足す・書き換えるだけ（`href: ''`は非表示、`end`で期限、全部消せば欄ごと消える）。D1・API変更なし。
+
 **URユニット（URサポートも同様）を追加するとき**
 1. 画面側のデータに1件追加し、画像を`images/units/{id}.jpg`（`images/supporters/{id}.jpg`）に置く（既存IDは振り直さない）
    - URユニット：`ur-units.js`の`window.UR_UNITS`に1行。例：`{"id": 85, "name": "…", "limited": true, "type": "攻撃", "imageUrl": "images/units/85.jpg", "released": "YYYY-MM-DD"}`
@@ -220,6 +222,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 56追加改修9（試用版） | 10-09 | 推しキャラの印を「推」から星に変更（紫の丸に白抜きの星。`oshiBadge`）。フォームの搭乗表示は「★」 |
 | 56追加改修10（試用版） | 10-09 | 推しキャラの星バッジ・顔の縁を虹色に（フォームの搭乗表示も虹色の文字）。推しユニットの左パネルの「得意タグ」（52案D-3）を廃止し推しキャラと同じ表示に（`by`の余白も40pxに戻した。`tagTrend`の計算とデータは残置・1位カードの特徴タグは据え置き）。ランク欄の「100以上は金…」の説明文を削除。推しキャラのタイプ・作品チップを名前の行数によらず同じ高さ（セット欄の区切り線のすぐ上）に |
 | 64 運営者向け分析（推し統計・所持率分布） | 10-10 | **ユーザー決定：今後も運営者専用（ESPのみ）**。。`worker.js`：`GET /api/analytics/oshi`・`GET /api/analytics/distribution?kind=`（どちらも`requireAdmin`。D1変更なし）、定数`OSHI_SLOT_POINTS`・`OSHI_RATE_MIN_OWNERS`。新ページ`analytics-admin.html`（`analytics.html`は無変更）、`top.html`運営者欄に導線。動画SQL`shorts/sql/export_oshi_data.sql`・`export_oshi_chars.sql`を63の定義にそろえ`score`列を追加。API検証はNode＋`node:sqlite`のハーネス（依頼書8章の1〜12・14の観点。無凸79機→90%以上を確認）、画面は320/390/1024px。一般公開の予定なし（公開するなら要再相談） |
+| 71 トップのインフォバナー（相互リンク） | 10-12 | D1変更なし・`top.html`のみ。説明文の下に`#infoFeed`（`INFO_FEED`定数・`initInfoFeed()`。6秒ごとスライド、ホバー/フォーカス/非表示タブ/一時停止/`reduceMotion`で停止、スワイプ対応、期限`start`/`end`はJST）。1件目は相互リンク（ジージェネエターナル 総合データベース `https://athena-gget.com/`・別タブ、ロゴ`images/partners/athena-gget.jpg`を新規追加）、2件目はチャレンジ公開のお知らせ（〜10-31）、ESP studioは`href:''`で非表示。フッターに相互リンク1行。参考パッチを`git apply --ignore-whitespace`で適用。依頼書：`docs/08_トップページ/71_…依頼書.md`。切り戻しは`INFO_FEED`を空配列に |
 | 68 推し情報設定ページ（段階1） | 10-11 | D1変更なし。新規`favorite-logic.js`（`FormationLogic`を移動＋`WorkLabel`。`CardRenderer`は`WorkLabel`を参照）・`favorite-form.js`/`.css`（試用版カードの推し4欄を動きを変えずに移した`FavoriteForm`。`emptyMode:"hide"`＝カード／`"hint"`＝推し情報設定）・`favorite-info.html`（運営者専用・下書き`favoriteinfo_draft_v1`・未保存表示・「自己紹介カードを作る ›」）。`worker.js`：`favoriteWorkStatements()`・`favoriteUnitStatements()`・`saveFormations()`・`saveFavoriteCharacters()`を`handleSaveProfile()`から切り出し、`POST /api/favorite-info`（送ったキーだけ処理・`user_profiles`行が無くても作る）・`GET /api/favorite-info/summary`。`profile-card-trial.html`を共通部品へ切り替え（推し欄の上に推し情報設定への案内を1行追加）。`top.html`運営者欄に導線と登録状況バッジ（`showFavoriteRegStatus()`）。検証：切り替え前後でカード画像15枚・`/api/profile`の送信本文・4欄の操作結果が一致、`/api/favorite-info`の保存・null・不正値・行なしユーザー、320/390/1024px、運営者以外・未ログイン・未登録ユーザーの案内。**`profile-card.html`への反映・一般公開は段階2（ESPの確認後）** |
 | ㊻ 推しユニットにSSR（C-1・C-2、試用版） | 10-12 | 0037をD1適用→push。`worker.js`：`normalizeFavoriteUnits()`（整数＝UR・`{"s":id}`＝SSR。SSRは所持確認なし・マスターに無いID／重複／合計5件超は400）、`favoriteUnitStatements()`が`rarity_code`を書く、`loadProfile`がSSR行も`rarityCode: 2`で返す。`ssr-units.js`・`images/ssr/`（332枚）。`favorite-form.js`：推しユニット欄に「URから選ぶ／SSRから選ぶ」（`SSR_UNITS`が空なら出ない。draftはUR＝整数・SSR＝`{s:id}`で持つ＝送信形式と同じ。依頼書の`{r,id}`より旧下書き互換を優先）。`profile-card-trial.html`・`favorite-info.html`が`ssr-units.js`を読む。カードはSSRバッジ（金）、画像`images/ssr/`。**本番`profile-card.html`は未反映**（SSR行を読み飛ばすだけ。本番で保存するとSSRの推しは消える）。反映は68の段階2と合わせる。`ssr-tool.html`（4-4）は段階B未実装のため未対応。`scripts/card_check/`への追加は未 |
 | ㊻ SSR作品の直し32件 | 10-12 | 0038をD1適用→`ssr-units.js`の`workId`32件を差し替えてpush。名前・タイプ・unit_id・画像は不変 |

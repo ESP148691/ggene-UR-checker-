@@ -246,6 +246,58 @@
     /* カードが奇数枚で最後の1枚が行に1枚だけ残る場合は全幅にする（見出しが1番目の子のため、最後のカードが偶数番目＝奇数枚目） */
     .route > .navcard:last-child:nth-child(even), .soonGroup > .navcard:last-child:nth-child(even){grid-column:1 / -1;}
   }
+
+  /* ---------- 71 インフォバナー（トップ上部で各種情報を順に流す。ツール本体の導線より控えめに） ---------- */
+  .infoFeed{position:relative;margin:-14px 0 30px;}
+  .infoFeed[hidden]{display:none;}
+  .infoFeed .feedHead{display:flex;align-items:center;gap:6px;margin:0 0 4px;min-height:22px;
+    font-family:'Share Tech Mono',monospace;font-size:9.5px;letter-spacing:.16em;color:var(--muted);opacity:.85;}
+  .infoFeed .feedHead .live{width:4px;height:4px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold);animation:pulseDot 2.6s ease-in-out infinite;}
+  .infoFeed .feedHead .count{margin-left:auto;color:var(--muted);}
+  .infoFeed .viewport{position:relative;overflow:hidden;border-radius:3px;border:1px solid rgba(140,160,180,.14);
+    background:rgba(10,15,24,.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);touch-action:pan-y;}
+  .infoFeed .track{display:flex;transition:transform .55s cubic-bezier(.22,.8,.24,1);will-change:transform;}
+  .infoFeed .slide{flex:0 0 100%;min-width:0;display:flex;align-items:center;gap:10px;
+    padding:7px 10px 8px;height:52px;text-decoration:none;color:var(--text);position:relative;}
+  .infoFeed .slide:focus-visible{outline:2px solid var(--cyan);outline-offset:-3px;}
+  /* 左の枠：横長（2:1）。相互リンク先のロゴがそのまま収まる比率 */
+  .infoFeed .slide .emblem{flex:0 0 auto;width:72px;height:36px;border-radius:2px;display:flex;align-items:center;justify-content:center;
+    border:1px solid rgba(140,160,180,.18);background:rgba(107,224,224,.06);
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--muted);overflow:hidden;}
+  .infoFeed .slide .emblem img{width:100%;height:100%;object-fit:cover;display:block;}
+  .infoFeed .slide .emblem.emoji{font-size:18px;}
+  .infoFeed .slide .txt{flex:1;min-width:0;}
+  .infoFeed .slide .line1{display:flex;align-items:center;gap:6px;min-width:0;}
+  .infoFeed .slide .tag{flex:0 0 auto;font-size:9.5px;font-weight:700;letter-spacing:.04em;padding:0 5px;border-radius:2px;line-height:15px;
+    color:var(--cyan);border:1px solid rgba(107,224,224,.45);}
+  .infoFeed .slide .tag.link{color:var(--gold);border-color:rgba(218,185,73,.5);}
+  .infoFeed .slide .tag.video{color:#ff9ab3;border-color:rgba(255,122,156,.5);}
+  .infoFeed .slide .ttl{min-width:0;font-weight:700;font-size:12.5px;line-height:1.4;color:#d6dee6;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .infoFeed .slide .dsc{color:var(--muted);font-size:10.5px;line-height:1.4;margin-top:2px;opacity:.9;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .infoFeed .slide .go{flex:0 0 auto;color:var(--muted);font-size:14px;}
+  .infoFeed .slide .go .ext{font-size:10px;vertical-align:super;margin-left:1px;}
+  .infoFeed a.slide:hover .ttl{color:var(--cyan);}
+  .infoFeed a.slide:hover .go{color:var(--cyan);}
+  /* 進行バー：表示時間の経過を示す */
+  .infoFeed .progress{position:absolute;left:0;bottom:0;height:1px;width:0;background:var(--cyan);opacity:.5;}
+  .infoFeed .progress.run{animation:feedProgress var(--feed-ms,6000ms) linear forwards;}
+  .infoFeed.paused .progress.run{animation-play-state:paused;}
+  @keyframes feedProgress{from{width:0;}to{width:100%;}}
+  /* 操作部は見出し行の右端に小さく置く（別の行を作らず高さを抑える） */
+  .infoFeed .ctrl{display:flex;align-items:center;gap:0;margin-left:6px;}
+  .infoFeed .ctrl button{appearance:none;border:0;background:transparent;color:var(--muted);cursor:pointer;padding:3px 5px;line-height:1;font-size:12px;}
+  .infoFeed .ctrl button:hover{color:var(--cyan);}
+  .infoFeed .ctrl button:focus-visible{outline:1px solid var(--cyan);outline-offset:0;border-radius:2px;}
+  .infoFeed .ctrl #infoFeedPause{font-size:8px;letter-spacing:-1px;}
+  .infoFeed .dots{display:flex;gap:0;}
+  .infoFeed .dots button{padding:6px 2px;}
+  .infoFeed .dots button span{display:block;width:8px;height:2px;border-radius:1px;background:rgba(140,160,180,.35);transition:background .3s, width .3s;}
+  .infoFeed .dots button[aria-current="true"] span{background:var(--cyan);width:14px;}
+  .infoFeed.single .ctrl{display:none;}
+  @media (prefers-reduced-motion: reduce){.infoFeed .track{transition:none;}.infoFeed .progress{display:none;}.infoFeed .feedHead .live{animation:none;}}
+  @media (min-width: 760px){.infoFeed .slide{height:48px;}.infoFeed .slide .txt{display:flex;align-items:baseline;gap:12px;}.infoFeed .slide .dsc{margin-top:0;flex:1;min-width:0;}}
 </style>
 </head>
 <body>
@@ -271,6 +323,22 @@
     <h1>ファンツール トップ</h1>
   </div>
   <p class="sub">Gジェネエターナルの<wbr>ファン向け<wbr>非公式ツールです。<wbr>新規登録・<wbr>ログインすることで<wbr>各種機能を<wbr>利用できます。</p>
+
+  <!-- 71 インフォバナー。中身はスクリプト内の INFO_FEED を書き換えるだけで増減できる（D1・APIなし） -->
+  <section class="infoFeed" id="infoFeed" aria-roledescription="carousel" aria-label="お知らせ・リンク" hidden>
+    <div class="feedHead"><span class="live" aria-hidden="true"></span>INFO FEED<span class="count" id="infoFeedCount"></span>
+      <div class="ctrl">
+        <button type="button" id="infoFeedPrev" aria-label="前のお知らせ">&lsaquo;</button>
+        <div class="dots" id="infoFeedDots"></div>
+        <button type="button" id="infoFeedNext" aria-label="次のお知らせ">&rsaquo;</button>
+        <button type="button" id="infoFeedPause" aria-label="自動切り替えを停止">❚❚</button>
+      </div>
+    </div>
+    <div class="viewport" id="infoFeedViewport">
+      <div class="track" id="infoFeedTrack"></div>
+      <div class="progress" id="infoFeedProgress" aria-hidden="true"></div>
+    </div>
+  </section>
 
   <div class="section route">
     <p class="sectionLabel">チェッカー</p>
@@ -398,6 +466,7 @@
     <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
     <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
     <p>掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
+    <p>相互リンク：<a href="https://athena-gget.com/" target="_blank" rel="noopener">ジージェネエターナル 総合データベース</a></p>
     <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
     <p>更新情報はXで発信しています。よろしければ<a href="https://x.com/intent/follow?screen_name=polarbear148691" target="_blank" rel="noopener">フォロー</a>していただけると励みになります。</p>
   </footer>
@@ -650,6 +719,162 @@
         setImage(s.img, s.pool[next]);
       });
     }, 5000);
+  })();
+
+
+  /* ---------------- 71 インフォバナー ----------------
+     INFO_FEED を書き換えるだけで中身を増減できる。上から順に表示（先頭が最初に出る）。
+       kind  : 'link'（相互リンク）／'info'（お知らせ）／'video'（動画）… タグの色と文言が変わる
+       tag   : タグの文言（省略時は kind から自動）
+       title : 見出し／ desc : 説明（どちらも1行。はみ出す分は…で省略）
+       href  : 行き先。空文字のものは表示しない（URL未確定の項目を置いておける）
+       external : true なら別タブで開く（rel="noopener"）
+       img   : 左の枠に出す画像（横長2:1・表示72×36px。読み込めなければ mark の文字／絵文字を出す）
+       mark  : 画像がないときの代わり（短い英字 or 絵文字1つ）
+       start / end : 表示期間（日本時間の 'YYYY-MM-DD'。省略で無期限。end の日まで表示） */
+  var INFO_FEED = [
+    { kind: 'link', tag: '相互リンク',
+      title: 'ジージェネエターナル 総合データベース',
+      desc: '機体・パイロットのダメージ期待値やスキル発動条件、最強編成を算出・比較できるDBツール',
+      href: 'https://athena-gget.com/', external: true,
+      img: 'images/partners/athena-gget.jpg', mark: 'DB' },
+    { kind: 'info',
+      title: 'チャレンジミッションチェッカーを公開しました',
+      desc: 'メインステージCHALLENGE HARD全15ステージ・30ミッションの達成状況を記録できます',
+      href: '/challenge.html', mark: '🎯', end: '2026-10-31' },
+    { kind: 'video',
+      title: 'ショート動画「ESP studio」はじめました',
+      desc: 'ファンツールの集計データから、毎週ランキングをお届けします',
+      href: '', external: true, mark: '▶' }  /* チャンネルURLが決まったら href に入れる */
+  ];
+  var INFO_FEED_MS = 6000; /* 1件あたりの表示時間 */
+  var INFO_TAG_TEXT = { link: '相互リンク', info: 'お知らせ', video: '動画' };
+
+  (function initInfoFeed(){
+    var root = document.getElementById('infoFeed');
+    if (!root) return;
+    var today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); /* 日本時間の日付 */
+    var items = INFO_FEED.filter(function(it){
+      if (!it.href) return false;
+      if (it.start && today < it.start) return false;
+      if (it.end && today > it.end) return false;
+      return true;
+    });
+    if (!items.length) return; /* 0件なら欄ごと出さない */
+
+    var track = document.getElementById('infoFeedTrack');
+    var dotsBox = document.getElementById('infoFeedDots');
+    var progress = document.getElementById('infoFeedProgress');
+    var countEl = document.getElementById('infoFeedCount');
+    var pauseBtn = document.getElementById('infoFeedPause');
+    var viewport = document.getElementById('infoFeedViewport');
+    root.style.setProperty('--feed-ms', INFO_FEED_MS + 'ms');
+
+    function el(tag, cls, text){ var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+    var slides = items.map(function(it, i){
+      var a = el('a', 'slide');
+      a.href = it.href;
+      if (it.external) { a.target = '_blank'; a.rel = 'noopener'; }
+      a.setAttribute('role', 'group');
+      a.setAttribute('aria-roledescription', 'slide');
+      a.setAttribute('aria-label', (i + 1) + ' / ' + items.length);
+      var em = el('div', 'emblem');
+      var markText = it.mark || '';
+      var isEmoji = markText && !/^[A-Za-z0-9]+$/.test(markText);
+      function showMark(){ em.textContent = markText; if (isEmoji) em.classList.add('emoji'); }
+      if (it.img) {
+        var img = new Image(); img.alt = ''; img.decoding = 'async';
+        img.onerror = function(){ em.removeChild(img); showMark(); };
+        img.src = it.img; em.appendChild(img);
+      } else { showMark(); }
+      em.setAttribute('aria-hidden', 'true');
+      var txt = el('div', 'txt');
+      var tag = el('span', 'tag ' + (it.kind || 'info'), it.tag || INFO_TAG_TEXT[it.kind] || 'お知らせ');
+      var line1 = el('div', 'line1');
+      line1.appendChild(tag);
+      line1.appendChild(el('div', 'ttl', it.title));
+      txt.appendChild(line1);
+      if (it.desc) txt.appendChild(el('div', 'dsc', it.desc));
+      var goEl = el('div', 'go'); goEl.setAttribute('aria-hidden', 'true');
+      goEl.textContent = '›';
+      if (it.external) goEl.appendChild(el('span', 'ext', '↗'));
+      a.appendChild(em); a.appendChild(txt); a.appendChild(goEl);
+      track.appendChild(a);
+      return a;
+    });
+
+    var dots = items.map(function(it, i){
+      var b = el('button'); b.type = 'button';
+      b.setAttribute('aria-label', (i + 1) + '件目：' + it.title);
+      b.appendChild(el('span'));
+      b.addEventListener('click', function(){ go(i, true); });
+      dotsBox.appendChild(b);
+      return b;
+    });
+
+    var idx = 0, timer = null;
+    var userPaused = !!reduceMotion; /* 視差効果を減らす設定では自動切り替えしない */
+    var hoverPaused = false;
+
+    function render(){
+      track.style.transform = 'translateX(' + (-100 * idx) + '%)';
+      slides.forEach(function(s, i){
+        var on = i === idx;
+        s.setAttribute('aria-hidden', on ? 'false' : 'true');
+        s.tabIndex = on ? 0 : -1;
+      });
+      dots.forEach(function(d, i){ d.setAttribute('aria-current', i === idx ? 'true' : 'false'); });
+      countEl.textContent = String(idx + 1).padStart(2, '0') + ' / ' + String(items.length).padStart(2, '0');
+    }
+    function restartProgress(){
+      progress.classList.remove('run');
+      void progress.offsetWidth; /* アニメーションを頭から */
+      if (!userPaused && items.length > 1) progress.classList.add('run');
+    }
+    function schedule(){
+      clearTimeout(timer);
+      if (userPaused || hoverPaused || items.length < 2 || document.hidden) return;
+      timer = setTimeout(function(){ go(idx + 1, false); }, INFO_FEED_MS);
+    }
+    function go(n, byUser){
+      idx = (n + items.length) % items.length;
+      render(); restartProgress(); schedule();
+    }
+    function setHover(on){
+      hoverPaused = on;
+      root.classList.toggle('paused', on || userPaused);
+      if (on) clearTimeout(timer); else { restartProgress(); schedule(); }
+    }
+    function syncPauseBtn(){
+      pauseBtn.textContent = userPaused ? '▶' : '❚❚';
+      pauseBtn.setAttribute('aria-label', userPaused ? '自動切り替えを再開' : '自動切り替えを停止');
+      root.classList.toggle('paused', userPaused);
+    }
+
+    document.getElementById('infoFeedPrev').addEventListener('click', function(){ go(idx - 1, true); });
+    document.getElementById('infoFeedNext').addEventListener('click', function(){ go(idx + 1, true); });
+    pauseBtn.addEventListener('click', function(){ userPaused = !userPaused; syncPauseBtn(); restartProgress(); schedule(); });
+    viewport.addEventListener('mouseenter', function(){ setHover(true); });
+    viewport.addEventListener('mouseleave', function(){ setHover(false); });
+    /* キーボードで中に入ったときだけ止める（マウスでボタンを押しただけでは止めない） */
+    root.addEventListener('focusin', function(e){ var t = e.target; var kb = true; try { kb = t.matches(':focus-visible'); } catch (x) {} if (kb) setHover(true); });
+    root.addEventListener('focusout', function(e){ if (!root.contains(e.relatedTarget)) setHover(false); });
+    document.addEventListener('visibilitychange', function(){ if (document.hidden) clearTimeout(timer); else { restartProgress(); schedule(); } });
+
+    /* スワイプ（横に40px以上動かしたら切り替え。そのときはリンクを開かない） */
+    var sx = null, sy = 0, swiped = false;
+    viewport.addEventListener('pointerdown', function(e){ sx = e.clientX; sy = e.clientY; swiped = false; }, {passive:true});
+    viewport.addEventListener('pointerup', function(e){
+      if (sx === null) return;
+      var dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; go(idx + (dx < 0 ? 1 : -1), true); }
+    });
+    viewport.addEventListener('click', function(e){ if (swiped) { e.preventDefault(); swiped = false; } }, true);
+
+    if (items.length < 2) root.classList.add('single');
+    root.hidden = false;
+    syncPauseBtn(); render(); restartProgress(); schedule();
   })();
 
   /* ---------------- ログイン中のみ「データ登録結果レポート」（analytics.html）導線を表示 ---------------- */
