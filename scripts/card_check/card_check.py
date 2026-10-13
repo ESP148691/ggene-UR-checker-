@@ -69,8 +69,8 @@ async def main():
         b = await p.chromium.launch()
         ctx = await b.new_context(viewport={"width": 1100, "height": 900})
         await ctx.add_cookies([{"name": "session", "value": "tok", "url": BASE}])
-        await ctx.route("**/fonts.googleapis.com/**", lambda r: r.fulfill(body=FONTCSS, content_type="text/css") if fonts_ok else r.abort())
-        await ctx.route("**/fonts.gstatic.com/**", lambda r: r.abort())
+        await ctx.route("**/fonts.googleapis.com/**", lambda r: r.fulfill(body=FONTCSS if fonts_ok else "", content_type="text/css"))
+        await ctx.route("**/fonts.gstatic.com/**", lambda r: r.fulfill(body="", content_type="font/woff2"))
         async def lf(route):
             await asyncio.sleep(0.8)   # フォントを遅らせて配信（5のチェック）
             n = route.request.url.split("/__font/")[1]
@@ -92,7 +92,7 @@ async def main():
             if not (t1 >= 4900 and redrawn):
                 fails.append(f"5: 初回プレビューがWebフォントの読み込み前に描かれた（{t1:.0f}ms、描き直し{'あり' if redrawn else 'なし'}）")
 
-        async def shot(name):
+        async def shot(name, page=page):
             await page.evaluate("window.__texts=[]; window.__rec=true")
             await page.click("#btnSave"); await page.wait_for_selector("#previewModal.show", timeout=60000)
             src = await page.get_attribute("#previewImg", "src"); await page.click("#btnClosePreview")
@@ -135,6 +135,65 @@ async def main():
             for th in ["galaxy", "earth", "sky"]:
                 await page.click(f'#tplButtons button[data-tpl="{t}"]'); await page.click(f'#themeButtons button[data-theme="{th}"]')
                 sizes[f"{t}_{th}"] = await shot(f"{t}_{th}")
+        # 8. 72：運営者以外のユーザー（u2）の本番カード＝同じユニットを複数枠に置いた推し編成（枠ごとの凸を含む）×3背景（66テスト#14）
+        ctx2 = await b.new_context(viewport={"width": 1100, "height": 900})
+        await ctx2.add_cookies([{"name": "session", "value": "tok2", "url": BASE}])
+        await ctx2.route("**/fonts.googleapis.com/**", lambda r: r.fulfill(body=FONTCSS if fonts_ok else "", content_type="text/css"))
+        await ctx2.route("**/fonts.gstatic.com/**", lambda r: r.fulfill(body="", content_type="font/woff2"))
+        await ctx2.route("**/__font/**", lf)
+        await ctx2.add_init_script(RECORDER)
+        p2 = await ctx2.new_page(); errs2 = []
+        p2.on("pageerror", lambda e: errs2.append(str(e)))
+        p2.on("console", lambda m: errs2.append(m.text) if m.type == "error" and "404" not in m.text else None)
+        await p2.goto(BASE + "/profile-card.html")
+        await p2.wait_for_selector("#contentView:not([hidden])", timeout=30000)
+        await p2.wait_for_function("window.__previewRendered>=1", timeout=60000)
+        if await p2.query_selector("#adminOnlyView"): fails.append("8: 本番カードに運営者専用の表示（#adminOnlyView）が残っている")
+        if await p2.evaluate("typeof window.SSR_UNITS") != "undefined": fails.append("8: 本番カードがssr-units.jsを読み込んでいる（SSRは今回出さない）")
+        if await p2.get_by_text("SSRから選ぶ").locator("visible=true").count(): fails.append("8: 本番カードに「SSRから選ぶ」が出ている")
+        # 編成1の2枠目＝2体目、編成2の1枠目＝3体目（編成は片方ずつ表示されるので、タブを切り替えて確認）
+        async def dup_labels():
+            out = []
+            for tab in (0, 1):
+                await p2.click(f"#fmTabs button >> nth={tab}")
+                out += await p2.evaluate("[...document.querySelectorAll('#favoriteForm .dup')].map(e=>e.textContent)")
+            await p2.click("#fmTabs button >> nth=0")
+            return out
+        dups = await dup_labels()
+        if dups != ["2体目", "3体目"]: fails.append(f"8: フォームの「n体目」が想定と違う {dups}")
+        for th in ["galaxy", "earth", "sky"]:
+            await p2.click('#tplButtons button[data-tpl="formation"]'); await p2.click(f'#themeButtons button[data-theme="{th}"]')
+            sizes[f"dupformation_{th}"] = await shot(f"dupformation_{th}", p2)
+        # 保存→再読み込みでも残る（66テスト#3）
+        await p2.click("#btnSave"); await p2.wait_for_selector("#previewModal.show", timeout=60000); await p2.click("#btnClosePreview")
+        await p2.reload(); await p2.wait_for_selector("#contentView:not([hidden])", timeout=30000)
+        dups2 = await dup_labels()
+        if dups2 != ["2体目", "3体目"]: fails.append(f"8: 保存後の再読み込みで「n体目」が残らない {dups2}")
+        saved = await p2.evaluate("fetch('/api/profile-card').then(r=>r.json()).then(d=>d.profile.formations.map(f=>f.units.map(u=>u.unitId+':'+u.level)))")
+        if saved != [["23:None", "23:2", "40:0"], ["23:1", "5:None", "13:None"]] and saved != [["23:null", "23:2", "40:0"], ["23:1", "5:null", "13:null"]]:
+            fails.append(f"8: 保存後の編成が変わった {saved}")
+        if errs2: fails.append(f"2: JSエラー（本番カード u2） {errs2[:5]}")
+        # 9. 72：推し情報設定（一般公開）。u2＝運営者以外で開ける→保存→本番カードへ移動、u3＝未登録で案内とリンク、未ログイン＝ガード
+        errs3 = []
+        fi = await p2.context.new_page()
+        fi.on("pageerror", lambda e: errs3.append(str(e)))
+        fi.on("console", lambda m: errs3.append(m.text) if m.type == "error" and "404" not in m.text else None)
+        await fi.goto(BASE + "/favorite-info.html"); await fi.wait_for_selector("#contentView:not([hidden])", timeout=30000)
+        if await fi.query_selector("#adminOnlyView"): fails.append("9: 推し情報設定に運営者専用の表示が残っている")
+        if await fi.get_by_text("SSRから選ぶ").locator("visible=true").count(): fails.append("9: 推し情報設定に「SSRから選ぶ」が出ている")
+        await fi.click("#btnSave"); await fi.wait_for_selector("#toast.show", timeout=10000)
+        await fi.click("#btnCard"); await fi.wait_for_url("**/profile-card*", timeout=30000)
+        if not re.search(r"/profile-card(\.html)?$", fi.url): fails.append(f"9: 「自己紹介カードを作る」の移動先が違う {fi.url}")
+        ctx3 = await b.new_context(viewport={"width": 390, "height": 800})
+        await ctx3.add_cookies([{"name": "session", "value": "tok3", "url": BASE}])
+        p3 = await ctx3.new_page()
+        p3.on("pageerror", lambda e: errs3.append(str(e)))
+        await p3.goto(BASE + "/favorite-info.html"); await p3.wait_for_selector("#contentView:not([hidden])", timeout=30000)
+        hints = await p3.evaluate("document.querySelector('#favoriteForm').innerText")
+        if "ユニットチェッカーを開く" not in hints or "サポートチェッカー" not in hints: fails.append("9: 未登録ユーザーに案内とチェッカーへのリンクが出ない")
+        pg0 = await (await b.new_context()).new_page()
+        await pg0.goto(BASE + "/favorite-info.html"); await pg0.wait_for_selector("#guardView:not([hidden])", timeout=30000)
+        if errs3: fails.append(f"2: JSエラー（推し情報設定） {errs3[:5]}")
         # 6. 機体名の泣き別れ
         wraps = await page.evaluate("""()=>{ if(!CardRenderer.wrapName) return ['wrapName未実装']; const c=document.createElement('canvas').getContext('2d'), F="'Noto Sans JP',sans-serif", bad=[];
           for(const u of window.UR_UNITS) for(const [w,b] of [[294,21],[139,15],[295,16]]){

@@ -46,3 +46,25 @@ INSERT INTO user_favorite_characters (user_uid,slot,char_id) VALUES ('u1',2,40);
 INSERT INTO user_favorite_characters (user_uid,slot,char_id) VALUES ('u1',3,60);
 INSERT INTO user_favorite_characters (user_uid,slot,char_id) VALUES ('u1',4,5);
 INSERT INTO user_favorite_characters (user_uid,slot,char_id) VALUES ('u1',5,13);
+-- 72：運営者以外のユーザー u2（tok2）＝同じユニット(23)を編成1に2枠・編成2に1枠置き、枠ごとの凸を登録より低くした推し編成（66段階2）
+INSERT INTO users (user_uid, first_seen, last_seen, username, password, units_first_registered_at, supporters_first_registered_at) VALUES ('u2','2026-10-01','2026-10-13','guest2','x','2026-10-01','2026-10-01');
+INSERT INTO sessions (token,user_uid,created_at,expires_at) VALUES ('tok2','u2','2026-10-01T00:00:00Z','2099-01-01T00:00:00Z');
+INSERT INTO units_ownership (registered_at,user_uid,unit_id,level) VALUES ('2026-10-01','u2',23,3);
+INSERT INTO units_ownership (registered_at,user_uid,unit_id,level) VALUES ('2026-10-01','u2',40,1);
+INSERT INTO units_ownership (registered_at,user_uid,unit_id,level) VALUES ('2026-10-01','u2',60,3);
+INSERT INTO units_ownership (registered_at,user_uid,unit_id,level) VALUES ('2026-10-01','u2',5,2);
+INSERT INTO units_ownership (registered_at,user_uid,unit_id,level) VALUES ('2026-10-01','u2',13,1);
+INSERT INTO supporters_ownership (registered_at,user_uid,supporter_id,level) VALUES ('2026-10-01','u2',1,3);
+INSERT INTO supporters_ownership (registered_at,user_uid,supporter_id,level) VALUES ('2026-10-01','u2',2,1);
+INSERT INTO user_profiles (user_uid,display_name,comment,title_mission_id,card_template,card_theme,updated_at) VALUES ('u2','ゲスト2','同じ機体を複数編成で使っています。',NULL,'formation','galaxy','2026-10-13T10:00:00+09:00');
+INSERT INTO user_formations (user_uid,formation_no,label,supporter_id,updated_at) VALUES ('u2',1,'周回編成',1,'2026-10-13');
+INSERT INTO user_formations (user_uid,formation_no,label,supporter_id,updated_at) VALUES ('u2',2,'高難度編成',2,'2026-10-13');
+INSERT INTO user_formation_units (user_uid,formation_no,slot,rarity_code,unit_id,pilot_char_id,level) VALUES ('u2',1,1,1,23,23,NULL);
+INSERT INTO user_formation_units (user_uid,formation_no,slot,rarity_code,unit_id,pilot_char_id,level) VALUES ('u2',1,2,1,23,NULL,2);
+INSERT INTO user_formation_units (user_uid,formation_no,slot,rarity_code,unit_id,pilot_char_id,level) VALUES ('u2',1,3,1,40,40,0);
+INSERT INTO user_formation_units (user_uid,formation_no,slot,rarity_code,unit_id,pilot_char_id,level) VALUES ('u2',2,1,1,23,NULL,1);
+INSERT INTO user_formation_units (user_uid,formation_no,slot,rarity_code,unit_id,pilot_char_id,level) VALUES ('u2',2,2,1,5,5,NULL);
+INSERT INTO user_formation_units (user_uid,formation_no,slot,rarity_code,unit_id,pilot_char_id,level) VALUES ('u2',2,3,1,13,13,NULL);
+-- 72：ユニット・サポート未登録のユーザー u3（tok3）＝推し情報設定の案内表示の確認用
+INSERT INTO users (user_uid, first_seen, last_seen, username, password) VALUES ('u3','2026-10-13','2026-10-13','guest3','x');
+INSERT INTO sessions (token,user_uid,created_at,expires_at) VALUES ('tok3','u3','2026-10-13T00:00:00Z','2099-01-01T00:00:00Z');

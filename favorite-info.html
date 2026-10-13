@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="robots" content="noindex">
 <title>推し情報設定｜Gジェネエターナル ファンツール</title>
-<!-- 推し情報設定（68）。段階1は運営者専用（adminGate）。一般公開はESPの確認後（段階2） -->
+<!-- 推し情報設定（68）。段階2（72）で一般公開 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
@@ -130,8 +129,6 @@
     <p>推し情報の設定にはログインが必要です。<br>ログインすると、推しを登録できるようになります。</p>
     <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
   </div>
-  <!-- 運営者専用（段階1）。運営者以外のログインユーザーにはこの案内だけを出す。公開時はこの判定を外す -->
-  <div id="adminOnlyView" class="stateMsg" hidden>推し情報設定は試用版のため、運営者専用ページです。</div>
   <div id="loadingView" class="stateMsg">読み込み中...</div>
   <div id="errorView" class="stateMsg" hidden>データの読み込みに失敗しました。時間をおいて再度お試しください。</div>
 
@@ -153,7 +150,6 @@
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="ssr-units.js"></script>
 <script src="favorite-logic.js"></script>
 <script src="favorite-form.js"></script>
 <script>
@@ -161,7 +157,7 @@
 "use strict";
 
 const DRAFT_KEY = "favoriteinfo_draft_v1";
-const CARD_URL = "/profile-card-trial.html";   // 段階2で "/profile-card"
+const CARD_URL = "/profile-card";
 const $ = id => document.getElementById(id);
 
 let api = null;           // GET /api/profile-card の応答
@@ -292,18 +288,9 @@ async function init(){
 }
 
 // /api/me失敗時は保守的にガード表示に倒し、他のAPIは呼ばない
-// 段階1は運営者専用：ログイン済みでも /api/admin/me が admin:true のときだけ本体を読み込む（公開するときは adminGate を外して init() を直接呼ぶ）
-function showAdminOnly(){ $("loadingView").hidden = true; $("adminOnlyView").hidden = false; }
-async function adminGate(){
-  try {
-    const r = await fetch("/api/admin/me", { credentials: "same-origin" });
-    const d = await r.json();
-    if (d && d.admin === true) init(); else showAdminOnly();
-  } catch (e) { showAdminOnly(); }
-}
 fetch("/api/me", { credentials: "same-origin" })
   .then(r => r.json())
-  .then(d => { if (d && d.loggedIn) adminGate(); else showGuard(); })
+  .then(d => { if (d && d.loggedIn) init(); else showGuard(); })
   .catch(showGuard);
 })();
 </script>

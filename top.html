@@ -276,13 +276,18 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .infoFeed .slide .dsc{color:var(--muted);font-size:10.5px;line-height:1.4;margin-top:2px;opacity:.9;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* 72 説明文だけを右から左へ流す（枠に収まらないときだけ .flow を付ける。距離・時間はJSがCSS変数で渡す） */
+  .infoFeed .slide .dsc.flow{text-overflow:clip;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8px,#000 calc(100% - 8px),transparent);mask-image:linear-gradient(90deg,transparent,#000 8px,#000 calc(100% - 8px),transparent);}
+  .infoFeed .slide .dsc.flow .dscIn{display:inline-block;animation:feedDesc 10s linear infinite;will-change:transform;}
+  .infoFeed.paused .slide .dsc.flow .dscIn{animation-play-state:paused;}
+  @keyframes feedDesc{from{transform:translateX(var(--from,100%));}to{transform:translateX(var(--to,-100%));}}
   .infoFeed .slide .go{flex:0 0 auto;color:var(--muted);font-size:14px;}
   .infoFeed .slide .go .ext{font-size:10px;vertical-align:super;margin-left:1px;}
   .infoFeed a.slide:hover .ttl{color:var(--cyan);}
   .infoFeed a.slide:hover .go{color:var(--cyan);}
   /* 進行バー：表示時間の経過を示す */
   .infoFeed .progress{position:absolute;left:0;bottom:0;height:1px;width:0;background:var(--cyan);opacity:.5;}
-  .infoFeed .progress.run{animation:feedProgress var(--feed-ms,6000ms) linear forwards;}
+  .infoFeed .progress.run{animation:feedProgress var(--feed-ms,10000ms) linear forwards;}
   .infoFeed.paused .progress.run{animation-play-state:paused;}
   @keyframes feedProgress{from{width:0;}to{width:100%;}}
   /* 操作部は見出し行の右端に小さく置く（別の行を作らず高さを抑える） */
@@ -392,6 +397,16 @@
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
+    <!-- 推し情報設定（68・72で一般公開）。登録状況のバッジはshowRegStatus()が出す -->
+    <a class="navcard" href="/favorite-info">
+      <div class="icon" data-pool="favorite"><img class="icoImg" alt="" aria-hidden="true"></div>
+      <div class="body">
+        <div class="name">推し情報<wbr>設定</div>
+        <div class="desc">推し作品・推しユニット・推しキャラ・推し編成を登録</div>
+        <div class="regBadge" data-reg="favorite" hidden></div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
     <!-- ㉒ 自己紹介カード。公開済み（2026-09-28・㉟）。
          この節（#analyticsSection）ごとログイン中のみ表示されるため、判定はtoggleAnalyticsNav()と同じ -->
     <a class="navcard" href="/profile-card.html" id="profileCardNav">
@@ -420,16 +435,6 @@
       <div class="body">
         <div class="name">アカウント<wbr>管理</div>
         <div class="desc">忘れた人への仮パスワード発行・パスワードのハッシュ化の状況（運営者専用）</div>
-      </div>
-      <div class="arrow">&rsaquo;</div>
-    </a>
-    <!-- 推し情報設定（68。段階1は運営者専用。段階2で一般の欄へ移す） -->
-    <a class="navcard" href="/favorite-info">
-      <div class="icon" data-pool="favorite"><img class="icoImg" alt="" aria-hidden="true"></div>
-      <div class="body">
-        <div class="name">推し情報<wbr>設定<wbr>（試用）</div>
-        <div class="desc">推し作品・推しユニット・推しキャラ・推し編成を登録（運営者専用）</div>
-        <div class="regBadge" data-reg="favorite" hidden></div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
@@ -739,6 +744,10 @@
       href: 'https://athena-gget.com/', external: true,
       img: 'images/partners/athena-gget.jpg', mark: 'DB' },
     { kind: 'info',
+      title: '推し情報設定ページを公開しました',
+      desc: '推し作品・推しユニット・推しキャラ・推し編成をまとめて登録',
+      href: '/favorite-info', mark: '💫', start: '2026-10-14', end: '2026-10-28' },
+    { kind: 'info',
       title: 'チャレンジミッションチェッカーを公開しました',
       desc: 'メインステージCHALLENGE HARD全15ステージ・30ミッションの達成状況を記録できます',
       href: '/challenge.html', mark: '🎯', end: '2026-10-31' },
@@ -747,7 +756,8 @@
       desc: 'ファンツールの集計データから、毎週ランキングをお届けします',
       href: '', external: true, mark: '▶' }  /* チャンネルURLが決まったら href に入れる */
   ];
-  var INFO_FEED_MS = 6000; /* 1件あたりの表示時間 */
+  var INFO_FEED_MS = 10000; /* 1件あたりの表示時間（説明文が流れ切るのに10秒を超える件は、流れ切って1秒後まで） */
+  var INFO_FEED_DESC_SPEED = 50; /* 説明文の流れる速さ（px/秒） */
   var INFO_TAG_TEXT = { link: '相互リンク', info: 'お知らせ', video: '動画' };
 
   (function initInfoFeed(){
@@ -768,7 +778,8 @@
     var countEl = document.getElementById('infoFeedCount');
     var pauseBtn = document.getElementById('infoFeedPause');
     var viewport = document.getElementById('infoFeedViewport');
-    root.style.setProperty('--feed-ms', INFO_FEED_MS + 'ms');
+    var curMs = INFO_FEED_MS; /* 表示中のスライドの表示時間 */
+    root.style.setProperty('--feed-ms', curMs + 'ms');
 
     function el(tag, cls, text){ var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
@@ -795,7 +806,7 @@
       line1.appendChild(tag);
       line1.appendChild(el('div', 'ttl', it.title));
       txt.appendChild(line1);
-      if (it.desc) txt.appendChild(el('div', 'dsc', it.desc));
+      if (it.desc) { var dsc = el('div', 'dsc'); dsc.appendChild(el('span', 'dscIn', it.desc)); txt.appendChild(dsc); }
       var goEl = el('div', 'go'); goEl.setAttribute('aria-hidden', 'true');
       goEl.textContent = '›';
       if (it.external) goEl.appendChild(el('span', 'ext', '↗'));
@@ -827,6 +838,25 @@
       dots.forEach(function(d, i){ d.setAttribute('aria-current', i === idx ? 'true' : 'false'); });
       countEl.textContent = String(idx + 1).padStart(2, '0') + ' / ' + String(items.length).padStart(2, '0');
     }
+    /* 72 表示中のスライドの説明文が枠に収まらなければ流す。表示時間は max(10秒, 流れ切る時間+1秒) */
+    function applyFlow(){
+      curMs = INFO_FEED_MS;
+      slides.forEach(function(s, i){
+        var d = s.querySelector('.dsc');
+        if (!d) return;
+        d.classList.remove('flow');
+        if (i !== idx || reduceMotion) return;
+        var inner = d.firstChild, cw = d.clientWidth, iw = inner.getBoundingClientRect().width;
+        if (!(cw > 0) || iw <= cw + 0.5) return;
+        var sec = (cw + iw) / INFO_FEED_DESC_SPEED;
+        d.style.setProperty('--from', cw + 'px');
+        d.style.setProperty('--to', (-iw) + 'px');
+        inner.style.animationDuration = sec + 's';
+        d.classList.add('flow');
+        curMs = Math.max(INFO_FEED_MS, Math.ceil((sec + 1) * 1000));
+      });
+      root.style.setProperty('--feed-ms', curMs + 'ms');
+    }
     function restartProgress(){
       progress.classList.remove('run');
       void progress.offsetWidth; /* アニメーションを頭から */
@@ -835,11 +865,11 @@
     function schedule(){
       clearTimeout(timer);
       if (userPaused || hoverPaused || items.length < 2 || document.hidden) return;
-      timer = setTimeout(function(){ go(idx + 1, false); }, INFO_FEED_MS);
+      timer = setTimeout(function(){ go(idx + 1, false); }, curMs);
     }
     function go(n, byUser){
       idx = (n + items.length) % items.length;
-      render(); restartProgress(); schedule();
+      render(); applyFlow(); restartProgress(); schedule();
     }
     function setHover(on){
       hoverPaused = on;
@@ -874,7 +904,15 @@
 
     if (items.length < 2) root.classList.add('single');
     root.hidden = false;
-    syncPauseBtn(); render(); restartProgress(); schedule();
+    syncPauseBtn(); render(); applyFlow(); restartProgress(); schedule();
+    /* 幅やフォントが変わったら流す・流さないを判定し直す（表示時間が変わったときだけタイマーも作り直す） */
+    function reflow(){
+      var before = curMs + '|' + !!slides[idx].querySelector('.dsc.flow');
+      applyFlow();
+      if (before !== curMs + '|' + !!slides[idx].querySelector('.dsc.flow')) { restartProgress(); schedule(); }
+    }
+    if (window.ResizeObserver) { var lastW = viewport.clientWidth; new ResizeObserver(function(){ var w = viewport.clientWidth; if (w !== lastW) { lastW = w; reflow(); } }).observe(viewport); }
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(reflow);
   })();
 
   /* ---------------- ログイン中のみ「データ登録結果レポート」（analytics.html）導線を表示 ---------------- */
@@ -899,7 +937,7 @@
     if (!section) return;
     fetch('/api/admin/me', { credentials: 'same-origin' })
       .then(function(res){ return res.json(); })
-      .then(function(data){ if (data && data.admin === true) { section.hidden = false; showFavoriteRegStatus(); } })
+      .then(function(data){ if (data && data.admin === true) { section.hidden = false; } })
       .catch(function(){ /* 失敗時は非表示のまま */ });
   }
 
@@ -908,6 +946,7 @@
   function showRegStatus(){
     showEternalRoadRegStatus();
     showChallengeRegStatus();
+    showFavoriteRegStatus();
     var targets = [
       { key: 'unit', api: '/api/my-ownership', total: UNIT_IMAGES.length, word: '機' },
       { key: 'supporter', api: '/api/my-ownership-supporter', total: SUPPORTER_IMAGES.length, word: '体' }
@@ -934,7 +973,7 @@
     });
   }
 
-  /* 68 推し情報設定の登録状況（段階1は運営者欄。toggleAdminNav()から呼ぶ。段階2でshowRegStatus()へ移す）。0件の項目も出す */
+  /* 68 推し情報設定の登録状況（showRegStatus()から呼ぶ）。0件の項目も出す */
   function showFavoriteRegStatus(){
     var el = document.querySelector('.regBadge[data-reg="favorite"]');
     if (!el) return;
