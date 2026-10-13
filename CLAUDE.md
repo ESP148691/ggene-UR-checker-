@@ -35,7 +35,7 @@ Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェ�
 
 | ファイル | 役割 |
 |---|---|
-| `top.html` | トップ（`/`で配信）。チェッカー欄（ユニット・サポート・エタロ）、ログイン会員限定欄（データ登録結果レポート・自己紹介カード`#profileCardNav`＝**hidden**）、運営者欄`#adminSection`（X投稿用レポート・自己紹介カード（試用）・チャレンジ）、ROUTE 04 Coming Soon。導線カードの登録状況バッジ`.regBadge`、アイコンのランダム表示（`UNIT_IMAGES`・`SUPPORTER_IMAGES`・`ETERNAL_ROAD_IMAGES`・`data-pool`）、説明文の下のインフォバナー（`INFO_FEED`・71）、フッターの相互リンク |
+| `top.html` | トップ（`/`で配信）。チェッカー欄（ユニット・サポート・エタロ）、ログイン会員限定欄（データ登録結果レポート・**推し情報設定（72で一般公開・登録状況バッジ`showFavoriteRegStatus()`は`showRegStatus()`から）**・自己紹介カード`#profileCardNav`）、運営者欄`#adminSection`（X投稿用レポート・自己紹介カード（試用）・チャレンジ）、ROUTE 04 Coming Soon。導線カードの登録状況バッジ`.regBadge`、アイコンのランダム表示（`UNIT_IMAGES`・`SUPPORTER_IMAGES`・`ETERNAL_ROAD_IMAGES`・`data-pool`）、説明文の下のインフォバナー（`INFO_FEED`・71。**1件ずつスライド（10秒）＋各件の説明文だけが右から左へ流れる**＝72の4.7。短い説明は流さない・`reduceMotion`では「…」省略）、フッターの相互リンク |
 | `unit.html` | URユニット所持率チェッカー（87機）。スクショ読み取り（`unit-scan.js`）・入手記録（入手日・ガシャ回数・メモ）つき。データ本体は`ur-units.js` |
 | `ur-units.js` | URユニットの画面側マスター（`window.UR_UNITS`。`id`・`name`・`limited`・`type`・`imageUrl`・`released`（必須）・`wrap`（任意））。`unit.html`・`profile-card.html`が読む。**無いとユニットチェッカーが空になる**。実装日`released`はD1には無く、ここが正本 |
 | `supporter.html` | URサポート所持率チェッカー（50体。データは`const UNITS`）。スクショ読み取り（`supporter-scan.js`）つき。**改行コードCRLF**（CRLFのまま編集） |
@@ -120,8 +120,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 - **同じものを複数か所に持っている箇所**（変えるときは全部そろえる）
   - ミッションの短い表示名：`eternal-road.html`の`missionLabel()`・`profile-card.html`の`CardRenderer`内・`analytics.html`の`erMissionLabel()`
   - カードのテンプレート：`worker.js`の`CARD_TEMPLATES`と`profile-card*.html`の`TEMPLATE_LABEL`（`formation`＝推し編成、`characters`＝推しキャラ）
-  - 搭乗キャラの補充規則：`worker.js`の`normalizePilots()`と`favorite-form.js`の`normalizeDraftPilots()`／`onUnitChanged()`（※本番`profile-card.html`は段階2までは自前のコピーを持つ。順番・規則を同じに保つ。依頼書57の4.3。**66で候補順を変更**：①編成に入っていないユニットのセットキャラ→②イベント配布キャラ→③編成に入っているユニットのセットキャラ。画面側は`firstUnusedChar()`／`reservedChars()`）
-  - カード表示設定の既定値`CARD_OPTIONS_DEFAULT`（`{acq:true, memo:false}`）：`favorite-form.js`と`worker.js`（`profile-card.html`は段階2までは自前のコピー）
+  - 搭乗キャラの補充規則：`worker.js`の`normalizePilots()`と`favorite-form.js`の`normalizeDraftPilots()`／`onUnitChanged()`（72で本番`profile-card.html`も共通部品に切り替え済み＝画面側は`favorite-form.js`の1か所。サーバー側`worker.js`と順番・規則を同じに保つ。依頼書57の4.3。**66で候補順を変更**：①編成に入っていないユニットのセットキャラ→②イベント配布キャラ→③編成に入っているユニットのセットキャラ。画面側は`firstUnusedChar()`／`reservedChars()`）
+  - カード表示設定の既定値`CARD_OPTIONS_DEFAULT`（`{acq:true, memo:false}`）：`favorite-form.js`と`worker.js`（72で本番・試用とも画面側は`favorite-form.js`の1か所）
   - 作品ID：`worker.js`の`WORK_IDS`・`works_master`・`images/series/`
   - ユニット件数：`ur-units.js`・`top.html`の`UNIT_IMAGES`・`worker.js`の`MAX_UNIT_ID`・D1（サポートも同様）
 
@@ -141,7 +141,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 
 ## 新ユニット・作品の追加手順
 
-**トップのお知らせ・リンクを追加するとき**：`top.html`の`INFO_FEED`（配列）に1件足す・書き換えるだけ（`href: ''`は非表示、`end`で期限、全部消せば欄ごと消える）。D1・API変更なし。
+**トップのお知らせ・リンクを追加するとき**：`top.html`の`INFO_FEED`（配列）に1件足す・書き換えるだけ（`href: ''`は非表示、`end`で期限、全部消せば欄ごと消える）。D1・API変更なし。切替間隔は`INFO_FEED_MS`（10秒。説明文が流れ切るのに足りないときは流れ切って+1秒）、流す速さは`INFO_FEED_DESC_SPEED`（50px/秒）。流す処理`applyFlow()`を呼ばなければ「…」省略表示に戻る。
 
 **URユニット（URサポートも同様）を追加するとき**
 1. 画面側のデータに1件追加し、画像を`images/units/{id}.jpg`（`images/supporters/{id}.jpg`）に置く（既存IDは振り直さない）
@@ -221,8 +221,9 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 56追加改修8（試用版） | 10-09 | 「推」バッジをピンクから落ち着いた紫に、文字は細字（標準の太さ）に。顔の縁（`OSHI`）とフォームの搭乗表示の色も紫にそろえた |
 | 56追加改修9（試用版） | 10-09 | 推しキャラの印を「推」から星に変更（紫の丸に白抜きの星。`oshiBadge`）。フォームの搭乗表示は「★」 |
 | 56追加改修10（試用版） | 10-09 | 推しキャラの星バッジ・顔の縁を虹色に（フォームの搭乗表示も虹色の文字）。推しユニットの左パネルの「得意タグ」（52案D-3）を廃止し推しキャラと同じ表示に（`by`の余白も40pxに戻した。`tagTrend`の計算とデータは残置・1位カードの特徴タグは据え置き）。ランク欄の「100以上は金…」の説明文を削除。推しキャラのタイプ・作品チップを名前の行数によらず同じ高さ（セット欄の区切り線のすぐ上）に |
-| 64 運営者向け分析（推し統計・所持率分布） | 10-10 | **ユーザー決定：今後も運営者専用（ESPのみ）**。。`worker.js`：`GET /api/analytics/oshi`・`GET /api/analytics/distribution?kind=`（どちらも`requireAdmin`。D1変更なし）、定数`OSHI_SLOT_POINTS`・`OSHI_RATE_MIN_OWNERS`。新ページ`analytics-admin.html`（`analytics.html`は無変更）、`top.html`運営者欄に導線。動画SQL`shorts/sql/export_oshi_data.sql`・`export_oshi_chars.sql`を63の定義にそろえ`score`列を追加。API検証はNode＋`node:sqlite`のハーネス（依頼書8章の1〜12・14の観点。無凸79機→90%以上を確認）、画面は320/390/1024px。一般公開の予定なし（公開するなら要再相談） |
+| 64 運営者向け分析（推し統計・所持率分布） | 10-10 | **ユーザー決定：運営者ページとして正式運用・一般公開しない（ESPのみ。10-13 12:11）**。`worker.js`：`GET /api/analytics/oshi`・`GET /api/analytics/distribution?kind=`（どちらも`requireAdmin`。D1変更なし）、定数`OSHI_SLOT_POINTS`・`OSHI_RATE_MIN_OWNERS`。新ページ`analytics-admin.html`（`analytics.html`は無変更）、`top.html`運営者欄に導線。動画SQL`shorts/sql/export_oshi_data.sql`・`export_oshi_chars.sql`を63の定義にそろえ`score`列を追加。API検証はNode＋`node:sqlite`のハーネス（依頼書8章の1〜12・14の観点。無凸79機→90%以上を確認）、画面は320/390/1024px。一般公開の予定なし（公開するなら要再相談） |
 | 71 トップのインフォバナー（相互リンク） | 10-12 | D1変更なし・`top.html`のみ。説明文の下に`#infoFeed`（`INFO_FEED`定数・`initInfoFeed()`。6秒ごとスライド、ホバー/フォーカス/非表示タブ/一時停止/`reduceMotion`で停止、スワイプ対応、期限`start`/`end`はJST）。1件目は相互リンク（ジージェネエターナル 総合データベース `https://athena-gget.com/`・別タブ、ロゴ`images/partners/athena-gget.jpg`を新規追加）、2件目はチャレンジ公開のお知らせ（〜10-31）、ESP studioは`href:''`で非表示。フッターに相互リンク1行。参考パッチを`git apply --ignore-whitespace`で適用。依頼書：`docs/08_トップページ/71_…依頼書.md`。切り戻しは`INFO_FEED`を空配列に |
+| 72 推し情報設定の一般公開・本番カードの共通部品化（68段階2＋66段階2）＋インフォバナー変更 | 10-14 | D1変更なし。`profile-card.html`：推し4欄を`favorite-form.js`/`.css`・`favorite-logic.js`に切り替え（同じユニットを複数枠・枠ごとの凸・「n体目」が本番に入る）。**`CardRenderer`は変えず、試用版のSSR対応描画（㊻）は持ち込まない**・`ssr-units.js`は読み込まない（`SSR_UNITS`未定義でも「SSRから選ぶ」は出ない）。`favorite-info.html`：`adminGate()`・`#adminOnlyView`・`ssr-units.js`を外して一般公開、「自己紹介カードを作る」は`/profile-card`へ。`top.html`：推し情報設定のカードを「レポート・カード」欄の自己紹介カードの前へ（名前・説明から「試用」「運営者専用」を外す）、バッジは`showRegStatus()`から。インフォバナー：`INFO_FEED_MS`＝10000・説明文`.dsc>.dscIn`を右から左へ流す（`applyFlow()`・`INFO_FEED_DESC_SPEED`＝50・`ResizeObserver`で再判定）・推し情報設定のお知らせを2件目に追加（2026-10-14〜10-28）。`scripts/card_check/`：`seed.sql`に`u2`（運営者以外・同じユニット23を3枠・枠ごとの凸）・`u3`（未登録）を追加、`card_check.py`に本番カード（重複編成×3背景・保存→再読み込み）と推し情報設定（運営者以外で開ける・未登録の案内・保存→`/profile-card`・未ログインのガード）の確認を追加。検証：切り替え前後でカード画像17枚が一致、ハーネス全成功、トップ320/390/1024pxで横はみ出しなし・JSエラーなし。依頼書：`docs/04_自己紹介カード/72_…依頼書.md`。切り戻しはcommitのrevert（D1なし） |
 | 68 推し情報設定ページ（段階1） | 10-11 | D1変更なし。新規`favorite-logic.js`（`FormationLogic`を移動＋`WorkLabel`。`CardRenderer`は`WorkLabel`を参照）・`favorite-form.js`/`.css`（試用版カードの推し4欄を動きを変えずに移した`FavoriteForm`。`emptyMode:"hide"`＝カード／`"hint"`＝推し情報設定）・`favorite-info.html`（運営者専用・下書き`favoriteinfo_draft_v1`・未保存表示・「自己紹介カードを作る ›」）。`worker.js`：`favoriteWorkStatements()`・`favoriteUnitStatements()`・`saveFormations()`・`saveFavoriteCharacters()`を`handleSaveProfile()`から切り出し、`POST /api/favorite-info`（送ったキーだけ処理・`user_profiles`行が無くても作る）・`GET /api/favorite-info/summary`。`profile-card-trial.html`を共通部品へ切り替え（推し欄の上に推し情報設定への案内を1行追加）。`top.html`運営者欄に導線と登録状況バッジ（`showFavoriteRegStatus()`）。検証：切り替え前後でカード画像15枚・`/api/profile`の送信本文・4欄の操作結果が一致、`/api/favorite-info`の保存・null・不正値・行なしユーザー、320/390/1024px、運営者以外・未ログイン・未登録ユーザーの案内。**`profile-card.html`への反映・一般公開は段階2（ESPの確認後）** |
 | ㊻ 推しユニットにSSR（C-1・C-2、試用版） | 10-12 | 0037をD1適用→push。`worker.js`：`normalizeFavoriteUnits()`（整数＝UR・`{"s":id}`＝SSR。SSRは所持確認なし・マスターに無いID／重複／合計5件超は400）、`favoriteUnitStatements()`が`rarity_code`を書く、`loadProfile`がSSR行も`rarityCode: 2`で返す。`ssr-units.js`・`images/ssr/`（332枚）。`favorite-form.js`：推しユニット欄に「URから選ぶ／SSRから選ぶ」（`SSR_UNITS`が空なら出ない。draftはUR＝整数・SSR＝`{s:id}`で持つ＝送信形式と同じ。依頼書の`{r,id}`より旧下書き互換を優先）。`profile-card-trial.html`・`favorite-info.html`が`ssr-units.js`を読む。カードはSSRバッジ（金）、画像`images/ssr/`。**本番`profile-card.html`は未反映**（SSR行を読み飛ばすだけ。本番で保存するとSSRの推しは消える）。反映は68の段階2と合わせる。`ssr-tool.html`（4-4）は段階B未実装のため未対応。`scripts/card_check/`への追加は未 |
 | ㊻ SSR作品の直し32件 | 10-12 | 0038をD1適用→`ssr-units.js`の`workId`32件を差し替えてpush。名前・タイプ・unit_id・画像は不変 |
@@ -242,8 +243,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 - 継続案（⑦⑨）：凸レベル別内訳、PCでのポップオーバー、タイル長押し比較、絞り込みの複数選択と保存、並べ替え切り替え
 - **51・52 推し編成・タグ傾向（53依頼書）**：段階1（10-04）・段階2（本番`profile-card.html`への反映。commit「自己紹介カード：推し編成・推しキャラを本番profile-card.htmlへ反映」）とも完了。**2026-10-10に一般公開済み**（ESP確認。2026-10-11 Coworkが進捗を反映）
 - **55〜57 推しURキャラクター**：段階1（10-09）・段階2（本番反映。53と同じcommit）とも完了。**2026-10-10に一般公開済み**。設計書（51・52・55〜57）への試用版追加改修の反映はCowork側の作業として残っている
-- **66 推し編成：同一ユニットの複数選択**：段階1（D1 0036・`worker.js`・試用版）は10-11に完了。**段階2（本番カード）は68の段階2に含める**（単独で本番反映しない）
-- **67・68 推し情報設定ページ`favorite-info.html`**（`../docs/04_自己紹介カード/68_推し情報設定ページ_実装依頼書.md`。10-11 ESP承認済み・D1変更なし）：**段階1は10-11に実装・push済み**（運営者専用。ESPがトップの運営者欄 → 推し情報設定 → 保存 → 試用版カードに反映、を本番で確認する）。残り＝段階2（ESPの確認後・来週めど）＝本番カードの切り替え（66段階2を兼ねる）・`adminGate()`を外す・トップの導線を一般の欄へ・`scripts/card_check/`に推し情報設定の確認を追加（`seed.sql`の古い件も）・仕様書の更新
+- **66 推し編成：同一ユニットの複数選択**：段階1（10-11）・段階2（72で本番公開。2026-10-14 push済み）とも完了。残り＝ESPの本番確認（72の8章の「本番確認」の行）
+- **67・68 推し情報設定ページ`favorite-info.html`**：段階1（10-11）・段階2（72で一般公開・2026-10-14 push済み）とも完了。残り＝ESPの本番確認（72の8章）。**③SSRの推しユニットの本番公開（調整中・別途）**：公開時は`profile-card.html`・`favorite-info.html`に`ssr-units.js`の読み込みと、`CardRenderer`のSSR対応（試用版の`f.ssr`分岐・`totsuStars`のkind）を足す（70を先に入れた場合は読み込み不要）。それまで運営者は**SSRを含む推しを試用版カードで保存**する（共通部品がSSRを知らない状態で保存し直すとSSRの推しが落ちる）
 - 次にどのテーマに着手するかは、セッション冒頭でユーザーに確認する
 
 ## 作業上の注意
