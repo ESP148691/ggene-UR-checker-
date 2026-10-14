@@ -44,8 +44,20 @@ function loadLearned(){
 function saveLearned(obj){
   try { localStorage.setItem(LEARN_KEY, JSON.stringify(obj)); } catch(e){}
 }
+// 73 D1（units/supporters APIのscanFit）の位置合わせ値。scanFilesに渡された一覧から作る
+let serverFit = {};
+function serverFitTable(units){
+  const t = {};
+  for (const u of units || []) if (Array.isArray(u.scanFit) && u.scanFit.length === 3) t[u.id] = u.scanFit;
+  return t;
+}
+// 優先順：この端末で学習した値 ＞ D1 ＞ コードのSCAN_FIT（予備）
 function fitTable(){
-  return Object.assign({}, SCAN_FIT, loadLearned());
+  return Object.assign({}, SCAN_FIT, serverFit, loadLearned());
+}
+// 73 学習した値を、そのままD1に流せるUPDATE文にする（?scandebug=1の表示用）
+function fitSql(learned){
+  return Object.keys(learned || {}).map(id => `UPDATE supporters_master SET scan_fit = '${JSON.stringify(learned[id])}' WHERE supporter_id = ${Number(id)};`).join("\n");
 }
 
 function canvas(w, h){
@@ -383,6 +395,7 @@ async function buildTemplates(units, onProgress){
 }
 
 async function scanFiles(files, units, onProgress){
+  serverFit = serverFitTable(units);
   const fitsKey = JSON.stringify(fitTable());
   if (!templateCache || templateCache.fitsKey !== fitsKey) templateCache = await buildTemplates(units, onProgress);
   const { tpl } = templateCache;
@@ -458,5 +471,5 @@ async function learnFit(card, unit){
   return { score: b.v, fit };
 }
 
-window.SupporterScan = { scanFiles, learnFit, loadLearned, SCAN_FIT, ACCEPT, SURE, detectCells, readStars };
+window.SupporterScan = { scanFiles, learnFit, loadLearned, fitSql, SCAN_FIT, ACCEPT, SURE, detectCells, readStars };
 })();

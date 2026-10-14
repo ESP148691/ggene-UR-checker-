@@ -395,7 +395,15 @@ function create(cfg) {
   }
   function moveIn(arr, i, d){ const j = i + d; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; }
 
-  function workLogoImg(id, cls){ return el("img", { class: cls, src: `images/series/${id}.png`, alt: "", loading: "lazy" }); }
+  // 73 ロゴ画像が無い作品（SQLで足したばかり等）は、画像の代わりに短縮名の文字を出す
+  function workLogoImg(id, cls){
+    const img = el("img", { class: cls, src: `images/series/${id}.png`, alt: "", loading: "lazy" });
+    img.addEventListener("error", () => {
+      const w = worksById.get(id);
+      img.replaceWith(el("span", { class: cls + " logoText", text: (w && w.shortName) || WorkLabel.shortName(id) }));
+    }, { once: true });
+    return img;
+  }
 
   function renderWorks(){
     $("workCount").textContent = `${draft.favoriteWorks.length} / ${MAX_FAV}`;
@@ -806,6 +814,7 @@ function create(cfg) {
   function setData(d) {
     api = d.api;
     works = (d.works && d.works.works) || [];
+    WorkLabel.setWorks(works);   // 73 通称・まとめをD1の値に（無ければ組み込みの予備）
     worksById.clear(); unitsById.clear(); CHARS.clear(); fmIx = null;
     for (const w of works) {
       worksById.set(w.workId, w);

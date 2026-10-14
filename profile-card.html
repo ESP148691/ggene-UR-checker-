@@ -892,6 +892,11 @@ async function workLogo(ctx,T,no,x,y,w,h,radius=6){
   ctx.fillStyle=g; ctx.fillRect(x,y,w,h);
   if(im){ ctx.imageSmoothingQuality="high"; const s=Math.min(w/im.width,h/im.height), dw=im.width*s, dh=im.height*s;
     ctx.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh); }
+  else if(no){   // 73 ロゴ画像が無い作品（SQLで足したばかり等）は、プレートの中に短縮名を文字で描く
+    const t=WorkLabel.shortName(no);
+    if(t){ ctx.fillStyle="#1d2b53"; ctx.font=`bold ${Math.round(h*0.3)}px ${FONT}`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(fitText(ctx,t,w-10),x+w/2,y+h/2); }
+  }
   ctx.restore();
   roundRect(ctx,x+0.5,y+0.5,w-1,h-1,radius); ctx.strokeStyle=T.dark?"rgba(255,255,255,.35)":"rgba(15,39,64,.25)"; ctx.lineWidth=1; ctx.stroke();
 }
@@ -1795,6 +1800,18 @@ const AVAIL = form.ctx.available, worksById = form.ctx.worksById, unitsById = fo
 // ㉚ ur-units.js（unit.htmlと共有するURユニットのマスター）から実装日と改行位置の指定を読む
 const UR_UNITS_BY_ID = new Map((window.UR_UNITS || []).map(u => [u.id, u]));
 CardRenderer.setWrapHints(Object.fromEntries((window.UR_UNITS || []).filter(u => u.wrap).map(u => [u.id, u.wrap])));
+// 73 /api/works（D1）の実装日・改行位置で上の予備を上書きする。新ユニットもSQLだけで実装日がカードに出る
+function applyWorksMaster(works){
+  const wraps = {};
+  for (const w of works || []) for (const u of w.units || []) {
+    const m = Object.assign({}, UR_UNITS_BY_ID.get(u.unitId) || { id: u.unitId }, { name: u.name });
+    if (u.released) m.released = u.released;
+    if (u.wrap) m.wrap = u.wrap;
+    UR_UNITS_BY_ID.set(u.unitId, m);
+    if (m.wrap) wraps[u.unitId] = m.wrap;
+  }
+  CardRenderer.setWrapHints(wraps);
+}
 let savedJson = "";       // 最後にサーバーと一致していた内容（未保存表示の判定用）
 
 const $ = id => document.getElementById(id);
@@ -2223,6 +2240,7 @@ async function init(){
     if (cardRes.status === 401) { showGuard(); return; }
     if (!cardRes.ok) throw new Error("profile-card " + cardRes.status);
     api = await cardRes.json();
+    applyWorksMaster(worksRes.works);   // 73 実装日・改行位置をD1の値に（setDataより前に。取れなければur-units.js由来のまま）
     form.setData({ api, works: worksRes, characters: charsRes, tags: tagsRes, leaderSkills: leaderRes });   // worksById・unitsById・CHARS・fmIxを作る
     // エタロの構成（ステージごとのミッション）はマスターAPIから組み立てる（㉒6.2）
     const ms = (missionsRes && missionsRes.missions) || [];

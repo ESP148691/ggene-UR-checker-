@@ -37,6 +37,7 @@
   }
   .pickItem:disabled{opacity:.35;cursor:not-allowed;}
   .pickItem.sel{background:rgba(218,185,73,.12);}
+  .pickedRow .logoText,.pickItem .logoText{display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;font-weight:700;line-height:1.1;color:#1d2b53;overflow:hidden;}
   .pickItem .logo{width:73px;height:32px;object-fit:contain;background:#c6c7d6;border-radius:4px;flex:0 0 auto;}
   .pickItem .thumb{width:40px;height:40px;object-fit:cover;border-radius:4px;flex:0 0 auto;border:1px solid var(--line-strong);}
   .pickItem .nm{flex:1;min-width:0;font-size:12.5px;line-height:1.45;overflow-wrap:anywhere;}

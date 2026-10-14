@@ -14,10 +14,11 @@
 (function (root) {
   "use strict";
   const RARITY_UR = 1;
-  const TAG_SHORT = { "阿頼耶識システム": "阿頼耶識", "モビル・トレース・システム": "MTS" };   // 結果チップ用の短い表記
+  const TAG_SHORT = { "阿頼耶識システム": "阿頼耶識", "モビル・トレース・システム": "MTS" };   // 結果チップ用の短い表記（73 予備。正本はD1のtags_master.short_name）
 
   function buildIndex(leader, tagsApi, unitWork) {
     const tagName = new Map((tagsApi.tags || []).map(t => [t.tagId, t.name]));
+    const tagShort = new Map((tagsApi.tags || []).filter(t => t.shortName).map(t => [t.name, t.shortName]));   // 73 D1（tags_master.short_name）。無ければTAG_SHORT
     const unitTagIds = new Map();                       // unitId → Set(tagId)（URだけ）
     for (const r of tagsApi.unitTags || []) {
       if (r.rarityCode !== RARITY_UR || !tagName.has(r.tagId)) continue;
@@ -38,7 +39,7 @@
       rule.conds.get(t.condNo).push({ kind: t.kind, id: t.id });
     }
     for (const list of rules.values()) list.sort((a, b) => a.ruleNo - b.ruleNo);
-    return { tagName, unitTagIds, freq, rules, unitWork };
+    return { tagName, tagShort, unitTagIds, freq, rules, unitWork };
   }
 
   function rateAt(rates, lv) { const v = rates[lv]; return v == null ? null : v; }
@@ -66,7 +67,7 @@
       if (best && best.rate >= rate) continue;
       best = {
         rate, rateText: rateText(r.rates, level), ruleNo: r.ruleNo,
-        label: matched.map(m => m.kind === "tag" ? (TAG_SHORT[ix.tagName.get(m.id)] || ix.tagName.get(m.id)) : workLabel(m.id)).join("＋"),
+        label: matched.map(m => m.kind === "tag" ? (ix.tagShort.get(ix.tagName.get(m.id)) || TAG_SHORT[ix.tagName.get(m.id)] || ix.tagName.get(m.id)) : workLabel(m.id)).join("＋"),
         byWork: matched.some(m => m.kind === "work"),
         tags: matched.filter(m => m.kind === "tag").map(m => ix.tagName.get(m.id))
       };
@@ -150,15 +151,30 @@
   root.FormationLogic = { buildIndex, judge, ruleView, targetCount, featureTags, sharedTags, tagTrend, formationData, rateText };
 })(typeof window !== "undefined" ? window : globalThis);
 
-/* 作品名の通称（68。CardRendererとfavorite-form.jsが共用する。値は旧CardRendererの定義をそのまま移した）
+/* 作品名の通称（68。CardRendererとfavorite-form.jsが共用する）。73から通称・まとめはD1（works_master.nick_name・group_label。/api/works）が正本で、
+ * WorkLabel.setWorks(works) で取り込む。下の組み込みの表は、D1の列が無い（0039・0040の適用前）ときの予備（以後は更新しない）
  * ㉟ カード内で短縮名（short_name）が枠に収まらないときだけ使う通称。通称でも収まらないときは通称を「…」で省略する。フォームの一覧・Xのシェア文は従来どおり短縮名
  * 51 バフ対象の結果チップ用の作品名（通称優先。SEED ASTRAY系の作品はまとめて「SEED ASTRAY」） */
 (function (root) {
   "use strict";
   const WORK_NICK = {1:"ファースト",2:"Ζ新訳",3:"ΖΖ",5:"UC",6:"NT",7:"閃ハサ",9:"Gガンダム",10:"ガンダムW",11:"W EW",12:"ガンダムX",
     13:"SEED",14:"DESTINY",17:"鉄血",28:"BLUE DESTINY",42:"Ζガンダム",46:"センチネル",48:"ライデンの帰還",60:"クロスボーン",
-    61:"Vガンダム",67:"ASTRAY",75:"天空の皇女",85:"Gレコ",88:"鉄血MSV",89:"PROLOGUE",91:"GBF",94:"SD外伝",106:"Gジェネ"};
-  const ASTRAY_WORKS = new Set([67, 68, 69, 70, 74, 75]);
-  function workLabel(workId, short) { return ASTRAY_WORKS.has(workId) ? "SEED ASTRAY" : (WORK_NICK[workId] || short || ""); }
-  root.WorkLabel = { WORK_NICK, ASTRAY_WORKS, workLabel };
+    61:"Vガンダム",67:"ASTRAY",75:"天空の皇女",85:"Gレコ",88:"鉄血MSV",89:"PROLOGUE",91:"GBF",94:"SD外伝",106:"Gジェネ"};   // 予備（0040で投入した値と同じ）
+  const GROUP = {};                                   // workId → まとめ名（D1の group_label）
+  [67, 68, 69, 70, 74, 75].forEach(id => { GROUP[id] = "SEED ASTRAY"; });   // 予備
+  const SHORT = {};                                   // workId → 短縮名（ロゴが無いときの文字表示）
+  let fromApi = false;
+  // /api/works の応答（works配列）を渡す。nickName・groupLabel を持つ作品が1つでもあれば D1 の値で置き換える
+  function setWorks(works) {
+    if (!Array.isArray(works) || !works.length) return;
+    for (const w of works) SHORT[w.workId] = w.shortName || w.name || "";
+    if (!works.some(w => w.nickName || w.groupLabel)) return;   // 0039・0040の適用前：予備のまま
+    for (const k of Object.keys(WORK_NICK)) delete WORK_NICK[k];
+    for (const k of Object.keys(GROUP)) delete GROUP[k];
+    for (const w of works) { if (w.nickName) WORK_NICK[w.workId] = w.nickName; if (w.groupLabel) GROUP[w.workId] = w.groupLabel; }
+    fromApi = true;
+  }
+  function workLabel(workId, short) { return GROUP[workId] || WORK_NICK[workId] || short || SHORT[workId] || ""; }
+  function shortName(workId) { return SHORT[workId] || ""; }
+  root.WorkLabel = { WORK_NICK, GROUP, setWorks, workLabel, shortName, get fromApi() { return fromApi; } };
 })(typeof window !== "undefined" ? window : globalThis);

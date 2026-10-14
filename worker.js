@@ -391,21 +391,41 @@ async function handleAccountPassword(request, env) {
 // 想定される最大件数（機体87・サポート50）より十分大きい安全マージン。不正に巨大な入力は無視する
 const OWNERSHIP_LOG_MAX_ENTRIES = 300;
 
-// マスターに実在するID範囲（= unit.html/supporter.htmlのUNITS配列の件数と一致させる）。
-// units_ownership/supporters_ownershipのunit_id/supporter_idはunits_master/supporters_masterへの
-// FOREIGN KEYだが、D1側でFK制約が有効化されているとは限らないため、アプリ側でも範囲チェックする。
-// 新しいUR機体・サポートを追加した際は、この数値もtop.htmlのUNIT_IMAGES/SUPPORTER_IMAGESの件数・
-// migrations/0002_populate_master_data.sqlの投入件数と合わせて必ず更新すること
-const MAX_UNIT_ID = 87;
-const MAX_SUPPORTER_ID = 50;
+// 73 マスター系APIのキャッシュ（5分）。SQLでマスターを足してから最大5分で全員に出る
+const MASTER_CACHE = { "Cache-Control": "public, max-age=300" };
+// 73 マスターに実在するIDは、D1の照会（loadMasterIdSet）で調べる。
+// 旧MAX_UNIT_ID・MAX_SUPPORTER_ID・WORK_IDSは73で廃止＝新しいユニット・サポート・作品はSQLだけで足せる。
+// units_ownership/supporters_ownershipのunit_id/supporter_idはマスターへのFOREIGN KEYだが、
+// D1側でFK制約が有効化されているとは限らないため、アプリ側でも実在チェックする
+const MASTER_ID_TTL_MS = 60 * 1000;   // 同じisolate内で1分使い回す（所持ログのたびにD1を読まない）
+const masterIdCache = new Map();      // kind → { at, set }
+const MASTER_ID_SQL = {
+  unit: "SELECT unit_id AS id FROM units_master",
+  supporter: "SELECT supporter_id AS id FROM supporters_master",
+  work: "SELECT work_id AS id FROM works_master"
+};
+// kind＝unit／supporter／work。取れなかったとき（D1の一時エラー）は null を返し、呼び出し側は「書き込まない」側に倒す
+async function loadMasterIdSet(env, kind) {
+  const hit = masterIdCache.get(kind);
+  if (hit && Date.now() - hit.at < MASTER_ID_TTL_MS) return hit.set;
+  try {
+    const { results } = await env.DB.prepare(MASTER_ID_SQL[kind]).all();
+    const set = new Set(results.map(r => r.id));
+    masterIdCache.set(kind, { at: Date.now(), set });
+    return set;
+  } catch (e) {
+    console.error("loadMasterIdSet error", kind, e);
+    return null;
+  }
+}
 
 // レアリティ区分（rarity_code）。(rarity_code, unit_id) で公式ユニットを特定する。詳細は docs ㊳詳細設計 1章
 const RARITY_CODE = Object.freeze({ CUSTOM: 0, UR: 1, SSR: 2 });  // SR以下を実装するときは SR: 3, R: 4, N: 5
 
 // "id:code,id:code,..." 形式のコンパクトログを { id, level } の配列にパースする。
 // code(1=無凸,2=1凸,3=2凸,4=完凸) → level(0〜3) に変換。壊れた要素・範囲外のidは読み飛ばす
-function parseCompactOwnershipLog(log, maxId) {
-  if (typeof log !== "string" || !log) return [];
+function parseCompactOwnershipLog(log, idSet) {
+  if (typeof log !== "string" || !log || !idSet) return [];
   const parts = log.split(",");
   if (parts.length > OWNERSHIP_LOG_MAX_ENTRIES) return [];
   const out = [];
@@ -413,7 +433,7 @@ function parseCompactOwnershipLog(log, maxId) {
     const m = /^(\d+):([1-4])$/.exec(part.trim());
     if (!m) continue;
     const id = Number(m[1]);
-    if (!Number.isInteger(id) || id < 1 || id > maxId) continue;
+    if (!idSet.has(id)) continue;
     out.push({ id, level: Number(m[2]) - 1 });
   }
   return out;
@@ -533,18 +553,18 @@ function normalizeAcqDate(value, todayJst) {
 }
 
 // ㉖ リクエストのacq（{ "id": {d,n,m} | null }）を Map(id → {d,n,m}) に正規化する。
-// acqが無い・オブジェクトでない・キー数がMAX_UNIT_IDを超える → null（入手記録には一切触れない）。
+// acqが無い・オブジェクトでない・キー数がユニット数（idSet.size）を超える・idSetが無い → null（入手記録には一切触れない）。
 // 値がnull → 3列ともNULL（記録の削除）。各項目は不正ならその項目だけNULL。範囲外IDは読み飛ばす
-function parseAcqMap(raw) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+function parseAcqMap(raw, idSet) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw) || !idSet) return null;
   const keys = Object.keys(raw);
-  if (keys.length > MAX_UNIT_ID) return null;
+  if (keys.length > idSet.size) return null;
   const today = jstDateString(new Date());
   const map = new Map();
   for (const key of keys) {
     if (!/^\d+$/.test(key)) continue;
     const id = Number(key);
-    if (id < 1 || id > MAX_UNIT_ID) continue;
+    if (!idSet.has(id)) continue;
     const v = raw[key];
     if (v === null) { map.set(id, { d: null, n: null, m: null }); continue; }
     if (typeof v !== "object" || Array.isArray(v)) continue;
@@ -572,7 +592,8 @@ async function handleOwnershipLog(request, env, isSupporter) {
   try {
     sessionUser = await getSessionUser(request, env);
     if (sessionUser && body) {
-      const entries = parseCompactOwnershipLog(body.log, isSupporter ? MAX_SUPPORTER_ID : MAX_UNIT_ID);
+      const idSet = await loadMasterIdSet(env, isSupporter ? "supporter" : "unit");
+      const entries = parseCompactOwnershipLog(body.log, idSet);
       await touchUserLastSeenAndMarkRegistered(env, sessionUser.userUid, isSupporter);
       await syncOwnership(
         env,
@@ -580,7 +601,7 @@ async function handleOwnershipLog(request, env, isSupporter) {
         isSupporter ? "supporter_id" : "unit_id",
         sessionUser.userUid,
         entries,
-        isSupporter ? null : parseAcqMap(body.acq)
+        isSupporter ? null : parseAcqMap(body.acq, idSet)
       );
     } else if (!sessionUser) {
       await incrementUsageCounter(env, isSupporter ? "supporter_guest" : "unit_guest");
@@ -1230,9 +1251,8 @@ async function handleAnalyticsTrend(request, env, url) {
 }
 
 // ================= ㉒ 自己紹介カード（profile-card.html） =================
-// 作品マスター（works_master）の正規ID集合。work_id＝ゲーム内「シリーズ絞り込み」の並び順＝images/series/{id}.png。
-// migrations/0012で作品を追加・変更した場合は、この集合も必ず更新すること（ETERNAL_ROAD_MISSION_IDSと同じ運用）
-const WORK_IDS = new Set(Array.from({ length: 106 }, (_, i) => i + 1));
+// 作品マスター（works_master）のwork_id＝ゲーム内「シリーズ絞り込み」の並び順＝images/series/{id}.png。
+// 実在チェックは73からloadMasterIdSet(env, "work")（作品の追加はSQLだけ）
 const CARD_TEMPLATES = new Set(["standard", "eternal", "units", "formation", "characters"]);   // 51：推し編成、56：推しキャラを追加
 const FORMATIONS_MAX = 2, FORMATION_SLOTS = 5, FORMATION_LABEL_MAX = 10;
 const FORMATION_LEVEL_MAX = 3;   // 66 枠ごとの凸（0＝無凸〜3＝完凸）。null＝ユニットチェッカーの凸（登録の凸）。登録の凸が上限
@@ -1248,24 +1268,81 @@ const PLAYER_RANK_MAX = 999;   // 自己紹介カードのランク入力（1〜
 const CHAR_ID = { UR_SET_MAX: 999, EVENT_MIN: 1001, EVENT_MAX: 1999 };
 const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/;
 
+const parseJsonArray = (s) => { try { const v = JSON.parse(s); return Array.isArray(v) ? v : null; } catch (e) { return null; } };
+
+// GET /api/units（認証不要）。URユニットのマスター（unit.html・top.htmlが読む）。unit_id順
+async function handleUnits(request, env) {
+  const sql = (cols) =>
+    `SELECT u.unit_id, u.name, u.limited, u.type, ${cols}, m.work_id
+     FROM units_master u
+     LEFT JOIN unit_work_map m ON m.rarity_code = ${RARITY_CODE.UR} AND m.unit_id = u.unit_id
+     ORDER BY u.unit_id`;
+  let rows;
+  try {
+    try { ({ results: rows } = await env.DB.prepare(sql("u.released_on, u.wrap, u.scan_fit")).all()); }
+    catch (e) { ({ results: rows } = await env.DB.prepare(sql("NULL AS released_on, NULL AS wrap, NULL AS scan_fit")).all()); }   // 0039未適用
+  } catch (e) {
+    return jsonResponse({ units: [] }, 200);
+  }
+  return jsonResponse({
+    units: rows.map(r => {
+      const u = { unitId: r.unit_id, name: r.name, limited: !!r.limited, type: r.type, workId: r.work_id };
+      if (r.released_on) u.released = r.released_on;
+      if (r.wrap) u.wrap = r.wrap;
+      const fit = r.scan_fit ? parseJsonArray(r.scan_fit) : null;
+      if (fit) u.scanFit = fit;
+      return u;
+    })
+  }, 200, MASTER_CACHE);
+}
+
+// GET /api/supporters（認証不要）。URサポートのマスター（supporter.html・top.htmlが読む）。supporter_id順
+async function handleSupporters(request, env) {
+  const sql = (cols) => `SELECT supporter_id, name, limited, skill, ${cols} FROM supporters_master ORDER BY supporter_id`;
+  let rows;
+  try {
+    try { ({ results: rows } = await env.DB.prepare(sql("skill_detail, scan_fit")).all()); }
+    catch (e) { ({ results: rows } = await env.DB.prepare(sql("NULL AS skill_detail, NULL AS scan_fit")).all()); }
+  } catch (e) {
+    return jsonResponse({ supporters: [] }, 200);
+  }
+  return jsonResponse({
+    supporters: rows.map(r => {
+      const s = { supporterId: r.supporter_id, name: r.name, limited: !!r.limited, skill: r.skill };
+      if (r.skill_detail) s.skillDetail = r.skill_detail;
+      const fit = r.scan_fit ? parseJsonArray(r.scan_fit) : null;
+      if (fit) s.scanFit = fit;
+      return s;
+    })
+  }, 200, MASTER_CACHE);
+}
+
 // GET /api/works（認証不要）。作品マスター＋作品ごとのURユニット。0011未適用なら{works:[]}を返す
 async function handleWorks(request, env) {
   let rows;
-  const worksSql = (mapJoin) =>
+  const worksSql = (mapJoin, extraCols) =>
     `SELECT w.work_id, w.era, w.universe, w.sort_order, w.name, w.short_name, w.timeline_label,
-            u.unit_id, u.name AS unit_name, u.type AS unit_type, u.limited AS unit_limited
+            u.unit_id, u.name AS unit_name, u.type AS unit_type, u.limited AS unit_limited, ${extraCols}
      FROM works_master w
      LEFT JOIN unit_work_map m ON ${mapJoin}
      LEFT JOIN units_master u ON u.unit_id = m.unit_id
      ORDER BY w.sort_order ASC, w.work_id ASC, u.unit_id ASC`;
+  const NEW_COLS = "w.nick_name, w.group_label, u.released_on AS unit_released, u.wrap AS unit_wrap";
+  const OLD_COLS = "NULL AS nick_name, NULL AS group_label, NULL AS unit_released, NULL AS unit_wrap";
   try {
     try {
-      // ㊶ 0024適用後：URの行だけにする（SSRの行を混ぜない）
-      ({ results: rows } = await env.DB.prepare(worksSql("m.work_id = w.work_id AND m.rarity_code = ?"))
-        .bind(RARITY_CODE.UR).all());
+      try {
+        // ㊶ 0024適用後：URの行だけにする（SSRの行を混ぜない）。73 0039適用後：通称・まとめ・実装日・改行位置も返す
+        ({ results: rows } = await env.DB.prepare(worksSql("m.work_id = w.work_id AND m.rarity_code = ?", NEW_COLS))
+          .bind(RARITY_CODE.UR).all());
+      } catch (e) {
+        // 0039未適用（新しい列が無い）：今までのSQL
+        ({ results: rows } = await env.DB.prepare(worksSql("m.work_id = w.work_id AND m.rarity_code = ?", OLD_COLS))
+          .bind(RARITY_CODE.UR).all());
+      }
     } catch (e) {
       // 0024未適用（rarity_code列が無い）：従来のSQL
-      ({ results: rows } = await env.DB.prepare(worksSql("m.work_id = w.work_id")).all());
+      ({ results: rows } = await env.DB.prepare(worksSql("m.work_id = w.work_id", OLD_COLS)).all());
     }
   } catch (e) {
     return jsonResponse({ works: [] }, 200);
@@ -1279,24 +1356,32 @@ async function handleWorks(request, env) {
         workId: r.work_id, era: r.era, universe: r.universe, sortOrder: r.sort_order,
         name: r.name, shortName: r.short_name, timeline: r.timeline_label || "", units: []
       };
+      if (r.nick_name) w.nickName = r.nick_name;
+      if (r.group_label) w.groupLabel = r.group_label;
       byId.set(r.work_id, w);
       works.push(w);
     }
     if (r.unit_id != null) {
-      w.units.push({ unitId: r.unit_id, name: r.unit_name, type: r.unit_type, limited: !!r.unit_limited });
+      const wu = { unitId: r.unit_id, name: r.unit_name, type: r.unit_type, limited: !!r.unit_limited };
+      if (r.unit_released) wu.released = r.unit_released;
+      if (r.unit_wrap) wu.wrap = r.unit_wrap;
+      w.units.push(wu);
     }
   }
-  return jsonResponse({ works }, 200, { "Cache-Control": "public, max-age=3600" });
+  return jsonResponse({ works }, 200, MASTER_CACHE);
 }
 
 // ㊶ GET /api/tags（認証不要）。有効なタグ＋ユニットへのタグ付与（UR・SSR）。0025未適用なら空配列
 async function handleTags(request, env) {
   let tags, unitTags;
   try {
-    ({ results: tags } = await env.DB.prepare(
-      `SELECT tag_id, name, category, applies_to, sort_order FROM tags_master
-       WHERE is_active = 1 ORDER BY sort_order ASC, tag_id ASC`
-    ).all());
+    const tagsSql = (cols) => `SELECT tag_id, name, category, applies_to, sort_order, ${cols} FROM tags_master
+       WHERE is_active = 1 ORDER BY sort_order ASC, tag_id ASC`;
+    try {
+      ({ results: tags } = await env.DB.prepare(tagsSql("short_name")).all());
+    } catch (e) {
+      ({ results: tags } = await env.DB.prepare(tagsSql("NULL AS short_name")).all());   // 0039未適用
+    }
     ({ results: unitTags } = await env.DB.prepare(
       `SELECT rarity_code, unit_id, tag_id FROM units_tags ORDER BY rarity_code, unit_id, tag_id`
     ).all());
@@ -1304,9 +1389,13 @@ async function handleTags(request, env) {
     return jsonResponse({ tags: [], unitTags: [] }, 200);
   }
   return jsonResponse({
-    tags: tags.map(r => ({ tagId: r.tag_id, name: r.name, category: r.category, appliesTo: r.applies_to, sortOrder: r.sort_order })),
+    tags: tags.map(r => {
+      const t = { tagId: r.tag_id, name: r.name, category: r.category, appliesTo: r.applies_to, sortOrder: r.sort_order };
+      if (r.short_name) t.shortName = r.short_name;
+      return t;
+    }),
     unitTags: unitTags.map(r => ({ rarityCode: r.rarity_code, unitId: r.unit_id, tagId: r.tag_id }))
-  }, 200, { "Cache-Control": "public, max-age=3600" });
+  }, 200, MASTER_CACHE);
 }
 
 // 51 GET /api/leader-skills（認証不要）。URサポーターのリーダースキル（ルールと対象）。0029未適用なら空配列
@@ -1325,7 +1414,7 @@ async function handleLeaderSkills(request, env) {
   return jsonResponse({
     rules: rules.map(r => ({ supporterId: r.supporter_id, ruleNo: r.rule_no, rates: [r.rate_lv0, r.rate_lv1, r.rate_lv2, r.rate_lv3] })),
     targets: targets.map(r => ({ supporterId: r.supporter_id, ruleNo: r.rule_no, condNo: r.cond_no, kind: r.target_kind, id: r.target_id }))
-  }, 200, { "Cache-Control": "public, max-age=3600" });
+  }, 200, MASTER_CACHE);
 }
 
 // 56 GET /api/characters（認証不要）。キャラのマスター。0033未適用・0件なら空配列
@@ -1345,7 +1434,7 @@ async function handleCharacters(request, env) {
       if (r.work_id != null) c.workId = r.work_id;
       return c;
     })
-  }, 200, { "Cache-Control": "public, max-age=3600" });
+  }, 200, MASTER_CACHE);
 }
 
 // 56 選べるキャラ：イベント配布キャラ全員＋所持しているユニットがセットのキャラ。0033未適用（TBLが無い）ならnull
@@ -1772,7 +1861,9 @@ async function handleSaveProfile(request, env) {
     else return jsonResponse({ error: "invalid_rank" }, 400);
   }
 
-  const favoriteWorks = normalizeFavoriteIds(body.favoriteWorks, WORK_IDS);
+  const workIds = await loadMasterIdSet(env, "work");
+  if (!workIds) return jsonResponse({ error: "master_unavailable" }, 503);
+  const favoriteWorks = normalizeFavoriteIds(body.favoriteWorks, workIds);
   if (!favoriteWorks) return jsonResponse({ error: "invalid_favorites" }, 400);
   const { results: ownedRows } = await env.DB.prepare(
     "SELECT DISTINCT unit_id FROM units_ownership WHERE user_uid = ?"
@@ -1940,7 +2031,9 @@ async function handleSaveFavoriteInfo(request, env) {
 
   let favoriteWorks = null, favoriteUnits = null, favoriteChars = null, formations = null;
   if (hasWorks) {
-    favoriteWorks = normalizeFavoriteIds(body.favoriteWorks, WORK_IDS);
+    const workIds = await loadMasterIdSet(env, "work");
+    if (!workIds) return jsonResponse({ error: "master_unavailable" }, 503);
+    favoriteWorks = normalizeFavoriteIds(body.favoriteWorks, workIds);
     if (!favoriteWorks) return jsonResponse({ error: "invalid_favorites" }, 400);
   }
   if (hasUnits) {
@@ -2053,7 +2146,7 @@ async function handleChallengeMaster(request, env) {
   ]);
   return jsonResponse({
     series: series.results, stages: stages.results, missions: missions.results
-  }, 200, { "Cache-Control": "public, max-age=3600" });
+  }, 200, MASTER_CACHE);
 }
 
 // チャレンジチェッカー起動時の復元用（handleMyEternalRoad()のチャレンジ版）
@@ -2486,6 +2579,12 @@ export default {
       return withJsonError(() => handleAnalyticsTrend(request, env, url), "trend");
     }
 
+    if (url.pathname === "/api/units" && request.method === "GET") {
+      return handleUnits(request, env);
+    }
+    if (url.pathname === "/api/supporters" && request.method === "GET") {
+      return handleSupporters(request, env);
+    }
     if (url.pathname === "/api/works" && request.method === "GET") {
       return handleWorks(request, env);
     }

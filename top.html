@@ -351,7 +351,7 @@
       <div class="icon" data-pool="unit"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
         <div class="name">URユニット<wbr>所持率<wbr>チェッカー</div>
-        <div class="desc">全87機のURユニット所持状況を記録・可視化</div>
+        <div class="desc">全<span id="unitTotal">87</span>機のURユニット所持状況を記録・可視化</div>
         <div class="regBadge" data-reg="unit" hidden></div>
       </div>
       <div class="arrow">&rsaquo;</div>
@@ -360,7 +360,7 @@
       <div class="icon" data-pool="supporter"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
         <div class="name">URサポート<wbr>所持率<wbr>チェッカー</div>
-        <div class="desc">全50体のURサポート所持状況を記録・可視化</div>
+        <div class="desc">全<span id="supporterTotal">50</span>体のURサポート所持状況を記録・可視化</div>
         <div class="regBadge" data-reg="supporter" hidden></div>
       </div>
       <div class="arrow">&rsaquo;</div>
@@ -477,6 +477,7 @@
   </footer>
 </main>
 
+<script src="master-data.js"></script>
 <script>
 (function(){
   "use strict";
@@ -492,6 +493,29 @@
   /* ㊹ 自己紹介カードのアイコン：試作カード（㉟のモック）3テンプレート（標準・推しユニット・エタロ攻略）を縮小した静止画。カードのデザインを大きく変えたら作り直す */
   /* 68 推し情報設定のアイコン：推しキャラの顔（images/characters/{charId}.jpg。URセットのキャラ1〜87・イベント配布1001〜1004） */
   var FAVORITE_IMAGES = Array.from({length:87}, function(_, i){ return 'images/characters/' + (i+1) + '.jpg'; }).concat([1001, 1002, 1003, 1004].map(function(id){ return 'images/characters/' + id + '.jpg'; }));
+  /* 73 ユニット・サポート・キャラの一覧はD1（/api/units・/api/supporters・/api/characters）が正本。上の固定値は取れないときの予備。
+     読めたら配列の中身をその場で入れ替える（poolの処理は配列の参照を使うのでそのまま動く）。件数の表示・登録状況の分母も読み終えてから使う */
+  var masterIds = { unit: null, supporter: null };
+  function replaceItems(arr, items){ arr.splice.apply(arr, [0, arr.length].concat(items)); }
+  var MASTER_READY = Promise.all([
+    MasterData.fetchUnits().then(function(list){
+      if (!list) return;
+      replaceItems(UNIT_IMAGES, list.map(function(u){ return u.imageUrl; }));
+      masterIds.unit = new Set(list.map(function(u){ return u.id; }));
+      var el = document.getElementById('unitTotal'); if (el) el.textContent = list.length;
+    }),
+    MasterData.fetchSupporters().then(function(list){
+      if (!list) return;
+      replaceItems(SUPPORTER_IMAGES, list.map(function(s){ return s.imageUrl; }));
+      masterIds.supporter = new Set(list.map(function(s){ return s.id; }));
+      var el = document.getElementById('supporterTotal'); if (el) el.textContent = list.length;
+    }),
+    fetch('/api/characters', { credentials: 'same-origin' }).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+      var list = j && Array.isArray(j.characters) ? j.characters.filter(function(c){ return c.charId < 10000; }) : null;   /* 10001〜はSSRのセット（SSR中止） */
+      if (!list || !list.length) return;
+      replaceItems(FAVORITE_IMAGES, list.map(function(c){ return 'images/characters/' + c.charId + '.jpg'; }));
+    })
+  ].map(function(p){ return p.catch(function(){ /* 失敗時は予備の固定値のまま */ }); }));
   var PROFILE_CARD_IMAGES = ['standard', 'units', 'eternal'].map(function(k){ return 'images/profile-card/' + k + '.jpg'; });
 
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -924,7 +948,7 @@
       .then(function(data){
         if (data && data.loggedIn) {
           section.hidden = false;
-          showRegStatus();
+          MASTER_READY.then(showRegStatus);
           toggleAdminNav();
         }
       })
@@ -948,21 +972,23 @@
     showChallengeRegStatus();
     showFavoriteRegStatus();
     var targets = [
-      { key: 'unit', api: '/api/my-ownership', total: UNIT_IMAGES.length, word: '機' },
-      { key: 'supporter', api: '/api/my-ownership-supporter', total: SUPPORTER_IMAGES.length, word: '体' }
+      { key: 'unit', api: '/api/my-ownership', total: function(){ return UNIT_IMAGES.length; }, word: '機' },
+      { key: 'supporter', api: '/api/my-ownership-supporter', total: function(){ return SUPPORTER_IMAGES.length; }, word: '体' }
     ];
     targets.forEach(function(t){
       var el = document.querySelector('.regBadge[data-reg="' + t.key + '"]');
       if (!el) return;
+      var ids = masterIds[t.key];
+      var total = t.total();
       fetch(t.api, { credentials: 'same-origin' })
         .then(function(res){ return res.json(); })
         .then(function(data){
           if (!data || !data.loggedIn) return;
           if (data.registered) {
-            var count = Object.keys(data.ownership || {}).filter(function(id){ var n = Number(id); return n >= 1 && n <= t.total; }).length;
-            var pct = t.total ? Math.round(count / t.total * 100) : 0;
+            var count = Object.keys(data.ownership || {}).filter(function(id){ var n = Number(id); return ids ? ids.has(n) : (n >= 1 && n <= total); }).length;
+            var pct = total ? Math.round(count / total * 100) : 0;
             el.className = 'regBadge ok';
-            el.innerHTML = '<span class="st">✓ データ登録済み</span><span>所持率 <span class="rate">' + pct + '%</span> <span class="cnt">(' + count + ' / ' + t.total + t.word + ')</span></span>';
+            el.innerHTML = '<span class="st">✓ データ登録済み</span><span>所持率 <span class="rate">' + pct + '%</span> <span class="cnt">(' + count + ' / ' + total + t.word + ')</span></span>';
           } else {
             el.className = 'regBadge todo';
             el.innerHTML = '<span class="st">データ未登録</span><span><span style="white-space:nowrap">所持データを</span><span style="white-space:nowrap">登録ください。</span></span>';

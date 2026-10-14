@@ -415,6 +415,7 @@
   </div>
 </div>
 
+<script src="master-data.js"></script>
 <script>
 /* =========================================================
    設定：サイト名・URL・ハッシュタグはサイト稼働時に差し替える
@@ -441,6 +442,10 @@ let userEditedSinceLoad = false;
 
 const listEl = document.getElementById("list");
 document.getElementById("totalRef").textContent = UNITS.length;
+// 73 D1のマスターに入れ替える（取れなければ予備のまま）。復元・スクショ読み取り・画像作成・分析用ログの前に await MASTER_READY
+const MASTER_READY = MasterData.refreshSupporters(UNITS).then(ok => {
+  if (ok) { document.getElementById("totalRef").textContent = UNITS.length; render(); updateStats(); }
+}).catch(() => {});
 
 function persist(){
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) { console.warn(e); }
@@ -572,6 +577,7 @@ function loadImage(src){
 }
 
 async function generateShareImage(){
+  await MASTER_READY;
   const s = computeStats();
   const cols = 5;
   const rows = Math.ceil(UNITS.length / cols);
@@ -822,7 +828,8 @@ function buildCompactOwnershipLog(){
 // クライアント側でゲスト識別子を発行・送信する必要はなくなった
 // ⑪ 「データ登録」ボタンが結果を判定できるようPromiseを返す形に変更（btnSave/btnShareは戻り値を使わないため後方互換）。
 // keepalive:trueはXシェア時のwindow.open()直後の送信がページ遷移で打ち切られるのを防ぐため
-function sendOwnershipLog(){
+function sendOwnershipLog(){ return MASTER_READY.then(sendOwnershipLogNow); }   // 73 新サポートが一覧に入ってから送る
+function sendOwnershipLogNow(){
   try {
     const s = computeStats();
     const payload = {
@@ -897,6 +904,7 @@ function sendOwnershipLogAndTrack(){
 // ⑪ チェッカー起動のたびに、ログイン中であればDBの所持状況を取得して反映する
 // （ログインという操作自体はトリガーにしない）。失敗してもチェッカー本体には影響させない
 (async function restoreOwnershipFromServer(){
+  await MASTER_READY;
   try {
     const res = await fetch("/api/my-ownership-supporter", { credentials: "same-origin" });
     const data = await res.json();
@@ -1136,7 +1144,7 @@ updateStats();
 
     if (DEBUG){
       const learned = SupporterScan.loadLearned();
-      debugEl.innerHTML = `<div class="scanDebug">学習した位置合わせ値（SCAN_FITに追記する用）:\n${esc(JSON.stringify(learned))}</div>`;
+      debugEl.innerHTML = `<div class="scanDebug">学習した位置合わせ値（D1に流す用。このUPDATE文をD1 Consoleで実行）:\n${esc(SupporterScan.fitSql(learned))}\n\n（参考）JSON:\n${esc(JSON.stringify(learned))}</div>`;
     }
   }
 
@@ -1196,6 +1204,7 @@ updateStats();
     cards = []; rows = [];
     const t0 = performance.now();
     try {
+      await MASTER_READY;
       cards = await SupporterScan.scanFiles(files, UNITS, msg => { progressEl.textContent = msg; });
       progressEl.textContent = `読み取り完了（${((performance.now() - t0) / 1000).toFixed(1)}秒）`;
     } catch (err) {
