@@ -45,6 +45,8 @@
   .loginNote a{color:var(--cyan);cursor:pointer;text-decoration:underline;}
 
   /* 表 */
+  .zoomBar{display:flex;gap:6px;align-items:center;margin:0 0 6px;font-size:12px;color:var(--muted);}
+  .zoomBar button{font:inherit;font-weight:700;color:var(--text);background:var(--panel-2);border:1px solid var(--line-strong);border-radius:5px;padding:5px 11px;cursor:pointer;}
   .scroller{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:rgba(5,7,13,.5);}
   .matrix{display:grid;gap:0;min-width:max-content;justify-content:start;}
   .hcell,.rcell,.cell,.corner{border-right:1px solid var(--line-strong);border-bottom:1px solid var(--line-strong);padding:6px;}
@@ -71,9 +73,9 @@
   .tile .ef{position:absolute;right:1px;bottom:1px;display:flex;flex-direction:column;gap:1px;width:26%;}
   .tile .ef img{width:100%;display:block;border-radius:2px;}
   /* 期間限定の★：大きく・黒い縁＋金色の光で目立たせる（ESP 10-16） */
-  .tile .star{left:1px;bottom:-1px;font-size:26px;color:#ffe14d;
+  .tile .star{left:3px;bottom:3px;font-size:23px;color:#ffe14d;
     text-shadow:-1.5px -1.5px 0 #000,1.5px -1.5px 0 #000,-1.5px 1.5px 0 #000,1.5px 1.5px 0 #000,0 0 6px rgba(255,210,60,.95),0 0 12px rgba(255,170,0,.7);}
-  .tile.new{outline:3px solid #ff3b3b;outline-offset:-3px;}
+  .tile.new::after{content:"";position:absolute;inset:0;border:3px solid #ff3b3b;border-radius:4px;z-index:5;pointer-events:none;}
   .tile.dim img.u{filter:grayscale(1) brightness(.45);}
   .tile .lv{position:absolute;left:24%;bottom:2px;font-size:10px;color:#fff;background:rgba(10,14,20,.75);border-radius:3px;padding:0 3px;}
   .empty{font-size:11px;color:var(--muted);padding:4px;}
@@ -107,7 +109,7 @@
   .pageFooter{margin-top:28px;padding-top:16px;border-top:1px solid var(--line-strong);font-size:10.5px;line-height:1.9;color:var(--muted);}
   .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
   .pageFooter a{color:var(--cyan);text-decoration:none;}
-  @media (max-width:600px){ :root{--tile:72px;--rowhead:96px;} .tile .rg{font-size:14px;} .tile .star{font-size:21px;} h1{font-size:17px;} }
+  @media (max-width:600px){ :root{--tile:72px;--rowhead:96px;} .tile .rg{font-size:14px;} .tile .star{font-size:19px;} h1{font-size:17px;} }
 </style>
 </head>
 <!-- data-auth-stay: ログイン案内からログインした人をトップへ飛ばさず、このページに戻す（auth.js） -->
@@ -149,6 +151,7 @@
       </div>
     </div>
 
+    <div class="zoomBar"><button type="button" id="zoomOut" aria-label="縮小">－</button><button type="button" id="zoomIn" aria-label="拡大">＋</button><button type="button" id="zoomFit">全体表示</button><button type="button" id="zoom100">100%</button><span id="zoomVal">100%</span></div>
     <div class="scroller"><div class="matrix" id="matrix"></div></div>
     <div class="legend" id="legend"></div>
     <div class="actions"><button type="button" class="btn-save" id="btnSave">画像で保存</button><button type="button" class="btn-share" id="btnShare">Xでシェア</button></div>
@@ -313,8 +316,22 @@ function render(){
   const lg=$("legend"); lg.textContent="";
   model.legend.forEach(e=>lg.appendChild(el("span",{},[el("img",{src:ICON+e.code+".png",alt:""}),document.createTextNode(e.name)])));
   lg.appendChild(el("span",{},[el("span",{class:"newk"}),document.createTextNode("実装30日以内")]));
+  applyZoom();
   writeUrl();
 }
+// ---- 拡大縮小（CSS zoom。固定列は左に固定のまま）----
+let zoom=1, zoomFit=false;
+function applyZoom(){
+  const m=$("matrix");
+  if(zoomFit){ m.style.zoom=1; const w=m.scrollWidth, av=$("matrix").parentElement.clientWidth-2; zoom=Math.max(.2,Math.min(1,av/w)); }
+  m.style.zoom=zoom; $("zoomVal").textContent=Math.round(zoom*100)+"%";
+}
+function setZoom(z){ zoomFit=false; zoom=Math.max(.2,Math.min(2,z)); applyZoom(); }
+$("zoomOut").addEventListener("click",()=>setZoom(zoom-.1));
+$("zoomIn").addEventListener("click",()=>setZoom(zoom+.1));
+$("zoom100").addEventListener("click",()=>setZoom(1));
+$("zoomFit").addEventListener("click",()=>{ zoomFit=true; applyZoom(); });
+window.addEventListener("resize",()=>{ if(zoomFit&&model) applyZoom(); });
 function renderChips(){
   const box=$("colChips"); box.textContent="";
   const byCat=new Map();
@@ -339,7 +356,7 @@ function openSheet(u){
   if(u.effects&&u.effects.length){ const s=el("div",{class:"sec"},[el("b",{text:"効果アイコン"})]); u.effects.forEach(c=>s.appendChild(el("div",{},[el("img",{src:ICON+c+".png",alt:"",style:"width:20px;vertical-align:middle;margin-right:6px"}),document.createTextNode(effName(c))]))); b.appendChild(s); }
   const s2=el("div",{class:"sec"},[el("b",{text:"タグ"})]); tg.forEach(t=>s2.appendChild(el("span",{class:"tagchip"+(hit.has(t.name)?" hit":""),text:t.name}))); b.appendChild(s2);
   const L=[]; for(const t of tg) for(const x of leadersByTag.get(t.tagId)||[]) if(!L.some(y=>y.s.id===x.s.id)) L.push(Object.assign({tag:t.name},x));
-  if(L.length){ const s3=el("div",{class:"sec"},[el("b",{text:"このユニットが対象になるサポーター（タグ）"})]); L.forEach(x=>s3.appendChild(el("div",{text:`${x.s.limited?"★":""}${x.s.name}（${x.tag}・${x.s.skill}${x.conds>1?"・ほかの条件あり":""}）`}))); b.appendChild(s3); }
+  if(L.length){ const s3=el("div",{class:"sec"},[el("b",{text:"このユニットが対象になるサポーター（タグ）"})]); L.forEach(x=>s3.appendChild(el("div",{text:`${x.s.limited?"★":""}${x.s.name}（${x.tag}）`}))); b.appendChild(s3); }
   const c=el("button",{type:"button",class:"close",text:"閉じる"}); c.addEventListener("click",()=>$("sheet").classList.remove("show")); b.appendChild(c);
   $("sheet").classList.add("show");
 }
@@ -438,13 +455,13 @@ async function generateImage(){
         const ec=(u.effects||[]); const ew=T*.26; let ey=ty+TH-1;
         for(let j=ec.length-1;j>=0;j--){ const ei=imgs.get(ICON+ec[j]+".png"); if(ei){ const eh=ew*ei.height/ei.width; ey-=eh; ctx.drawImage(ei,tx+T-1-ew,ey,ew,eh); ey-=1; } }
         ctx.restore();
-        if(isNew(u)){ ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; ctx.strokeRect(tx+1.5,ty+1.5,T-3,TH-3); }
-        else { ctx.strokeStyle="rgba(255,255,255,.12)"; ctx.lineWidth=1; ctx.strokeRect(tx+.5,ty+.5,T-1,TH-1); }
+        ctx.strokeStyle="rgba(255,255,255,.12)"; ctx.lineWidth=1; ctx.strokeRect(tx+.5,ty+.5,T-1,TH-1);
         const outline=(s,ax,ay,font,align)=>{ ctx.save(); ctx.font=font; ctx.textAlign=align; ctx.lineJoin="round"; ctx.lineWidth=3; ctx.strokeStyle="#000"; ctx.strokeText(s,ax,ay); ctx.fillStyle="#fff"; ctx.fillText(s,ax,ay); ctx.restore(); };
         if(u.rangeMax!=null) outline(`${u.rangeMin}-${u.rangeMax}`,tx+T-3,ty+16,`700 17px "Rajdhani","Share Tech Mono",monospace`,"right");
         if(u.rangeNote) outline(u.rangeNote,tx+T-3,ty+31,`700 11px ${FONT}`,"right");
         if(state.dim&&OWN&&own!==undefined){ ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(tx+T*.24,ty+TH-14,26,12); txt(LV_LABEL[own]||"",tx+T*.24+3,ty+TH-4,`10px ${FONT}`,"#fff"); }
-        if(u.limited) star(tx+1,ty+TH+1,26);
+        if(u.limited) star(tx+3,ty+TH-5,23);
+        if(isNew(u)){ ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; ctx.strokeRect(tx+1.5,ty+1.5,T-3,TH-3); }
       });
       x+=w;
     });
