@@ -120,7 +120,7 @@
 <main>
   <p class="eyebrow">UNIT LIST</p>
   <h1>ユニット一覧</h1>
-  <p class="lead">リーダースキルの対象になるタグで、URユニットを表にまとめます。見出しの船・キャラは、そのタグを対象にするサポーター（HP＝HP回復／EN＝EN回復）。★は期間限定、右上の数字は射程（キャラ能力込みの最大）、右下は属性武装（攻撃）・効果アイコン（支援・耐久）、赤枠は実装30日以内。マスの中は 限定の攻撃→支援→耐久 → 恒常の攻撃→支援→耐久 の順。<a href="/top">トップへ</a></p>
+  <p class="lead"><a href="/top">トップへ</a></p>
 
   <div id="guardView" class="guardCard" hidden>
     <p>このページは現在、運営者専用です。<br>運営者の方はログインしてください。</p>
@@ -142,8 +142,8 @@
       </div>
       <div id="customBox" hidden>
         <div class="row" style="align-items:flex-start"><span class="fl">列（最大5）</span><div class="chips" id="colChips"></div></div>
-        <div class="row" style="margin-top:8px"><span class="fl">行</span>
-          <select id="rowAxis"><option value="type">タイプ（攻撃・支援・耐久）</option><option value="kind">機体の種類（エース機・専用機…）</option><option value="none">分けない</option></select>
+        <div class="row" style="margin-top:8px"><span class="fl">縦軸表示</span>
+          <select id="rowAxis"><option value="type">タイプ（攻撃・支援・耐久）</option><option value="kind">機体タグ（エース機・専用機…）</option><option value="jukugo">4大熟語タグ（一撃必殺・電光石火・突破力・堅牢）</option><option value="none">分けない</option></select>
         </div>
       </div>
       <div class="row">
@@ -192,11 +192,12 @@ const COL_COLORS = ["#ff9f80","#6be0e0","#ff6fd8","#ffe14d","#a58cf0"];
 const ROW_COLORS = ["#fff3a0","#a0f0ff","#b8ffb0","#ffc890","#ffb0f0","#c0c0ff"];
 const GRAY = "#9aa4b2";
 const KIND_ROWS = ["エース機","ニュータイプ専用機","専用機","試作機","指揮官機","大型機"];
+const JUKUGO_ROWS = ["一撃必殺","電光石火","突破力","堅牢"];
 const PRESETS = {
   A: { name:"4大熟語タグ × 機体タグ", cols:["一撃必殺","電光石火","突破力","堅牢"], rows:"kind", none:true },
   B: { name:"他主要タグ", cols:["疾風迅雷","不撓不屈","サイコミュ","ライバル"], rows:"type", none:false },
   D: { name:"全UR × タイプ", cols:[], rows:"none", none:false },
-  C: { name:"自由に選ぶ", none:true }
+  C: { name:"自由に選ぶ", none:false }
 };
 const LV_LABEL = ["無凸","1凸","2凸","完凸"];
 const $ = id => document.getElementById(id);
@@ -221,8 +222,8 @@ function readUrl(){
     if(v!=="C"){ const p=PRESETS[v]; state.cols=p.cols.slice(); state.rows=p.rows; state.none=p.none; }
     else {
       state.cols=(q.get("cols")||"").split(",").filter(n=>tagByName.has(n)&&leadersByTag.has(tagByName.get(n).tagId)).slice(0,5);
-      state.none=true;
-      state.rows=["type","kind","none"].includes(q.get("rows"))?q.get("rows"):"type";
+      state.none=false;
+      state.rows=["type","kind","jukugo","none"].includes(q.get("rows"))?q.get("rows"):"type";
     }
   }
   state.dim=q.get("dim")==="1"; state.lv=q.get("lv")==="1";
@@ -250,8 +251,8 @@ function buildModel(){
   else if(state.none) cols.push({ name:"無所属", color:GRAY, has:u=>!colTags.some(t=>has(u,t)) });
   let rows;
   if(state.rows==="type") rows=TYPE_ORDER.map(ty=>({ name:ty+"ユニット", color:TYPE_COL[ty], has:u=>u.type===ty }));
-  else if(state.rows==="kind"){
-    rows=KIND_ROWS.map(n=>tagByName.get(n)).filter(Boolean).map((t,i)=>({ name:t.name, tag:t, color:ROW_COLORS[i%6], has:u=>has(u,t) }));
+  else if(state.rows==="kind"||state.rows==="jukugo"){
+    rows=(state.rows==="kind"?KIND_ROWS:JUKUGO_ROWS).map(n=>tagByName.get(n)).filter(Boolean).map((t,i)=>({ name:t.name, tag:t, color:ROW_COLORS[i%6], has:u=>has(u,t) }));
     const ids=rows.map(r=>r.tag);
     rows.push({ name:"該当なし", color:GRAY, has:u=>!ids.some(t=>has(u,t)), hideIfEmpty:true });
   } else rows=[{ name:state.preset==="D"?"全UR":"すべて", color:GRAY, has:()=>true }];
@@ -269,7 +270,7 @@ function buildModel(){
 // ---- 画面 ----
 function supChip(L){
   const s=L.s, sdim=state.dim&&SOWN&&!SOWN.has(s.id), sk=s.skill==="HP回復"?"HP":s.skill==="EN回復"?"EN":"HP/EN";
-  const d=el("div",{class:"sup"+(sdim?" dim":""),title:`${s.name}（${s.skill}${L.conds>1?"・条件"+L.conds+"つ":""}）`},[el("img",{src:`${IMG}supporters/${s.id}.jpg`,alt:"",loading:"lazy"}),el("span",{class:"sk",text:sk})]);
+  const d=el("div",{class:"sup"+(sdim?" dim":""),title:`${s.name}（${s.skill}${L.conds>1?"・条件"+L.conds+"つ":""}）`},[el("img",{src:`${IMG}supporters/${s.id}.jpg`,alt:"",loading:"lazy"}),sdim?null:el("span",{class:"sk",text:sk})]);
   if(s.limited) d.appendChild(el("span",{class:"star",text:"★"}));
   if(L.conds>1) d.appendChild(el("span",{class:"cond",text:"＋条件"}));
   return d;
@@ -429,7 +430,7 @@ async function generateImage(){
       ctx.restore();
       ctx.strokeStyle="rgba(255,255,255,.3)"; ctx.lineWidth=1; rr(x+.5,y+.5,SW-1,SH-1,4); ctx.stroke();
       const sk=s.skill==="HP回復"?"HP":s.skill==="EN回復"?"EN":"HP/EN";
-      ctx.save(); ctx.font=`900 11px ${FONT}`; ctx.textAlign="right"; ctx.lineWidth=3; ctx.strokeStyle="#000"; ctx.strokeText(sk,x+SW-2,y+SH-3); ctx.fillStyle="#ff5a5a"; ctx.fillText(sk,x+SW-2,y+SH-3); ctx.restore();
+      if(!(state.dim&&SOWN&&!SOWN.has(s.id))){ ctx.save(); ctx.font=`900 11px ${FONT}`; ctx.textAlign="right"; ctx.lineWidth=3; ctx.strokeStyle="#000"; ctx.strokeText(sk,x+SW-2,y+SH-3); ctx.fillStyle="#ff5a5a"; ctx.fillText(sk,x+SW-2,y+SH-3); ctx.restore(); }
       if(L.conds>1){ ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(x+2,y+2,38,14); txt("＋条件",x+4,y+13,`10px ${FONT}`,"#fff"); }
       if(s.limited) star(x+1,y+SH+1,20);
     });
@@ -499,7 +500,7 @@ $("btnClosePreview").addEventListener("click",()=>$("previewModal").classList.re
 // ---- 操作 ----
 $("sheet").addEventListener("click",e=>{ if(e.target===$("sheet")) $("sheet").classList.remove("show"); });
 $("presetSeg").addEventListener("click",e=>{ const b=e.target.closest("button[data-p]"); if(!b) return; state.preset=b.dataset.p;
-  if(state.preset!=="C"){ const p=PRESETS[state.preset]; state.cols=p.cols.slice(); state.rows=p.rows; state.none=p.none; } else state.none=true; render(); });
+  if(state.preset!=="C"){ const p=PRESETS[state.preset]; state.cols=p.cols.slice(); state.rows=p.rows; state.none=p.none; } else state.none=false; render(); });
 $("rowAxis").addEventListener("change",()=>{ state.rows=$("rowAxis").value; render(); });
 $("optLv").addEventListener("change",()=>{ state.lv=$("optLv").checked; render(); });
 $("optDim").addEventListener("change",()=>{ state.dim=$("optDim").checked; render(); });
