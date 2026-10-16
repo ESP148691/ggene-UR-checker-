@@ -47,6 +47,8 @@
   /* 表 */
   .zoomBar{display:flex;gap:6px;align-items:center;margin:0 0 6px;font-size:12px;color:var(--muted);}
   .zoomBar button{font:inherit;font-weight:700;color:var(--text);background:var(--panel-2);border:1px solid var(--line-strong);border-radius:5px;padding:5px 11px;cursor:pointer;}
+  .zoomBox{position:relative;overflow:hidden;width:max-content;}
+  .scroller.tz .corner,.scroller.tz .rcell{position:static;}
   .scroller{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:rgba(5,7,13,.5);}
   .matrix{display:grid;gap:0;min-width:max-content;justify-content:start;}
   .hcell,.rcell,.cell,.corner{border-right:1px solid var(--line-strong);border-bottom:1px solid var(--line-strong);padding:6px;}
@@ -60,12 +62,13 @@
   .cell{background:color-mix(in srgb,var(--c) 9%,transparent);display:flex;flex-wrap:wrap;align-content:flex-start;gap:3px;}
   .sups{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;}
   .sup{position:relative;width:calc(var(--tile) - 4px);height:calc((var(--tile) - 4px) * .62);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.18);background:#1a2433;}
+  .sup.dim img{filter:grayscale(1) brightness(.45);}
   .sup img{width:100%;height:100%;object-fit:cover;display:block;}
   .sup .sk{position:absolute;right:2px;bottom:1px;font-size:11px;font-weight:900;color:#ff5a5a;text-shadow:0 0 2px #000,0 0 3px #000;}
   .sup .cond{position:absolute;left:2px;top:1px;font-size:10px;color:#fff;background:rgba(10,14,20,.75);border-radius:3px;padding:0 3px;}
   .star{position:absolute;color:#ffd84d;text-shadow:0 0 2px #000,0 0 2px #000;line-height:1;}
   .sup .star{left:1px;bottom:-1px;font-size:20px;color:#ffe14d;text-shadow:-1.5px -1.5px 0 #000,1.5px -1.5px 0 #000,-1.5px 1.5px 0 #000,1.5px 1.5px 0 #000,0 0 6px rgba(255,210,60,.95);}
-  .tile{position:relative;width:var(--tile);height:calc(var(--tile) * .86);border-radius:4px;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,.12);background:#1a2433;padding:0;}
+  .tile{position:relative;isolation:isolate;width:var(--tile);height:calc(var(--tile) * .86);border-radius:4px;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,.12);background:#1a2433;padding:0;}
   .tile img.u{width:100%;height:100%;object-fit:cover;display:block;}
   .tile .ty{position:absolute;left:1px;top:1px;width:24%;}
   .tile .rg{position:absolute;right:3px;top:2px;font-family:"Rajdhani","Share Tech Mono",monospace;font-weight:700;font-size:17px;color:#fff;text-shadow:0 0 2px #000,0 0 3px #000,1px 1px 0 #000;}
@@ -85,7 +88,7 @@
   .actions{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap;}
   .actions button{font:inherit;font-size:13px;font-weight:700;border-radius:6px;padding:9px 14px;cursor:pointer;border:none;}
   .actions button:disabled{opacity:.6;cursor:default;}
-  .btn-save{background:var(--gold);color:#1b1503;} .btn-share{background:#1d9bf0;color:#fff;}
+  .btn-save{background:var(--gold);color:#1b1503;}
   /* 詳細 */
   .sheet{position:fixed;inset:0;background:rgba(5,7,10,.88);display:none;align-items:center;justify-content:center;padding:16px;z-index:50;}
   .sheet.show{display:flex;}
@@ -131,8 +134,8 @@
     <div class="controls">
       <div class="row"><span class="fl">表の種類</span>
         <div class="seg" id="presetSeg">
-          <button type="button" data-p="A">戦闘タグ × 機体の種類</button>
-          <button type="button" data-p="B">疾風迅雷ほか × タイプ</button>
+          <button type="button" data-p="A">4大熟語タグ × 機体タグ</button>
+          <button type="button" data-p="B">他主要タグ</button>
           <button type="button" data-p="D">全UR × タイプ</button>
           <button type="button" data-p="C">自由に選ぶ</button>
         </div>
@@ -144,17 +147,16 @@
         </div>
       </div>
       <div class="row">
-        <label id="optNoneLabel"><input type="checkbox" id="optNone" checked> どの列にも入らないユニット（無所属）</label>
         <label id="optDimLabel" hidden><input type="checkbox" id="optDim"> 未所持を暗くする</label>
-        <label id="optOwnedLabel" hidden><input type="checkbox" id="optOwned"> 所持だけ</label>
+        <label id="optLvLabel" hidden><input type="checkbox" id="optLv"> 凸表示</label>
         <span class="loginNote" id="loginNote" hidden>ログインすると自分の所持を重ねて見られます（<a id="loginNoteLink">ログイン</a>）</span>
       </div>
     </div>
 
     <div class="zoomBar"><button type="button" id="zoomOut" aria-label="縮小">－</button><button type="button" id="zoomIn" aria-label="拡大">＋</button><button type="button" id="zoomFit">全体表示</button><button type="button" id="zoom100">100%</button><span id="zoomVal">100%</span></div>
-    <div class="scroller"><div class="matrix" id="matrix"></div></div>
+    <div class="scroller" id="scroller"><div class="zoomBox" id="zoomBox"><div class="matrix" id="matrix"></div></div></div>
     <div class="legend" id="legend"></div>
-    <div class="actions"><button type="button" class="btn-save" id="btnSave">画像で保存</button><button type="button" class="btn-share" id="btnShare">Xでシェア</button></div>
+    <div class="actions"><button type="button" class="btn-save" id="btnSave">画像で保存</button></div>
   </div>
 
   <footer class="pageFooter">
@@ -180,8 +182,7 @@
 const ADMIN_ONLY = true;
 const CONFIG = {
   xHandle: "@polarbear148691",
-  hashtag: "#ジージェネエターナル",
-  quotePostUrl: "https://x.com/polarbear148691/status/2103111095745675510?s=46"
+  hashtag: "#ジージェネエターナル"
 };
 const IMG = "images/", ICON = "images/effects/";
 const UR = 1;
@@ -192,10 +193,10 @@ const ROW_COLORS = ["#fff3a0","#a0f0ff","#b8ffb0","#ffc890","#ffb0f0","#c0c0ff"]
 const GRAY = "#9aa4b2";
 const KIND_ROWS = ["エース機","ニュータイプ専用機","専用機","試作機","指揮官機","大型機"];
 const PRESETS = {
-  A: { name:"戦闘タグ × 機体の種類", cols:["一撃必殺","電光石火","突破力","堅牢"], rows:"kind", none:true },
-  B: { name:"疾風迅雷ほか × タイプ", cols:["疾風迅雷","不撓不屈","サイコミュ","ライバル"], rows:"type", none:false },
+  A: { name:"4大熟語タグ × 機体タグ", cols:["一撃必殺","電光石火","突破力","堅牢"], rows:"kind", none:true },
+  B: { name:"他主要タグ", cols:["疾風迅雷","不撓不屈","サイコミュ","ライバル"], rows:"type", none:false },
   D: { name:"全UR × タイプ", cols:[], rows:"none", none:false },
-  C: { name:"自由に選ぶ" }
+  C: { name:"自由に選ぶ", none:true }
 };
 const LV_LABEL = ["無凸","1凸","2凸","完凸"];
 const $ = id => document.getElementById(id);
@@ -204,9 +205,9 @@ const jget = url => fetch(url, { credentials:"same-origin" }).then(r => r.ok ? r
 
 let units=[], unitById=new Map(), tagById=new Map(), tagByName=new Map(), tagsOf=new Map(), supById=new Map(), effByCode=new Map();
 let leadersByTag=new Map(), leaderTagIds=[];
-let OWN=null;   // ログイン中だけ Map(unitId → level)
+let OWN=null, SOWN=null;   // ログイン中だけ Map(unitId → level)
 let TODAY="";
-let state={ preset:"A", cols:PRESETS.A.cols.slice(), rows:"kind", none:true, dim:false, owned:false };
+let state={ preset:"A", cols:PRESETS.A.cols.slice(), rows:"kind", none:true, dim:false, lv:false };
 let model=null;   // 今の表（画面とCanvasで共用）
 
 function isNew(u){ if(!u.released) return false; const d=(Date.parse(TODAY)-Date.parse(u.released))/86400000; return d>=0 && d<=30; }
@@ -220,20 +221,18 @@ function readUrl(){
     if(v!=="C"){ const p=PRESETS[v]; state.cols=p.cols.slice(); state.rows=p.rows; state.none=p.none; }
     else {
       state.cols=(q.get("cols")||"").split(",").filter(n=>tagByName.has(n)&&leadersByTag.has(tagByName.get(n).tagId)).slice(0,5);
+      state.none=true;
       state.rows=["type","kind","none"].includes(q.get("rows"))?q.get("rows"):"type";
-      state.none=q.get("none")!=="0";
     }
   }
-  if(v!=="C" && q.get("none")!=null && v!=="D") state.none=q.get("none")!=="0";
-  state.dim=q.get("dim")==="1"; state.owned=q.get("owned")==="1";
+  state.dim=q.get("dim")==="1"; state.lv=q.get("lv")==="1";
 }
 function writeUrl(){
   const q=new URLSearchParams();
   q.set("v",state.preset);
-  if(state.preset==="C"){ q.set("cols",state.cols.join(",")); q.set("rows",state.rows); q.set("none",state.none?"1":"0"); }
-  else if(state.preset!=="D" && state.none!==PRESETS[state.preset].none) q.set("none",state.none?"1":"0");
+  if(state.preset==="C"){ q.set("cols",state.cols.join(",")); q.set("rows",state.rows); }
   if(state.dim&&OWN) q.set("dim","1");
-  if(state.owned&&OWN) q.set("owned","1");
+  if(state.lv&&OWN) q.set("lv","1");
   try { history.replaceState(null,"",location.pathname+"?"+q.toString()); } catch(e){}
 }
 
@@ -244,7 +243,7 @@ function sortUnits(list){
 function buildModel(){
   const has=(u,t)=>{ const s=tagsOf.get(u.unitId); return !!(s&&s.has(t.tagId)); };
   const colTags=state.cols.map(n=>tagByName.get(n)).filter(Boolean);
-  const pool=units.filter(u=>!(state.owned&&OWN)||OWN.has(u.unitId));
+  const pool=units;
   const cols=colTags.map((t,i)=>({ name:t.name, tag:t, color:COL_COLORS[i%5], has:u=>has(u,t) }));
   if(state.preset==="D") TYPE_ORDER.forEach(ty=>cols.push({ name:ty+"ユニット", color:TYPE_COL[ty], has:u=>u.type===ty }));
   else if(!colTags.length) cols.push({ name:"全URユニット", color:GRAY, has:()=>true });
@@ -263,14 +262,14 @@ function buildModel(){
   cols.forEach((c,i)=>{ c.per=per(colMax[i]); c.count=pool.filter(c.has).length; c.leaders=c.tag?leadersByTag.get(c.tag.tagId)||[]:[]; });
   rows.forEach(r=>{ r.count=pool.filter(r.has).length; r.leaders=r.tag?leadersByTag.get(r.tag.tagId)||[]:[]; });
   rows.forEach(r=>{ r.cells=cols.map(c=>sortUnits(pool.filter(u=>c.has(u)&&r.has(u)))); });
-  const used=new Set(); for(const id of shown) (unitById.get(id).effects||[]).forEach(c=>used.add(c));
+  const used=new Set(); for(const id of shown){ if(state.dim&&OWN&&!OWN.has(id)) continue; (unitById.get(id).effects||[]).forEach(c=>used.add(c)); }
   return { cols, rows, shown:shown.size, legend:[...effByCode.values()].filter(e=>used.has(e.code)) };
 }
 
 // ---- 画面 ----
 function supChip(L){
-  const s=L.s, sk=s.skill==="HP回復"?"HP":s.skill==="EN回復"?"EN":"HP/EN";
-  const d=el("div",{class:"sup",title:`${s.name}（${s.skill}${L.conds>1?"・条件"+L.conds+"つ":""}）`},[el("img",{src:`${IMG}supporters/${s.id}.jpg`,alt:"",loading:"lazy"}),el("span",{class:"sk",text:sk})]);
+  const s=L.s, sdim=state.dim&&SOWN&&!SOWN.has(s.id), sk=s.skill==="HP回復"?"HP":s.skill==="EN回復"?"EN":"HP/EN";
+  const d=el("div",{class:"sup"+(sdim?" dim":""),title:`${s.name}（${s.skill}${L.conds>1?"・条件"+L.conds+"つ":""}）`},[el("img",{src:`${IMG}supporters/${s.id}.jpg`,alt:"",loading:"lazy"}),el("span",{class:"sk",text:sk})]);
   if(s.limited) d.appendChild(el("span",{class:"star",text:"★"}));
   if(L.conds>1) d.appendChild(el("span",{class:"cond",text:"＋条件"}));
   return d;
@@ -280,19 +279,19 @@ function tile(u){
   const t=el("button",{type:"button",class:"tile"+(isNew(u)?" new":"")+(state.dim&&OWN&&own===undefined?" dim":""),"aria-label":u.name});
   t.appendChild(el("img",{class:"u",src:`${IMG}units/${u.unitId}.jpg`,alt:"",loading:"lazy"}));
   t.appendChild(el("img",{class:"ty",src:ICON+TYPE_ICON[u.type]+".png",alt:u.type}));
-  if(u.rangeMax!=null) t.appendChild(el("span",{class:"rg",text:`${u.rangeMin}-${u.rangeMax}`}));
-  if(u.rangeNote) t.appendChild(el("span",{class:"note",text:u.rangeNote}));
-  if(u.effects&&u.effects.length){ const ef=el("span",{class:"ef"}); u.effects.forEach(c=>ef.appendChild(el("img",{src:ICON+c+".png",alt:effName(c)}))); t.appendChild(ef); }
+  const hideInfo=state.dim&&OWN&&own===undefined;   // 未所持を暗くする時は射程・武装・効果アイコンも消す
+  if(!hideInfo&&u.rangeMax!=null) t.appendChild(el("span",{class:"rg",text:`${u.rangeMin}-${u.rangeMax}`}));
+  if(!hideInfo&&u.rangeNote) t.appendChild(el("span",{class:"note",text:u.rangeNote}));
+  if(!hideInfo&&u.effects&&u.effects.length){ const ef=el("span",{class:"ef"}); u.effects.forEach(c=>ef.appendChild(el("img",{src:ICON+c+".png",alt:effName(c)}))); t.appendChild(ef); }
   if(u.limited) t.appendChild(el("span",{class:"star",text:"★"}));
-  if(state.dim&&OWN&&own!==undefined) t.appendChild(el("span",{class:"lv",text:LV_LABEL[own]||""}));
+  if(state.lv&&OWN&&own!==undefined) t.appendChild(el("span",{class:"lv",text:LV_LABEL[own]||""}));
   t.addEventListener("click",()=>openSheet(u));
   return t;
 }
 function render(){
   document.querySelectorAll("#presetSeg button").forEach(b=>b.classList.toggle("active",b.dataset.p===state.preset));
   $("customBox").hidden=state.preset!=="C";
-  $("optNoneLabel").hidden=state.preset==="D"||(state.preset!=="C"&&!PRESETS[state.preset].cols.length);
-  $("optNone").checked=state.none; $("optDim").checked=state.dim; $("optOwned").checked=state.owned; $("rowAxis").value=state.rows;
+  $("optDim").checked=state.dim; $("optLv").checked=state.lv; $("rowAxis").value=state.rows;
   renderChips();
   model=buildModel();
   const m=$("matrix"); m.textContent="";
@@ -322,9 +321,17 @@ function render(){
 // ---- 拡大縮小（CSS zoom。固定列は左に固定のまま）----
 let zoom=1, zoomFit=false;
 function applyZoom(){
-  const m=$("matrix");
-  if(zoomFit){ m.style.zoom=1; const w=m.scrollWidth, av=$("matrix").parentElement.clientWidth-2; zoom=Math.max(.2,Math.min(1,av/w)); }
-  m.style.zoom=zoom; $("zoomVal").textContent=Math.round(zoom*100)+"%";
+  const m=$("matrix"), box=$("zoomBox"), sc=$("scroller");
+  // 縮小は transform（ブラウザの最小文字サイズの影響を受けない）。拡大はCSS zoom（左の行見出しを固定したまま）
+  m.style.zoom=""; m.style.transform=""; box.style.width="max-content"; box.style.height="auto"; sc.classList.remove("tz");
+  if(zoomFit){ const w=m.offsetWidth, av=sc.clientWidth-2; zoom=Math.max(.2,Math.min(1,av/w)); }
+  if(zoom>1) m.style.zoom=zoom;
+  else if(zoom<1){
+    const w=m.offsetWidth, h=m.offsetHeight;
+    sc.classList.add("tz"); m.style.transformOrigin="0 0"; m.style.transform="scale("+zoom+")";
+    box.style.width=Math.ceil(w*zoom)+"px"; box.style.height=Math.ceil(h*zoom)+"px";
+  }
+  $("zoomVal").textContent=Math.round(zoom*100)+"%";
 }
 function setZoom(z){ zoomFit=false; zoom=Math.max(.2,Math.min(2,z)); applyZoom(); }
 $("zoomOut").addEventListener("click",()=>setZoom(zoom-.1));
@@ -398,7 +405,7 @@ async function generateImage(){
   ctx.textBaseline="alphabetic"; ctx.fillStyle="#eef3f6"; ctx.font=`700 22px ${FONT}`;
   ctx.fillText(`${ymd()} タグ別UR機体一覧`,PAD+60,38);
   ctx.fillStyle="#93a3b3"; ctx.font=`500 13px ${FONT}`;
-  ctx.fillText("※★は限定　※射程はキャラ能力含む最大値　※表の種類："+(PRESETS[state.preset].name)+(state.owned&&OWN?"（所持だけ）":state.dim&&OWN?"（未所持を暗く）":""),PAD+60,60);
+  ctx.fillText("※★は限定　※射程はキャラ能力含む最大値　※表の種類："+(PRESETS[state.preset].name)+(state.dim&&OWN?"（未所持を暗く）":""),PAD+60,60);
   const tag=CONFIG.xHandle; ctx.textAlign="right"; ctx.fillStyle="#5ad1d1"; ctx.font="13px monospace"; ctx.fillText(tag,W-PAD,38); ctx.textAlign="left";
   // 表
   ctx.save(); ctx.translate(PAD,TOP); ctx.scale(k,k);
@@ -418,6 +425,7 @@ async function generateImage(){
       const x=x0+(i%per)*(SW+G), y=y0+Math.floor(i/per)*(SH+G), s=L.s, im=imgs.get(`${IMG}supporters/${s.id}.jpg`);
       ctx.save(); rr(x,y,SW,SH,4); ctx.clip();
       ctx.fillStyle="#1a2433"; ctx.fillRect(x,y,SW,SH); if(im) ctx.drawImage(im,x,y,SW,SH);
+      if(state.dim&&SOWN&&!SOWN.has(s.id)){ ctx.fillStyle="rgba(5,7,13,.68)"; ctx.fillRect(x,y,SW,SH); }
       ctx.restore();
       ctx.strokeStyle="rgba(255,255,255,.3)"; ctx.lineWidth=1; rr(x+.5,y+.5,SW-1,SH-1,4); ctx.stroke();
       const sk=s.skill==="HP回復"?"HP":s.skill==="EN回復"?"EN":"HP/EN";
@@ -452,14 +460,15 @@ async function generateImage(){
         if(im){ const sc=Math.max(T/im.width,TH/im.height), dw=im.width*sc, dh=im.height*sc; ctx.drawImage(im,tx+(T-dw)/2,ty+(TH-dh)/2,dw,dh); }
         if(state.dim&&OWN&&own===undefined){ ctx.fillStyle="rgba(5,7,13,.68)"; ctx.fillRect(tx,ty,T,TH); }
         const ti=imgs.get(ICON+TYPE_ICON[u.type]+".png"); if(ti){ const tw=T*.24; ctx.drawImage(ti,tx+1,ty+1,tw,tw*ti.height/ti.width); }
-        const ec=(u.effects||[]); const ew=T*.26; let ey=ty+TH-1;
+        const hideInfo=state.dim&&OWN&&own===undefined;
+        const ec=hideInfo?[]:(u.effects||[]); const ew=T*.26; let ey=ty+TH-1;
         for(let j=ec.length-1;j>=0;j--){ const ei=imgs.get(ICON+ec[j]+".png"); if(ei){ const eh=ew*ei.height/ei.width; ey-=eh; ctx.drawImage(ei,tx+T-1-ew,ey,ew,eh); ey-=1; } }
         ctx.restore();
         ctx.strokeStyle="rgba(255,255,255,.12)"; ctx.lineWidth=1; ctx.strokeRect(tx+.5,ty+.5,T-1,TH-1);
         const outline=(s,ax,ay,font,align)=>{ ctx.save(); ctx.font=font; ctx.textAlign=align; ctx.lineJoin="round"; ctx.lineWidth=3; ctx.strokeStyle="#000"; ctx.strokeText(s,ax,ay); ctx.fillStyle="#fff"; ctx.fillText(s,ax,ay); ctx.restore(); };
-        if(u.rangeMax!=null) outline(`${u.rangeMin}-${u.rangeMax}`,tx+T-3,ty+16,`700 17px "Rajdhani","Share Tech Mono",monospace`,"right");
-        if(u.rangeNote) outline(u.rangeNote,tx+T-3,ty+31,`700 11px ${FONT}`,"right");
-        if(state.dim&&OWN&&own!==undefined){ ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(tx+T*.24,ty+TH-14,26,12); txt(LV_LABEL[own]||"",tx+T*.24+3,ty+TH-4,`10px ${FONT}`,"#fff"); }
+        if(!hideInfo&&u.rangeMax!=null) outline(`${u.rangeMin}-${u.rangeMax}`,tx+T-3,ty+16,`700 17px "Rajdhani","Share Tech Mono",monospace`,"right");
+        if(!hideInfo&&u.rangeNote) outline(u.rangeNote,tx+T-3,ty+31,`700 11px ${FONT}`,"right");
+        if(state.lv&&OWN&&own!==undefined){ ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(tx+T*.24,ty+TH-14,26,12); txt(LV_LABEL[own]||"",tx+T*.24+3,ty+TH-4,`10px ${FONT}`,"#fff"); }
         if(u.limited) star(tx+3,ty+TH-5,23);
         if(isNew(u)){ ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; ctx.strokeRect(tx+1.5,ty+1.5,T-3,TH-3); }
       });
@@ -486,21 +495,14 @@ $("btnSave").addEventListener("click",async()=>{
   finally { btn.textContent=label; btn.disabled=false; }
 });
 $("btnClosePreview").addEventListener("click",()=>$("previewModal").classList.remove("show"));
-$("btnShare").addEventListener("click",()=>{
-  const text=`【Gジェネエターナル】URユニット一覧（${PRESETS[state.preset].name}）\n${CONFIG.hashtag}\n${location.origin}/unit-list${location.search}`;
-  let intent="https://twitter.com/intent/tweet?text="+encodeURIComponent(text)+"&via="+encodeURIComponent(CONFIG.xHandle.replace(/^@/,""));
-  if(CONFIG.quotePostUrl) intent+="&url="+encodeURIComponent(CONFIG.quotePostUrl);
-  window.open(intent,"_blank");
-});
 
 // ---- 操作 ----
 $("sheet").addEventListener("click",e=>{ if(e.target===$("sheet")) $("sheet").classList.remove("show"); });
 $("presetSeg").addEventListener("click",e=>{ const b=e.target.closest("button[data-p]"); if(!b) return; state.preset=b.dataset.p;
-  if(state.preset!=="C"){ const p=PRESETS[state.preset]; state.cols=p.cols.slice(); state.rows=p.rows; state.none=p.none; } render(); });
+  if(state.preset!=="C"){ const p=PRESETS[state.preset]; state.cols=p.cols.slice(); state.rows=p.rows; state.none=p.none; } else state.none=true; render(); });
 $("rowAxis").addEventListener("change",()=>{ state.rows=$("rowAxis").value; render(); });
-$("optNone").addEventListener("change",()=>{ state.none=$("optNone").checked; render(); });
+$("optLv").addEventListener("change",()=>{ state.lv=$("optLv").checked; render(); });
 $("optDim").addEventListener("change",()=>{ state.dim=$("optDim").checked; render(); });
-$("optOwned").addEventListener("change",()=>{ state.owned=$("optOwned").checked; render(); });
 const openLogin=()=>{ const l=$("authOpenLink"); if(l) l.click(); };
 $("guardLoginBtn").addEventListener("click",openLogin);
 $("loginNoteLink").addEventListener("click",openLogin);
@@ -529,11 +531,13 @@ async function init(me){
   if(me&&me.loggedIn){
     const o=await jget("/api/my-ownership");
     if(o&&o.loggedIn){ OWN=new Map(Object.entries(o.ownership||{}).map(([k,v])=>[Number(k),v])); }
+    const so=await jget("/api/my-ownership-supporter");
+    if(so&&so.loggedIn) SOWN=new Map(Object.entries(so.ownership||{}).map(([k,v])=>[Number(k),v]));
   }
-  if(OWN){ $("optDimLabel").hidden=false; $("optOwnedLabel").hidden=false; }
+  if(OWN){ $("optDimLabel").hidden=false; $("optLvLabel").hidden=false; }
   else $("loginNote").hidden=false;
   readUrl();
-  if(!OWN){ state.dim=false; state.owned=false; }
+  if(!OWN){ state.dim=false; state.lv=false; }
   $("loadingView").hidden=true; $("contentView").hidden=false;
   render();
 }
