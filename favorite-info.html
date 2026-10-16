@@ -253,14 +253,14 @@ $("guardLoginBtn").addEventListener("click", () => { const l = document.getEleme
 async function init(){
   try {
     const json = u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null);   // 取れなかったものはその欄だけ無効（form側で案内を出す）
-    const [cardRes, worksRes, tagsRes, leaderRes, charsRes] = await Promise.all([
+    const [cardRes, worksRes, tagsRes, leaderRes, charsRes, ssrRes] = await Promise.all([
       fetch("/api/profile-card", { credentials: "same-origin" }),
-      json("/api/works"), json("/api/tags"), json("/api/leader-skills"), json("/api/characters")
+      json("/api/works"), json("/api/tags"), json("/api/leader-skills"), json("/api/characters"), json("/api/ssr-units")   // 74 SSR・ULT
     ]);
     if (cardRes.status === 401) { showGuard(); return; }
     if (!cardRes.ok) throw new Error("profile-card " + cardRes.status);
     api = await cardRes.json();
-    form.setData({ api, works: worksRes, characters: charsRes, tags: tagsRes, leaderSkills: leaderRes });
+    form.setData({ api, works: worksRes, characters: charsRes, tags: tagsRes, leaderSkills: leaderRes, ssrUnits: ssrRes });
   } catch (e) {
     console.error(e);
     $("loadingView").hidden = true; $("errorView").hidden = false;

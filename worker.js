@@ -1417,6 +1417,23 @@ async function handleLeaderSkills(request, env) {
   }, 200, MASTER_CACHE);
 }
 
+// 74 GET /api/ssr-units（認証不要）。SSR・ULTユニットのマスター（推しユニットの「SSR・ULTから選ぶ」）。unit_id順。
+// ult＝1ならゲーム内のレアリティがULT（アルティメット。カードは「ULT」バッジ）。0041未適用（is_ult列が無い）ならult:0。TBLが無ければ空配列
+async function handleSsrUnits(request, env) {
+  const sql = withUlt => `SELECT s.unit_id, s.name, s.type${withUlt ? ", s.is_ult" : ""}, m.work_id
+     FROM ssr_units_master s LEFT JOIN unit_work_map m ON m.rarity_code = ? AND m.unit_id = s.unit_id
+     ORDER BY s.unit_id`;
+  let rows = null;
+  for (const withUlt of [true, false]) {
+    try { ({ results: rows } = await env.DB.prepare(sql(withUlt)).bind(RARITY_CODE.SSR).all()); break; }
+    catch (e) { rows = null; }
+  }
+  if (!rows) return jsonResponse({ ssrUnits: [] }, 200);
+  return jsonResponse({
+    ssrUnits: rows.map(r => ({ unitId: r.unit_id, name: r.name, type: r.type, workId: r.work_id == null ? null : r.work_id, ult: r.is_ult ? 1 : 0 }))
+  }, 200, MASTER_CACHE);
+}
+
 // 56 GET /api/characters（認証不要）。キャラのマスター。0033未適用・0件なら空配列
 async function handleCharacters(request, env) {
   let rows;
@@ -1610,6 +1627,8 @@ async function loadProfile(env, userUid, earnedTitles) {
     ).bind(userUid, RARITY_CODE.SSR).all());
   } catch (e) { /* migrations/0024 未適用 */ }
   const titleIds = new Set((earnedTitles || []).map(t => t.missionId));
+  // 74 推しユニットの表示キャラ（char_id）。0041未適用ならnull（＝セットのキャラ）
+  const unitChars = await loadFavoriteUnitChars(env, userUid);
   // 56 推しキャラ。選べなくなったもの（手放した・マスターに無い）は除く（slotは詰め直さない）。0033未適用・失敗時は[]
   const sel = await loadSelectableCharacters(env, userUid);
   let favoriteCharacters = [];
@@ -1630,7 +1649,8 @@ async function loadProfile(env, userUid, earnedTitles) {
     favoriteWorks: works.map(r => ({ slot: r.slot, workId: r.work_id })),
     favoriteUnits: units.map(r => ({ slot: r.slot, unitId: r.unit_id, rarityCode: RARITY_CODE.UR }))
       .concat(ssrUnits.map(r => ({ slot: r.slot, unitId: r.unit_id, rarityCode: RARITY_CODE.SSR })))
-      .sort((a, b) => a.slot - b.slot),
+      .sort((a, b) => a.slot - b.slot)
+      .map(f => Object.assign(f, { charId: favoriteUnitCharOut(unitChars, f, sel) })),
     updatedAt: row ? row.updated_at : null,
     cardOptions: row ? await loadCardOptions(env, userUid) : Object.assign({}, CARD_OPTIONS_DEFAULT),
     playerRank: row ? await loadPlayerRank(env, userUid) : null,
@@ -1889,6 +1909,9 @@ async function handleSaveProfile(request, env) {
     if (!favoriteChars) return jsonResponse({ error: "invalid_favorite_characters" }, 400);
   }
   if (formations && sel) normalizePilots(formations, sel);
+  // 74 推しユニットの表示キャラ（送られてこなければ保存済みの値を引き継ぐ。行を消して書き直すため先に読む）
+  applyFavoriteUnitChars(favoriteUnits, body.favoriteUnitChars, sel,
+    body.favoriteUnitChars === undefined ? await loadFavoriteUnitChars(env, uid) : null);
 
   const nowJst = toJstIsoString(new Date());
   const statements = [
@@ -1904,6 +1927,7 @@ async function handleSaveProfile(request, env) {
     env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(new Date().toISOString(), uid)
   ];
   await env.DB.batch(statements);
+  await saveFavoriteUnitChars(env, uid, favoriteUnits);   // 74
   // ㉚ 表示オプションは0016未適用でも保存全体が失敗しないよう、バッチの外で別に更新する（失敗は無視＝既定値で表示される）。
   // cardOptionsを送ってこない（㉚より前の画面を開いたままの）保存では、保存済みの値を変えない
   if (body.cardOptions && typeof body.cardOptions === "object" && !Array.isArray(body.cardOptions)) {
@@ -1968,6 +1992,48 @@ async function normalizeFavoriteUnits(env, value, ownedIds) {
     } catch (e) { return null; }   // migrations/0024 未適用
   }
   return out;
+}
+
+// 74 推しユニットの表示キャラ（user_favorite_units.char_id。0041）
+//   NULL＝自動（URはセットのキャラ。SSR・ULTはなし）、0＝表示しない、正の整数＝選んだキャラ（loadSelectableCharactersの範囲）
+//   端末の画像（ユーザーが選んだスクショ）はサーバーに送らない（画面のlocalStorageだけ）
+const UNIT_CHAR_NONE = 0;
+const favoriteUnitKey = (rarityCode, unitId) => (rarityCode === RARITY_CODE.SSR ? "s" : "u") + unitId;   // 画面のdraft.favoriteUnitCharsのキーと同じ
+// 保存済みの表示キャラ。Map<"u23"|"s5", char_id|null>。列・TBLが無ければnull
+async function loadFavoriteUnitChars(env, uid) {
+  try {
+    const { results } = await env.DB.prepare(
+      "SELECT rarity_code, unit_id, char_id FROM user_favorite_units WHERE user_uid = ?"
+    ).bind(uid).all();
+    return new Map(results.map(r => [favoriteUnitKey(r.rarity_code, r.unit_id), r.char_id == null ? null : r.char_id]));
+  } catch (e) {
+    return null;   // migrations/0041 未適用
+  }
+}
+// 返す値：0＝表示しない／選べるキャラのID／null（未指定・選べなくなったキャラ＝自動に戻す）
+function favoriteUnitCharOut(map, f, sel) {
+  const v = map ? map.get(favoriteUnitKey(f.rarityCode, f.unitId)) : null;
+  if (v === UNIT_CHAR_NONE) return UNIT_CHAR_NONE;
+  return Number.isInteger(v) && sel && sel.all.has(v) ? v : null;
+}
+// 送られた favoriteUnitChars（{"u23": 23, "s5": 0, ...}）を units に charId として付ける。
+// キーが無い・値がnull・選べないキャラはnull（自動）。favoriteUnitCharsそのものが送られてこなければ、保存済みの値を引き継ぐ（prev）
+function applyFavoriteUnitChars(units, value, sel, prev) {
+  const obj = value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  for (const u of units) {
+    const key = favoriteUnitKey(u.rarityCode, u.unitId);
+    const v = obj ? obj[key] : (prev ? prev.get(key) : null);
+    u.charId = v === UNIT_CHAR_NONE ? UNIT_CHAR_NONE : (Number.isInteger(v) && sel && sel.all.has(v) ? v : null);
+  }
+}
+// 表示キャラの書き込み（推しユニットの行を書いた後に別に流す。0041未適用なら何もしない＝保存全体は成功させる）
+async function saveFavoriteUnitChars(env, uid, units) {
+  if (!units.length) return;
+  try {
+    await env.DB.batch(units.map(u => env.DB.prepare(
+      "UPDATE user_favorite_units SET char_id = ? WHERE user_uid = ? AND rarity_code = ? AND unit_id = ?"
+    ).bind(u.charId == null ? null : u.charId, uid, u.rarityCode, u.unitId)));
+  } catch (e) { /* migrations/0041 未適用 */ }
 }
 
 // 推し編成の書き換え（別バッチ。未適用の環境では列を減らして書き、TBLが無ければ何もしない）
@@ -2051,6 +2117,9 @@ async function handleSaveFavoriteInfo(request, env) {
     if (!favoriteChars) return jsonResponse({ error: "invalid_favorite_characters" }, 400);
   }
   if (formations && sel) normalizePilots(formations, sel);
+  // 74 推しユニットの表示キャラ（favoriteUnitsを送ったときだけ。favoriteUnitCharsが無ければ保存済みの値を引き継ぐ）
+  if (favoriteUnits) applyFavoriteUnitChars(favoriteUnits, body.favoriteUnitChars, sel,
+    body.favoriteUnitChars === undefined ? await loadFavoriteUnitChars(env, uid) : null);
 
   const nowJst = toJstIsoString(new Date());
   // 行が無い人も保存できるよう user_profiles を作り（既定のデザイン）、updated_at を進める（カードの古い下書きを無効にする）
@@ -2064,6 +2133,7 @@ async function handleSaveFavoriteInfo(request, env) {
     ...(favoriteUnits ? favoriteUnitStatements(env, uid, favoriteUnits) : []),
     env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(new Date().toISOString(), uid)
   ]);
+  if (favoriteUnits) await saveFavoriteUnitChars(env, uid, favoriteUnits);   // 74
   if (formations) await saveFormations(env, uid, formations, sel, nowJst);
   if (favoriteChars) await saveFavoriteCharacters(env, uid, favoriteChars, sel);
 
@@ -2596,6 +2666,9 @@ export default {
     }
     if (url.pathname === "/api/characters" && request.method === "GET") {
       return handleCharacters(request, env);
+    }
+    if (url.pathname === "/api/ssr-units" && request.method === "GET") {
+      return handleSsrUnits(request, env);
     }
     if (url.pathname === "/api/profile-card" && request.method === "GET") {
       return handleProfileCard(request, env);
