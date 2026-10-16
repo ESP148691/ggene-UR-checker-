@@ -14,6 +14,10 @@
     if (u.wrap) x.wrap = u.wrap;
     if (u.workId != null) x.workId = u.workId;
     if (Array.isArray(u.scanFit)) x.scanFit = u.scanFit;
+    // 75 射程・効果アイコン（0043適用後。unit-list.htmlが使う）
+    if (u.rangeMax != null) { x.rangeMin = u.rangeMin; x.rangeMax = u.rangeMax; }
+    if (u.rangeNote) x.rangeNote = u.rangeNote;
+    if (Array.isArray(u.effects)) x.effects = u.effects;
     return x;
   }
   function supporterFromApi(s) {

@@ -1271,19 +1271,36 @@ const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/;
 const parseJsonArray = (s) => { try { const v = JSON.parse(s); return Array.isArray(v) ? v : null; } catch (e) { return null; } };
 
 // GET /api/units（認証不要）。URユニットのマスター（unit.html・top.htmlが読む）。unit_id順
+// 75 0043適用後：射程（rangeMin・rangeMax・rangeNote）と効果アイコンのコード配列（effects。sort_order順）も返す。未適用なら付けない
 async function handleUnits(request, env) {
   const sql = (cols) =>
     `SELECT u.unit_id, u.name, u.limited, u.type, ${cols}, m.work_id
      FROM units_master u
      LEFT JOIN unit_work_map m ON m.rarity_code = ${RARITY_CODE.UR} AND m.unit_id = u.unit_id
      ORDER BY u.unit_id`;
+  const run = async (cols) => (await env.DB.prepare(sql(cols)).all()).results;
+  const RANGE = ", u.range_min, u.range_max, u.range_note";
+  const NO_RANGE = ", NULL AS range_min, NULL AS range_max, NULL AS range_note";
   let rows;
   try {
-    try { ({ results: rows } = await env.DB.prepare(sql("u.released_on, u.wrap, u.scan_fit")).all()); }
-    catch (e) { ({ results: rows } = await env.DB.prepare(sql("NULL AS released_on, NULL AS wrap, NULL AS scan_fit")).all()); }   // 0039未適用
+    try { rows = await run("u.released_on, u.wrap, u.scan_fit" + RANGE); }
+    catch (e) {
+      try { rows = await run("u.released_on, u.wrap, u.scan_fit" + NO_RANGE); }   // 0043未適用
+      catch (e2) { rows = await run("NULL AS released_on, NULL AS wrap, NULL AS scan_fit" + NO_RANGE); }   // 0039未適用
+    }
   } catch (e) {
     return jsonResponse({ units: [] }, 200);
   }
+  const effectsByUnit = new Map();
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT unit_id, effect_code FROM units_effects WHERE rarity_code = ${RARITY_CODE.UR} ORDER BY unit_id, sort_order, effect_code`
+    ).all();
+    for (const r of results) {
+      if (!effectsByUnit.has(r.unit_id)) effectsByUnit.set(r.unit_id, []);
+      effectsByUnit.get(r.unit_id).push(r.effect_code);
+    }
+  } catch (e) { /* 0043未適用 */ }
   return jsonResponse({
     units: rows.map(r => {
       const u = { unitId: r.unit_id, name: r.name, limited: !!r.limited, type: r.type, workId: r.work_id };
@@ -1291,8 +1308,27 @@ async function handleUnits(request, env) {
       if (r.wrap) u.wrap = r.wrap;
       const fit = r.scan_fit ? parseJsonArray(r.scan_fit) : null;
       if (fit) u.scanFit = fit;
+      if (r.range_min != null && r.range_max != null) { u.rangeMin = r.range_min; u.rangeMax = r.range_max; }
+      if (r.range_note) u.rangeNote = r.range_note;
+      const ef = effectsByUnit.get(r.unit_id);
+      if (ef) u.effects = ef;
       return u;
     })
+  }, 200, MASTER_CACHE);
+}
+
+// 75 GET /api/effects（認証不要）。ユニットの効果アイコン（属性武装・バフ・デバフ）のマスター。0043未適用なら空配列
+async function handleEffects(request, env) {
+  let rows;
+  try {
+    ({ results: rows } = await env.DB.prepare(
+      `SELECT effect_code, name, kind, sort_order FROM effects_master WHERE is_active = 1 ORDER BY sort_order, effect_code`
+    ).all());
+  } catch (e) {
+    return jsonResponse({ effects: [] }, 200);
+  }
+  return jsonResponse({
+    effects: rows.map(r => ({ code: r.effect_code, name: r.name, kind: r.kind, sortOrder: r.sort_order }))
   }, 200, MASTER_CACHE);
 }
 
@@ -2651,6 +2687,9 @@ export default {
 
     if (url.pathname === "/api/units" && request.method === "GET") {
       return handleUnits(request, env);
+    }
+    if (url.pathname === "/api/effects" && request.method === "GET") {
+      return handleEffects(request, env);
     }
     if (url.pathname === "/api/supporters" && request.method === "GET") {
       return handleSupporters(request, env);
