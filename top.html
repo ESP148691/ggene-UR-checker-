@@ -345,8 +345,8 @@
     </div>
   </section>
 
-  <!-- 75 ユニット一覧。段階1は運営者だけに表示（toggleAdminNav()が#unitListSectionも出す）。段階2でhiddenを外して全員に出す -->
-  <div class="section" id="unitListSection" hidden>
+  <!-- 75 ユニット一覧（2026-10-17公開。ログイン不要・全員に表示） -->
+  <div class="section" id="unitListSection">
     <p class="sectionLabel">ユニット一覧</p>
     <a class="navcard" href="/unit-list">
       <div class="icon" data-pool="unit"><img class="icoImg" alt="" aria-hidden="true"></div>
@@ -974,7 +974,7 @@
     if (!section) return;
     fetch('/api/admin/me', { credentials: 'same-origin' })
       .then(function(res){ return res.json(); })
-      .then(function(data){ if (data && data.admin === true) { section.hidden = false; var ul = document.getElementById('unitListSection'); if (ul) ul.hidden = false; } })
+      .then(function(data){ if (data && data.admin === true) { section.hidden = false; } })
       .catch(function(){ /* 失敗時は非表示のまま */ });
   }
 
