@@ -7,9 +7,9 @@ INSERT OR IGNORE INTO units_master (unit_id, name, limited, type, released_on, w
 -- 射程（キャラ能力込みの最大）：リボーンズ＝TRANS-AM EXの1-5＋リボンズ(超一撃)の特殊武装+1＝6／デュナメス＝超高高度射撃砲EXの2-5…最大5＋ロックオン(HP満タン・超強気以上)のビーム武装+1＝6
 UPDATE units_master SET range_min = 1, range_max = 6, range_note = NULL WHERE unit_id = 88;
 UPDATE units_master SET range_min = 1, range_max = 6, range_note = NULL WHERE unit_id = 89;
--- 効果アイコン：リボーンズ＝ビーム被ダメ上昇（TRANS-AM EX 35%）・特殊被ダメ上昇（GNフィンファング 25%）＝支援のビームダメージ上昇・特殊ダメージ上昇／デュナメス＝攻撃の属性武装（EX武装＝ビーム・特殊）
+-- 効果アイコン：リボーンズ＝EX武装（TRANS-AM EX）のビーム被ダメ上昇＝支援のビームダメージ上昇（ESP確認 10-17。GNフィンファングの特殊被ダメ上昇は出さない）／デュナメス＝攻撃の属性武装（EX武装＝ビーム・特殊）
 DELETE FROM units_effects WHERE rarity_code = 1 AND unit_id IN (88, 89);
-INSERT INTO units_effects (rarity_code, unit_id, effect_code, sort_order) VALUES (1, 88, 'dmg_beam_up', 1), (1, 88, 'dmg_special_up', 2), (1, 89, 'attr_beam', 1), (1, 89, 'attr_special', 2);
+INSERT INTO units_effects (rarity_code, unit_id, effect_code, sort_order) VALUES (1, 88, 'dmg_beam_up', 1), (1, 89, 'attr_beam', 1), (1, 89, 'attr_special', 2);
 -- 作品：機動戦士ガンダム00（work_id 15）
 INSERT OR REPLACE INTO unit_work_map (rarity_code, unit_id, work_id) VALUES (1, 88, 15), (1, 89, 15);
 -- タグ（wikiの表記。運営者がゲーム内ユニット詳細で確認したら source を 'game' に直す）
