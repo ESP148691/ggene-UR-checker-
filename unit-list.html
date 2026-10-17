@@ -39,6 +39,8 @@
   .chips{display:flex;flex-wrap:wrap;gap:5px;}
   .chips button{font:inherit;font-size:12px;color:var(--text);background:transparent;border:1px solid var(--line-strong);border-radius:14px;padding:4px 10px;cursor:pointer;}
   .chips button.on{background:rgba(218,185,73,.18);border-color:var(--gold);color:var(--gold);}
+  .chips .cg{flex-basis:100%;font-size:11px;color:var(--cyan);margin-top:4px;}
+  .chips .cg:first-child{margin-top:0;}
   .chips button:disabled{opacity:.35;cursor:default;}
   select{font:inherit;font-size:12.5px;color:var(--text);background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;padding:5px 6px;}
   .loginNote{font-size:11.5px;color:var(--muted);}
@@ -341,14 +343,20 @@ $("zoomFit").addEventListener("click",()=>{ zoomFit=true; applyZoom(); });
 window.addEventListener("resize",()=>{ if(zoomFit&&model) applyZoom(); });
 function renderChips(){
   const box=$("colChips"); box.textContent="";
-  const byCat=new Map();
-  leaderTagIds.map(id=>tagById.get(id)).filter(Boolean).sort((a,b)=>a.sortOrder-b.sortOrder).forEach(t=>{ if(!byCat.has(t.category)) byCat.set(t.category,[]); byCat.get(t.category).push(t); });
-  for(const [cat,list] of byCat) for(const t of list){
+  // 4大熟語タグ → 機体タグ → 主要タグ → そのほか
+  const avail=leaderTagIds.map(id=>tagById.get(id)).filter(Boolean).sort((a,b)=>a.sortOrder-b.sortOrder);
+  const used=new Set(), pick=names=>names.map(n=>avail.find(t=>t.name===n)).filter(t=>t&&!used.has(t.tagId)&&used.add(t.tagId));
+  const groups=[["4大熟語タグ",pick(JUKUGO_ROWS)],["機体タグ",pick(KIND_ROWS)],["主要タグ",pick(PRESETS.B.cols)],["そのほか",avail.filter(t=>!used.has(t.tagId))]];
+  for(const [gname,list] of groups) if(list.length){
+    box.appendChild(el("span",{class:"cg",text:gname}));
+    for(const t of list){
+    const cat=t.category;
     const on=state.cols.includes(t.name);
     const b=el("button",{type:"button",class:on?"on":"",title:cat,text:t.name});
     if(!on&&state.cols.length>=5) b.disabled=true;
     b.addEventListener("click",()=>{ const i=state.cols.indexOf(t.name); if(i>=0) state.cols.splice(i,1); else if(state.cols.length<5) state.cols.push(t.name); render(); });
     box.appendChild(b);
+    }
   }
 }
 function openSheet(u){
@@ -384,7 +392,13 @@ async function generateImage(){
     return Math.max(cell,sup,44);
   });
   const tableH=headH+rowH.reduce((a,b)=>a+b,0);
-  const TOP=84, legendH=64;
+  const FONT='"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif';
+  const TOP=96;
+  const LFONT='500 16px '+FONT, LIC=28, LROW=38;
+  const mctx=document.createElement("canvas").getContext("2d"); mctx.font=LFONT;
+  const litems=model.legend.map(e=>({e,w:LIC+6+mctx.measureText(e.name).width+22})).concat([{e:null,w:LIC+6+mctx.measureText("実装30日以内").width+22}]);
+  let lrows=1, lacc=0; litems.forEach(it=>{ if(lacc+it.w>W-PAD*2&&lacc>0){ lrows++; lacc=0; } it.row=lrows-1; it.x=lacc; lacc+=it.w; });
+  const legendH=24+lrows*LROW;
   const H=Math.ceil(TOP+tableH*k+legendH+PAD);
   // 先に画像を読む
   const urls=new Set(["images/logo.png"]);
@@ -396,7 +410,6 @@ async function generateImage(){
   try { await document.fonts.load('700 14px "Noto Sans JP"'); await document.fonts.load('700 17px "Rajdhani"'); } catch(e){}
   const S=2, cv=document.createElement("canvas"); cv.width=W*S; cv.height=H*S;
   const ctx=cv.getContext("2d"); ctx.scale(S,S);
-  const FONT='"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif';
   ctx.fillStyle="#05070d"; ctx.fillRect(0,0,W,H);
   const grad=ctx.createRadialGradient(W*.7,-60,0,W*.7,-60,W*.6); grad.addColorStop(0,"rgba(80,60,160,.3)"); grad.addColorStop(1,"rgba(80,60,160,0)");
   ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
@@ -404,8 +417,8 @@ async function generateImage(){
   const logo=imgs.get("images/logo.png"); if(logo) ctx.drawImage(logo,PAD,16,48,48);
   ctx.textBaseline="alphabetic"; ctx.fillStyle="#eef3f6"; ctx.font=`700 22px ${FONT}`;
   ctx.fillText(`${ymd()} タグ別UR機体一覧`,PAD+60,38);
-  ctx.fillStyle="#93a3b3"; ctx.font=`500 13px ${FONT}`;
-  ctx.fillText("※★は限定　※射程はキャラ能力含む最大値　※表の種類："+(PRESETS[state.preset].name)+(state.dim&&OWN?"（未所持を暗く）":""),PAD+60,60);
+  ctx.fillStyle="#b4c2d0"; ctx.font=`500 17px ${FONT}`;
+  ctx.fillText("※★は限定　※射程はキャラ能力含む最大値　※表の種類："+(PRESETS[state.preset].name)+(state.dim&&OWN?"（未所持を暗く）":""),PAD+60,64);
   const tag=CONFIG.xHandle; ctx.textAlign="right"; ctx.fillStyle="#5ad1d1"; ctx.font="13px monospace"; ctx.fillText(tag,W-PAD,38); ctx.textAlign="left";
   // 表
   ctx.save(); ctx.translate(PAD,TOP); ctx.scale(k,k);
@@ -478,12 +491,14 @@ async function generateImage(){
   });
   ctx.restore();
   // 凡例とフッター
-  const ly=TOP+tableH*k+22; let lx=PAD;
-  ctx.textBaseline="middle";
-  model.legend.forEach(e=>{ const im=imgs.get(ICON+e.code+".png"); if(im) ctx.drawImage(im,lx,ly-10,20,20); ctx.font=`500 12px ${FONT}`; ctx.fillStyle="#93a3b3"; ctx.textAlign="left"; ctx.fillText(e.name,lx+25,ly); lx+=25+ctx.measureText(e.name).width+16; if(lx>W-PAD-120){ lx=PAD; } });
-  ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; ctx.strokeRect(lx+1.5,ly-6.5,15,11); ctx.fillStyle="#93a3b3"; ctx.fillText("実装30日以内",lx+24,ly);
-  ctx.textBaseline="alphabetic"; ctx.fillStyle="#5ad1d1"; ctx.font=`700 13px ${FONT}`; ctx.fillText(CONFIG.hashtag,PAD,H-16);
-  ctx.textAlign="right"; ctx.fillStyle="#93a3b3"; ctx.font=`500 11px ${FONT}`; ctx.fillText("非公式ファンツール　掲載画像はすべて運営者のゲーム内スクリーンショット",W-PAD,H-16); ctx.textAlign="left";
+  const ly0=TOP+tableH*k+28;
+  ctx.textBaseline="middle"; ctx.textAlign="left";
+  litems.forEach(it=>{
+    const lx=PAD+it.x, ly=ly0+it.row*LROW+LROW/2-6;
+    if(it.e){ const im=imgs.get(ICON+it.e.code+".png"); if(im) ctx.drawImage(im,lx,ly-LIC/2,LIC,LIC); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText(it.e.name,lx+LIC+6,ly); }
+    else { ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; ctx.strokeRect(lx+1.5,ly-9.5,LIC-6,19); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("実装30日以内",lx+LIC+6,ly); }
+  });
+  ctx.textBaseline="alphabetic";
   return cv;
 }
 $("btnSave").addEventListener("click",async()=>{
