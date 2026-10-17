@@ -106,6 +106,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0043 | 75 `units_master`に`range_min`・`range_max`・`range_note`＋TBL`effects_master`・`units_effects`（**1回だけ**。再実行は`duplicate column name`） | 適用済み（2026-10-16 Claude Code） |
 | 0044 | 75 射程87機・効果アイコン13種・`units_effects`123件（86機）・ル・シーニュに「ニュータイプ専用機」（何度でも） | 適用済み（2026-10-16。確認：units 87・with_range 87・with_note 1／effects 13／links 123・units_with_effects 86／孤児0／タグ1件） |
 | 0045 | 75 UR機体のタグ修正：Zガンダム(17)に不撓不屈、レッドフレーム改(54)・天ミナ(55)にライバル（何度でも）。wiki・ESPのExcelと照合。リボーンズガンダム・イデオンはD1の87機に無い（新UR追加時に対応） | 適用済み（2026-10-17。不撓不屈17・ライバル28） |
+| 0046 | 新UR 2機：88 リボーンズガンダム（限定・支援）・89 ガンダムデュナメス（恒常・攻撃）。units_master・射程・効果・作品(00)・タグ・characters_master（何度でも） | 適用済み（2026-10-17。画像`images/units/88・89.jpg`は運営者が用意。タグはwiki出どころ＝ゲーム内で確認したら`source`を`game`に） |
 | 次の空き | 0041 | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
