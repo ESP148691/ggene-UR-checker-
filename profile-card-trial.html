@@ -2311,7 +2311,7 @@ async function init(){
       fetch("/api/tags").then(r => r.ok ? r.json() : null).catch(() => null),            // 51・52 失敗したら推し編成・タグ表示だけ無効
       fetch("/api/leader-skills").then(r => r.ok ? r.json() : null).catch(() => null),
       fetch("/api/characters").then(r => r.ok ? r.json() : null).catch(() => null),           // 56 失敗・空なら推しキャラ・乗せ替えだけ無効
-      Promise.resolve(null)   // SSR・ULTの推しユニット登録は保留（ESP 10-17）。/api/ssr-units を読まない＝「SSR・ULTから選ぶ」を出さない（再開時は fetch("/api/ssr-units") に戻す）
+      fetch("/api/ssr-units").then(r => r.ok ? r.json() : null).catch(() => null)             // 74 失敗・空なら「SSR・ULTから選ぶ」を出さない
     ]);
     if (cardRes.status === 401) { showGuard(); return; }
     if (!cardRes.ok) throw new Error("profile-card " + cardRes.status);
