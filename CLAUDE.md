@@ -36,14 +36,15 @@ Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェ�
 | ファイル | 役割 |
 |---|---|
 | `top.html` | トップ（`/`で配信）。チェッカー欄（ユニット・サポート・エタロ）、ログイン会員限定欄（データ登録結果レポート・**推し情報設定（72で一般公開・登録状況バッジ`showFavoriteRegStatus()`は`showRegStatus()`から）**・自己紹介カード`#profileCardNav`）、運営者欄`#adminSection`（X投稿用レポート・自己紹介カード（試用）・チャレンジ）。導線カードの登録状況バッジ`.regBadge`、アイコンのランダム表示（`UNIT_IMAGES`・`SUPPORTER_IMAGES`・`ETERNAL_ROAD_IMAGES`・`data-pool`）、説明文の下のインフォバナー（`INFO_FEED`・71。**1件ずつスライド（10秒）＋各件の説明文だけが右から左へ流れる**＝72の4.7。短い説明は流さない・`reduceMotion`では「…」省略）、フッターの相互リンク |
-| `unit.html` | URユニット所持率チェッカー（87機）。スクショ読み取り（`unit-scan.js`）・入手記録（入手日・ガシャ回数・メモ）つき。データ本体は`ur-units.js` |
+| `unit.html` | URユニット所持率チェッカー（87機）。スクショ読み取り（`unit-scan.js`）・入手記録（入手日・ガシャ回数・メモ）つき。データ本体は`ur-units.js`。並び順（実装順の昇順・降順。端末保存`urchecker_view_v1`）・未所持のみ表示・未所持0件でコンプリート表示（76） |
 | `ur-units.js` | URユニットの画面側マスター（`window.UR_UNITS`。`id`・`name`・`limited`・`type`・`imageUrl`・`released`（必須）・`wrap`（任意））。`unit.html`・`profile-card.html`が読む。**無いとユニットチェッカーが空になる**。実装日`released`はD1には無く、ここが正本 |
-| `supporter.html` | URサポート所持率チェッカー（50体。データは`const UNITS`）。スクショ読み取り（`supporter-scan.js`）つき。**改行コードCRLF**（CRLFのまま編集） |
+| `supporter.html` | URサポート所持率チェッカー（50体。データは`const UNITS`）。スクショ読み取り（`supporter-scan.js`）つき。**改行コードCRLF**（CRLFのまま編集）。並び順（端末保存`ggene_ur_supporter_view_v1`）・未所持のみ表示・コンプリート表示（76） |
+| `complete-banner.css` / `complete-banner.js` | 4チェッカー共通のコンプリート表示（76。虹色の枠・オーロラ・きらめき・弾ける演出。`CompleteBanner.mount(slot).update({...})`。パネルは`.cp-panel`＝challenge.htmlの既存`.complete`と衝突させない。`unit.html`・`supporter.html`・`eternal-road.html`・`challenge.html`が`</head>`直前で読む＝**無いと各ページが止まる**ので4ページと同じcommitで入れる） |
 | `unit-scan.js` / `supporter-scan.js` | スクショ読み取りの判定（`window.UnitScan`／`SupporterScan`、位置合わせ値`SCAN_FIT`） |
 | `analytics.html` | データ登録結果レポート（ログイン限定。ユニット・サポートのティアリスト＋エタロ攻略タブ） |
 | `analytics-admin.html` | 運営者向け分析（**運営者専用・恒久**＝ESPのみ。`adminGate()`。推し統計・所持率分布。64。API`/api/analytics/oshi`・`/distribution`も`requireAdmin`。一般公開しない） |
-| `eternal-road.html` | エタロ攻略チェッカー（EXPERT・29ステージ・69ミッション） |
-| `challenge.html` | チャレンジミッションチェッカー（HARDのみ・5シリーズ・15ステージ・30ミッション。㊵）。**一般公開済み**（2026-10-06。adminGate解除・トップの「チェッカー」欄へ移動） |
+| `eternal-road.html` | エタロ攻略チェッカー（EXPERT・29ステージ・69ミッション）。「未達成ミッションのみ」×全ミッション達成でコンプリート表示（76） |
+| `challenge.html` | チャレンジミッションチェッカー（HARDのみ・5シリーズ・15ステージ・30ミッション。㊵）。**一般公開済み**（2026-10-06。adminGate解除・トップの「チェッカー」欄へ移動）。「未達成ミッションのみ」×選択中シリーズタブの全ミッション達成でコンプリート表示（76） |
 | `profile-card.html` | 自己紹介カード（テンプレート5〔標準・エタロ攻略・推しユニット・推し編成・推しキャラ〕×背景3の16:9 Canvas。描画は`CardRenderer`）。**一般公開中**（10-01夜〜。推し編成・推しキャラは10-10〜）。追加改修は`profile-card-trial.html`（運営者専用）で試してから反映 |
 | `favorite-info.html` | 推し情報設定（68。推し4項目だけを登録。`/favorite-info`）。**段階1は運営者専用**（`adminGate()`）。本体は`#favoriteForm`だけで、`FavoriteForm`（`emptyMode:"hint"`）が4欄を出す。保存は`POST /api/favorite-info` |
 | `favorite-form.js` / `favorite-form.css` / `favorite-logic.js` | 推し4欄の共通部品（68。`window.FavoriteForm`）／そのCSS／`FormationLogic`（バフ対象判定）＋`WorkLabel`（作品名の通称）。`favorite-info.html`・`profile-card-trial.html`が使う（`profile-card.html`は段階2で切り替え） |
@@ -236,6 +237,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 68 推し情報設定ページ（段階1） | 10-11 | D1変更なし。新規`favorite-logic.js`（`FormationLogic`を移動＋`WorkLabel`。`CardRenderer`は`WorkLabel`を参照）・`favorite-form.js`/`.css`（試用版カードの推し4欄を動きを変えずに移した`FavoriteForm`。`emptyMode:"hide"`＝カード／`"hint"`＝推し情報設定）・`favorite-info.html`（運営者専用・下書き`favoriteinfo_draft_v1`・未保存表示・「自己紹介カードを作る ›」）。`worker.js`：`favoriteWorkStatements()`・`favoriteUnitStatements()`・`saveFormations()`・`saveFavoriteCharacters()`を`handleSaveProfile()`から切り出し、`POST /api/favorite-info`（送ったキーだけ処理・`user_profiles`行が無くても作る）・`GET /api/favorite-info/summary`。`profile-card-trial.html`を共通部品へ切り替え（推し欄の上に推し情報設定への案内を1行追加）。`top.html`運営者欄に導線と登録状況バッジ（`showFavoriteRegStatus()`）。検証：切り替え前後でカード画像15枚・`/api/profile`の送信本文・4欄の操作結果が一致、`/api/favorite-info`の保存・null・不正値・行なしユーザー、320/390/1024px、運営者以外・未ログイン・未登録ユーザーの案内。**`profile-card.html`への反映・一般公開は段階2（ESPの確認後）** |
 | ㊻ 推しユニットにSSR（C-1・C-2、試用版） | 10-12 | 0037をD1適用→push。`worker.js`：`normalizeFavoriteUnits()`（整数＝UR・`{"s":id}`＝SSR。SSRは所持確認なし・マスターに無いID／重複／合計5件超は400）、`favoriteUnitStatements()`が`rarity_code`を書く、`loadProfile`がSSR行も`rarityCode: 2`で返す。`ssr-units.js`・`images/ssr/`（332枚）。`favorite-form.js`：推しユニット欄に「URから選ぶ／SSRから選ぶ」（`SSR_UNITS`が空なら出ない。draftはUR＝整数・SSR＝`{s:id}`で持つ＝送信形式と同じ。依頼書の`{r,id}`より旧下書き互換を優先）。`profile-card-trial.html`・`favorite-info.html`が`ssr-units.js`を読む。カードはSSRバッジ（金）、画像`images/ssr/`。**本番`profile-card.html`は未反映**（SSR行を読み飛ばすだけ。本番で保存するとSSRの推しは消える）。反映は68の段階2と合わせる。`ssr-tool.html`（4-4）は段階B未実装のため未対応。`scripts/card_check/`への追加は未 |
 | ㊻ SSR作品の直し32件 | 10-12 | 0038をD1適用→`ssr-units.js`の`workId`32件を差し替えてpush。名前・タイプ・unit_id・画像は不変 |
+| 76 所持チェッカーの並び順・未所持のみ表示＋コンプリート表示 | 10-17 | D1・`worker.js`変更なし。`unit.html`・`supporter.html`：実装順（No.順）の古い順／新しい順（端末保存）・未所持のみ表示（所持にした行は切り替えるまで`keepIds`で残す）・未所持0件でコンプリート表示。`eternal-road.html`・`challenge.html`：「未達成ミッションのみ」ON×全達成でコンプリート表示（チャレンジはシリーズタブごと）。共通部品`complete-banner.css`/`.js`を新規追加。参考パッチ4本が`git apply --directory=checker`で通りそのまま適用。Playwright（Chrome・390px・APIモック）で8章と11.5のうち「参考実装で済み」の項目（unit/supporter 1〜9-5・14、E1〜E9）を再確認、全成功。残り＝ESP確認：8章9-6・10〜12、11.5のE10・E11（実機・本番データ）。依頼書：`docs/01_所持チェッカー・DB登録/76_…設計・実装依頼書.md` |
 | ㊼ | 10-03 | エタロ攻略にステージ30（機動戦士Vガンダム）を追加：全30ステージ・71ミッション（`eternal-road.html`の表記・合計、一括達成の確認文は`stages.length`参照に）、`images/eternal-road/30.jpg`・`icon/30.jpg`（`scripts/make_eternal_road_icons.py`更新）、`worker.js`、`top.html`、自己紹介カード`profile-card.html`・`profile-card-trial.html`のエタロ分母を30に、`migrations/0023_eternal_road_stage30.sql`（ミッション301・302）。0023はD1適用済み（2026-10-03ユーザー確認）。本番確認が残り |
 
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
