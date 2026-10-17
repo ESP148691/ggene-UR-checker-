@@ -393,11 +393,11 @@ async function generateImage(){
   const natW=RH+model.cols.reduce((a,c)=>a+colW(c),0);
   const W=1360, k=Math.min(1,(W-PAD*2)/natW);
   const supLines=(list,w)=>list.length?Math.ceil(list.length/Math.max(1,Math.floor((w-12+G)/(SW+G)))):0;
-  const headH=Math.max(44,...model.cols.map(c=>{ const n=supLines(c.leaders,colW(c)); return 12+22+(n?6+n*(SH+G)-G:0); }));
+  const headH=Math.max(44,...model.cols.map(c=>{ const n=supLines(c.leaders,colW(c)); return n?34+n*(SH+G)-G+8:34+10; }));
   const rowH=model.rows.map((r,ri)=>{
     const cell=Math.max(...model.cols.map((c,ci)=>{ const n=r.cells[ci].length, pr=Math.max(1,Math.floor((colW(c)-14+G)/(T+G))); return 12+Math.max(1,Math.ceil(n/pr))*(TH+G)-G; }));
-    const sup=r.leaders.length?12+22+6+supLines(r.leaders,RH)*(SH+G):0;
-    return Math.max(cell,sup,44);
+    const sup=r.leaders.length?50+supLines(r.leaders,RH)*(SH+G)-G+8:0;
+    return Math.max(cell,sup,52);
   });
   const tableH=headH+rowH.reduce((a,b)=>a+b,0);
   const FONT='"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif';
