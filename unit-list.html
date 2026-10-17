@@ -258,7 +258,7 @@ function buildModel(){
     rows.push({ name:"該当なし", color:GRAY, has:u=>!ids.some(t=>has(u,t)), hideIfEmpty:true });
   } else rows=[{ name:state.preset==="D"?"全UR":"すべて", color:GRAY, has:()=>true }];
   rows=rows.filter(r=>!r.hideIfEmpty||pool.some(u=>r.has(u)&&cols.some(c=>c.has(u))));
-  const per=n=>n>24?4:n>12?3:2;   // 1マスに並べる枚数（多い列ほど広く）
+  const per=n=>n>24?4:n>12?3:n>=2?2:1;   // 1マスに並べる枚数（多い列ほど広く）
   const colMax=cols.map(c=>Math.max(...rows.map(r=>pool.filter(u=>c.has(u)&&r.has(u)).length),0));
   const shown=new Set(pool.filter(u=>cols.some(c=>c.has(u))&&rows.some(r=>r.has(u))).map(u=>u.unitId));
   cols.forEach((c,i)=>{ c.per=per(colMax[i]); c.count=pool.filter(c.has).length; c.leaders=c.tag?leadersByTag.get(c.tag.tagId)||[]:[]; });
@@ -391,7 +391,8 @@ async function generateImage(){
   const T=92, TH=Math.round(T*.86), G=3, PAD=20, RH=132, SW=T-4, SH=Math.round((T-4)*.62);
   const colW=c=>T*c.per+14+3*c.per;
   const natW=RH+model.cols.reduce((a,c)=>a+colW(c),0);
-  const W=1360, k=Math.min(1,(W-PAD*2)/natW);
+  // 画像の幅：表が1320pxを超えるなら1360に縮小。収まるなら表の幅＋余白（最低1100）にし、余った分は表を拡大して使う（最大1.5倍）
+  const W=natW+PAD*2>1360?1360:Math.max(1100,natW+PAD*2), k=Math.min(natW+PAD*2>1360?1:1.5,(W-PAD*2)/natW);
   const supLines=(list,w)=>list.length?Math.ceil(list.length/Math.max(1,Math.floor((w-12+G)/(SW+G)))):0;
   const headH=Math.max(44,...model.cols.map(c=>{ const n=supLines(c.leaders,colW(c)); return n?34+n*(SH+G)-G+8:34+10; }));
   const rowH=model.rows.map((r,ri)=>{
