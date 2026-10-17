@@ -256,6 +256,8 @@
   .pageFooter a{color:var(--cyan);text-decoration:none;}
   .pageFooter a:hover{text-decoration:underline;}
 </style>
+<link rel="stylesheet" href="complete-banner.css">
+<script src="complete-banner.js"></script>
 </head>
 <!-- data-auth-stay: ログイン成功後にトップへ遷移せずこのページをリロードする（auth.js）。
      ㊵ 一般公開済み（2026-10-06）：guardView（未ログイン）→ loadChecker()（ログイン済み） -->
@@ -302,6 +304,7 @@
       <div class="toggleItem"><input type="checkbox" id="filterUnclearedMissions"><label for="filterUnclearedMissions">未達成ミッションのみ</label></div>
     </div>
 
+    <div id="completeSlot"></div>
     <div id="seriesList"></div>
     <div id="emptyMsg" class="emptyMsg" hidden>条件に一致するステージはありません</div>
 
@@ -568,6 +571,28 @@ function buildList(){
   }
 }
 
+/* 76 コンプリート表示（共通部品 complete-banner.js）：「未達成ミッションのみ」ON かつ 選択中のシリーズタブ（すべて＝全シリーズ）の
+   全ミッション達成のとき #completeSlot に出す。判定はミッションだけ（ステージクリア・ステータスタブは見ない）。
+   同じタブのまま最後のミッションを達成にした瞬間に弾ける */
+const completeBanner = CompleteBanner.mount(document.getElementById("completeSlot"));
+function updateComplete(){
+  const se = filter.series === "all" ? null : seriesList.find(x => String(x.series_code) === filter.series) || null;
+  const s = statsOf(se ? se.stages : stages);
+  const remaining = s.missionTotal - s.missionDone;
+  const all = computeStats();
+  return completeBanner.update({
+    show: filter.unclearedMissions && remaining === 0 && s.missionTotal > 0,
+    scopeKey: filter.series, remaining, allowBurst: userEditedSinceLoad,
+    kicker: "ALL MISSIONS CLEAR", ja: se ? "シリーズ全ミッション達成！" : "全ミッション達成！",
+    subHtml: se
+      ? `「${escapeHtml(se.series_name)}」 <b>${s.missionTotal}</b> / ${s.missionTotal} ミッション達成`
+      : `CHALLENGE HARD <b>${s.missionTotal}</b> / ${s.missionTotal} ミッション達成`,
+    stats: se
+      ? [["HARDクリア", `${s.stageClear} / ${s.stageTotal}`]]
+      : [["HARDクリア", `${s.stageClear} / ${s.stageTotal}`], ["シリーズ制覇", `${all.seriesDone} / ${all.seriesTotal}`]]
+  });
+}
+
 function refresh(){
   const counts = { all: 0, uncleared: 0, remaining: 0, perfect: 0 };
   let visibleCount = 0;
@@ -630,7 +655,8 @@ function refresh(){
   document.querySelectorAll("#statusTabs button").forEach(b => b.classList.toggle("active", b.dataset.status === filter.status));
   document.querySelectorAll("#statusTabs .cnt").forEach(c => { c.textContent = counts[c.dataset.cnt]; });
   document.getElementById("filterUnclearedMissions").checked = filter.unclearedMissions;
-  document.getElementById("emptyMsg").hidden = visibleCount > 0;
+  const completeShown = updateComplete();   // 76
+  document.getElementById("emptyMsg").hidden = visibleCount > 0 || completeShown;
   updateSummary();
 }
 

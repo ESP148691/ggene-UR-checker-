@@ -237,6 +237,8 @@
   .pageFooter a{color:var(--cyan);text-decoration:none;}
   .pageFooter a:hover{text-decoration:underline;}
 </style>
+<link rel="stylesheet" href="complete-banner.css">
+<script src="complete-banner.js"></script>
 </head>
 <!-- data-auth-stay: ログイン成功後にトップへ遷移せずこのページをリロードする（auth.js。ログイン案内からログインした人をそのままエタロに戻すため） -->
 <body data-auth-stay>
@@ -293,6 +295,7 @@
       <div class="toggleItem"><input type="checkbox" id="filterUnclearedMissions"><label for="filterUnclearedMissions">未達成ミッションのみ</label></div>
     </div>
 
+    <div id="completeSlot"></div>
     <div id="stageList"></div>
     <div id="emptyMsg" class="emptyMsg" hidden>条件に一致するステージはありません</div>
   </div>
@@ -516,6 +519,21 @@ function buildList(){
   }
 }
 
+/* 76 コンプリート表示（共通部品 complete-banner.js）：「未達成ミッションのみ」ON かつ 全ミッション達成のとき #completeSlot に出す。
+   判定はミッションだけ（ステージクリア・称号の絞り込み・ステータスタブは見ない）。最後のミッションを達成にした瞬間に弾ける */
+const completeBanner = CompleteBanner.mount(document.getElementById("completeSlot"));
+function updateComplete(){
+  const s = computeStats();
+  const remaining = s.missionTotal - s.missionDone;
+  return completeBanner.update({
+    show: filter.unclearedMissions && remaining === 0 && s.missionTotal > 0,
+    scopeKey: "all", remaining, allowBurst: userEditedSinceLoad,
+    kicker: "ALL MISSIONS CLEAR", ja: "全ミッション達成！",
+    subHtml: `エターナルロード EXPERT <b>${s.missionTotal}</b> / ${s.missionTotal} ミッション達成`,
+    stats: [["全達成ステージ", `${s.perfect} / ${s.stageTotal}`], ["称号", `${s.titleDone} / ${s.titleTotal}`]]
+  });
+}
+
 function refresh(){
   let visibleCount = 0;
   const counts = { all: 0, uncleared: 0, remaining: 0, perfect: 0 };
@@ -558,7 +576,8 @@ function refresh(){
   document.getElementById("filterTitleStage").checked = filter.titleStage;
   document.getElementById("filterTitleUnearned").checked = filter.titleUnearned;
   document.getElementById("filterUnclearedMissions").checked = filter.unclearedMissions;
-  document.getElementById("emptyMsg").hidden = visibleCount > 0;
+  const completeShown = updateComplete();   // 76
+  document.getElementById("emptyMsg").hidden = visibleCount > 0 || completeShown;
   updateSummary();
 }
 

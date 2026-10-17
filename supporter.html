@@ -90,6 +90,19 @@
   }
   .typetabs button.active{background:var(--gold);color:#1b1503;border-color:var(--gold);font-weight:700;}
 
+  /* 76 並び順・未所持のみ表示 */
+  .viewbar{display:flex;gap:6px;margin-bottom:12px;align-items:stretch;flex-wrap:wrap;}
+  .viewbar .seg{display:flex;flex:1 1 auto;min-width:0;border:1px solid var(--line);background:var(--panel);}
+  .viewbar .seg .seg-l{font-size:11px;color:var(--muted);padding:0 8px;display:flex;align-items:center;white-space:nowrap;border-right:1px solid var(--line);}
+  .viewbar .seg button{flex:1;font-family:'Rajdhani',sans-serif;font-weight:600;font-size:12.5px;background:transparent;border:0;color:var(--muted);padding:9px 4px;cursor:pointer;white-space:nowrap;}
+  .viewbar .seg button.active{background:var(--cyan);color:#06222a;font-weight:700;}
+  .viewbar .chip{flex:0 0 auto;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--line);padding:0 10px;cursor:pointer;user-select:none;white-space:nowrap;}
+  .viewbar .chip input{width:16px;height:16px;margin:0;accent-color:var(--cyan);}
+  .viewbar .chip.on{border-color:var(--cyan);color:var(--text);box-shadow:0 0 6px rgba(90,209,209,.25);}
+  .viewbar .chip .c{font-family:'Share Tech Mono',monospace;color:var(--cyan);}
+  .viewnote{font-size:11px;color:var(--muted);margin:-6px 0 10px;}
+  .list-empty{padding:28px 12px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--line);background:var(--panel-2);}
+
   .toolbar{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
   .toolbar button{
     flex:1 1 calc(25% - 5px);
@@ -312,6 +325,8 @@
   }
 </style>
 <script>document.documentElement.classList.add("loginLocked");</script>
+<link rel="stylesheet" href="complete-banner.css">
+<script src="complete-banner.js"></script>
 </head>
 <body data-auth-stay>
 
@@ -380,6 +395,17 @@
     <button data-type="複合">複合</button>
   </div>
 
+  <!-- 76 並び順・未所持のみ表示（実装順＝No.順） -->
+  <div class="viewbar" id="viewBar">
+    <div class="seg" role="group" aria-label="並び順">
+      <span class="seg-l">実装順</span>
+      <button type="button" data-sort="asc" aria-pressed="true" class="active">古い順</button>
+      <button type="button" data-sort="desc" aria-pressed="false">新しい順</button>
+    </div>
+    <label class="chip" id="onlyUnownedChip"><input type="checkbox" id="onlyUnowned"> 未所持のみ <span class="c" id="unownedCount">0</span></label>
+  </div>
+  <p class="viewnote" id="viewNote" hidden>所持にしたサポーターは、表示を切り替えると一覧から外れます</p>
+
   <div class="toolbar">
     <button id="btnAllZero">表示中を全て無凸に</button>
     <button id="btnAllMax">表示中を全て完凸に</button>
@@ -387,6 +413,7 @@
     <button id="btnNone">全解除</button>
   </div>
 
+  <div id="completeSlot"></div>
   <div class="list" id="list"></div>
 
   <footer class="pageFooter">
@@ -453,6 +480,7 @@ function persist(){
 
 function setLevel(id, level){
   userEditedSinceLoad = true;
+  if (onlyUnowned && level !== null) keepIds.add(id);   // 76
   if (level === null) delete state[id];
   else state[id] = level;
   persist(); render(); updateStats();
@@ -460,9 +488,73 @@ function setLevel(id, level){
 
 let currentType = "all";
 
-function visibleUnits(){
-  return currentType === "all" ? UNITS : UNITS.filter(u => u.healGroup === currentType);
+const TYPE_OF = (u) => u.healGroup;
+/* 76 並び順・未所持のみ表示。
+   並び順は No.（id）＝実装順。asc＝古い順（従来どおり）、desc＝新しい順。端末に記憶する（ggene_ur_supporter_view_v1）。
+   「未所持のみ」は記憶しない（次に開いたとき一覧が欠けて見えるのを避ける）。
+   未所持のみ表示中に所持にした行は、すぐには消さずに keepIds に入れて残す（押し間違いをその場で直せるように）。
+   keepIds は、並び順・タブ・未所持のみを切り替えたときに空にする */
+const VIEW_KEY = "ggene_ur_supporter_view_v1";
+let sortOrder = "asc";
+try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) || "null"); if (v && v.sort === "desc") sortOrder = "desc"; } catch (e) {}
+let onlyUnowned = false;
+const keepIds = new Set();
+
+function persistView(){
+  try { localStorage.setItem(VIEW_KEY, JSON.stringify({ sort: sortOrder })); } catch (e) {}
 }
+function isOwned(id){ return state.hasOwnProperty(id); }
+function typeUnits(){
+  return currentType === "all" ? UNITS : UNITS.filter(u => TYPE_OF(u) === currentType);
+}
+function visibleUnits(){
+  let list = typeUnits();
+  if (onlyUnowned) list = list.filter(u => !isOwned(u.id) || keepIds.has(u.id));
+  list = list.slice().sort((a, b) => sortOrder === "desc" ? b.id - a.id : a.id - b.id);
+  return list;
+}
+function resetKeep(){ keepIds.clear(); }
+function updateViewBar(){
+  document.querySelectorAll("#viewBar [data-sort]").forEach(b => {
+    const on = b.dataset.sort === sortOrder;
+    b.classList.toggle("active", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  document.getElementById("onlyUnowned").checked = onlyUnowned;
+  document.getElementById("onlyUnownedChip").classList.toggle("on", onlyUnowned);
+  document.getElementById("unownedCount").textContent = typeUnits().filter(u => !isOwned(u.id)).length;
+  document.getElementById("viewNote").hidden = !(onlyUnowned && keepIds.size > 0);
+}
+/* コンプリート表示（共通部品 complete-banner.js）：未所持のみ表示中に、今のタブの範囲で未所持が0件のとき #completeSlot に出す
+   （所持にして残っている行＝keepIds があっても出す。最後の1つを押した瞬間に弾ける） */
+const completeBanner = CompleteBanner.mount(document.getElementById("completeSlot"));
+function renderEmpty(){
+  const units = typeUnits();
+  const n = units.filter(u => !isOwned(u.id)).length;
+  const total = units.length;
+  const maxN = units.filter(u => state[u.id] === 3).length;
+  const avg = total ? units.reduce((a, u) => a + (state[u.id] || 0), 0) / total : 0;
+  const label = currentType === "all" ? "URサポーター" : "「" + CompleteBanner.escape(currentType) + "」";
+  const shown = completeBanner.update({
+    show: onlyUnowned && n === 0 && total > 0, scopeKey: currentType, remaining: n, allowBurst: userEditedSinceLoad,
+    kicker: "ALL OWNED", ja: "コンプリート！",
+    subHtml: `${label} <b>${total}</b> / ${total} 体 すべて所持`,
+    stats: [["完凸", `${maxN} / ${total}`], ["平均凸Lv", avg.toFixed(1)]]
+  });
+  if (shown || listEl.children.length) return;
+  const d = document.createElement("div");
+  d.className = "list-empty";
+  d.textContent = onlyUnowned ? "未所持のサポーターはありません" : "表示するサポーターがありません";
+  listEl.appendChild(d);
+}
+document.getElementById("viewBar").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-sort]");
+  if (!b || b.dataset.sort === sortOrder) return;
+  sortOrder = b.dataset.sort; persistView(); resetKeep(); render();
+});
+document.getElementById("onlyUnowned").addEventListener("change", (e) => {
+  onlyUnowned = e.target.checked; resetKeep(); render();
+});
+
 
 function render(){
   listEl.innerHTML = "";
@@ -487,6 +579,8 @@ function render(){
     `;
     listEl.appendChild(row);
   });
+  renderEmpty();
+  updateViewBar();
 }
 
 listEl.addEventListener("click", (e) => {
@@ -544,15 +638,16 @@ document.getElementById("typeTabs").addEventListener("click", (e) => {
   const btn = e.target.closest("button");
   if (!btn) return;
   currentType = btn.dataset.type;
+  resetKeep();   // 76
   document.querySelectorAll("#typeTabs button").forEach(b => b.classList.toggle("active", b === btn));
   render();
 });
 
 document.getElementById("btnAllZero").addEventListener("click", () => {
-  visibleUnits().forEach(u => state[u.id] = 0); persist(); render(); updateStats();
+  visibleUnits().forEach(u => { state[u.id] = 0; if (onlyUnowned) keepIds.add(u.id); }); persist(); render(); updateStats();
 });
 document.getElementById("btnAllMax").addEventListener("click", () => {
-  visibleUnits().forEach(u => state[u.id] = 3); persist(); render(); updateStats();
+  visibleUnits().forEach(u => { state[u.id] = 3; if (onlyUnowned) keepIds.add(u.id); }); persist(); render(); updateStats();
 });
 document.getElementById("btnLimited").addEventListener("click", () => {
   state = {};
