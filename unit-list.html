@@ -82,7 +82,7 @@
     text-shadow:-1.5px -1.5px 0 #000,1.5px -1.5px 0 #000,-1.5px 1.5px 0 #000,1.5px 1.5px 0 #000,0 0 6px rgba(255,210,60,.95),0 0 12px rgba(255,170,0,.7);}
   .tile.new::after{content:"";position:absolute;inset:0;border:3px solid #ff3b3b;border-radius:4px;z-index:5;pointer-events:none;}
   .tile.dim img.u,.tile.dim img.ty{filter:grayscale(1) brightness(.45);}
-  .tile .lv{position:absolute;left:24%;bottom:2px;font-size:10px;color:#fff;background:rgba(10,14,20,.75);border-radius:3px;padding:0 3px;}
+  .tile .lv{position:absolute;left:50%;transform:translateX(-50%);bottom:2px;font-size:12px;line-height:15px;color:#fff;background:rgba(10,14,20,.75);border-radius:3px;padding:0 4px;white-space:nowrap;}
   /* 完凸（凸表示ON）：虹色の枠＋白い光。UR所持率チェッカーの完凸表現と同じ配色（10-17） */
   /* 完凸：虹は絵の外側に出し（絵と同系色で埋もれるため・10-18）、絵の縁は黒の細線で切り離す */
   .tile.max{overflow:visible;z-index:1;border-color:#000;box-shadow:0 0 7px 2px rgba(255,255,255,.45),0 0 12px 3px rgba(196,113,245,.45);}
@@ -101,7 +101,7 @@
     background:conic-gradient(from 225deg,#ff5f6d,#ffc371,#fff27a,#9dff8a,#5bd8ef,#5b8def,#c471f5,#ff5f6d);
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;}
   .tile.max.new::after{inset:0;border-radius:3px;}
-  .tile .lv.max{color:#1b1503;font-weight:900;font-size:12px;line-height:15px;padding:0 6px;border:1px solid #000;border-radius:4px;box-shadow:0 0 3px rgba(0,0,0,.9);background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);}
+  .tile .lv.max{color:#1b1503;font-weight:900;font-size:10px;line-height:12px;padding:0 4px;border:1px solid #000;border-radius:4px;box-shadow:0 0 3px rgba(0,0,0,.9);background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);}
   /* ログイン中の所持率・完凸率（表に載っているURが対象） */
   .ownStats{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;font-size:12.5px;color:var(--muted);}
   .ownStats b{font-family:"Share Tech Mono",monospace;font-size:17px;color:var(--gold);margin:0 3px;}
@@ -615,11 +615,11 @@ async function generateImage(){
         if(!hideInfo&&u.rangeNote) outline(u.rangeNote,tx+T-3,ty+31,`700 11px ${FONT}`,"right");
         const isMax=MAXON&&own===3;
         if(state.lv&&OWN&&own!==undefined){
-          const bx=tx+T*.24;
+          const bx=tx+T/2;
           // 完凸の札は大きめ（13px・黒い縁取り）で、縮小して見ても読めるように
-          if(isMax){ const bw2=40,bh2=17,by2=ty+TH-bh2-2; ctx.save(); ctx.shadowColor="rgba(0,0,0,.9)"; ctx.shadowBlur=3; rr(bx,by2,bw2,bh2,4); ctx.fillStyle=rainbowBar(bx,bw2); ctx.fill(); ctx.restore();
-            ctx.strokeStyle="#000"; ctx.lineWidth=1.2; rr(bx,by2,bw2,bh2,4); ctx.stroke(); txt("完凸",bx+bw2/2,by2+13.5,`900 13px ${FONT}`,"#1b1503","center"); }
-          else { ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(bx,ty+TH-14,26,12); txt(LV_LABEL[own]||"",bx+3,ty+TH-4,`10px ${FONT}`,"#fff"); }
+          if(isMax){ const bw2=32,bh2=14,by2=ty+TH-bh2-2; ctx.save(); ctx.shadowColor="rgba(0,0,0,.9)"; ctx.shadowBlur=3; rr(bx-bw2/2,by2,bw2,bh2,4); ctx.fillStyle=rainbowBar(bx-bw2/2,bw2); ctx.fill(); ctx.restore();
+            ctx.strokeStyle="#000"; ctx.lineWidth=1.2; rr(bx-bw2/2,by2,bw2,bh2,4); ctx.stroke(); txt("完凸",bx,by2+11.5,`900 11px ${FONT}`,"#1b1503","center"); }
+          else { ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(bx-17,ty+TH-19,34,17); txt(LV_LABEL[own]||"",bx,ty+TH-6,`12px ${FONT}`,"#fff","center"); }
         }
         if(u.limited) star(tx+3,ty+TH-5,23);
         // 実装30日以内の赤枠（完凸の時は虹枠の黒線の内側に沿わせる）
