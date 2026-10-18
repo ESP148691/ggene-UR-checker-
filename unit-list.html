@@ -69,7 +69,7 @@
   .sup .sk{position:absolute;right:2px;bottom:1px;font-size:11px;font-weight:900;color:#ff5a5a;text-shadow:0 0 2px #000,0 0 3px #000;}
   .sup .cond{position:absolute;left:2px;top:1px;font-size:10px;color:#fff;background:rgba(10,14,20,.75);border-radius:3px;padding:0 3px;}
   .star{position:absolute;color:#ffd84d;text-shadow:0 0 2px #000,0 0 2px #000;line-height:1;}
-  .sup .star{left:1px;bottom:-1px;font-size:20px;color:#ffe14d;text-shadow:-1.5px -1.5px 0 #000,1.5px -1.5px 0 #000,-1.5px 1.5px 0 #000,1.5px 1.5px 0 #000,0 0 6px rgba(255,210,60,.95);}
+  .sup .star{left:2px;bottom:2px;font-size:18px;color:#ffe14d;text-shadow:-1.5px -1.5px 0 #000,1.5px -1.5px 0 #000,-1.5px 1.5px 0 #000,1.5px 1.5px 0 #000,0 0 6px rgba(255,210,60,.95);}
   .tile{position:relative;isolation:isolate;width:var(--tile);height:calc(var(--tile) * .86);border-radius:4px;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,.12);background:#1a2433;padding:0;}
   .tile img.u{width:100%;height:100%;object-fit:cover;display:block;}
   .tile .ty{position:absolute;left:1px;top:1px;width:24%;}
@@ -83,6 +83,34 @@
   .tile.new::after{content:"";position:absolute;inset:0;border:3px solid #ff3b3b;border-radius:4px;z-index:5;pointer-events:none;}
   .tile.dim img.u{filter:grayscale(1) brightness(.45);}
   .tile .lv{position:absolute;left:24%;bottom:2px;font-size:10px;color:#fff;background:rgba(10,14,20,.75);border-radius:3px;padding:0 3px;}
+  /* 完凸（凸表示ON）：虹色の枠＋白い光。UR所持率チェッカーの完凸表現と同じ配色（10-17） */
+  /* 完凸：虹は絵の外側に出し（絵と同系色で埋もれるため・10-18）、絵の縁は黒の細線で切り離す */
+  .tile.max{overflow:visible;z-index:1;border-color:#000;box-shadow:0 0 7px 2px rgba(255,255,255,.45),0 0 12px 3px rgba(196,113,245,.45);}
+  .tile.max img.u{border-radius:3px;}
+  /* サポートの完凸（凸表示ON）：ユニットと同じ外側の虹枠。凸段階の札は右上 */
+  .sup.max{overflow:visible;z-index:1;border-color:#000;box-shadow:0 0 6px 1px rgba(255,255,255,.4),0 0 10px 2px rgba(196,113,245,.4);}
+  .sup.max img{border-radius:3px;}
+  .sup .lv{position:absolute;right:2px;top:1px;font-size:10px;color:#fff;background:rgba(10,14,20,.75);border-radius:3px;padding:0 3px;z-index:7;}
+  .sup .lv.max{color:#1b1503;font-weight:900;font-size:11px;line-height:14px;padding:0 4px;border:1px solid #000;border-radius:4px;background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);}
+  /* 完凸サポートのバフ対象（その列・行）を細い虹枠で囲む */
+  .matrix{position:relative;}
+  .area{position:absolute;inset:1px;pointer-events:none;z-index:4;border-radius:5px;padding:2px;
+    background:conic-gradient(from 225deg,#ff5f6d,#ffc371,#fff27a,#9dff8a,#5bd8ef,#5b8def,#c471f5,#ff5f6d);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;filter:drop-shadow(0 0 3px rgba(255,255,255,.6));}
+  .legend .areak{display:inline-block;width:22px;height:14px;border-radius:3px;vertical-align:middle;margin-right:4px;border:2px solid transparent;
+    background:linear-gradient(#05070d,#05070d) padding-box,conic-gradient(from 225deg,#ff5f6d,#ffc371,#fff27a,#9dff8a,#5bd8ef,#5b8def,#c471f5,#ff5f6d) border-box;}
+  .tile.max::before,.sup.max::before{content:"";position:absolute;inset:-2.5px;border-radius:6px;padding:2.5px;z-index:6;pointer-events:none;
+    background:conic-gradient(from 225deg,#ff5f6d,#ffc371,#fff27a,#9dff8a,#5bd8ef,#5b8def,#c471f5,#ff5f6d);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;}
+  .tile.max.new::after{inset:0;border-radius:3px;}
+  .tile .lv.max{color:#1b1503;font-weight:900;font-size:12px;line-height:15px;padding:0 6px;border:1px solid #000;border-radius:4px;box-shadow:0 0 3px rgba(0,0,0,.9);background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);}
+  /* ログイン中の所持率・完凸率（表に載っているURが対象） */
+  .ownStats{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;font-size:12.5px;color:var(--muted);}
+  .ownStats b{font-family:"Share Tech Mono",monospace;font-size:17px;color:var(--gold);margin:0 3px;}
+  .ownStats .av b{color:var(--cyan);}
+  .ownStats .rb b{background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5bd8ef,#c471f5);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .legend .maxk{display:inline-block;width:18px;height:14px;border-radius:2px;vertical-align:middle;margin-right:4px;border:2px solid transparent;
+    background:linear-gradient(#0b1119,#0b1119) padding-box,conic-gradient(from 225deg,#ff5f6d,#ffc371,#fff27a,#9dff8a,#5bd8ef,#5b8def,#c471f5,#ff5f6d) border-box;}
   .empty{font-size:11px;color:var(--muted);padding:4px;}
   .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-top:12px;align-items:center;}
   .legend img{width:22px;height:22px;vertical-align:middle;margin-right:4px;border-radius:3px;}
@@ -150,6 +178,7 @@
       <div class="row">
         <label id="optDimLabel" hidden><input type="checkbox" id="optDim"> 未所持を暗くする</label>
         <label id="optLvLabel" hidden><input type="checkbox" id="optLv"> 凸表示</label>
+        <span class="ownStats" id="ownStats" hidden></span>
         <span class="loginNote" id="loginNote" hidden>ログインすると自分の所持を重ねて見られます（<a id="loginNoteLink">ログイン</a>）</span>
       </div>
     </div>
@@ -264,8 +293,20 @@ function buildModel(){
   cols.forEach((c,i)=>{ c.per=per(colMax[i]); c.count=pool.filter(c.has).length; c.leaders=c.tag?leadersByTag.get(c.tag.tagId)||[]:[]; });
   rows.forEach(r=>{ r.count=pool.filter(r.has).length; r.leaders=r.tag?leadersByTag.get(r.tag.tagId)||[]:[]; });
   rows.forEach(r=>{ r.cells=cols.map(c=>sortUnits(pool.filter(u=>c.has(u)&&r.has(u)))); });
+  // 完凸サポートがいる列・行（凸表示ON・サポート所持データがある時だけ）
+  const supMax=x=>!!(state.lv&&SOWN&&x.leaders.some(L=>SOWN.get(L.s.id)===3));
+  cols.forEach(c=>c.supMax=supMax(c)); rows.forEach(r=>r.supMax=supMax(r));
   const used=new Set(); for(const id of shown){ if(state.dim&&OWN&&!OWN.has(id)) continue; (unitById.get(id).effects||[]).forEach(c=>used.add(c)); }
-  return { cols, rows, shown:shown.size, legend:[...effByCode.values()].filter(e=>used.has(e.code)) };
+  return { cols, rows, shown:shown.size, stats:ownStats(shown), anyArea:cols.concat(rows).some(x=>x.supMax), legend:[...effByCode.values()].filter(e=>used.has(e.code)) };
+}
+
+// 所持率・完凸率（表に載っているURが対象。ログインして所持データがある人だけ。未登録＝0件なら出さない）
+function ownStats(ids){
+  if(!OWN||!OWN.size||!ids.size) return null;
+  let own=0, max=0, sum=0; for(const id of ids){ const lv=OWN.get(id); if(lv!==undefined){ own++; sum+=lv; if(lv===3) max++; } }
+  const total=ids.size, pct=n=>Math.round(n/total*100);
+  // 平均凸Lv：所持しているユニットの凸段階（0〜3）の平均。UR所持率チェッカーと同じ定義
+  return { total, own, max, ownPct:pct(own), maxPct:pct(max), avg:own?sum/own:0, all:total===units.length };
 }
 
 // ---- 画面 ----
@@ -282,11 +323,14 @@ function supChip(L){
   const d=el("div",{class:"sup"+(sdim?" dim":""),title:`${s.name}（${s.skill}${L.conds>1?"・条件"+L.conds+"つ":""}）`},[el("img",{src:`${IMG}supporters/${s.id}.jpg`,alt:"",loading:"lazy"}),sdim?null:el("span",{class:"sk",text:sk})]);
   if(s.limited) d.appendChild(el("span",{class:"star",text:"★"}));
   if(L.conds>1) d.appendChild(el("span",{class:"cond",text:"＋条件"}));
+  const slv=SOWN?SOWN.get(s.id):undefined;
+  if(state.lv&&SOWN&&slv!==undefined){ d.appendChild(el("span",{class:"lv"+(slv===3?" max":""),text:LV_LABEL[slv]||""})); if(slv===3) d.classList.add("max"); }
   return d;
 }
 function tile(u){
   const own=OWN?OWN.get(u.unitId):undefined;
-  const t=el("button",{type:"button",class:"tile"+(isNew(u)?" new":"")+(state.dim&&OWN&&own===undefined?" dim":""),"aria-label":u.name});
+  const isMax=state.lv&&OWN&&own===3;   // 凸表示ONの完凸は虹色の枠
+  const t=el("button",{type:"button",class:"tile"+(isNew(u)?" new":"")+(state.dim&&OWN&&own===undefined?" dim":"")+(isMax?" max":""),"aria-label":u.name});
   t.appendChild(el("img",{class:"u",src:`${IMG}units/${u.unitId}.jpg`,alt:"",loading:"lazy"}));
   t.appendChild(el("img",{class:"ty",src:ICON+TYPE_ICON[u.type]+".png",alt:u.type}));
   const hideInfo=state.dim&&OWN&&own===undefined;   // 未所持を暗くする時は射程・武装・効果アイコンも消す
@@ -294,7 +338,7 @@ function tile(u){
   if(!hideInfo&&u.rangeNote) t.appendChild(el("span",{class:"note",text:u.rangeNote}));
   if(!hideInfo&&u.effects&&u.effects.length){ const ef=el("span",{class:"ef"}); u.effects.forEach(c=>ef.appendChild(el("img",{src:ICON+c+".png",alt:effName(c)}))); t.appendChild(ef); }
   if(u.limited) t.appendChild(el("span",{class:"star",text:"★"}));
-  if(state.lv&&OWN&&own!==undefined) t.appendChild(el("span",{class:"lv",text:LV_LABEL[own]||""}));
+  if(state.lv&&OWN&&own!==undefined) t.appendChild(el("span",{class:"lv"+(isMax?" max":""),text:LV_LABEL[own]||""}));
   t.addEventListener("click",()=>openSheet(u));
   return t;
 }
@@ -322,9 +366,20 @@ function render(){
       m.appendChild(cell);
     });
   });
+  // 完凸サポートのバフ対象（列・行）を細い虹枠で囲む（凸表示ON・サポート所持データがある時）
+  model.cols.forEach((c,ci)=>{ if(c.supMax) m.appendChild(el("div",{class:"area",style:`grid-column:${ci+2};grid-row:1 / span ${model.rows.length+1}`})); });
+  model.rows.forEach((r,ri)=>{ if(r.supMax) m.appendChild(el("div",{class:"area",style:`grid-column:1 / -1;grid-row:${ri+2}`})); });
+  const st=model.stats, os=$("ownStats"); os.textContent=""; os.hidden=!st;
+  if(st){
+    const one=(cls,label,n,p)=>el("span",{class:cls},[document.createTextNode(label),el("b",{text:p+"%"}),document.createTextNode(`（${n}/${st.total}機）`)]);
+    os.appendChild(one("","所持率",st.own,st.ownPct)); os.appendChild(one("rb","完凸率",st.max,st.maxPct));
+    os.appendChild(el("span",{class:"av"},[document.createTextNode("平均凸Lv"),el("b",{text:st.avg.toFixed(1)})]));
+  }
   const lg=$("legend"); lg.textContent="";
   model.legend.forEach(e=>lg.appendChild(el("span",{},[el("img",{src:ICON+e.code+".png",alt:""}),document.createTextNode(e.name)])));
   lg.appendChild(el("span",{},[el("span",{class:"newk"}),document.createTextNode("実装30日以内")]));
+  if(state.lv&&OWN) lg.appendChild(el("span",{},[el("span",{class:"maxk"}),document.createTextNode("完凸")]));
+  if(model.anyArea) lg.appendChild(el("span",{},[el("span",{class:"areak"}),document.createTextNode("完凸サポートの対象")]));
   applyZoom();
   writeUrl();
 }
@@ -402,10 +457,12 @@ async function generateImage(){
   });
   const tableH=headH+rowH.reduce((a,b)=>a+b,0);
   const FONT='"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif';
-  const TOP=96;
+  const ST=model.stats, MAXON=state.lv&&OWN;   // ST：所持率・完凸率（ログインして所持データがある時だけ）
+  const TOP=96;   // 画像の大きさはスマホ表示に合わせた今のまま（所持率などはヘッダー内に収める）
   const LFONT='500 16px '+FONT, LIC=28, LROW=38;
   const mctx=document.createElement("canvas").getContext("2d"); mctx.font=LFONT;
-  const litems=model.legend.map(e=>({e,w:LIC+6+mctx.measureText(e.name).width+22})).concat([{e:null,w:LIC+6+mctx.measureText("実装30日以内").width+22}]);
+  const lw=s=>LIC+6+mctx.measureText(s).width+22;
+  const litems=model.legend.map(e=>({e,w:lw(e.name)})).concat([{k:"new",w:lw("実装30日以内")}]).concat(MAXON?[{k:"max",w:lw("完凸")}]:[]).concat(model.anyArea?[{k:"area",w:lw("完凸サポートの対象")}]:[]);
   let lrows=1, lacc=0; litems.forEach(it=>{ if(lacc+it.w>W-PAD*2&&lacc>0){ lrows++; lacc=0; } it.row=lrows-1; it.x=lacc; lacc+=it.w; });
   const legendH=24+lrows*LROW;
   const H=Math.ceil(TOP+tableH*k+legendH+PAD);
@@ -427,15 +484,67 @@ async function generateImage(){
   ctx.textBaseline="alphabetic"; ctx.fillStyle="#eef3f6"; ctx.font=`700 22px ${FONT}`;
   ctx.fillText(`${ymd()} タグ別UR機体一覧`,PAD+84,40);
   ctx.fillStyle="#b4c2d0"; ctx.font=`500 17px ${FONT}`;
-  ctx.fillText("※★は限定　※射程はキャラ能力含む最大値　※表の種類："+(PRESETS[state.preset].name)+(state.dim&&OWN?"（未所持を暗く）":""),PAD+84,68);
-  const tag=CONFIG.xHandle; ctx.textAlign="right"; ctx.fillStyle="#5ad1d1"; ctx.font="13px monospace"; ctx.fillText(tag,W-PAD,38); ctx.textAlign="left";
+  const opts=[state.dim&&OWN?"未所持を暗く":"",MAXON?"凸表示":""].filter(Boolean).join("・");
+  ctx.fillText("※★は限定　※射程はキャラ能力含む最大値　※表の種類："+(PRESETS[state.preset].name)+(opts?"（"+opts+"）":""),PAD+84,68);
+  const txt=(s,x,y,font,color,align)=>{ ctx.font=font; ctx.fillStyle=color; ctx.textAlign=align||"left"; ctx.fillText(s,x,y); ctx.textAlign="left"; };
+  const rr=(x,y,w,h,r)=>{ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); };
+  // 虹色（UR所持率チェッカーの完凸と同じ配色）。枠は円すい状（各辺で色が回る）、帯・文字は横向き
+  const RAINBOW=["#ff5f6d","#ffc371","#fff27a","#9dff8a","#5bd8ef","#5b8def","#c471f5","#ff5f6d"];
+  const rainbowRing=(x,y,w,h)=>{ let g; if(ctx.createConicGradient){ g=ctx.createConicGradient(Math.PI*1.25,x+w/2,y+h/2); } else g=ctx.createLinearGradient(x,y,x+w,y+h);
+    RAINBOW.forEach((c,i)=>g.addColorStop(i/(RAINBOW.length-1),c)); return g; };
+  const rainbowBar=(x,w)=>{ const g=ctx.createLinearGradient(x,0,x+w,0); RAINBOW.slice(0,-1).forEach((c,i,a)=>g.addColorStop(i/(a.length-1),c)); return g; };
+  // 所持率・完凸率・平均凸Lv（ログインして所持データがある時だけ）。画像の大きさは変えず、タイトル行の右の空きに小さな札で並べる
+  const sub="※★は限定　※射程はキャラ能力含む最大値　※表の種類："+(PRESETS[state.preset].name)+(opts?"（"+opts+"）":"");
+  ctx.font=`500 17px ${FONT}`; const subEnd=PAD+84+ctx.measureText(sub).width;
+  const handle=CONFIG.xHandle; ctx.font="13px monospace"; const hw=ctx.measureText(handle).width;
+  if(!ST){ txt(handle,W-PAD,38,"13px monospace","#5ad1d1","right"); }
+  else {
+    // @ハンドルは副題の右に入るならそこへ、入らなければ右上の端へ
+    if(subEnd+24+hw<=W-PAD) txt(handle,W-PAD,68,"13px monospace","#5ad1d1","right"); else txt(handle,W-PAD,13,"12px monospace","#5ad1d1","right");
+    ctx.font=`700 22px ${FONT}`; const titleEnd=PAD+84+ctx.measureText(`${ymd()} タグ別UR機体一覧`).width;
+    const LF=`700 13px ${FONT}`, VF='700 20px "Share Tech Mono",monospace', CF=`500 12px ${FONT}`, CH=30, CY=20, GAP=8, IP=10;
+    const items=[
+      {l:"所持率",v:ST.ownPct+"%",c:`${ST.own}/${ST.total}機`,col:"#dab949"},
+      {l:"完凸率",v:ST.maxPct+"%",c:`${ST.max}/${ST.total}機`,rb:true},
+      {l:"平均凸Lv",v:ST.avg.toFixed(1),c:"",col:"#6be0e0"}];
+    const mw=(f,t)=>{ ctx.font=f; return t?ctx.measureText(t).width:0; };
+    items.forEach(it=>{ it.lw=mw(LF,it.l); it.vw=mw(VF,it.v); it.cw=mw(CF,it.c); it.w=IP+it.lw+6+it.vw+(it.c?5+it.cw:0)+IP; });
+    const tw=items.reduce((a,it)=>a+it.w,0)+GAP*(items.length-1), avail=W-PAD-(titleEnd+20), f=Math.min(1,avail/tw);
+    ctx.save(); ctx.translate(W-PAD-tw*f,CY); ctx.scale(f,f);
+    let cx=0; ctx.textBaseline="middle";
+    items.forEach(it=>{
+      ctx.save(); rr(cx,0,it.w,CH,7); ctx.fillStyle="rgba(16,22,32,.85)"; ctx.fill();
+      if(it.rb){ ctx.shadowColor="rgba(196,113,245,.55)"; ctx.shadowBlur=6; ctx.strokeStyle=rainbowRing(cx,0,it.w,CH); ctx.lineWidth=1.5; }
+      else { ctx.strokeStyle=it.col==="#dab949"?"rgba(218,185,73,.55)":"rgba(107,224,224,.45)"; ctx.lineWidth=1; }
+      rr(cx+.5,.5,it.w-1,CH-1,7); ctx.stroke(); ctx.restore();
+      let x=cx+IP; txt(it.l,x,CH/2+1,LF,"#b4c2d0"); x+=it.lw+6;
+      txt(it.v,x,CH/2+1,VF,it.rb?rainbowBar(x,it.vw):it.col); x+=it.vw+5;
+      if(it.c) txt(it.c,x,CH/2+1,CF,"#93a3b3");
+      cx+=it.w+GAP;
+    });
+    ctx.restore(); ctx.textBaseline="alphabetic";
+  }
   // 表
   ctx.save(); ctx.translate(PAD,TOP); ctx.scale(k,k);
-  const txt=(s,x,y,font,color,align)=>{ ctx.font=font; ctx.fillStyle=color; ctx.textAlign=align||"left"; ctx.fillText(s,x,y); ctx.textAlign="left"; };
   const mix=(hex,a,base)=>{ const p=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)); const c=p(hex), b=p(base); return `rgb(${c.map((v,i)=>Math.round(v*a+b[i]*(1-a))).join(",")})`; };
   const BASE="#0b1119";
   const cell=(x,y,w,h,bg)=>{ ctx.fillStyle=bg; ctx.fillRect(x,y,w,h); ctx.strokeStyle="rgba(140,160,180,.28)"; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,w-1,h-1); };
-  const rr=(x,y,w,h,r)=>{ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); };
+  // 完凸の枠（10-18 ESP：絵と同じ系統の色で埋もれるため）：虹は絵に乗せず外側の暗い背景に引き、
+  // その外へ虹色の光をにじませる。絵の縁には黒の細線を引いて虹と絵を切り離す
+  // 完凸サポートのバフ対象エリア（列・行）を囲む細い虹枠
+  const areaFrame=(x,y,w,h)=>{ ctx.save(); ctx.shadowColor="rgba(255,255,255,.65)"; ctx.shadowBlur=4; ctx.strokeStyle=rainbowRing(x,y,w,h); ctx.lineWidth=2; rr(x+2,y+2,w-4,h-4,5); ctx.stroke(); ctx.restore(); };
+  // red=true：実装30日以内。虹枠→黒の細線→赤枠3pxの順に内側へ重ねる
+  const maxFrame=(x,y,w,h,red)=>{
+    ctx.save();
+    ctx.save(); rr(x-8,y-8,w+16,h+16,8); rr(x,y,w,h,4); ctx.clip("evenodd");   // 光は絵の外だけ
+    ctx.globalAlpha=.85; ctx.shadowColor="rgba(255,255,255,.9)"; ctx.shadowBlur=10;
+    ctx.strokeStyle=rainbowRing(x,y,w,h); ctx.lineWidth=5; rr(x-2.5,y-2.5,w+5,h+5,6); ctx.stroke(); ctx.restore();
+    ctx.strokeStyle="#000"; ctx.lineWidth=1.5; rr(x+.75,y+.75,w-1.5,h-1.5,4); ctx.stroke();
+    // 実装30日以内：黒の細線のすぐ内側に沿わせて赤枠3px（角の丸みも虹枠・黒線に合わせる）
+    if(red){ ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; rr(x+3,y+3,w-6,h-6,2.5); ctx.stroke(); }
+    ctx.strokeStyle=rainbowRing(x,y,w,h); ctx.lineWidth=2.5; rr(x-1.25,y-1.25,w+2.5,h+2.5,5); ctx.stroke();
+    ctx.restore();
+  };
   const star=(x,y,size)=>{
     ctx.save(); ctx.font=`900 ${size}px ${FONT}`; ctx.textBaseline="alphabetic"; ctx.lineJoin="round";
     ctx.shadowColor="rgba(255,170,0,.9)"; ctx.shadowBlur=10; ctx.lineWidth=3; ctx.strokeStyle="#000"; ctx.strokeText("★",x,y);
@@ -453,11 +562,18 @@ async function generateImage(){
       const sk=skillLabel(s);
       if(!(state.dim&&SOWN&&!SOWN.has(s.id))){ ctx.save(); ctx.font=`900 11px ${FONT}`; ctx.textAlign="right"; ctx.lineWidth=3; ctx.strokeStyle="#000"; ctx.strokeText(sk,x+SW-2,y+SH-3); ctx.fillStyle="#ff5a5a"; ctx.fillText(sk,x+SW-2,y+SH-3); ctx.restore(); }
       if(L.conds>1){ ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(x+2,y+2,38,14); txt("＋条件",x+4,y+13,`10px ${FONT}`,"#fff"); }
-      if(s.limited) star(x+1,y+SH+1,20);
+      if(s.limited) star(x+2,y+SH-3,18);
+      const slv=SOWN?SOWN.get(s.id):undefined;
+      if(MAXON&&SOWN&&slv!==undefined){
+        if(slv===3){ maxFrame(x,y,SW,SH); const bw=32,bh=15,bx=x+SW-bw-2,by=y+2; rr(bx,by,bw,bh,4); ctx.fillStyle=rainbowBar(bx,bw); ctx.fill(); ctx.strokeStyle="#000"; ctx.lineWidth=1; rr(bx,by,bw,bh,4); ctx.stroke(); txt("完凸",bx+bw/2,by+12,`900 11px ${FONT}`,"#1b1503","center"); }
+        else { ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(x+SW-28,y+2,26,13); txt(LV_LABEL[slv]||"",x+SW-15,y+12,`10px ${FONT}`,"#fff","center"); }
+      }
     });
   };
   let x=0, y=0;
-  cell(0,0,RH,headH,BASE); txt("ALL",8,22,`700 13px ${FONT}`,"#eef3f6"); txt(String(model.shown),8,headH-10,'700 22px "Share Tech Mono",monospace',"#dab949");
+  cell(0,0,RH,headH,BASE); txt("ALL",8,22,`700 13px ${FONT}`,"#eef3f6"); // 見出しが低い（サポーター無し）時は数字を右に置いて「ALL」と重ならないようにする
+  if(headH<60) txt(String(model.shown),RH-8,26,'700 22px "Share Tech Mono",monospace',"#dab949","right");
+  else txt(String(model.shown),8,headH-10,'700 22px "Share Tech Mono",monospace',"#dab949");
   x=RH;
   model.cols.forEach(c=>{
     const w=colW(c); cell(x,0,w,headH,mix(c.color,.22,BASE));
@@ -490,14 +606,28 @@ async function generateImage(){
         const outline=(s,ax,ay,font,align)=>{ ctx.save(); ctx.font=font; ctx.textAlign=align; ctx.lineJoin="round"; ctx.lineWidth=3; ctx.strokeStyle="#000"; ctx.strokeText(s,ax,ay); ctx.fillStyle="#fff"; ctx.fillText(s,ax,ay); ctx.restore(); };
         if(!hideInfo&&u.rangeMax!=null) outline(`${u.rangeMin}-${u.rangeMax}`,tx+T-3,ty+16,`700 17px "Rajdhani","Share Tech Mono",monospace`,"right");
         if(!hideInfo&&u.rangeNote) outline(u.rangeNote,tx+T-3,ty+31,`700 11px ${FONT}`,"right");
-        if(state.lv&&OWN&&own!==undefined){ ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(tx+T*.24,ty+TH-14,26,12); txt(LV_LABEL[own]||"",tx+T*.24+3,ty+TH-4,`10px ${FONT}`,"#fff"); }
+        const isMax=MAXON&&own===3;
+        if(state.lv&&OWN&&own!==undefined){
+          const bx=tx+T*.24;
+          // 完凸の札は大きめ（13px・黒い縁取り）で、縮小して見ても読めるように
+          if(isMax){ const bw2=40,bh2=17,by2=ty+TH-bh2-2; ctx.save(); ctx.shadowColor="rgba(0,0,0,.9)"; ctx.shadowBlur=3; rr(bx,by2,bw2,bh2,4); ctx.fillStyle=rainbowBar(bx,bw2); ctx.fill(); ctx.restore();
+            ctx.strokeStyle="#000"; ctx.lineWidth=1.2; rr(bx,by2,bw2,bh2,4); ctx.stroke(); txt("完凸",bx+bw2/2,by2+13.5,`900 13px ${FONT}`,"#1b1503","center"); }
+          else { ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(bx,ty+TH-14,26,12); txt(LV_LABEL[own]||"",bx+3,ty+TH-4,`10px ${FONT}`,"#fff"); }
+        }
         if(u.limited) star(tx+3,ty+TH-5,23);
-        if(isNew(u)){ ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; ctx.strokeRect(tx+1.5,ty+1.5,T-3,TH-3); }
+        // 実装30日以内の赤枠（完凸の時は虹枠の黒線の内側に沿わせる）
+        if(isMax) maxFrame(tx,ty,T,TH,isNew(u));
+        else if(isNew(u)){ ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; ctx.strokeRect(tx+1.5,ty+1.5,T-3,TH-3); }
       });
       x+=w;
     });
     y+=h;
   });
+  if(model.anyArea){
+    const tw=RH+model.cols.reduce((a,c)=>a+colW(c),0);
+    let ax=RH; model.cols.forEach(c=>{ const w=colW(c); if(c.supMax) areaFrame(ax,0,w,tableH); ax+=w; });
+    let ay=headH; model.rows.forEach((r,ri)=>{ if(r.supMax) areaFrame(0,ay,tw,rowH[ri]); ay+=rowH[ri]; });
+  }
   ctx.restore();
   // 凡例とフッター
   const ly0=TOP+tableH*k+28;
@@ -505,6 +635,8 @@ async function generateImage(){
   litems.forEach(it=>{
     const lx=PAD+it.x, ly=ly0+it.row*LROW+LROW/2-6;
     if(it.e){ const im=imgs.get(ICON+it.e.code+".png"); if(im) ctx.drawImage(im,lx,ly-LIC/2,LIC,LIC); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText(it.e.name,lx+LIC+6,ly); }
+    else if(it.k==="area"){ areaFrame(lx+1,ly-9,LIC-2,18); ctx.textBaseline="middle"; ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("完凸サポートの対象",lx+LIC+6,ly); }
+    else if(it.k==="max"){ ctx.save(); ctx.fillStyle="#1a2433"; rr(lx+3,ly-7,LIC-10,14,3); ctx.fill(); ctx.restore(); maxFrame(lx+3,ly-7,LIC-10,14); ctx.textBaseline="middle"; ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("完凸",lx+LIC+6,ly); }
     else { ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; ctx.strokeRect(lx+1.5,ly-9.5,LIC-6,19); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("実装30日以内",lx+LIC+6,ly); }
   });
   ctx.textBaseline="alphabetic";
