@@ -254,14 +254,14 @@ function readUrl(){
       state.rows=["type","kind","jukugo","none"].includes(q.get("rows"))?q.get("rows"):"type";
     }
   }
-  state.dim=q.get("dim")==="1"; state.lv=q.get("lv")==="1";
+  state.dim=q.get("dim")!=="0"; state.lv=q.get("lv")!=="0";   // 既定はON（ログイン中のみ有効。OFFにした状態はURLに0で残す）
 }
 function writeUrl(){
   const q=new URLSearchParams();
   q.set("v",state.preset);
   if(state.preset==="C"){ q.set("cols",state.cols.join(",")); q.set("rows",state.rows); }
-  if(state.dim&&OWN) q.set("dim","1");
-  if(state.lv&&OWN) q.set("lv","1");
+  if(OWN) q.set("dim",state.dim?"1":"0");
+  if(OWN) q.set("lv",state.lv?"1":"0");
   try { history.replaceState(null,"",location.pathname+"?"+q.toString()); } catch(e){}
 }
 
