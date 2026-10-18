@@ -91,7 +91,7 @@
   .sup.max{overflow:visible;z-index:1;border-color:#000;box-shadow:0 0 6px 1px rgba(255,255,255,.4),0 0 10px 2px rgba(196,113,245,.4);}
   .sup.max img{border-radius:3px;}
   .sup .lv{position:absolute;left:50%;transform:translateX(-50%);bottom:2px;font-size:10px;color:#fff;background:rgba(10,14,20,.75);border-radius:3px;padding:0 3px;z-index:7;}
-  .sup .lv.max{color:#1b1503;font-weight:900;font-size:11px;line-height:14px;padding:0 4px;border:1px solid #000;border-radius:4px;background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);}
+  .sup .lv.max{color:#1b1503;font-weight:900;font-size:10px;line-height:11px;padding:0 2px;border:1px solid #000;border-radius:4px;background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);}
   /* 完凸サポートのバフ対象（その列・行）を細い虹枠で囲む */
   .matrix{position:relative;}
   .area{position:absolute;pointer-events:none;z-index:4;border-radius:5px;padding:2px;
@@ -572,7 +572,7 @@ async function generateImage(){
       if(s.limited) star(x+2,y+SH-3,18);
       const slv=SOWN?SOWN.get(s.id):undefined;
       if(MAXON&&SOWN&&slv!==undefined){
-        if(slv===3){ maxFrame(x,y,SW,SH); const bw=32,bh=15,bx=x+(SW-bw)/2,by=y+SH-bh-2; rr(bx,by,bw,bh,4); ctx.fillStyle=rainbowBar(bx,bw); ctx.fill(); ctx.strokeStyle="#000"; ctx.lineWidth=1; rr(bx,by,bw,bh,4); ctx.stroke(); txt("完凸",bx+bw/2,by+12,`900 11px ${FONT}`,"#1b1503","center"); }
+        if(slv===3){ maxFrame(x,y,SW,SH); const bw=26,bh=13,bx=x+(SW-bw)/2,by=y+SH-bh-2; rr(bx,by,bw,bh,4); ctx.fillStyle=rainbowBar(bx,bw); ctx.fill(); ctx.strokeStyle="#000"; ctx.lineWidth=1; rr(bx,by,bw,bh,4); ctx.stroke(); txt("完凸",bx+bw/2,by+10.5,`900 10px ${FONT}`,"#1b1503","center"); }
         else { ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(x+SW/2-13,y+SH-15,26,13); txt(LV_LABEL[slv]||"",x+SW/2,y+SH-5,`10px ${FONT}`,"#fff","center"); }
       }
     });
