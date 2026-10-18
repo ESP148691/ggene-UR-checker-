@@ -94,11 +94,9 @@
   .sup .lv.max{color:#1b1503;font-weight:900;font-size:11px;line-height:14px;padding:0 4px;border:1px solid #000;border-radius:4px;background:linear-gradient(90deg,#ff5f6d,#ffc371,#9dff8a,#5b8def,#c471f5);}
   /* 完凸サポートのバフ対象（その列・行）を細い虹枠で囲む */
   .matrix{position:relative;}
-  .area{position:absolute;inset:1px;pointer-events:none;z-index:4;border-radius:5px;padding:2px;
+  .area{position:absolute;pointer-events:none;z-index:4;border-radius:5px;padding:2px;
     background:conic-gradient(from 225deg,#ff5f6d,#ffc371,#fff27a,#9dff8a,#5bd8ef,#5b8def,#c471f5,#ff5f6d);
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;filter:drop-shadow(0 0 3px rgba(255,255,255,.6));}
-  .legend .areak{display:inline-block;width:22px;height:14px;border-radius:3px;vertical-align:middle;margin-right:4px;border:2px solid transparent;
-    background:linear-gradient(#05070d,#05070d) padding-box,conic-gradient(from 225deg,#ff5f6d,#ffc371,#fff27a,#9dff8a,#5bd8ef,#5b8def,#c471f5,#ff5f6d) border-box;}
   .tile.max::before,.sup.max::before{content:"";position:absolute;inset:-2.5px;border-radius:6px;padding:2.5px;z-index:6;pointer-events:none;
     background:conic-gradient(from 225deg,#ff5f6d,#ffc371,#fff27a,#9dff8a,#5bd8ef,#5b8def,#c471f5,#ff5f6d);
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;}
@@ -351,15 +349,16 @@ function render(){
   const m=$("matrix"); m.textContent="";
   m.style.gridTemplateColumns=`var(--rowhead) ${model.cols.map(c=>`calc(var(--tile) * ${c.per} + ${14+3*c.per}px)`).join(" ")}`;
   m.appendChild(el("div",{class:"corner"},[el("b",{text:"ALL"}),el("span",{class:"all",text:String(model.shown)})]));
+  const hcells=[], rcells=[];
   model.cols.forEach(c=>{
     const h=el("div",{class:"hcell",style:`--c:${c.color}`},[el("div",{class:"hname"},[el("span",{text:c.name}),el("span",{class:"n",text:String(c.count)})])]);
     if(c.leaders.length){ const s=el("div",{class:"sups"}); c.leaders.forEach(x=>s.appendChild(supChip(x))); h.appendChild(s); }
-    m.appendChild(h);
+    m.appendChild(h); hcells.push(h);
   });
   model.rows.forEach(r=>{
     const h=el("div",{class:"rcell",style:`--c:${r.color}`},[el("div",{class:"hname"},[el("span",{text:r.name}),el("span",{class:"n",text:String(r.count)})])]);
     if(r.leaders.length){ const s=el("div",{class:"sups"}); r.leaders.forEach(x=>s.appendChild(supChip(x))); h.appendChild(s); }
-    m.appendChild(h);
+    m.appendChild(h); rcells.push(h);
     model.cols.forEach((c,ci)=>{
       const cell=el("div",{class:"cell",style:`--c:${c.color}`});
       r.cells[ci].forEach(u=>cell.appendChild(tile(u)));
@@ -367,8 +366,8 @@ function render(){
     });
   });
   // 完凸サポートのバフ対象（列・行）を細い虹枠で囲む（凸表示ON・サポート所持データがある時）
-  model.cols.forEach((c,ci)=>{ if(c.supMax) m.appendChild(el("div",{class:"area",style:`grid-column:${ci+2};grid-row:1 / span ${model.rows.length+1}`})); });
-  model.rows.forEach((r,ri)=>{ if(r.supMax) m.appendChild(el("div",{class:"area",style:`grid-column:1 / -1;grid-row:${ri+2}`})); });
+  model.cols.forEach((c,ci)=>{ if(c.supMax) hcells[ci].dataset.area="1"; });
+  model.rows.forEach((r,ri)=>{ if(r.supMax) rcells[ri].dataset.area="1"; });
   const st=model.stats, os=$("ownStats"); os.textContent=""; os.hidden=!st;
   if(st){
     const one=(cls,label,n,p)=>el("span",{class:cls},[document.createTextNode(label),el("b",{text:p+"%"}),document.createTextNode(`（${n}/${st.total}機）`)]);
@@ -379,16 +378,24 @@ function render(){
   model.legend.forEach(e=>lg.appendChild(el("span",{},[el("img",{src:ICON+e.code+".png",alt:""}),document.createTextNode(e.name)])));
   lg.appendChild(el("span",{},[el("span",{class:"newk"}),document.createTextNode("実装30日以内")]));
   if(state.lv&&OWN) lg.appendChild(el("span",{},[el("span",{class:"maxk"}),document.createTextNode("完凸")]));
-  if(model.anyArea) lg.appendChild(el("span",{},[el("span",{class:"areak"}),document.createTextNode("完凸サポートの対象")]));
   applyZoom();
   writeUrl();
 }
 // ---- 拡大縮小（CSS zoom。固定列は左に固定のまま）----
 let zoom=1, zoomFit=true;   // 開いたときは全体表示
+// 完凸サポートのバフ対象（その列・行）の虹枠。グリッドの自動配置に頼らず、見出しセルの実寸から絶対配置する（スマホで全体にかかる不具合の対策）
+function placeAreas(m){
+  m.querySelectorAll(".area").forEach(a=>a.remove());
+  const mk=(l,t,w,h)=>{ const a=document.createElement("div"); a.className="area"; a.style.cssText=`left:${l}px;top:${t}px;width:${w}px;height:${h}px`; m.appendChild(a); };
+  const W=m.offsetWidth, H=m.offsetHeight;
+  m.querySelectorAll(".hcell[data-area]").forEach(c=>mk(c.offsetLeft,0,c.offsetWidth,H));
+  m.querySelectorAll(".rcell[data-area]").forEach(c=>mk(0,c.offsetTop,W,c.offsetHeight));
+}
 function applyZoom(){
   const m=$("matrix"), box=$("zoomBox"), sc=$("scroller");
   // 縮小は transform（ブラウザの最小文字サイズの影響を受けない）。拡大はCSS zoom（左の行見出しを固定したまま）
   m.style.zoom=""; m.style.transform=""; box.style.width="max-content"; box.style.height="auto"; sc.classList.remove("tz");
+  placeAreas(m);
   if(zoomFit){ const w=m.offsetWidth, av=sc.clientWidth-2; zoom=(av>0&&w>0)?Math.max(.2,Math.min(1,av/w)):1; }
   if(zoom>1) m.style.zoom=zoom;
   else if(zoom<1){
@@ -462,7 +469,7 @@ async function generateImage(){
   const LFONT='500 16px '+FONT, LIC=28, LROW=38;
   const mctx=document.createElement("canvas").getContext("2d"); mctx.font=LFONT;
   const lw=s=>LIC+6+mctx.measureText(s).width+22;
-  const litems=model.legend.map(e=>({e,w:lw(e.name)})).concat([{k:"new",w:lw("実装30日以内")}]).concat(MAXON?[{k:"max",w:lw("完凸")}]:[]).concat(model.anyArea?[{k:"area",w:lw("完凸サポートの対象")}]:[]);
+  const litems=model.legend.map(e=>({e,w:lw(e.name)})).concat([{k:"new",w:lw("実装30日以内")}]).concat(MAXON?[{k:"max",w:lw("完凸")}]:[]);
   let lrows=1, lacc=0; litems.forEach(it=>{ if(lacc+it.w>W-PAD*2&&lacc>0){ lrows++; lacc=0; } it.row=lrows-1; it.x=lacc; lacc+=it.w; });
   const legendH=24+lrows*LROW;
   const H=Math.ceil(TOP+tableH*k+legendH+PAD);
@@ -635,7 +642,6 @@ async function generateImage(){
   litems.forEach(it=>{
     const lx=PAD+it.x, ly=ly0+it.row*LROW+LROW/2-6;
     if(it.e){ const im=imgs.get(ICON+it.e.code+".png"); if(im) ctx.drawImage(im,lx,ly-LIC/2,LIC,LIC); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText(it.e.name,lx+LIC+6,ly); }
-    else if(it.k==="area"){ areaFrame(lx+1,ly-9,LIC-2,18); ctx.textBaseline="middle"; ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("完凸サポートの対象",lx+LIC+6,ly); }
     else if(it.k==="max"){ ctx.save(); ctx.fillStyle="#1a2433"; rr(lx+3,ly-7,LIC-10,14,3); ctx.fill(); ctx.restore(); maxFrame(lx+3,ly-7,LIC-10,14); ctx.textBaseline="middle"; ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("完凸",lx+LIC+6,ly); }
     else { ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; ctx.strokeRect(lx+1.5,ly-9.5,LIC-6,19); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("実装30日以内",lx+LIC+6,ly); }
   });
