@@ -48,7 +48,7 @@ Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェ�
 | `profile-card.html` | 自己紹介カード（テンプレート5〔標準・エタロ攻略・推しユニット・推し編成・推しキャラ〕×背景3の16:9 Canvas。描画は`CardRenderer`）。**一般公開中**（10-01夜〜。推し編成・推しキャラは10-10〜）。追加改修は`profile-card-trial.html`（運営者専用）で試してから反映 |
 | `favorite-info.html` | 推し情報設定（68。推し4項目だけを登録。`/favorite-info`）。**段階1は運営者専用**（`adminGate()`）。本体は`#favoriteForm`だけで、`FavoriteForm`（`emptyMode:"hint"`）が4欄を出す。保存は`POST /api/favorite-info` |
 | `favorite-form.js` / `favorite-form.css` / `favorite-logic.js` | 推し4欄の共通部品（68。`window.FavoriteForm`）／そのCSS／`FormationLogic`（バフ対象判定）＋`WorkLabel`（作品名の通称）。`favorite-info.html`・`profile-card-trial.html`が使う（`profile-card.html`は段階2で切り替え） |
-| `unit-list.html` | ユニット一覧（75。`/unit-list`）。タグ別URユニット一覧の表（4種類：4大熟語タグ×機体タグ／他主要タグ／全UR×タイプ／自由に選ぶ）・拡大縮小（開いたときは全体表示）・画像で保存（Canvas）・表の種類はURL（`?v=A&dim=1`）。Xでシェア・「所持だけ」は試用中に廃止（10-16）。**2026-10-17に全員へ公開（`ADMIN_ONLY = false`・ログイン不要。切り戻しは`true`に戻す）**。所持の表示（未所持を暗くする・凸表示）はログイン中だけ。読むAPIは`/api/units`・`tags`・`leader-skills`・`supporters`・`effects`（＋`my-ownership`）。アイコンは`images/effects/`（16個） |
+| `unit-list.html` | ユニット一覧（75。`/unit-list`）。タグ別URユニット一覧の表（4種類：4大熟語タグ×機体タグ／他主要タグ／全UR×タイプ／自由に選ぶ）・拡大縮小（開いたときは全体表示）・画像で保存（Canvas。**画像で保存＝JPEG・高画質で保存＝PNG**。77）・表の種類はURL（`?v=A&dim=1`）。Xでシェア・「所持だけ」は試用中に廃止（10-16）。**2026-10-17に全員へ公開（`ADMIN_ONLY = false`・ログイン不要。切り戻しは`true`に戻す）**。所持の表示（未所持を暗くする・凸表示）はログイン中だけ。読むAPIは`/api/units`・`tags`・`leader-skills`・`supporters`・`effects`（＋`my-ownership`）。アイコンは`images/effects/`（16個） |
 | `report.html` | X投稿用レポート（運営者専用。6種類×並び順3種。`GET /api/admin/report/ownership`） |
 | `auth.css` / `auth.js` | ログイン・新規登録の共通UI。成功後は`/top`へ。`<body data-auth-stay>`のページはその場でリロード |
 | `worker.js` | Cloudflare Workers（API・定期実行・静的配信）。API一覧は仕様書3章 |
@@ -124,7 +124,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 - **トップへのリンク・遷移先は`/top`**（`/`ではない。昔の301キャッシュを避けるため）。`isTopPage`は`/`・`/top`・`/top.html`を許容
 - Cloudflareの静的配信は`/xxx.html`を`/xxx`へリダイレクトする。`location.pathname`で判定するときは両方を考える
 - `ctx.filter`はSafariで効かないことがある → ピクセル操作で代替。`getImageData`/`putImageData`は`ctx.scale()`の影響を受けない
-- 画像プレビューはdata URI（Blob URLは表示されない環境がある）。Canvasはネイティブ（html2canvas不使用＝iOS対応）
+- 画像プレビューはdata URI（Blob URLは表示されない環境がある）。Canvasはネイティブ（html2canvas不使用＝iOS対応）。**ダウンロードはBlob URL**（Chromeは約2MBを超えるdata URLをダウンロードできない）。長押し保存させたい画像はdata URIを1.9MB以下に（77）
 - `hidden`属性は、要素に`display`を指定するCSSがあると打ち消される → `.xxx[hidden]{display:none}`を明示
 - ユーザー入力・DB由来の文字列は`textContent`かCanvasの`fillText`で出す（`innerHTML`に入れない）
 - 送信は`fetch(..., {keepalive:true})`（Xシェアの`window.open`直後でも送り切るため）
@@ -240,6 +240,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 76 所持チェッカーの並び順・未所持のみ表示＋コンプリート表示 | 10-17 | D1・`worker.js`変更なし。`unit.html`・`supporter.html`：実装順（No.順）の古い順／新しい順（端末保存）・未所持のみ表示（所持にした行は切り替えるまで`keepIds`で残す）・未所持0件でコンプリート表示。`eternal-road.html`・`challenge.html`：「未達成ミッションのみ」ON×全達成でコンプリート表示（チャレンジはシリーズタブごと）。共通部品`complete-banner.css`/`.js`を新規追加。参考パッチ4本が`git apply --directory=checker`で通りそのまま適用。Playwright（Chrome・390px・APIモック）で8章と11.5のうち「参考実装で済み」の項目（unit/supporter 1〜9-5・14、E1〜E9）を再確認、全成功。残り＝ESP確認：8章9-6・10〜12、11.5のE10・E11（実機・本番データ）。依頼書：`docs/01_所持チェッカー・DB登録/76_…設計・実装依頼書.md` |
 | ㊼ | 10-03 | エタロ攻略にステージ30（機動戦士Vガンダム）を追加：全30ステージ・71ミッション（`eternal-road.html`の表記・合計、一括達成の確認文は`stages.length`参照に）、`images/eternal-road/30.jpg`・`icon/30.jpg`（`scripts/make_eternal_road_icons.py`更新）、`worker.js`、`top.html`、自己紹介カード`profile-card.html`・`profile-card-trial.html`のエタロ分母を30に、`migrations/0023_eternal_road_stage30.sql`（ミッション301・302）。0023はD1適用済み（2026-10-03ユーザー確認）。本番確認が残り |
 
+| 77 ユニット一覧の画像保存（JPEG標準・PNG高画質） | 10-18 | D1・`worker.js`変更なし・`unit-list.html`のみ。Android Chromeで保存できない原因＝PNGのdata URLが8〜13MBでChromeの上限（約2MB）超。「画像で保存」＝JPEG（画質0.85→0.6で`toDataURL`が1.9MB以下になるものを採用。`encodeJpeg`）、「高画質で保存（PNG）」ボタン追加（`btnSaveHq`）。プレビューの`<img>`はdata URIのまま、「ダウンロード」はどちらもBlob URL（`canvasToBlob`→`createObjectURL`、閉じるまで解放しない）。プレビューに形式・大きさを表示。参考パッチ適用。他ページ（unit・eternal-road等）は範囲外（確認事項1）。実機確認（Android Chrome・iPhone Safari・Xアプリ内）はESP待ち。依頼書`docs/01_所持チェッカー・DB登録/77_…実装依頼書.md` |
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
 - **㊵チャレンジ**：実装・push・D1（0020・0021）適用済み（2026-09-30ユーザー確認）。運営者専用で稼働中。**一般公開は後日**（ユーザー決定。公開時は上の「一般公開の手順」）。設計書9章の後回し（分析ページのタブ・カードへの掲載・タグ縛り）は未着手
 - **㉟A 自己紹介カード一般公開・㊹（2026-10-01夜に再公開）**：朝にいったん公開→ユーザー指示で夜公開に変更（非公開に戻した）→夜に再公開（revertのrevert）。残り：依頼書4章A-4と㊹8章の本番確認（iOS Safariの画像保存を含む）。追加改修は運営者用の試用版`profile-card-trial.html`で試してから`profile-card.html`へ反映（ユーザー決定）。切り戻しは㉟依頼書4章・㊹はcommitのrevert

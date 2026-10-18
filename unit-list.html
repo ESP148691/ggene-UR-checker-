@@ -117,6 +117,7 @@
   .actions button{font:inherit;font-size:13px;font-weight:700;border-radius:6px;padding:9px 14px;cursor:pointer;border:none;}
   .actions button:disabled{opacity:.6;cursor:default;}
   .btn-save{background:var(--gold);color:#1b1503;}
+  .actions .btn-save-hq{background:transparent;color:var(--gold);border:1px solid var(--gold);}
   /* 詳細 */
   .sheet{position:fixed;inset:0;background:rgba(5,7,10,.88);display:none;align-items:center;justify-content:center;padding:16px;z-index:50;}
   .sheet.show{display:flex;}
@@ -134,7 +135,8 @@
   .previewModal{position:fixed;inset:0;background:rgba(5,7,10,.92);display:none;flex-direction:column;align-items:center;gap:10px;padding:16px;z-index:60;overflow:auto;}
   .previewModal.show{display:flex;}
   .previewModal img{max-width:100%;height:auto;border-radius:6px;}
-  .previewModal .hint{font-size:12px;color:var(--muted);}
+  .previewModal .hint{font-size:12px;color:var(--muted);text-align:center;max-width:520px;}
+  .previewModal .fmt{font-size:12px;color:var(--text);}
   .previewModal a,.previewModal button{font:inherit;font-size:13px;font-weight:700;border-radius:6px;padding:9px 14px;border:none;cursor:pointer;text-decoration:none;}
   .previewModal a{background:var(--gold);color:#1b1503;} .previewModal button{background:transparent;color:var(--text);border:1px solid var(--line-strong);}
   .pageFooter{margin-top:28px;padding-top:16px;border-top:1px solid var(--line-strong);font-size:10.5px;line-height:1.9;color:var(--muted);}
@@ -184,7 +186,7 @@
     <div class="zoomBar"><button type="button" id="zoomOut" aria-label="縮小">－</button><button type="button" id="zoomIn" aria-label="拡大">＋</button><button type="button" id="zoomFit">全体表示</button><button type="button" id="zoom100">100%</button><span id="zoomVal">100%</span></div>
     <div class="scroller" id="scroller"><div class="zoomBox" id="zoomBox"><div class="matrix" id="matrix"></div></div></div>
     <div class="legend" id="legend"></div>
-    <div class="actions"><button type="button" class="btn-save" id="btnSave">画像で保存</button></div>
+    <div class="actions"><button type="button" class="btn-save" id="btnSave">画像で保存</button><button type="button" class="btn-save-hq" id="btnSaveHq">高画質で保存（PNG）</button></div>
   </div>
 
   <footer class="pageFooter">
@@ -198,8 +200,9 @@
 <div class="sheet" id="sheet"><div class="box" id="sheetBox"></div></div>
 <div class="previewModal" id="previewModal">
   <img id="previewImg" alt="ユニット一覧の画像">
-  <div class="hint">画像を長押し（PCは右クリック）で保存もできます</div>
-  <a id="downloadLink" download="unit_list.png">ダウンロード</a>
+  <div class="fmt" id="previewFmt"></div>
+  <div class="hint" id="previewHint">画像を長押し（PCは右クリック）で保存もできます</div>
+  <a id="downloadLink" download="unit_list.jpg">ダウンロード</a>
   <button type="button" id="btnClosePreview">閉じる</button>
 </div>
 
@@ -648,15 +651,37 @@ async function generateImage(){
   ctx.textBaseline="alphabetic";
   return cv;
 }
-$("btnSave").addEventListener("click",async()=>{
-  const btn=$("btnSave"), label=btn.textContent; btn.textContent="生成中..."; btn.disabled=true;
+// 77：通常＝JPEG（長押し保存が効くよう data URI を約1.9MB以下に）、高画質＝PNG。
+// 「ダウンロード」はどちらも Blob URL（Chrome は約2MBを超える data URL をダウンロードできないため）。
+// プレビューの<img>は data URI のまま（Blob URL を表示できない環境があるため。CLAUDE.md）
+const JPEG_QUALITIES=[0.85,0.8,0.75,0.7,0.6], JPEG_MAX_CHARS=1900000;
+let previewBlobUrl=null;
+const releasePreviewBlob=()=>{ if(previewBlobUrl){ URL.revokeObjectURL(previewBlobUrl); previewBlobUrl=null; } };
+const canvasToBlob=(cv,type,q)=>new Promise(res=>{ try { cv.toBlob(b=>res(b),type,q); } catch(e){ res(null); } });
+function encodeJpeg(cv){
+  let url="", q=JPEG_QUALITIES[0];
+  for(const v of JPEG_QUALITIES){ q=v; url=cv.toDataURL("image/jpeg",v); if(url.length<=JPEG_MAX_CHARS) break; }
+  return {url,q};
+}
+async function saveImage(fmt,btn){
+  const label=btn.textContent; btn.textContent="生成中..."; $("btnSave").disabled=true; $("btnSaveHq").disabled=true;
   try {
-    const dataUrl=(await generateImage()).toDataURL("image/png");
-    $("previewImg").src=dataUrl; $("downloadLink").href=dataUrl; $("previewModal").classList.add("show");
+    const cv=await generateImage(), hq=fmt==="png";
+    const enc=hq?{url:cv.toDataURL("image/png"),q:null}:encodeJpeg(cv);
+    const blob=await canvasToBlob(cv,hq?"image/png":"image/jpeg",enc.q==null?undefined:enc.q);
+    releasePreviewBlob(); if(blob) previewBlobUrl=URL.createObjectURL(blob);
+    const mb=((blob?blob.size:enc.url.length*0.75)/1048576).toFixed(1);
+    $("previewImg").src=enc.url;
+    const a=$("downloadLink"); a.href=previewBlobUrl||enc.url; a.download=hq?"unit_list.png":"unit_list.jpg";
+    $("previewFmt").textContent=(hq?"高画質（PNG）":"通常画質（JPEG）")+"・約"+mb+"MB";
+    $("previewHint").textContent=hq?"高画質はファイルが大きいため、長押しで保存できない端末があります。下の「ダウンロード」を使ってください":"画像を長押し（PCは右クリック）で保存もできます";
+    $("previewModal").classList.add("show");
   } catch(err){ console.error(err); alert("画像の生成に失敗しました。\n(エラー内容: "+err.message+")"); }
-  finally { btn.textContent=label; btn.disabled=false; }
-});
-$("btnClosePreview").addEventListener("click",()=>$("previewModal").classList.remove("show"));
+  finally { btn.textContent=label; $("btnSave").disabled=false; $("btnSaveHq").disabled=false; }
+}
+$("btnSave").addEventListener("click",()=>saveImage("jpeg",$("btnSave")));
+$("btnSaveHq").addEventListener("click",()=>saveImage("png",$("btnSaveHq")));
+$("btnClosePreview").addEventListener("click",()=>{ $("previewModal").classList.remove("show"); $("previewImg").removeAttribute("src"); releasePreviewBlob(); });
 
 // ---- 操作 ----
 $("sheet").addEventListener("click",e=>{ if(e.target===$("sheet")) $("sheet").classList.remove("show"); });
