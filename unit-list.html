@@ -47,7 +47,14 @@
   .chips button.mlc.on{background:rgba(255,138,216,.18);color:#ff8ad8;}
   .mlBar{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;font-size:12.5px;border:1px solid rgba(255,138,216,.55);background:rgba(255,138,216,.08);border-radius:6px;padding:8px 10px;}
   .mlBar .mlh{font-weight:900;color:#ff8ad8;}
-  .mlBar select{font:inherit;font-size:12.5px;background:#0b1119;color:var(--text);border:1px solid var(--line-strong);border-radius:5px;padding:3px 6px;}
+  .mlBar select{font:inherit;font-size:12.5px;background:#0b1119;color:var(--text);border:1px solid var(--line-strong);border-radius:5px;padding:3px 6px;width:auto;max-width:9.5em;}
+  .mlBar .grp{display:inline-flex;align-items:center;gap:6px 8px;flex-wrap:wrap;max-width:100%;}   /* 79追加改修：見出し＋プルダウン＋状態、対象＋強調をひとかたまりに。入りきらないときは要素ごと次の行へ */
+  .mlBar .mlh,.mlBar .st{white-space:nowrap;}
+  .mlBar .grp label{white-space:nowrap;}   /* 「□対象を強調」は割らずに丸ごと動く */
+  .mlBar .tgw{min-width:0;}
+  .mlBar .tg span{white-space:nowrap;}   /* 対象名は途中で割らない（名前と名前の間で折り返す） */
+  .mlBar .meta{flex-basis:100%;display:flex;flex-wrap:wrap;gap:2px 14px;}
+  .mlBar .meta span{white-space:nowrap;}
   .mlBar .st{font-size:11px;font-weight:700;border-radius:3px;padding:1px 6px;background:#ff8ad8;color:#1b0614;}
   .mlBar .st.end{background:#556070;color:#fff;}
   .mlBar .tg{font-weight:700;color:var(--text);}
@@ -184,12 +191,9 @@
         </div>
       </div>
       <div class="mlBar" id="mlBar" hidden>
-        <span class="mlh">マスターリーグ</span>
-        <select id="mlSeason" aria-label="シーズン"></select>
-        <span class="st" id="mlState"></span>
-        <span>ブースト対象：<span class="tg" id="mlTargets"></span></span>
+        <span class="grp"><span class="mlh">マスターリーグ</span><select id="mlSeason" aria-label="シーズン"></select><span class="st" id="mlState"></span></span>
+        <span class="grp"><span class="tgw">ブースト対象：<span class="tg" id="mlTargets"></span></span><label id="optMlLabel"><input type="checkbox" id="optMl"> 対象を強調</label></span>
         <span class="meta" id="mlMeta"></span>
-        <label id="optMlLabel"><input type="checkbox" id="optMl"> 対象を強調</label>
       </div>
       <div id="customBox" hidden>
         <div class="row" style="align-items:flex-start"><span class="fl">列（最大5）</span><div class="chips" id="colChips"></div></div>
@@ -278,7 +282,7 @@ function seasonState(x){ if(!x) return ""; if(x.startsOn>TODAY) return "次回";
   if(ML.some(y=>y.startsOn>x.startsOn&&y.startsOn<=TODAY)) return "終了";   // 後のシーズンが始まった
   if(!x.endsOn||x.endsOn>=TODAY) return "開催中"; return "終了"; }
 const curSeason=()=>ML.find(x=>x.code===state.season)||null;
-const seasonLabel=x=>x?("SEASON "+x.code+(x.name?" "+x.name:"")):"";
+const seasonLabel=x=>x?("SEASON "+x.code):"";   // 79追加改修 10-20：テーマ名（ガンダムファイト等）は出さない
 const md=d=>d?Number(d.slice(5,7))+"/"+Number(d.slice(8,10)):"";
 // 79 ブースト対象の判定。tag＝URのタグ（units_tags）・work＝作品（unit_work_map。作品名のタグは無効化済みのため）
 function mlTargets(x){
@@ -483,11 +487,13 @@ window.addEventListener("resize",()=>{ if(zoomFit&&model) applyZoom(); });
 function renderMlBar(){
   const x=curSeason(); $("mlBar").hidden=!x; $("presetMl").hidden=!ML.length; $("rowAxisMl").hidden=!ML.length;
   if(!x) return;
-  const sel=$("mlSeason"); if(sel.options.length!==ML.length){ sel.textContent=""; ML.forEach(s=>sel.appendChild(el("option",{value:s.code,text:seasonLabel(s)+"（"+seasonState(s)+"）"}))); }
+  const sel=$("mlSeason"); if(sel.options.length!==ML.length){ sel.textContent=""; ML.forEach(s=>sel.appendChild(el("option",{value:s.code,text:seasonLabel(s)}))); }
   sel.value=x.code; const st=seasonState(x); $("mlState").textContent=st; $("mlState").classList.toggle("end",st==="終了");
-  $("mlTargets").textContent=x.targets.map(t=>t.name).join("・")||"未登録";
+  const tgEl=$("mlTargets"); tgEl.textContent="";   // 79追加改修：対象名ごとに span（名前の途中で割らない）
+  if(!x.targets.length) tgEl.textContent="未登録"; else x.targets.forEach((t,i)=>{ if(i) tgEl.appendChild(document.createTextNode("・")); tgEl.appendChild(el("span",{text:t.name})); });
   const nUr=units.filter(u=>mlHits(u).length).length;   // 79 対象のURの数（今のURで数える。過去シーズンも今のタグで判定）
-  $("mlMeta").textContent=[md(x.startsOn)+"〜"+md(x.endsOn), x.stage?"ステージ："+x.stage:"", x.note||"", nUr?"対象のUR "+nUr+"機":"URは対象外（SSR・ULT向けのシーズン）"].filter(Boolean).join("　");
+  const mm=$("mlMeta"); mm.textContent="";   // 79追加改修：項目ごとに折り返さない札にする（スマホで「28／機」と割れないように）
+  [md(x.startsOn)+"〜"+md(x.endsOn), x.stage?"ステージ："+x.stage:"", x.note||"", nUr?"対象のUR "+nUr+"機":"URは対象外（SSR・ULT向けのシーズン）"].filter(Boolean).forEach(t=>mm.appendChild(el("span",{text:t})));
   $("rowAxisMl").textContent="マスリ対象（"+(x.targets.map(t=>t.name).join("・")||"未登録")+"）";
   $("optMlLabel").hidden=state.preset==="M"; $("optMl").checked=state.mlhl;
 }
