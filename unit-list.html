@@ -45,7 +45,7 @@
   .chips .cg.ml{color:#ff8ad8;}
   .chips button.mlc{border-color:#ff8ad8;}
   .chips button.mlc.on{background:rgba(255,138,216,.18);color:#ff8ad8;}
-  .mlBar{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;font-size:12.5px;border:1px solid rgba(255,138,216,.55);background:rgba(255,138,216,.08);border-radius:6px;padding:8px 10px;}
+  .mlBar{display:flex;flex-direction:column;gap:8px;align-items:stretch;font-size:12.5px;border:1px solid rgba(255,138,216,.55);background:rgba(255,138,216,.08);border-radius:6px;padding:8px 10px;}
   .mlBar .mlh{font-weight:900;color:#ff8ad8;}
   .mlBar select{font:inherit;font-size:12.5px;background:#0b1119;color:var(--text);border:1px solid var(--line-strong);border-radius:5px;padding:3px 6px;width:auto;max-width:9.5em;}
   .mlBar .grp{display:inline-flex;align-items:center;gap:6px 8px;flex-wrap:wrap;max-width:100%;}   /* 79追加改修：見出し＋プルダウン＋状態、対象＋強調をひとかたまりに。入りきらないときは要素ごと次の行へ */
@@ -53,7 +53,14 @@
   .mlBar .grp label{white-space:nowrap;}   /* 「□対象を強調」は割らずに丸ごと動く */
   .mlBar .tgw{min-width:0;}
   .mlBar .tg span{white-space:nowrap;}   /* 対象名は途中で割らない（名前と名前の間で折り返す） */
-  .mlBar .meta{flex-basis:100%;display:flex;flex-wrap:wrap;gap:2px 14px;}
+  .mlBar .mlTop{display:flex;align-items:center;gap:8px 12px;justify-content:space-between;}   /* 1行目：常に表示。以降は折りたたみ */
+  .mlBar .mlTog{font:inherit;font-size:11.5px;white-space:nowrap;background:transparent;color:#ff8ad8;border:1px solid rgba(255,138,216,.55);border-radius:5px;padding:2px 8px;cursor:pointer;flex:none;}
+  .mlBar .mlBody{display:flex;flex-direction:column;gap:8px;}
+  .mlBar:not(.open) .mlBody{display:none;}
+  .mlBar .mlRow2{display:flex;align-items:flex-start;gap:6px 12px;}   /* 2行目固定：「対象を強調」は常に右端 */
+  .mlBar .mlRow2 .tgw{flex:1;min-width:0;}
+  .mlBar .mlRow2 label{flex:none;margin-left:auto;}
+  .mlBar .meta{display:flex;flex-wrap:wrap;gap:2px 14px;}
   .mlBar .meta span{white-space:nowrap;}
   .mlBar .st{font-size:11px;font-weight:700;border-radius:3px;padding:1px 6px;background:#ff8ad8;color:#1b0614;}
   .mlBar .st.end{background:#556070;color:#fff;}
@@ -191,9 +198,14 @@
         </div>
       </div>
       <div class="mlBar" id="mlBar" hidden>
-        <span class="grp"><span class="mlh">マスターリーグ</span><select id="mlSeason" aria-label="シーズン"></select><span class="st" id="mlState"></span></span>
-        <span class="grp"><span class="tgw">ブースト対象：<span class="tg" id="mlTargets"></span></span><label id="optMlLabel"><input type="checkbox" id="optMl"> 対象を強調</label></span>
-        <span class="meta" id="mlMeta"></span>
+        <div class="mlTop">
+          <span class="grp"><span class="mlh">マスターリーグ</span><select id="mlSeason" aria-label="シーズン"></select><span class="st" id="mlState"></span></span>
+          <button type="button" class="mlTog" id="mlTog" aria-expanded="false" aria-controls="mlBody" aria-label="マスターリーグの詳細を開閉" title="詳細を開閉"><span class="ar">▼</span></button>
+        </div>
+        <div class="mlBody" id="mlBody">
+          <div class="mlRow2"><span class="tgw">ブースト対象：<span class="tg" id="mlTargets"></span></span><label id="optMlLabel"><input type="checkbox" id="optMl"> 対象を強調</label></div>
+          <span class="meta" id="mlMeta"></span>
+        </div>
       </div>
       <div id="customBox" hidden>
         <div class="row" style="align-items:flex-start"><span class="fl">列（最大5）</span><div class="chips" id="colChips"></div></div>
@@ -798,6 +810,12 @@ $("mlSeason").addEventListener("change",()=>{ state.season=$("mlSeason").value; 
 const openLogin=()=>{ const l=$("authOpenLink"); if(l) l.click(); };
 $("guardLoginBtn").addEventListener("click",openLogin);
 $("loginNoteLink").addEventListener("click",openLogin);
+
+// 79 マスリの帯：1行目以外は折りたたみ（開閉は記憶）
+(()=>{ const bar=$("mlBar"), tog=$("mlTog");
+  const set=o=>{ bar.classList.toggle("open",o); tog.setAttribute("aria-expanded",o); tog.querySelector(".ar").textContent=o?"▲":"▼"; try{ localStorage.setItem("ulMlOpen",o?"1":"0"); }catch(e){} };
+  let o=false; try{ o=localStorage.getItem("ulMlOpen")==="1"; }catch(e){}
+  set(o); tog.addEventListener("click",()=>set(!bar.classList.contains("open"))); })();
 
 // ---- 起動 ----
 function showOnly(id){ $("loadingView").hidden=true; $(id).hidden=false; }
