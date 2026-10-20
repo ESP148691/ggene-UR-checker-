@@ -808,7 +808,8 @@
       var up = list.filter(function(x){ return x.startsOn > today && x.startsOn <= addDays(today, ML_FEED_AHEAD); }).pop() || null;
       var x = live || up;
       if (!x) return null;
-      var targets = x.targets.map(function(t){ return t.name === 'オルタナティブシリーズ' ? 'オルタナ' : t.name; }).join('・');
+      var ML_SHORT = { 'オルタナティブシリーズ': 'オルタナ', 'アルティメット': 'ULT' };   /* 79 追加改修2（10-21）：unit-list.html と同じ略称 */
+      var targets = x.targets.map(function(t){ return ML_SHORT[t.name] || t.name; }).join('・');
       var when = live ? ('開催中 〜' + (x.endsOn ? md(x.endsOn) : '')) : ('次回 ' + md(x.startsOn) + '〜' + md(x.endsOn));
       return { kind: 'ml', tag: 'マスリ',
         title: 'S' + x.code + ' ブースト：' + targets,   /* タグが「マスリ」なので見出しは短く（スマホで対象まで見えるように） */

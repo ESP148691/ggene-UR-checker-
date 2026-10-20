@@ -210,7 +210,7 @@
           <button type="button" class="mlTab" id="presetMl" data-p="M" hidden>マスリ対象</button>
         </div>
         <div class="mlBody" id="mlBody">
-          <div class="mlRow2"><span class="tgw">ブースト対象：<span class="tg" id="mlTargets"></span></span><label id="optMlLabel"><input type="checkbox" id="optMl"> 対象を強調</label></div>
+          <div class="mlRow2"><span class="tgw">対象：<span class="tg" id="mlTargets"></span></span><label id="optMlLabel"><input type="checkbox" id="optMl"> 対象を強調</label></div>
           <span class="meta" id="mlMeta"></span>
         </div>
       </div>
@@ -304,7 +304,10 @@ const curSeason=()=>ML.find(x=>x.code===state.season)||null;
 const seasonLabel=x=>x?("SEASON "+x.code):"";   // 79追加改修 10-20：テーマ名（ガンダムファイト等）は出さない
 const md=d=>d?Number(d.slice(5,7))+"/"+Number(d.slice(8,10)):"";
 // 79 ブースト対象の判定。tag＝URのタグ（units_tags）・work＝作品（unit_work_map。作品名のタグは無効化済みのため）
-const mlShort=n=>n==="オルタナティブシリーズ"?"オルタナ":n;   // 79 帯・詳細・画像の注記だけ略称（タグ名・判定・表の行列は正式名のまま）
+const ML_SHORT={"オルタナティブシリーズ":"オルタナ","アルティメット":"ULT"};   // 79 追加改修2（10-21）：アルティメット→ULT
+const mlShort=n=>ML_SHORT[n]||n;   // 79 帯・詳細・画像の注記だけ略称（タグ名・判定・表の行列は正式名のまま）
+const ML_NARROW=window.matchMedia("(max-width:380px)");   // 79 追加改修2：狭い画面はプルダウンを「S17」に
+try { ML_NARROW.addEventListener("change",()=>{ if(ML.length&&model) renderMlBar(); }); } catch(e) {}
 function mlTargets(x){
   if(!x) return [];
   return x.targets.map(t=>t.kind==="tag"
@@ -507,7 +510,8 @@ window.addEventListener("resize",()=>{ if(zoomFit&&model) applyZoom(); });
 function renderMlBar(){
   const x=curSeason(); $("mlBar").hidden=!x; $("presetMl").hidden=!ML.length; $("rowAxisMl").hidden=!ML.length;
   if(!x) return;
-  const sel=$("mlSeason"); if(sel.options.length!==ML.length){ sel.textContent=""; ML.forEach(s=>sel.appendChild(el("option",{value:s.code,text:seasonLabel(s)}))); }
+  const sel=$("mlSeason"), mode=ML_NARROW.matches?"s":"l";   // 79 追加改修2：380px以下は「S17」
+  if(sel.options.length!==ML.length||sel.dataset.mode!==mode){ sel.textContent=""; sel.dataset.mode=mode; ML.forEach(s=>sel.appendChild(el("option",{value:s.code,text:mode==="s"?"S"+s.code:seasonLabel(s)}))); }
   sel.value=x.code; const st=seasonState(x); $("mlState").textContent=st; $("mlState").classList.toggle("end",st==="終了");
   const tgEl=$("mlTargets"); tgEl.textContent="";   // 79追加改修：対象名ごとに span（名前の途中で割らない）
   if(!x.targets.length) tgEl.textContent="未登録"; else x.targets.forEach((t,i)=>{ if(i) tgEl.appendChild(document.createTextNode("・")); tgEl.appendChild(el("span",{text:mlShort(t.name)})); });
