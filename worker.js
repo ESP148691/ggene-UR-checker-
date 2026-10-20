@@ -1332,6 +1332,42 @@ async function handleEffects(request, env) {
   }, 200, MASTER_CACHE);
 }
 
+// 79 GET /api/ml-seasons（認証不要）。マスターリーグのシーズンとブースト対象。開始日の新しい順。0048未適用なら空配列
+//   対象の種類（target_kind）：tag＝tags_master.tag_id（URのunits_tagsで判定）／work＝works_master.work_id（unit_work_mapで判定）
+//   どのシーズンを出すか（開催中→次回→直近）は画面（unit-list.html の pickSeason）で決める
+async function handleMlSeasons(request, env) {
+  let rows;
+  try {
+    ({ results: rows } = await env.DB.prepare(
+      `SELECT s.season_code, s.name, s.starts_on, s.ends_on, s.stage, s.note,
+              t.target_kind, t.target_id, COALESCE(g.name, w.name) AS target_name
+       FROM ml_seasons s
+       LEFT JOIN ml_season_targets t ON t.season_code = s.season_code
+       LEFT JOIN tags_master g ON t.target_kind = 'tag' AND g.tag_id = t.target_id AND g.is_active = 1
+       LEFT JOIN works_master w ON t.target_kind = 'work' AND w.work_id = t.target_id
+       WHERE s.is_active = 1
+       ORDER BY s.starts_on DESC, s.season_code DESC, t.sort_order, t.target_id`
+    ).all());
+  } catch (e) {
+    return jsonResponse({ seasons: [] }, 200);   // 0048未適用
+  }
+  const seasons = [], byCode = new Map();
+  for (const r of rows) {
+    let s = byCode.get(r.season_code);
+    if (!s) {
+      s = { code: r.season_code, startsOn: r.starts_on, targets: [] };
+      if (r.name) s.name = r.name;
+      if (r.ends_on) s.endsOn = r.ends_on;
+      if (r.stage) s.stage = r.stage;
+      if (r.note) s.note = r.note;
+      byCode.set(r.season_code, s);
+      seasons.push(s);
+    }
+    if (r.target_kind && r.target_name) s.targets.push({ kind: r.target_kind, id: r.target_id, name: r.target_name });
+  }
+  return jsonResponse({ seasons }, 200, MASTER_CACHE);
+}
+
 // GET /api/supporters（認証不要）。URサポートのマスター（supporter.html・top.htmlが読む）。supporter_id順
 async function handleSupporters(request, env) {
   const sql = (cols) => `SELECT supporter_id, name, limited, skill, ${cols} FROM supporters_master ORDER BY supporter_id`;
@@ -2690,6 +2726,9 @@ export default {
     }
     if (url.pathname === "/api/effects" && request.method === "GET") {
       return handleEffects(request, env);
+    }
+    if (url.pathname === "/api/ml-seasons" && request.method === "GET") {
+      return handleMlSeasons(request, env);
     }
     if (url.pathname === "/api/supporters" && request.method === "GET") {
       return handleSupporters(request, env);

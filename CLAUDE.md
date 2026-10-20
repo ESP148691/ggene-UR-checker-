@@ -109,6 +109,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0045 | 75 UR機体のタグ修正：Zガンダム(17)に不撓不屈、レッドフレーム改(54)・天ミナ(55)にライバル（何度でも）。wiki・ESPのExcelと照合。リボーンズガンダム・イデオンはD1の87機に無い（新UR追加時に対応） | 適用済み（2026-10-17。不撓不屈17・ライバル28） |
 | 0046 | 新UR 2機：88 リボーンズガンダム（限定・支援）・89 ガンダムデュナメス（恒常・攻撃）。units_master・射程・効果・作品(00)・タグ・characters_master（何度でも） | 適用済み（2026-10-17。画像`images/units/88・89.jpg`は運営者が用意。タグはwiki出どころ＝ゲーム内で確認したら`source`を`game`に） |
 | 0047 | 新URサポーター51 カティ・マネキン&ウラル（恒常・HP回復。リーダースキル：指揮官機20→28%／指揮官機かつライバル30→44%）。タリア(32)は復刻で変更なし（何度でも） | 適用済み（2026-10-17。画像`images/supporters/51.jpg`済み・`scan_fit`は未） |
+| 0048 | 79 マスターリーグのシーズンTBL：`ml_seasons`（season_code TEXT・name・starts_on・ends_on・stage・note・is_active・updated_at）・`ml_season_targets`（season_code・target_kind＝tag/work・target_id・sort_order）。`CREATE … IF NOT EXISTS`で何度でも。D1適用済み（2026-10-20） |
+| 0049 | 79 SEASON 1〜17（11.5・15.5含む19シーズン・38対象）の登録。CSV（`docs/01_所持チェッカー・DB登録/データ/79_マスリ_シーズン一覧.csv`）から`79_build_ml_seasons_sql.py`で生成。タグ・作品は名前で引く。何度でも流せる。D1適用済み（2026-10-20。確認SQLは期待値どおり：19/19・各2対象・孤児0・S17の対象UR28） |
 | 次の空き | 0041 | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
@@ -241,6 +243,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | ㊼ | 10-03 | エタロ攻略にステージ30（機動戦士Vガンダム）を追加：全30ステージ・71ミッション（`eternal-road.html`の表記・合計、一括達成の確認文は`stages.length`参照に）、`images/eternal-road/30.jpg`・`icon/30.jpg`（`scripts/make_eternal_road_icons.py`更新）、`worker.js`、`top.html`、自己紹介カード`profile-card.html`・`profile-card-trial.html`のエタロ分母を30に、`migrations/0023_eternal_road_stage30.sql`（ミッション301・302）。0023はD1適用済み（2026-10-03ユーザー確認）。本番確認が残り |
 
 | 77 ユニット一覧の画像保存（JPEG標準・PNG高画質） | 10-18 | D1・`worker.js`変更なし・`unit-list.html`のみ。Android Chromeで保存できない原因＝PNGのdata URLが8〜13MBでChromeの上限（約2MB）超。「画像で保存」＝JPEG（画質0.85→0.6で`toDataURL`が1.9MB以下になるものを採用。`encodeJpeg`）、「高画質で保存（PNG）」ボタン追加（`btnSaveHq`）。プレビューの`<img>`はdata URIのまま、「ダウンロード」はどちらもBlob URL（`canvasToBlob`→`createObjectURL`、閉じるまで解放しない）。プレビューに形式・大きさを表示。参考パッチ適用。他ページ（unit・eternal-road等）は範囲外（確認事項1）。実機確認（Android Chrome・iPhone Safari・Xアプリ内）はESP待ち。依頼書`docs/01_所持チェッカー・DB登録/77_…実装依頼書.md` |
+| 79 マスターリーグのブースト対象をユニット一覧・トップに表示 | 10-20 | 0048→0049をD1適用（確認SQLは期待値どおり）。`worker.js`：新規`GET /api/ml-seasons`（認証不要・`MASTER_CACHE`。0048未適用なら`{seasons:[]}`）。`unit-list.html`：マスリの帯・表の種類「マスリ対象」(`v=M`)・自由に選ぶの「マスリ対象」チップ・対象を強調(`ml=1`)・詳細・画像保存。`top.html`：インフォバナーの先頭に開催中／14日以内の次回を自動で1件（2.5秒で返らなければ出さない）。Cowork試作を無改変で適用（試作HTMLとバイト一致）。本番データ＋本番D1のシーズンでローカル動作確認（API失敗時は従来表示）。**新シーズンの登録手順**：CSVに1行足して`python 79_build_ml_seasons_sql.py 79_マスリ_シーズン一覧.csv > …`で0049相当のSQLを作り流す（依頼書7.1）。依頼書：`docs/01_所持チェッカー・DB登録/79_…設計・実装依頼書.md` |
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
 - **㊵チャレンジ**：実装・push・D1（0020・0021）適用済み（2026-09-30ユーザー確認）。運営者専用で稼働中。**一般公開は後日**（ユーザー決定。公開時は上の「一般公開の手順」）。設計書9章の後回し（分析ページのタブ・カードへの掲載・タグ縛り）は未着手
 - **㉟A 自己紹介カード一般公開・㊹（2026-10-01夜に再公開）**：朝にいったん公開→ユーザー指示で夜公開に変更（非公開に戻した）→夜に再公開（revertのrevert）。残り：依頼書4章A-4と㊹8章の本番確認（iOS Safariの画像保存を含む）。追加改修は運営者用の試用版`profile-card-trial.html`で試してから`profile-card.html`へ反映（ユーザー決定）。切り戻しは㉟依頼書4章・㊹はcommitのrevert

@@ -272,6 +272,7 @@
     color:var(--cyan);border:1px solid rgba(107,224,224,.45);}
   .infoFeed .slide .tag.link{color:var(--gold);border-color:rgba(218,185,73,.5);}
   .infoFeed .slide .tag.video{color:#ff9ab3;border-color:rgba(255,122,156,.5);}
+  .infoFeed .slide .tag.ml{color:#ff8ad8;border-color:rgba(255,138,216,.55);}   /* 79 マスターリーグ */
   .infoFeed .slide .ttl{min-width:0;font-weight:700;font-size:12.5px;line-height:1.4;color:#d6dee6;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .infoFeed .slide .dsc{color:var(--muted);font-size:10.5px;line-height:1.4;margin-top:2px;opacity:.9;
@@ -329,7 +330,7 @@
   </div>
   <p class="sub">Gジェネエターナルの<wbr>ファン向け<wbr>非公式ツールです。<wbr>新規登録・<wbr>ログインすることで<wbr>各種機能を<wbr>利用できます。</p>
 
-  <!-- 71 インフォバナー。中身はスクリプト内の INFO_FEED を書き換えるだけで増減できる（D1・APIなし） -->
+  <!-- 71 インフォバナー。中身はスクリプト内の INFO_FEED を書き換えるだけで増減できる（D1・APIなし）。79 先頭のマスターリーグだけは /api/ml-seasons から自動 -->
   <section class="infoFeed" id="infoFeed" aria-roledescription="carousel" aria-label="お知らせ・リンク" hidden>
     <div class="feedHead"><span class="live" aria-hidden="true"></span>INFO FEED<span class="count" id="infoFeedCount"></span>
       <div class="ctrl">
@@ -790,18 +791,43 @@
   ];
   var INFO_FEED_MS = 10000; /* 1件あたりの表示時間（説明文が流れ切るのに10秒を超える件は、流れ切って1秒後まで） */
   var INFO_FEED_DESC_SPEED = 50; /* 説明文の流れる速さ（px/秒） */
-  var INFO_TAG_TEXT = { link: '相互リンク', info: 'お知らせ', video: '動画' };
+  var INFO_TAG_TEXT = { link: '相互リンク', info: 'お知らせ', video: '動画', ml: 'マスリ' };
+  /* 79 マスターリーグのお知らせ（INFO_FEED の先頭に自動で入る。書き換え不要）
+     /api/ml-seasons から、開催中のシーズン → 無ければ ML_FEED_AHEAD 日以内に始まる次回 を1件。
+     どちらも無い・APIが失敗・ML_FEED_WAIT ミリ秒で返らないときは出さない（ほかのお知らせはそのまま） */
+  var ML_FEED_AHEAD = 14, ML_FEED_WAIT = 2500;
+  function mlFeedItem(today){
+    var md = function(d){ return d ? Number(d.slice(5, 7)) + '/' + Number(d.slice(8, 10)) : ''; };
+    var addDays = function(d, k){ var t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + k); return t.toISOString().slice(0, 10); };
+    var load = fetch('/api/ml-seasons', { credentials: 'same-origin' }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+    var wait = new Promise(function(res){ setTimeout(function(){ res(null); }, ML_FEED_WAIT); });
+    return Promise.race([load, wait]).then(function(j){
+      var list = ((j && j.seasons) || []).filter(function(x){ return x.targets && x.targets.length; });   /* 開始日の新しい順 */
+      var started = list.filter(function(x){ return x.startsOn <= today; });
+      var live = started.length && (!started[0].endsOn || started[0].endsOn >= today) ? started[0] : null;   /* 後のシーズンが始まったら前は終了 */
+      var up = list.filter(function(x){ return x.startsOn > today && x.startsOn <= addDays(today, ML_FEED_AHEAD); }).pop() || null;
+      var x = live || up;
+      if (!x) return null;
+      var targets = x.targets.map(function(t){ return t.name; }).join('・');
+      var when = live ? ('開催中 〜' + (x.endsOn ? md(x.endsOn) : '')) : ('次回 ' + md(x.startsOn) + '〜' + md(x.endsOn));
+      return { kind: 'ml', tag: 'マスリ',
+        title: 'S' + x.code + ' ブースト：' + targets,   /* タグが「マスリ」なので見出しは短く（スマホで対象まで見えるように） */
+        desc: when + (x.stage ? '・ステージ：' + x.stage : '') + '。マスターリーグ SEASON ' + x.code + ' の対象URをユニット一覧で確認できます',
+        href: '/unit-list?v=M', mark: 'ML' };
+    });
+  }
 
   (function initInfoFeed(){
     var root = document.getElementById('infoFeed');
     if (!root) return;
     var today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); /* 日本時間の日付 */
-    var items = INFO_FEED.filter(function(it){
+    mlFeedItem(today).then(function(mlItem){   /* 79 マスリを1番手に（今の1番手の相互リンクは2番手になる） */
+    var items = (mlItem ? [mlItem] : []).concat(INFO_FEED.filter(function(it){
       if (!it.href) return false;
       if (it.start && today < it.start) return false;
       if (it.end && today > it.end) return false;
       return true;
-    });
+    }));
     if (!items.length) return; /* 0件なら欄ごと出さない */
 
     var track = document.getElementById('infoFeedTrack');
@@ -945,6 +971,7 @@
     }
     if (window.ResizeObserver) { var lastW = viewport.clientWidth; new ResizeObserver(function(){ var w = viewport.clientWidth; if (w !== lastW) { lastW = w; reflow(); } }).observe(viewport); }
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(reflow);
+    });   /* 79 mlFeedItem の then の終わり */
   })();
 
   /* ---------------- ログイン中のみ「データ登録結果レポート」（analytics.html）導線を表示 ---------------- */
