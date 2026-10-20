@@ -285,6 +285,7 @@ const curSeason=()=>ML.find(x=>x.code===state.season)||null;
 const seasonLabel=x=>x?("SEASON "+x.code):"";   // 79追加改修 10-20：テーマ名（ガンダムファイト等）は出さない
 const md=d=>d?Number(d.slice(5,7))+"/"+Number(d.slice(8,10)):"";
 // 79 ブースト対象の判定。tag＝URのタグ（units_tags）・work＝作品（unit_work_map。作品名のタグは無効化済みのため）
+const mlShort=n=>n==="オルタナティブシリーズ"?"オルタナ":n;   // 79 帯・詳細・画像の注記だけ略称（タグ名・判定・表の行列は正式名のまま）
 function mlTargets(x){
   if(!x) return [];
   return x.targets.map(t=>t.kind==="tag"
@@ -490,11 +491,11 @@ function renderMlBar(){
   const sel=$("mlSeason"); if(sel.options.length!==ML.length){ sel.textContent=""; ML.forEach(s=>sel.appendChild(el("option",{value:s.code,text:seasonLabel(s)}))); }
   sel.value=x.code; const st=seasonState(x); $("mlState").textContent=st; $("mlState").classList.toggle("end",st==="終了");
   const tgEl=$("mlTargets"); tgEl.textContent="";   // 79追加改修：対象名ごとに span（名前の途中で割らない）
-  if(!x.targets.length) tgEl.textContent="未登録"; else x.targets.forEach((t,i)=>{ if(i) tgEl.appendChild(document.createTextNode("・")); tgEl.appendChild(el("span",{text:t.name})); });
+  if(!x.targets.length) tgEl.textContent="未登録"; else x.targets.forEach((t,i)=>{ if(i) tgEl.appendChild(document.createTextNode("・")); tgEl.appendChild(el("span",{text:mlShort(t.name)})); });
   const nUr=units.filter(u=>mlHits(u).length).length;   // 79 対象のURの数（今のURで数える。過去シーズンも今のタグで判定）
   const mm=$("mlMeta"); mm.textContent="";   // 79追加改修：項目ごとに折り返さない札にする（スマホで「28／機」と割れないように）
   [md(x.startsOn)+"〜"+md(x.endsOn), x.stage?"ステージ："+x.stage:"", x.note||"", nUr?"対象のUR "+nUr+"機":"URは対象外（SSR・ULT向けのシーズン）"].filter(Boolean).forEach(t=>mm.appendChild(el("span",{text:t})));
-  $("rowAxisMl").textContent="マスリ対象（"+(x.targets.map(t=>t.name).join("・")||"未登録")+"）";
+  $("rowAxisMl").textContent="マスリ対象（"+(x.targets.map(t=>mlShort(t.name)).join("・")||"未登録")+"）";
   $("optMlLabel").hidden=state.preset==="M"; $("optMl").checked=state.mlhl;
 }
 function renderChips(){
@@ -530,7 +531,7 @@ function openSheet(u){
     el("div",{class:"meta",text:`${u.type}${u.limited?"・期間限定":""}・射程 ${u.rangeMax!=null?u.rangeMin+"-"+u.rangeMax:"未登録"}${u.rangeNote?"（"+u.rangeNote+"）":""}`}),
     el("div",{class:"meta",text:`実装日 ${u.released||"-"}${OWN?(own!==undefined?"・所持（"+(LV_LABEL[own]||"")+"）":"・未所持"):""}`})])]));
   if(u.effects&&u.effects.length){ const s=el("div",{class:"sec"},[el("b",{text:"効果アイコン"})]); u.effects.forEach(c=>s.appendChild(el("div",{},[el("img",{src:ICON+c+".png",alt:"",style:"width:20px;vertical-align:middle;margin-right:6px"}),document.createTextNode(effName(c))]))); b.appendChild(s); }
-  { const x=curSeason(); if(x){ const h=mlHits(u).map(t=>t.name); b.appendChild(el("div",{class:"sec"},[el("b",{text:"マスターリーグ "+seasonLabel(x)+"（"+seasonState(x)+"）"}),el("div",{text:h.length?"ブースト対象（"+h.join("・")+"）":"対象外"})])); } }   // 79
+  { const x=curSeason(); if(x){ const h=mlHits(u).map(t=>mlShort(t.name)); b.appendChild(el("div",{class:"sec"},[el("b",{text:"マスターリーグ "+seasonLabel(x)+"（"+seasonState(x)+"）"}),el("div",{text:h.length?"ブースト対象（"+h.join("・")+"）":"対象外"})])); } }   // 79
   const s2=el("div",{class:"sec"},[el("b",{text:"タグ"})]); tg.forEach(t=>s2.appendChild(el("span",{class:"tagchip"+(hit.has(t.name)?" hit":""),text:t.name}))); b.appendChild(s2);
   const L=[]; for(const t of tg) for(const x of leadersByTag.get(t.tagId)||[]) if(!L.some(y=>y.s.id===x.s.id)) L.push(Object.assign({tag:t.name},x));
   if(L.length){ const s3=el("div",{class:"sec"},[el("b",{text:"このユニットが対象になるサポーター（タグ）"})]); L.forEach(x=>s3.appendChild(el("div",{text:`${x.s.limited?"★":""}${x.s.name}（${x.tag}）`}))); b.appendChild(s3); }
@@ -547,7 +548,7 @@ function imgTitle(){ const x=curSeason(); return state.preset==="M"&&x?`${ymd()}
 function imgSub(opts){
   return "※★は限定　※射程はキャラ能力含む最大値　※表の種類："+(state.preset==="M"?"4大熟語タグ × マスリ対象":PRESETS[state.preset].name)+(opts?"（"+opts+"）":""); }
 function imgMlNote(){ const x=curSeason(); if(!x||!(state.preset==="M"||mlOn()||state.cols.includes(ML_ALL)||state.rows==="ml")) return "";
-  return "※マスターリーグ "+seasonLabel(x)+"（"+seasonState(x)+"・"+md(x.startsOn)+"〜"+md(x.endsOn)+"）のブースト対象："+x.targets.map(t=>t.name).join("・")+(mlOn()?"　ML札＝対象":""); }
+  return "※マスターリーグ "+seasonLabel(x)+"（"+seasonState(x)+"・"+md(x.startsOn)+"〜"+md(x.endsOn)+"）のブースト対象："+x.targets.map(t=>mlShort(t.name)).join("・")+(mlOn()?"　ML札＝対象":""); }
 async function generateImage(){
   const T=92, TH=Math.round(T*.86), G=3, PAD=20, RH=132, SW=T-4, SH=Math.round((T-4)*.62);
   const colW=c=>T*c.per+14+3*c.per;
