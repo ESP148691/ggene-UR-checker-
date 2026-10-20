@@ -90,6 +90,17 @@
   .dVal small{color:var(--muted);margin-left:3px;}
   @media (max-width:380px){ .dRow{grid-template-columns:4.6em 1fr 7.4em;gap:5px;font-size:11px;} }
 
+  /* 81 データの鮮度（運営者専用・一般公開しない） */
+  .fBlock{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin:0 0 12px;}
+  .fBlock h3{font-size:13.5px;margin:0 0 8px;}
+  .fBlock .meta{font-size:11.5px;color:var(--muted);line-height:1.7;margin:6px 0 0;}
+  .fTable{width:100%;border-collapse:collapse;font-size:12px;}
+  .fTable th,.fTable td{padding:5px 4px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .fTable th:first-child,.fTable td:first-child{text-align:left;white-space:normal;min-width:8em;}
+  .fTable td small{display:block;color:var(--muted);font-size:10.5px;}
+  .fTable th{color:var(--muted);font-weight:500;font-size:11px;}
+  .fTable td b{color:var(--gold);}
+  .fScroll{overflow-x:auto;}
   .pageFooter{margin-top:36px;padding-top:16px;border-top:1px solid var(--line);font-size:10.5px;line-height:1.9;color:var(--muted);}
   .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
   .pageFooter a{color:var(--cyan);text-decoration:none;}
@@ -114,6 +125,7 @@
       <button type="button" data-tab="oshi" class="active">推し統計</button>
       <button type="button" data-tab="dist-unit">URユニット所持率分布</button>
       <button type="button" data-tab="dist-supporter">URサポート所持率分布</button>
+      <button type="button" data-tab="fresh">データの鮮度</button>
     </div>
 
     <section id="areaOshi">
@@ -140,6 +152,13 @@
         </div>
         <div id="distBars"></div>
       </div>
+    </section>
+
+    <!-- 81 データの鮮度（80 案10）。運営者専用・一般公開しない（ESP決定 10-21） -->
+    <section id="areaFresh" hidden>
+      <div class="note">所持データを最後に保存した日（所持行の登録日時の最大値）から見た、データの新しさです。<b>このタブの数字は一般に公開しません。</b></div>
+      <div id="freshMsg" class="stateMsg" hidden></div>
+      <div id="freshBody"></div>
     </section>
   </div>
 
@@ -189,9 +208,9 @@
   function selectTab(tab){
     ui.tab = tab;
     document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
-    show("areaOshi", tab === "oshi"); show("areaDist", tab !== "oshi");
+    show("areaOshi", tab === "oshi"); show("areaDist", tab === "dist-unit" || tab === "dist-supporter"); show("areaFresh", tab === "fresh");
     show("errorView", false);
-    if (tab === "oshi") loadOshi(); else loadDist(tab === "dist-unit" ? "unit" : "supporter");
+    if (tab === "oshi") loadOshi(); else if (tab === "fresh") loadFresh(); else loadDist(tab === "dist-unit" ? "unit" : "supporter");
   }
 
   // ---------- 推し統計 ----------
@@ -391,6 +410,66 @@
       const v = el("div", "dVal", b.users + "人"); v.appendChild(el("small", "", fmtPct(b.share))); row.appendChild(v);
       bars.appendChild(row);
     });
+  }
+
+  // ---------- 81 データの鮮度 ----------
+  let fresh = null;
+  function loadFresh(){
+    if (fresh) { renderFresh(); return; }
+    $("freshMsg").textContent = "読み込み中..."; show("freshMsg", true);
+    fetch("/api/analytics/freshness", { credentials: "same-origin" })
+      .then(r => { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+      .then(d => { fresh = d; if (ui.tab === "fresh") renderFresh(); })
+      .catch(() => { show("freshMsg", false); show("errorView", true); });
+  }
+  function bars(rows, total){   // rows: [{label, users}]
+    const box = el("div"); const max = Math.max(1, ...rows.map(r => r.users));
+    rows.forEach(r => {
+      const row = el("div", "dRow"); row.appendChild(el("div", "", r.label));
+      const tr = el("div", "dTrack"); const f = el("span", "dFill"); f.style.width = (r.users * 100 / max) + "%"; tr.appendChild(f); row.appendChild(tr);
+      const v = el("div", "dVal", r.users + "人"); v.appendChild(el("small", "", (total > 0 ? pct(r.users, total) : 0).toFixed(1) + "%")); row.appendChild(v);
+      box.appendChild(row);
+    });
+    return box;
+  }
+  function renderFresh(){
+    const d = fresh; show("freshMsg", false);
+    const body = $("freshBody"); body.textContent = "";
+    // 1. 最後に保存してからの日数
+    [["unit", "URユニット"], ["supporter", "URサポート"]].forEach(([k, name]) => {
+      const x = d[k]; const b = el("div", "fBlock");
+      b.appendChild(el("h3", "", "最後に保存してからの日数（" + name + "）"));
+      b.appendChild(bars(x.buckets, x.withRows));
+      b.appendChild(el("p", "meta", "データ登録済み " + x.registered + "人（うち所持0件で登録＝日付なし " + x.noRows + "人）"));
+      body.appendChild(b);
+    });
+    // 2. 新URの所持率（母数の取り方で比べる）
+    const nb = el("div", "fBlock");
+    nb.appendChild(el("h3", "", "新URの所持率：母数の取り方による違い"));
+    const sc = el("div", "fScroll"); const t = el("table", "fTable");
+    const hd = el("tr"); ["ユニット", "実装日", "全登録者", "実装後に保存", "直近60日"].forEach(h => hd.appendChild(el("th", "", h))); t.appendChild(hd);
+    d.newUnits.forEach(u => {
+      const tr = el("tr");
+      tr.appendChild(el("td", "", u.name)); tr.appendChild(el("td", "", u.releasedOn.slice(5).replace("-", "/")));
+      tr.appendChild(el("td", "", u.rateAll + "%"));
+      const a = el("td"); a.appendChild(el("b", "", (u.afterRelease.rate === null ? "-" : u.afterRelease.rate + "%"))); a.appendChild(el("small", "", u.afterRelease.owners + "/" + u.afterRelease.users + "人")); tr.appendChild(a);
+      const w6 = el("td", "", u.within60.rate === null ? "-" : u.within60.rate + "%"); w6.appendChild(el("small", "", u.within60.users + "人")); tr.appendChild(w6);
+      t.appendChild(tr);
+    });
+    sc.appendChild(t); nb.appendChild(sc);
+    nb.appendChild(el("p", "meta", "「実装後に保存した人」＝実装日以降に所持データを保存した人だけを母数にした率。実装後に一度も保存していない人は新URを持っていても登録できないため、全登録者の率は実際より低く出る。"));
+    body.appendChild(nb);
+    // 3. 入手記録の入力率
+    const ac = d.acquisition || {}; const ab = el("div", "fBlock");
+    ab.appendChild(el("h3", "", "入手記録の入力率（URユニット）"));
+    ab.appendChild(el("p", "meta", "入手日あり " + (ac.withDate || 0) + "件・" + (ac.usersWithDate || 0) + "人／ガシャ回数あり " + (ac.withPulls || 0) + "件・" + (ac.usersWithPulls || 0) + "人（所持行 " + (ac.rowsAll || 0) + "件中）"));
+    body.appendChild(ab);
+    // 4. 日ごとの保存人数（直近30日。その日が最後の保存日だった人数）
+    const db = el("div", "fBlock");
+    db.appendChild(el("h3", "", "最後に保存した日の内訳（URユニット・直近30日）"));
+    db.appendChild(bars(d.unit.byDate.map(x => ({ label: x.date.slice(5).replace("-", "/"), users: x.users })), d.unit.withRows));
+    db.appendChild(el("p", "meta", "集計 " + d.asOf + " 時点"));
+    body.appendChild(db);
   }
 
   // 運営者専用（恒久）：ログイン済みでも /api/admin/me が admin:true のときだけ本体を読み込む。

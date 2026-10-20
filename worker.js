@@ -2609,6 +2609,154 @@ async function handleAnalyticsDistribution(request, env, url) {
   return jsonResponse({ kind, totalUsers, totalItems, bands, avgRate, medianRate, mine }, 200);
 }
 
+// ---- 81 みんなのデータ（80の案8・案10）----
+// 案8 マスリのブースト対象の所持分布。ログイン必須（ESP決定 10-21：集計の数字はログインユーザーだけに見せる）。
+// ブースト対象の判定は79（unit-list.html の mlTargets）と同じ：tag＝URのunits_tags（有効なタグ）／work＝URのunit_work_map。
+// 母数はデータ登録結果レポートと同じ（units_first_registered_at IS NOT NULL）。80方針の「母数の定義」を変えるときはML_REG_WHEREだけ直す。
+// 集計（自分の位置以外）はWorkerのメモリに5分持つ（シーズンごと）。自分の位置は毎回数える（1人分なので軽い）。
+const ML_STAT_TTL_MS = 5 * 60 * 1000;
+const ML_STAT_MEMO = new Map();   // season_code → { at, data }
+const ML_REG_WHERE = "u.units_first_registered_at IS NOT NULL";
+const ML_TARGET_CTE =
+  `WITH tgt AS (
+     SELECT m.unit_id FROM units_master m
+     WHERE EXISTS (
+       SELECT 1 FROM ml_season_targets t
+       WHERE t.season_code = ?1 AND (
+         (t.target_kind = 'tag' AND EXISTS (
+            SELECT 1 FROM units_tags g JOIN tags_master tm ON tm.tag_id = g.tag_id AND tm.is_active = 1
+            WHERE g.rarity_code = 1 AND g.unit_id = m.unit_id AND g.tag_id = t.target_id))
+         OR (t.target_kind = 'work' AND EXISTS (
+            SELECT 1 FROM unit_work_map w WHERE w.rarity_code = 1 AND w.unit_id = m.unit_id AND w.work_id = t.target_id)))))`;
+
+async function mlStatAggregate(env, code) {
+  const hit = ML_STAT_MEMO.get(code);
+  if (hit && Date.now() - hit.at < ML_STAT_TTL_MS) return hit.data;
+  const ids = (await env.DB.prepare(`${ML_TARGET_CTE} SELECT unit_id FROM tgt ORDER BY unit_id`).bind(code).all()).results.map(r => r.unit_id);
+  const totalUsers = (await env.DB.prepare(`SELECT COUNT(*) AS c FROM users u WHERE ${ML_REG_WHERE}`).first()).c;
+  const perUser = (await env.DB.prepare(
+    `${ML_TARGET_CTE}
+     SELECT o.user_uid AS uid, COUNT(DISTINCT o.unit_id) AS n
+     FROM units_ownership o JOIN users u ON u.user_uid = o.user_uid AND ${ML_REG_WHERE}
+     WHERE o.unit_id IN (SELECT unit_id FROM tgt)
+     GROUP BY o.user_uid`).bind(code).all()).results;
+  const perUnit = (await env.DB.prepare(
+    `${ML_TARGET_CTE}
+     SELECT o.unit_id AS id, COUNT(DISTINCT o.user_uid) AS owners,
+            COUNT(DISTINCT CASE WHEN o.level = 3 THEN o.user_uid END) AS maxed
+     FROM units_ownership o JOIN users u ON u.user_uid = o.user_uid AND ${ML_REG_WHERE}
+     WHERE o.unit_id IN (SELECT unit_id FROM tgt)
+     GROUP BY o.unit_id`).bind(code).all()).results;
+  const N = ids.length;
+  const hist = new Array(N + 1).fill(0);
+  let sum = 0;
+  for (const r of perUser) { hist[Math.min(N, r.n)]++; sum += r.n; }
+  hist[0] += Math.max(0, totalUsers - perUser.length);   // 対象を1機も持たない人（所持0件で登録した人を含む）
+  let avg = null, median = null;
+  if (totalUsers > 0) {
+    avg = Math.round(sum * 10 / totalUsers) / 10;
+    const at = k => { let acc = 0; for (let i = 0; i <= N; i++) { acc += hist[i]; if (acc > k) return i; } return N; };
+    median = totalUsers % 2 ? at((totalUsers - 1) / 2) : (at(totalUsers / 2 - 1) + at(totalUsers / 2)) / 2;
+  }
+  const byId = new Map(perUnit.map(r => [r.id, r]));
+  const data = {
+    targetCount: N, totalUsers, asOf: toJstIsoString(new Date()).slice(0, 16).replace("T", " "),
+    hist, avg, median,
+    units: ids.map(id => ({ unitId: id, owners: (byId.get(id) || {}).owners || 0, maxed: (byId.get(id) || {}).maxed || 0 }))
+  };
+  ML_STAT_MEMO.set(code, { at: Date.now(), data });
+  return data;
+}
+
+// GET /api/analytics/ml?season=<season_code>
+async function handleAnalyticsMl(request, env, url) {
+  const user = await getSessionUser(request, env);
+  if (!user) return jsonResponse({ error: "not_logged_in", message: "ログインが必要です" }, 401);
+  const code = String(url.searchParams.get("season") || "");
+  if (!/^[0-9]{1,3}(\.[0-9])?$/.test(code)) return jsonResponse({ error: "invalid_params" }, 400);
+  const season = await env.DB.prepare("SELECT season_code FROM ml_seasons WHERE season_code = ? AND is_active = 1").bind(code).first();
+  if (!season) return jsonResponse({ error: "not_found" }, 404);
+  const agg = await mlStatAggregate(env, code);
+  const reg = await env.DB.prepare("SELECT units_first_registered_at AS r FROM users WHERE user_uid = ?").bind(user.userUid).first();
+  let mine = { registered: false };
+  if (reg && reg.r) {
+    const owned = (await env.DB.prepare(
+      `${ML_TARGET_CTE} SELECT COUNT(DISTINCT unit_id) AS n FROM units_ownership WHERE user_uid = ?2 AND unit_id IN (SELECT unit_id FROM tgt)`
+    ).bind(code, user.userUid).first()).n;
+    let higher = 0; for (let i = owned + 1; i < agg.hist.length; i++) higher += agg.hist[i];
+    mine = { registered: true, owned, topPercent: agg.totalUsers > 0 && agg.targetCount > 0 ? Math.max(1, Math.ceil((higher + 1) * 100 / agg.totalUsers)) : null };
+  }
+  return jsonResponse({ season: code, ...agg, mine }, 200, { "Cache-Control": "private, no-store" });
+}
+
+// 案10 データの鮮度（運営者専用。一般公開しない：ESP決定 10-21）。D1変更なし。
+// 最後に保存した日時＝その人の所持行の MAX(registered_at)（syncOwnershipが保存のたびに全行を書き直すため）。
+// users.last_seen はログインでも動くので使わない。
+async function handleAnalyticsFreshness(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
+  const nowJst = toJstIsoString(new Date());
+  const today = nowJst.slice(0, 10);
+  const dayDiff = d => Math.floor((Date.parse(today) - Date.parse(d)) / 86400000);
+  const BUCKETS = [[0, 7, "7日以内"], [8, 14, "8〜14日"], [15, 30, "15〜30日"], [31, 60, "31〜60日"], [61, 1e9, "61日以上"]];
+  const out = { asOf: nowJst.slice(0, 16).replace("T", " ") };
+  for (const kind of ["unit", "supporter"]) {
+    const own = kind === "unit" ? "units_ownership" : "supporters_ownership";
+    const regCol = kind === "unit" ? "units_first_registered_at" : "supporters_first_registered_at";
+    const registered = (await env.DB.prepare(`SELECT COUNT(*) AS c FROM users WHERE ${regCol} IS NOT NULL`).first()).c;
+    const rows = (await env.DB.prepare(
+      `SELECT o.user_uid AS uid, MAX(o.registered_at) AS last FROM ${own} o
+       JOIN users u ON u.user_uid = o.user_uid AND u.${regCol} IS NOT NULL GROUP BY o.user_uid`).all()).results;
+    const buckets = BUCKETS.map(([lo, hi, label]) => ({ label, users: 0 }));
+    const byDate = new Map();
+    for (const r of rows) {
+      const d = String(r.last || "").slice(0, 10);
+      const k = dayDiff(d);
+      const b = BUCKETS.findIndex(([lo, hi]) => k >= lo && k <= hi);
+      if (b >= 0) buckets[b].users++;
+      if (k >= 0 && k < 30) byDate.set(d, (byDate.get(d) || 0) + 1);
+    }
+    out[kind] = {
+      registered, withRows: rows.length, noRows: Math.max(0, registered - rows.length), buckets,
+      byDate: [...byDate.entries()].sort((a, b) => a[0] < b[0] ? 1 : -1).map(([date, users]) => ({ date, users }))
+    };
+    if (kind === "unit") out._lastByUid = new Map(rows.map(r => [r.uid, String(r.last || "").slice(0, 10)]));
+  }
+  // 新URの所持率：全登録者／実装日以降に保存した人／直近60日に保存した人
+  const lastByUid = out._lastByUid; delete out._lastByUid;
+  const recent = (await env.DB.prepare(
+    "SELECT unit_id, name, released_on FROM units_master WHERE released_on IS NOT NULL ORDER BY released_on DESC, unit_id DESC LIMIT 10").all()).results;
+  const ownersOf = new Map();
+  if (recent.length) {
+    const res = (await env.DB.prepare(
+      `SELECT o.unit_id AS id, o.user_uid AS uid FROM units_ownership o
+       JOIN users u ON u.user_uid = o.user_uid AND u.units_first_registered_at IS NOT NULL
+       WHERE o.unit_id IN (SELECT unit_id FROM units_master WHERE released_on IS NOT NULL ORDER BY released_on DESC, unit_id DESC LIMIT 10)`).all()).results;
+    for (const r of res) { if (!ownersOf.has(r.id)) ownersOf.set(r.id, new Set()); ownersOf.get(r.id).add(r.uid); }
+  }
+  const allReg = out.unit.registered;
+  const lastList = [...lastByUid.entries()];
+  const within60 = lastList.filter(([, d]) => dayDiff(d) <= 60).map(([u]) => u);
+  out.newUnits = recent.map(u => {
+    const owners = ownersOf.get(u.unit_id) || new Set();
+    const after = lastList.filter(([, d]) => d >= u.released_on).map(([uid]) => uid);
+    const cnt = list => list.filter(uid => owners.has(uid)).length;
+    const r1 = (n, d) => d > 0 ? Math.round(n * 1000 / d) / 10 : null;
+    return {
+      unitId: u.unit_id, name: u.name, releasedOn: u.released_on, owners: owners.size,
+      rateAll: r1(owners.size, allReg),
+      afterRelease: { users: after.length, owners: cnt(after), rate: r1(cnt(after), after.length) },
+      within60: { users: within60.length, owners: cnt(within60), rate: r1(cnt(within60), within60.length) }
+    };
+  });
+  out.acquisition = await env.DB.prepare(
+    `SELECT COUNT(*) AS rowsAll, SUM(acquired_on IS NOT NULL) AS withDate, SUM(gasha_pulls IS NOT NULL) AS withPulls,
+            COUNT(DISTINCT CASE WHEN acquired_on IS NOT NULL THEN user_uid END) AS usersWithDate,
+            COUNT(DISTINCT CASE WHEN gasha_pulls IS NOT NULL THEN user_uid END) AS usersWithPulls
+     FROM units_ownership`).first();
+  return jsonResponse(out, 200);
+}
+
 async function withJsonError(fn, label) {
   try {
     return await fn();
@@ -2719,6 +2867,13 @@ export default {
     }
     if (url.pathname === "/api/analytics/trend" && request.method === "GET") {
       return withJsonError(() => handleAnalyticsTrend(request, env, url), "trend");
+    }
+    // 81 みんなのデータ：案8 マスリの所持分布（ログイン必須）・案10 データの鮮度（運営者専用・一般公開しない）
+    if (url.pathname === "/api/analytics/ml" && request.method === "GET") {
+      return withJsonError(() => handleAnalyticsMl(request, env, url), "ml");
+    }
+    if (url.pathname === "/api/analytics/freshness" && request.method === "GET") {
+      return withJsonError(() => handleAnalyticsFreshness(request, env), "freshness");
     }
 
     if (url.pathname === "/api/units" && request.method === "GET") {
