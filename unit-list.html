@@ -53,8 +53,15 @@
   .mlBar .grp label{white-space:nowrap;}   /* 「□対象を強調」は割らずに丸ごと動く */
   .mlBar .tgw{min-width:0;}
   .mlBar .tg span{white-space:nowrap;}   /* 対象名は途中で割らない（名前と名前の間で折り返す） */
-  .mlBar .mlTop{display:flex;align-items:center;gap:8px 12px;justify-content:space-between;}   /* 1行目：常に表示。以降は折りたたみ */
-  .mlBar .mlTog{font:inherit;font-size:11.5px;white-space:nowrap;background:transparent;color:#ff8ad8;border:1px solid rgba(255,138,216,.55);border-radius:5px;padding:2px 8px;cursor:pointer;flex:none;}
+  .mlBar .mlTop{display:flex;align-items:center;gap:6px 8px;flex-wrap:nowrap;}   /* 1行目：常に1行。以降は折りたたみ */
+  .mlBar .mlTog{font:inherit;font-size:12.5px;white-space:nowrap;background:transparent;color:#ff8ad8;border:0;padding:2px 0;cursor:pointer;flex:none;display:inline-flex;align-items:center;gap:4px;}
+  .mlBar .mlTog .ar{font-size:10px;display:inline-block;width:10px;}
+  .mlBar .mlTop select{flex:0 1 auto;min-width:0;}
+  .mlBar .mlTab{font:inherit;font-size:12px;font-weight:700;white-space:nowrap;margin-left:auto;flex:none;background:transparent;color:#ff8ad8;border:1px solid rgba(255,138,216,.7);border-radius:5px;padding:3px 8px;cursor:pointer;}   /* 表の種類「マスリ対象」：シーズン指定に依存するのでここに置く */
+  .mlBar .mlh .sh{display:none;}
+  @media (max-width:440px){ .mlBar .mlh .lg{display:none;} .mlBar .mlh .sh{display:inline;} .mlBar select{min-width:6.6em;} }   /* スマホでは「マスリ」に略して1行を保つ（プルダウンが切れないように） */
+  @media (max-width:350px){ .mlBar .mlTab{padding:3px 5px;font-size:11px;} .mlBar select{min-width:5.6em;font-size:11.5px;padding:3px 2px;} .mlBar .mlTop{gap:5px;} .mlBar .st{padding:1px 4px;} .mlBar{padding:8px 8px;} }
+  .mlBar .mlTab.active{background:#ff8ad8;color:#1b0614;}
   .mlBar .mlBody{display:flex;flex-direction:column;gap:8px;}
   .mlBar:not(.open) .mlBody{display:none;}
   .mlBar .mlRow2{display:flex;align-items:flex-start;gap:6px 12px;}   /* 2行目固定：「対象を強調」は常に右端 */
@@ -194,13 +201,13 @@
           <button type="button" data-p="B">他主要タグ</button>
           <button type="button" data-p="D">全UR × タイプ</button>
           <button type="button" data-p="C">自由に選ぶ</button>
-          <button type="button" data-p="M" id="presetMl" hidden>マスリ対象</button>
         </div>
       </div>
       <div class="mlBar" id="mlBar" hidden>
         <div class="mlTop">
-          <span class="grp"><span class="mlh">マスターリーグ</span><select id="mlSeason" aria-label="シーズン"></select><span class="st" id="mlState"></span></span>
-          <button type="button" class="mlTog" id="mlTog" aria-expanded="false" aria-controls="mlBody" aria-label="マスターリーグの詳細を開閉" title="詳細を開閉"><span class="ar">▼</span></button>
+          <button type="button" class="mlTog" id="mlTog" aria-expanded="false" aria-controls="mlBody" title="詳細を開閉"><span class="ar">▶</span><span class="mlh"><span class="lg">マスターリーグ</span><span class="sh">マスリ</span></span></button>
+          <select id="mlSeason" aria-label="シーズン"></select><span class="st" id="mlState"></span>
+          <button type="button" class="mlTab" id="presetMl" data-p="M" hidden>マスリ対象</button>
         </div>
         <div class="mlBody" id="mlBody">
           <div class="mlRow2"><span class="tgw">ブースト対象：<span class="tg" id="mlTargets"></span></span><label id="optMlLabel"><input type="checkbox" id="optMl"> 対象を強調</label></div>
@@ -425,7 +432,7 @@ function tile(u){
   return t;
 }
 function render(){
-  document.querySelectorAll("#presetSeg button").forEach(b=>b.classList.toggle("active",b.dataset.p===state.preset));
+  document.querySelectorAll("#presetSeg button, #presetMl").forEach(b=>b.classList.toggle("active",b.dataset.p===state.preset));
   $("customBox").hidden=state.preset!=="C";
   renderMlBar();   // 79
   $("optDim").checked=state.dim; $("optLv").checked=state.lv; $("rowAxis").value=state.rows;
@@ -798,8 +805,9 @@ $("btnClosePreview").addEventListener("click",()=>{ $("previewModal").classList.
 
 // ---- 操作 ----
 $("sheet").addEventListener("click",e=>{ if(e.target===$("sheet")) $("sheet").classList.remove("show"); });
-$("presetSeg").addEventListener("click",e=>{ const b=e.target.closest("button[data-p]"); if(!b) return; state.preset=b.dataset.p;
-  if(state.preset!=="C"){ const p=PRESETS[state.preset]; state.cols=p.cols.slice(); state.rows=p.rows; state.none=p.none; } else state.none=false; render(); });
+const onPreset=e=>{ const b=e.target.closest("button[data-p]"); if(!b) return; state.preset=b.dataset.p;
+  if(state.preset!=="C"){ const p=PRESETS[state.preset]; state.cols=p.cols.slice(); state.rows=p.rows; state.none=p.none; } else state.none=false; render(); };
+$("presetSeg").addEventListener("click",onPreset); $("presetMl").addEventListener("click",onPreset);   // 79 「マスリ対象」はマスターリーグの帯に移管
 $("rowAxis").addEventListener("change",()=>{ state.rows=$("rowAxis").value; render(); });
 $("optLv").addEventListener("change",()=>{ state.lv=$("optLv").checked; render(); });
 $("optDim").addEventListener("change",()=>{ state.dim=$("optDim").checked; render(); });
@@ -813,7 +821,7 @@ $("loginNoteLink").addEventListener("click",openLogin);
 
 // 79 マスリの帯：1行目以外は折りたたみ（開閉は記憶）
 (()=>{ const bar=$("mlBar"), tog=$("mlTog");
-  const set=o=>{ bar.classList.toggle("open",o); tog.setAttribute("aria-expanded",o); tog.querySelector(".ar").textContent=o?"▲":"▼"; try{ localStorage.setItem("ulMlOpen",o?"1":"0"); }catch(e){} };
+  const set=o=>{ bar.classList.toggle("open",o); tog.setAttribute("aria-expanded",o); tog.querySelector(".ar").textContent=o?"▼":"▶"; try{ localStorage.setItem("ulMlOpen",o?"1":"0"); }catch(e){} };
   let o=false; try{ o=localStorage.getItem("ulMlOpen")==="1"; }catch(e){}
   set(o); tog.addEventListener("click",()=>set(!bar.classList.contains("open"))); })();
 
