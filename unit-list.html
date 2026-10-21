@@ -546,6 +546,14 @@ function renderMlBar(){
 }
 // 81 みんなの所持（80 案8）。数字はログイン中だけ（ESP決定 10-21）。未ログインはログイン・登録へ誘導する
 const pct1=(n,d)=>d>0?(Math.floor(n*1000/d)/10).toFixed(1):"0.0";   // データ登録結果レポートと同じく切り捨て
+// 81追加改修：分布（段ごとの割合）は全体で100.0%になるように丸める（最大剰余法。切り捨てで余った0.1%を端数の大きい段から順に足す）
+function pctDist(counts,tot){
+  if(!(tot>0)) return counts.map(()=>"0.0");
+  const raw=counts.map(c=>c*1000/tot), fl=raw.map(Math.floor);
+  let left=1000-fl.reduce((a,b)=>a+b,0);
+  raw.map((r,i)=>[r-fl[i],i]).sort((a,b)=>b[0]-a[0]||a[1]-b[1]).forEach(([,i])=>{ if(left>0){ fl[i]++; left--; } });
+  return fl.map(v=>(v/10).toFixed(1));
+}
 function mlBuckets(N){   // 分布の段：0機／途中を4段／全部。7機以下は1機ずつ
   if(N<=7) return Array.from({length:N+1},(_,i)=>[i,i]);
   const step=Math.ceil((N-1)/4), b=[[0,0]];
@@ -556,9 +564,9 @@ function renderMlStat(x){
   const box=$("mlStat"); box.textContent="";
   const nUr=units.filter(u=>mlHits(u).length).length;
   box.hidden=!nUr; if(!nUr) return;   // URが対象外のシーズン（SSR・ULT向け）は出さない
-  box.appendChild(el("div",{class:"h",text:"みんなの所持"}));   // 対象の機数は上の行に出ている
+  box.appendChild(el("div",{class:"h",text:"登録者の所持率"}));   // 対象の機数は上の行に出ている（81追加改修：「みんな」→「登録ユーザー」）
   if(!LOGGED){
-    const p=el("div",{class:"note"}); p.append("ログインすると、みんなが対象のURを何機持っているかと、あなたの位置が見られます（");
+    const p=el("div",{class:"note"}); p.append("ログインすると、登録ユーザーが対象のURを何機持っているかと、あなたの位置が見られます（");
     const a=el("a",{text:"ログイン / 新規登録"}); a.addEventListener("click",openLogin); p.append(a,"）"); box.appendChild(p); return;
   }
   const d=ML_STAT.get(x.code);
@@ -571,18 +579,18 @@ function renderMlStat(x){
   const N=d.targetCount, tot=d.totalUsers||0, me=d.mine&&d.mine.registered?d.mine:null;
   if(me) box.appendChild(el("div",{class:"me"},[document.createTextNode("あなた："),el("b",{text:me.owned+"機"}),document.createTextNode(" / "+N+"機（上位"+me.topPercent+"%）")]));
   else { const p=el("div",{class:"note"}); p.append("ユニットの所持を登録すると、あなたの位置も出ます（"); p.appendChild(el("a",{href:"/unit",text:"ユニットチェッカーへ"})); p.append("）"); box.appendChild(p); }
-  const B=mlBuckets(N), cnt=B.map(([lo,hi])=>d.hist.slice(lo,hi+1).reduce((a,b)=>a+b,0)), mx=Math.max(1,...cnt);
+  const B=mlBuckets(N), cnt=B.map(([lo,hi])=>d.hist.slice(lo,hi+1).reduce((a,b)=>a+b,0)), mx=Math.max(1,...cnt), pc=pctDist(cnt,tot);
   const h=el("div",{class:"hist"});
   B.map((b,i)=>[b[0],b[1],i]).reverse().forEach(([lo,hi,i])=>{   // 所持機数の多い段を最上段に（降順）
     const m=!!(me&&me.owned>=lo&&me.owned<=hi), c=m?" mine":"";
     h.appendChild(el("span",{class:"lb"+c,text:(lo===hi?(lo===N&&N>0?"全"+N+"機":lo+"機"):lo+"〜"+hi+"機")}));
     const w=el("span",{class:"bw"}); w.appendChild(el("span",{class:"bar"+c,style:"width:"+(cnt[i]*100/mx)+"%"})); h.appendChild(w);
-    h.appendChild(el("span",{class:"v"+c,text:pct1(cnt[i],tot)+"%"+(m?" ◀あなた":"")}));
+    h.appendChild(el("span",{class:"v"+c,text:pc[i]+"%"+(m?" ◀あなた":"")}));
   });
   box.appendChild(h);
   box.appendChild(el("div",{class:"note",text:"平均 "+d.avg+"機・中央値 "+d.median+"機。集計対象 "+tot.toLocaleString()+"人（ユニットのデータ登録済み・"+d.asOf.slice(5,10).replace("-","/")+" "+d.asOf.slice(11)+" 時点）"}));
   const det=el("details"); det.open=mlDetOpen; det.addEventListener("toggle",()=>{ mlDetOpen=det.open; });
-  det.appendChild(el("summary",{text:"対象URごとのみんなの所持率"}));
+  det.appendChild(el("summary",{text:"対象URごとの登録ユーザーの所持率"}));
   const ul=el("div",{class:"ul"});
   d.units.slice().sort((a,b)=>b.owners-a.owners||a.unitId-b.unitId).forEach(r=>{ const u=unitById.get(r.unitId); if(!u) return; const own=!!(OWN&&OWN.has(r.unitId));
     ul.appendChild(el("img",{src:`${IMG}units/${r.unitId}.jpg`,alt:""})); ul.appendChild(el("span",{class:"nm",text:u.name}));
@@ -623,7 +631,7 @@ function openSheet(u){
     el("div",{class:"meta",text:`実装日 ${u.released||"-"}${OWN?(own!==undefined?"・所持（"+(LV_LABEL[own]||"")+"）":"・未所持"):""}`})])]));
   if(u.effects&&u.effects.length){ const s=el("div",{class:"sec"},[el("b",{text:"効果アイコン"})]); u.effects.forEach(c=>s.appendChild(el("div",{},[el("img",{src:ICON+c+".png",alt:"",style:"width:20px;vertical-align:middle;margin-right:6px"}),document.createTextNode(effName(c))]))); b.appendChild(s); }
   { const x=curSeason(); if(x){ const h=mlHits(u).map(t=>mlShort(t.name)); b.appendChild(el("div",{class:"sec"},[el("b",{text:"マスターリーグ "+seasonLabel(x)+"（"+seasonState(x)+"）"}),el("div",{text:h.length?"ブースト対象（"+h.join("・")+"）":"対象外"})].concat((()=>{ const d=ML_STAT.get(x.code), r=h.length&&d&&d.units?d.units.find(z=>z.unitId===u.unitId):null;   // 81 ログイン中は対象のみんなの所持率も
-      return r?[el("div",{text:"みんなの所持率 "+pct1(r.owners,d.totalUsers)+"%（完凸 "+pct1(r.maxed,d.totalUsers)+"%）"})]:[]; })()))); } }   // 79
+      return r?[el("div",{text:"登録ユーザーの所持率 "+pct1(r.owners,d.totalUsers)+"%（完凸 "+pct1(r.maxed,d.totalUsers)+"%）"})]:[]; })()))); } }   // 79
   const s2=el("div",{class:"sec"},[el("b",{text:"タグ"})]); tg.forEach(t=>s2.appendChild(el("span",{class:"tagchip"+(hit.has(t.name)?" hit":""),text:t.name}))); b.appendChild(s2);
   const L=[]; for(const t of tg) for(const x of leadersByTag.get(t.tagId)||[]) if(!L.some(y=>y.s.id===x.s.id)) L.push(Object.assign({tag:t.name},x));
   if(L.length){ const s3=el("div",{class:"sec"},[el("b",{text:"このユニットが対象になるサポーター（タグ）"})]); L.forEach(x=>s3.appendChild(el("div",{text:`${x.s.limited?"★":""}${x.s.name}（${x.tag}）`}))); b.appendChild(s3); }
