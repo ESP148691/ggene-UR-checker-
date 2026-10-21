@@ -128,6 +128,8 @@
     refreshAuthState();
   }
 
+  // 82 ユニット一覧のログイン案内から開いたときだけ値がある（sessionStorage・このタブの中だけ）
+  function authSrc(){ try { return sessionStorage.getItem("authSrc") || undefined; } catch (e) { return undefined; } }
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     errEl.textContent = "";
@@ -139,13 +141,14 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, src: authSrc() })   // 82 直前に押した案内（ユニット一覧）。無ければ送らない
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         errEl.textContent = data.message || "エラーが発生しました";
         return;
       }
+      try { sessionStorage.removeItem("authSrc"); } catch (e2) {}   // 82
       closeModal();
       // 54 運営者が発行した仮パスワードでのログインは、data-auth-stayの有無にかかわらずアカウント設定へ移して変更を求める
       if (mode === "login" && data.mustChangePassword === true) {

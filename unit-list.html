@@ -545,6 +545,15 @@ function renderMlBar(){
   renderMlStat(x);   // 81
 }
 // 81 みんなの所持（80 案8）。数字はログイン中だけ（ESP決定 10-21）。未ログインはログイン・登録へ誘導する
+// 82 誘導の計測（運営者ページで見るだけ。人は記録しない）。once＝このブラウザで1日1回だけ
+function trk(k,once){
+  if(once){ const day=new Date(Date.now()+9*3600*1000).toISOString().slice(0,10); try{ if(localStorage.getItem("ulTrk_"+k)===day) return; localStorage.setItem("ulTrk_"+k,day); }catch(e){} }
+  const body=JSON.stringify({k});
+  try{ if(navigator.sendBeacon&&navigator.sendBeacon("/api/track",body)) return; }catch(e){}
+  fetch("/api/track",{method:"POST",body,keepalive:true}).catch(()=>{});
+}
+function noteMlSeen(){ if(!LOGGED&&!$("mlBar").hidden&&$("mlBar").classList.contains("open")&&!$("mlStat").hidden&&$("mlStat").childElementCount) trk("ul_ml_seen_guest",true); }   // 82 未ログインで「登録者の所持率」の案内が見えた
+const loginFrom=src=>()=>{ try{ sessionStorage.setItem("authSrc",src); }catch(e){} trk(src==="ul_ml"?"ul_click_ml":"ul_click_note"); openLogin(); };   // 82
 const pct1=(n,d)=>d>0?(Math.floor(n*1000/d)/10).toFixed(1):"0.0";   // データ登録結果レポートと同じく切り捨て
 // 81追加改修：分布（段ごとの割合）は全体で100.0%になるように丸める（最大剰余法。切り捨てで余った0.1%を端数の大きい段から順に足す）
 function pctDist(counts,tot){
@@ -567,7 +576,7 @@ function renderMlStat(x){
   box.appendChild(el("div",{class:"h",text:"登録者の所持率"}));   // 対象の機数は上の行に出ている（81追加改修：「みんな」→「登録ユーザー」）
   if(!LOGGED){
     const p=el("div",{class:"note"}); p.append("ログインすると、登録ユーザーが対象のURを何機持っているかと、あなたの位置が見られます（");
-    const a=el("a",{text:"ログイン / 新規登録"}); a.addEventListener("click",openLogin); p.append(a,"）"); box.appendChild(p); return;
+    const a=el("a",{text:"ログイン / 新規登録"}); a.addEventListener("click",loginFrom("ul_ml")); p.append(a,"）"); box.appendChild(p); noteMlSeen(); return;
   }
   const d=ML_STAT.get(x.code);
   if(d===undefined){
@@ -898,11 +907,11 @@ $("mlSeason").addEventListener("change",()=>{ state.season=$("mlSeason").value; 
   state.cols=state.cols.filter(n=>n===ML_ALL||keep.has(n)); render(); });
 const openLogin=()=>{ const l=$("authOpenLink"); if(l) l.click(); };
 $("guardLoginBtn").addEventListener("click",openLogin);
-$("loginNoteLink").addEventListener("click",openLogin);
+$("loginNoteLink").addEventListener("click",loginFrom("ul_note"));   // 82 計測つき
 
 // 79 マスリの帯：1行目以外は折りたたみ（表示のたびに閉じた状態で始める）
 (()=>{ const bar=$("mlBar"), tog=$("mlTog");
-  const set=o=>{ bar.classList.toggle("open",o); tog.setAttribute("aria-expanded",o); tog.querySelector(".ar").textContent=o?"▼":"▶"; };
+  const set=o=>{ bar.classList.toggle("open",o); if(o) noteMlSeen(); /* 82 */ tog.setAttribute("aria-expanded",o); tog.querySelector(".ar").textContent=o?"▼":"▶"; };
   set(false); tog.addEventListener("click",()=>set(!bar.classList.contains("open"))); })();
 
 // ---- 起動 ----
@@ -928,6 +937,7 @@ async function init(me){
   leaderTagIds=[...leadersByTag.keys()];
   // 79 マスリのシーズン（API失敗・0048未適用なら空＝マスリの表示はすべて出ない）。対象が1つも無いシーズンは出さない
   LOGGED=!!(me&&me.loggedIn);   // 81
+  trk(LOGGED?"ul_view_member":"ul_view_guest",true);   // 82
   ML=((mj&&mj.seasons)||[]).filter(x=>x.targets&&x.targets.length);
   autoSeason=pickSeason(ML,TODAY);
   if(me&&me.loggedIn){

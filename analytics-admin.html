@@ -101,6 +101,9 @@
   .fTable th{color:var(--muted);font-weight:500;font-size:11px;}
   .fTable td b{color:var(--gold);}
   .fScroll{overflow-x:auto;}
+  .fBlock .dRow{grid-template-columns:8.2em 1fr 7.5em;}   /* 82 見出しが長いので広げる */
+  .fTable.compact th:first-child,.fTable.compact td:first-child{min-width:0;}   /* 82 日ごとの表は数字だけなので詰める */
+  .fTable.compact th{white-space:normal;line-height:1.3;}
   .pageFooter{margin-top:36px;padding-top:16px;border-top:1px solid var(--line);font-size:10.5px;line-height:1.9;color:var(--muted);}
   .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
   .pageFooter a{color:var(--cyan);text-decoration:none;}
@@ -126,6 +129,7 @@
       <button type="button" data-tab="dist-unit">URユニット所持率分布</button>
       <button type="button" data-tab="dist-supporter">URサポート所持率分布</button>
       <button type="button" data-tab="fresh">データの鮮度</button>
+      <button type="button" data-tab="funnel">ユニット一覧からの誘導</button>
     </div>
 
     <section id="areaOshi">
@@ -152,6 +156,13 @@
         </div>
         <div id="distBars"></div>
       </div>
+    </section>
+
+    <!-- 82 ユニット一覧からの誘導（81の効果）。運営者専用 -->
+    <section id="areaFunnel" hidden>
+      <div class="note">ログイン不要のユニット一覧から、どれだけログイン・新規登録につながったかを日ごとに数えています。閲覧と「案内を見た」は同じブラウザで1日1回だけ数えます（人は記録していません）。</div>
+      <div id="funnelMsg" class="stateMsg" hidden></div>
+      <div id="funnelBody"></div>
     </section>
 
     <!-- 81 データの鮮度（80 案10）。運営者専用・一般公開しない（ESP決定 10-21） -->
@@ -208,9 +219,9 @@
   function selectTab(tab){
     ui.tab = tab;
     document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
-    show("areaOshi", tab === "oshi"); show("areaDist", tab === "dist-unit" || tab === "dist-supporter"); show("areaFresh", tab === "fresh");
+    show("areaOshi", tab === "oshi"); show("areaDist", tab === "dist-unit" || tab === "dist-supporter"); show("areaFresh", tab === "fresh"); show("areaFunnel", tab === "funnel");
     show("errorView", false);
-    if (tab === "oshi") loadOshi(); else if (tab === "fresh") loadFresh(); else loadDist(tab === "dist-unit" ? "unit" : "supporter");
+    if (tab === "oshi") loadOshi(); else if (tab === "fresh") loadFresh(); else if (tab === "funnel") loadFunnel(); else loadDist(tab === "dist-unit" ? "unit" : "supporter");
   }
 
   // ---------- 推し統計 ----------
@@ -422,12 +433,12 @@
       .then(d => { fresh = d; if (ui.tab === "fresh") renderFresh(); })
       .catch(() => { show("freshMsg", false); show("errorView", true); });
   }
-  function bars(rows, total){   // rows: [{label, users}]
+  function bars(rows, total, unit){   // rows: [{label, users}]。unit：数の単位（既定「人」）
     const box = el("div"); const max = Math.max(1, ...rows.map(r => r.users));
     rows.forEach(r => {
       const row = el("div", "dRow"); row.appendChild(el("div", "", r.label));
       const tr = el("div", "dTrack"); const f = el("span", "dFill"); f.style.width = (r.users * 100 / max) + "%"; tr.appendChild(f); row.appendChild(tr);
-      const v = el("div", "dVal", r.users + "人"); v.appendChild(el("small", "", (total > 0 ? pct(r.users, total) : 0).toFixed(1) + "%")); row.appendChild(v);
+      const v = el("div", "dVal", r.users + (unit || "人")); v.appendChild(el("small", "", (total > 0 ? pct(r.users, total) : 0).toFixed(1) + "%")); row.appendChild(v);
       box.appendChild(row);
     });
     return box;
@@ -469,6 +480,57 @@
     db.appendChild(el("h3", "", "最後に保存した日の内訳（URユニット・直近30日）"));
     db.appendChild(bars(d.unit.byDate.map(x => ({ label: x.date.slice(5).replace("-", "/"), users: x.users })), d.unit.withRows));
     db.appendChild(el("p", "meta", "集計 " + d.asOf + " 時点"));
+    body.appendChild(db);
+  }
+
+  // ---------- 82 ユニット一覧からの誘導 ----------
+  let funnel = null;
+  function loadFunnel(){
+    if (funnel) { renderFunnel(); return; }
+    $("funnelMsg").textContent = "読み込み中..."; show("funnelMsg", true);
+    fetch("/api/analytics/funnel?days=30", { credentials: "same-origin" })
+      .then(r => { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+      .then(d => { funnel = d; if (ui.tab === "funnel") renderFunnel(); })
+      .catch(() => { show("funnelMsg", false); show("errorView", true); });
+  }
+  function sumDays(list, n){
+    const o = {}; list.slice(0, n).forEach(r => Object.keys(r).forEach(k => { if (k !== "date") o[k] = (o[k] || 0) + r[k]; })); return o;
+  }
+  function renderFunnel(){
+    const d = funnel; show("funnelMsg", false);
+    const body = $("funnelBody"); body.textContent = "";
+    if (!d.since) body.appendChild(el("div", "note warn", "まだ計測データがありません（82の公開後から数え始めます）"));
+    // 1. 直近7日・30日の流れ
+    [[7, "直近7日"], [30, "直近30日"]].forEach(([n, title]) => {
+      const s = sumDays(d.days, n); const b = el("div", "fBlock");
+      b.appendChild(el("h3", "", title + "：ユニット一覧 → ログイン・登録"));
+      const clicks = s.ul_click_ml + s.ul_click_note, regs = s.register_src_ul_ml + s.register_src_ul_note, logins = s.login_src_ul_ml + s.login_src_ul_note;
+      b.appendChild(bars([
+        { label: "未ログインで閲覧", users: s.ul_view_guest },
+        { label: "所持率の案内を見た", users: s.ul_ml_seen_guest },
+        { label: "案内を押した", users: clicks },
+        { label: "→ 新規登録", users: regs },
+        { label: "→ ログイン", users: logins }
+      ], s.ul_view_guest, "件"));
+      b.appendChild(el("p", "meta",
+        "新規登録の内訳：登録者の所持率の案内 " + s.register_src_ul_ml + "人・自分の所持の案内 " + s.register_src_ul_note + "人。" +
+        "案内を押した内訳：登録者の所持率 " + s.ul_click_ml + "・自分の所持 " + s.ul_click_note + "。" +
+        "サイト全体の新規登録 " + s.regAll + "人のうち、ユニット一覧の案内から " + regs + "人（" + (s.regAll > 0 ? pct(regs, s.regAll).toFixed(1) : "0.0") + "%）。" +
+        "ログイン中の閲覧 " + s.ul_view_member + "件。"));
+      body.appendChild(b);
+    });
+    // 2. 日ごと
+    const db = el("div", "fBlock"); db.appendChild(el("h3", "", "日ごと（直近30日）"));
+    const sc = el("div", "fScroll"); const t = el("table", "fTable compact");
+    const hd = el("tr"); ["日付", "閲覧", "案内を見た", "押した", "案内→登録", "全体の登録"].forEach(x => hd.appendChild(el("th", "", x))); t.appendChild(hd);
+    d.days.forEach(r => {
+      const tr = el("tr");
+      [r.date.slice(5).replace("-", "/"), r.ul_view_guest, r.ul_ml_seen_guest, r.ul_click_ml + r.ul_click_note, r.register_src_ul_ml + r.register_src_ul_note, r.regAll]
+        .forEach((v, i) => { const td = el("td", "", String(v)); if (i === 4 && v > 0) { td.textContent = ""; td.appendChild(el("b", "", String(v))); } tr.appendChild(td); });
+      t.appendChild(tr);
+    });
+    sc.appendChild(t); db.appendChild(sc);
+    db.appendChild(el("p", "meta", "計測開始 " + (d.since || "-") + "。閲覧＝未ログインでの閲覧。「案内→登録」は、ユニット一覧のログイン案内を押したあと、同じタブで新規登録した人数。"));
     body.appendChild(db);
   }
 

@@ -232,7 +232,7 @@ async function handleRegister(request, env) {
   } catch (e) {
     return jsonResponse({ error: "invalid_body" }, 400);
   }
-  const { username, password } = body || {};
+  const { username, password, src } = body || {};
   if (!isValidUsername(username)) {
     return jsonResponse({ error: "invalid_username", message: "ユーザー名は英数字・アンダースコアのみ、3〜20文字で入力してください" }, 400);
   }
@@ -261,6 +261,7 @@ async function handleRegister(request, env) {
   }
 
   await bumpDailyStat(env, "login");
+  if (AUTH_SRC_KEYS.has(src)) await bumpDailyStat(env, "register_src_" + src);   // 82 どの案内から登録したか
   const token = await createSession(env, userUid);
   return jsonResponse(
     { username },
@@ -276,7 +277,7 @@ async function handleLogin(request, env) {
   } catch (e) {
     return jsonResponse({ error: "invalid_body" }, 400);
   }
-  const { username, password } = body || {};
+  const { username, password, src } = body || {};
   if (typeof username !== "string" || typeof password !== "string") {
     return jsonResponse({ error: "invalid_body" }, 400);
   }
@@ -321,6 +322,7 @@ async function handleLogin(request, env) {
   await env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(now, row.user_uid).run();
 
   await bumpDailyStat(env, "login");
+  if (AUTH_SRC_KEYS.has(src)) await bumpDailyStat(env, "login_src_" + src);   // 82 どの案内からログインしたか
   const token = await createSession(env, row.user_uid);
   return jsonResponse(
     { username, mustChangePassword: row.must_change_password === 1 },
@@ -460,6 +462,44 @@ async function incrementUsageCounter(env, counterKey) {
     `INSERT INTO usage_counters (counter_key, count) VALUES (?, 1)
      ON CONFLICT(counter_key) DO UPDATE SET count = count + 1`
   ).bind(counterKey).run();
+}
+
+// 82 ユニット一覧からの誘導の計測（81の効果を見る。運営者専用の表示だけに使い、一般には出さない）
+//   POST /api/track {k}：ログイン不要。決まったキーだけ daily_stats に1足す（人やブラウザは記録しない）
+//   ログイン・新規登録の body.src：直前に押したユニット一覧の案内（ul_ml＝登録者の所持率の案内／ul_note＝自分の所持の案内）
+const TRACK_KEYS = new Set(["ul_view_guest", "ul_view_member", "ul_ml_seen_guest", "ul_click_ml", "ul_click_note"]);
+const AUTH_SRC_KEYS = new Set(["ul_ml", "ul_note"]);
+async function handleTrack(request, env) {
+  let k = null;
+  try { k = JSON.parse(await request.text()).k; } catch (e) { /* sendBeacon は text/plain で来る */ }
+  if (TRACK_KEYS.has(k)) await bumpDailyStat(env, k);
+  return new Response(null, { status: 204 });
+}
+// GET /api/analytics/funnel?days=30（運営者のみ）：ユニット一覧からの誘導を日ごとに。新規登録の総数は users.first_seen（UTC）をJSTの日付にして数える
+async function handleAnalyticsFunnel(request, env, url) {
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
+  const days = Math.min(90, Math.max(7, Number(url.searchParams.get("days")) || 30));
+  const today = jstDateString(new Date());
+  const start = jstDateString(new Date(Date.parse(today + "T00:00:00+09:00") - (days - 1) * 86400000));
+  const KEYS = ["ul_view_guest", "ul_view_member", "ul_ml_seen_guest", "ul_click_ml", "ul_click_note",
+    "register_src_ul_ml", "register_src_ul_note", "login_src_ul_ml", "login_src_ul_note"];
+  const stats = (await env.DB.prepare(
+    `SELECT stat_date AS d, stat_key AS k, count AS c FROM daily_stats
+     WHERE stat_date >= ? AND stat_key IN (${KEYS.map(() => "?").join(",")})`).bind(start, ...KEYS).all()).results;
+  const regs = (await env.DB.prepare(
+    `SELECT date(datetime(first_seen, '+9 hours')) AS d, COUNT(*) AS c FROM users
+     WHERE username IS NOT NULL AND first_seen >= ? GROUP BY d`).bind(new Date(Date.parse(start + "T00:00:00+09:00")).toISOString()).all()).results;
+  const since = (await env.DB.prepare(
+    "SELECT MIN(stat_date) AS d FROM daily_stats WHERE stat_key IN ('ul_view_guest', 'ul_view_member')").first()).d;
+  const by = new Map();
+  for (let i = 0; i < days; i++) {
+    const d = jstDateString(new Date(Date.parse(start + "T00:00:00+09:00") + i * 86400000));
+    by.set(d, { date: d, regAll: 0, ...Object.fromEntries(KEYS.map(k => [k, 0])) });
+  }
+  for (const r of stats) if (by.has(r.d)) by.get(r.d)[r.k] = r.c;
+  for (const r of regs) if (by.has(r.d)) by.get(r.d).regAll = r.c;
+  return jsonResponse({ since, today, days: [...by.values()].reverse() }, 200);
 }
 
 // 運営者向けの利用集計（日別カウンタ。stat_key＝login／checker_use）。0032未適用や失敗でも本処理は止めない
@@ -2874,6 +2914,13 @@ export default {
     }
     if (url.pathname === "/api/analytics/freshness" && request.method === "GET") {
       return withJsonError(() => handleAnalyticsFreshness(request, env), "freshness");
+    }
+    // 82 ユニット一覧からの誘導の計測（記録はログイン不要・表示は運営者専用）
+    if (url.pathname === "/api/track" && request.method === "POST") {
+      return handleTrack(request, env);
+    }
+    if (url.pathname === "/api/analytics/funnel" && request.method === "GET") {
+      return withJsonError(() => handleAnalyticsFunnel(request, env, url), "funnel");
     }
 
     if (url.pathname === "/api/units" && request.method === "GET") {
