@@ -573,7 +573,7 @@ function renderMlStat(x){
   else { const p=el("div",{class:"note"}); p.append("ユニットの所持を登録すると、あなたの位置も出ます（"); p.appendChild(el("a",{href:"/unit",text:"ユニットチェッカーへ"})); p.append("）"); box.appendChild(p); }
   const B=mlBuckets(N), cnt=B.map(([lo,hi])=>d.hist.slice(lo,hi+1).reduce((a,b)=>a+b,0)), mx=Math.max(1,...cnt);
   const h=el("div",{class:"hist"});
-  B.forEach(([lo,hi],i)=>{
+  B.map((b,i)=>[b[0],b[1],i]).reverse().forEach(([lo,hi,i])=>{   // 所持機数の多い段を最上段に（降順）
     const m=!!(me&&me.owned>=lo&&me.owned<=hi), c=m?" mine":"";
     h.appendChild(el("span",{class:"lb"+c,text:(lo===hi?(lo===N&&N>0?"全"+N+"機":lo+"機"):lo+"〜"+hi+"機")}));
     const w=el("span",{class:"bw"}); w.appendChild(el("span",{class:"bar"+c,style:"width:"+(cnt[i]*100/mx)+"%"})); h.appendChild(w);
@@ -892,11 +892,10 @@ const openLogin=()=>{ const l=$("authOpenLink"); if(l) l.click(); };
 $("guardLoginBtn").addEventListener("click",openLogin);
 $("loginNoteLink").addEventListener("click",openLogin);
 
-// 79 マスリの帯：1行目以外は折りたたみ（開閉は記憶）
+// 79 マスリの帯：1行目以外は折りたたみ（表示のたびに閉じた状態で始める）
 (()=>{ const bar=$("mlBar"), tog=$("mlTog");
-  const set=o=>{ bar.classList.toggle("open",o); tog.setAttribute("aria-expanded",o); tog.querySelector(".ar").textContent=o?"▼":"▶"; try{ localStorage.setItem("ulMlOpen",o?"1":"0"); }catch(e){} };
-  let o=false; try{ o=localStorage.getItem("ulMlOpen")==="1"; }catch(e){}
-  set(o); tog.addEventListener("click",()=>set(!bar.classList.contains("open"))); })();
+  const set=o=>{ bar.classList.toggle("open",o); tog.setAttribute("aria-expanded",o); tog.querySelector(".ar").textContent=o?"▼":"▶"; };
+  set(false); tog.addEventListener("click",()=>set(!bar.classList.contains("open"))); })();
 
 // ---- 起動 ----
 function showOnly(id){ $("loadingView").hidden=true; $(id).hidden=false; }
