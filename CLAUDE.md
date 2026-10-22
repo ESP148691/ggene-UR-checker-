@@ -111,6 +111,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0047 | 新URサポーター51 カティ・マネキン&ウラル（恒常・HP回復。リーダースキル：指揮官機20→28%／指揮官機かつライバル30→44%）。タリア(32)は復刻で変更なし（何度でも） | 適用済み（2026-10-17。画像`images/supporters/51.jpg`済み・`scan_fit`は未） |
 | 0048 | 79 マスターリーグのシーズンTBL：`ml_seasons`（season_code TEXT・name・starts_on・ends_on・stage・note・is_active・updated_at）・`ml_season_targets`（season_code・target_kind＝tag/work・target_id・sort_order）。`CREATE … IF NOT EXISTS`で何度でも。D1適用済み（2026-10-20） |
 | 0049 | 79 SEASON 1〜17（11.5・15.5含む19シーズン・38対象）の登録。CSV（`docs/01_所持チェッカー・DB登録/データ/79_マスリ_シーズン一覧.csv`）から`79_build_ml_seasons_sql.py`で生成。タグ・作品は名前で引く。何度でも流せる。D1適用済み（2026-10-20。確認SQLは期待値どおり：19/19・各2対象・孤児0・S17の対象UR28） |
+| 0050 | ストライカーカスタム（unit_id 3）のEX武装属性「特殊」の追加（物理＋特殊）。何度でも流せる。D1適用済み（2026-10-23） |
 | 次の空き | 0041 | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
