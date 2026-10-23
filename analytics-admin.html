@@ -130,7 +130,7 @@
       <button type="button" data-tab="dist-supporter">URサポート所持率分布</button>
       <button type="button" data-tab="fresh">データの鮮度</button>
       <button type="button" data-tab="funnel">ユニット一覧からの誘導</button>
-      <button type="button" data-tab="newask">新URフォーム（試用）</button>
+      <button type="button" data-tab="newask">新ユニット所持率調査（試用）</button>
     </div>
 
     <section id="areaOshi">
@@ -159,10 +159,10 @@
       </div>
     </section>
 
-    <!-- 83 新URの入手状況フォームの試用（段階1）。所持・回答に関係なく期間内の新URを全部出し、押しても登録しない -->
+    <!-- 83 新ユニット所持率調査の試用（段階1）。期限に関係なく出し、押しても登録しない -->
     <section id="areaNewAsk" class="newAsk" hidden>
-      <div class="note"><b>表示のみの試用です。押しても登録されません。</b>公開後はログイン後のトップに、ユニット登録済みの人へ、未所持の新URだけが出ます（実装から30日以内。「引いていない」は7日後にもう一度）。</div>
-      <p class="askLead">まだ登録されていない新URです。引いた場合は凸数を選ぶと、所持データに登録されます。</p>
+      <div class="note"><b>表示のみの試用です。押しても登録されません。</b>中身はあなた（運営者）の今の所持で埋めています。公開後はログイン後のトップに「新ユニット所持率調査」として、ユニット登録済みの人へ出ます（実装から30日以内のUR。まだ答えていないURがあるとき・前回の登録から7日たったとき）。</div>
+      <p class="askLead">実装から30日以内の新URです。今の登録内容を選んであるので、変わったところだけ直して［登録］を押してください（変更がなければそのまま［登録］）。</p>
       <div id="newAskList"></div>
       <div id="newAskEmpty" class="stateMsg" hidden>実装から30日以内の新URはありません</div>
       <button type="button" class="chip" id="newAskReset">表示をやり直す</button>
@@ -480,11 +480,11 @@
     sc.appendChild(t); nb.appendChild(sc);
     nb.appendChild(el("p", "meta", "「実装後に保存した人」＝実装日以降に所持データを保存した人だけを母数にした率。実装後に一度も保存していない人は新URを持っていても登録できないため、全登録者の率は実際より低く出る。"));
     body.appendChild(nb);
-    // 83 トップの「新URの入手状況」の回答
+    // 83 トップの「新ユニット所持率調査」の回答
     const qb = el("div", "fBlock");
-    qb.appendChild(el("h3", "", "トップの回答（新URの入手状況）"));
+    qb.appendChild(el("h3", "", "トップの回答（新ユニット所持率調査）"));
     const qs = el("div", "fScroll"); const qt = el("table", "fTable compact");
-    const qh = el("tr"); ["ユニット", "回答", "引いた", "引いていない", "回答込みの所持率"].forEach(x => qh.appendChild(el("th", "", x))); qt.appendChild(qh);
+    const qh = el("tr"); ["ユニット", "回答", "所持", "引いていない", "回答込みの所持率"].forEach(x => qh.appendChild(el("th", "", x))); qt.appendChild(qh);
     d.newUnits.filter(u => u.answers && u.answers.total).forEach(u => {
       const a = u.answers, tr = el("tr");
       tr.appendChild(el("td", "", u.name));
@@ -496,7 +496,7 @@
     });
     if (qt.children.length === 1) qb.appendChild(el("p", "meta", "まだ回答がありません"));
     else { qs.appendChild(qt); qb.appendChild(qs); }
-    qb.appendChild(el("p", "meta", "トップで「引いた／引いていない」と答えた人数。「回答込みの所持率」は、実装後に保存した人に回答した人を加えた母数での率。"));
+    qb.appendChild(el("p", "meta", "トップの調査で、そのURを「所持（凸）／引いていない」と登録した人数（変更なしで登録した人も含む）。「回答込みの所持率」は、実装後に保存した人に回答した人を加えた母数での率。"));
     body.appendChild(qb);
     // 3. 入手記録の入力率
     const ac = d.acquisition || {}; const ab = el("div", "fBlock");
@@ -511,7 +511,7 @@
     body.appendChild(db);
   }
 
-  // ---------- 83 新URフォーム（試用） ----------
+  // ---------- 83 新ユニット所持率調査（試用） ----------
   let newAskShown = false;
   function loadNewAsk(force){
     if (newAskShown && !force) return;
