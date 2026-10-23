@@ -346,9 +346,9 @@
     </div>
   </section>
 
-  <!-- 83 新ユニット所持率調査（運営者のみ表示・試用。toggleAdminNav()で運営者と確認できたときだけ出す。部品は new-ask.js） -->
+  <!-- 83 新ユニット所持率調査（段階2で公開。ログイン中・ユニット登録済みの人に、回答の時期のときだけ。部品は new-ask.js） -->
   <section class="section newAsk" id="newAsk" hidden aria-label="新ユニット所持率調査">
-    <p class="sectionLabel">新ユニット所持率調査（運営者のみ・表示の試用）</p>
+    <p class="sectionLabel">新ユニット所持率調査</p>
     <p class="askLead">実装から30日以内の新URです。今の登録内容を選んであるので、変わったところだけ直して［登録］を押してください（変更がなければそのまま［登録］）。</p>
     <div id="newAskList"></div>
   </section>
@@ -993,6 +993,9 @@
         if (data && data.loggedIn) {
           section.hidden = false;
           MASTER_READY.then(showRegStatus);
+          // 83 段階2：新ユニット所持率調査（回答の時期のときだけ出す。所持が変わったらユニットの所持率の表示を更新）
+          if (window.NewAsk) NewAsk.mount(document.getElementById('newAskList'), { onChanged: function(){ MASTER_READY.then(showRegStatus); } })
+            .then(function(n){ if (n) document.getElementById('newAsk').hidden = false; });
           toggleAdminNav();
         }
       })
@@ -1008,9 +1011,6 @@
       .then(function(data){
         if (data && data.admin === true) {
           section.hidden = false;
-          // 83 新ユニット所持率調査：運営者のみ。preview:trueなので期限に関係なく表示し（中身は運営者の今の所持）、押しても登録しない（一般公開は段階2）
-          if (window.NewAsk) NewAsk.mount(document.getElementById('newAskList'), { preview: true })
-            .then(function(n){ if (n) document.getElementById('newAsk').hidden = false; });
         }
       })
       .catch(function(){ /* 失敗時は非表示のまま */ });

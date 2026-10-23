@@ -2821,10 +2821,9 @@ async function handleAnalyticsFreshness(request, env) {
 // 実装から NEW_UNIT_ASK_DAYS 日以内のURを全部並べ、今の所持状況（所持なら今の凸・未所持なら「引いていない」）を入れた状態で出す。
 // 利用者は変わったところだけ直して［登録］を1回押す（変化がなければそのまま押して完了）。ESP指示 10-23 23:37。
 // 回答：not_pulled＝引いていない／got＝所持（凸 0〜3）。所持済みのURは凸を上げる方向にだけ変えられる（下げる・未所持に戻すは不可）。
-// 出すタイミング：対象のURに、まだ回答していないものがある／前回の回答から NEW_UNIT_REASK_DAYS 日たったものがある とき。
+// 出すタイミング：対象のURに、まだ回答していないものがある とき（一度［登録］したら再表示しない。新URが追加されたときだけ再び出る）。
 // 所持データの登録が済んでいない人には出さない（集計の母数を崩さないため）。
 const NEW_UNIT_ASK_DAYS = 30;
-const NEW_UNIT_REASK_DAYS = 7;
 function addDaysJst(dateStr, n) {
   return jstDateString(new Date(Date.parse(dateStr + "T00:00:00+09:00") + n * 86400000));
 }
@@ -2860,8 +2859,7 @@ async function handleNewUnitAsk(request, env) {
   }
   const today = jstDateString(new Date());
   const { units, answered } = await loadNewUnitSurvey(env, user.userUid, today);
-  const reaskBefore = addDaysJst(today, -NEW_UNIT_REASK_DAYS);
-  const due = preview || units.some(u => { const a = answered.get(u.unit_id); return !a || a <= reaskBefore; });
+  const due = preview || units.some(u => !answered.has(u.unit_id));
   return jsonResponse({
     loggedIn: true, registered: true, preview, due,
     units: units.map(u => ({ unitId: u.unit_id, name: u.name, limited: !!u.limited, type: u.type, released: u.released_on, level: u.level === null || u.level === undefined ? null : u.level }))
