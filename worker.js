@@ -2777,6 +2777,14 @@ async function handleAnalyticsFreshness(request, env) {
   const allReg = out.unit.registered;
   const lastList = [...lastByUid.entries()];
   const within60 = lastList.filter(([, d]) => dayDiff(d) <= 60).map(([u]) => u);
+  // 83 トップの回答（new_unit_answers）。0051未適用なら空
+  const answersOf = new Map();
+  try {
+    const ar = (await env.DB.prepare(
+      `SELECT unit_id AS id, user_uid AS uid, answer, level FROM new_unit_answers
+       WHERE unit_id IN (SELECT unit_id FROM units_master WHERE released_on IS NOT NULL ORDER BY released_on DESC, unit_id DESC LIMIT 10)`).all()).results;
+    for (const r of ar) { if (!answersOf.has(r.id)) answersOf.set(r.id, []); answersOf.get(r.id).push(r); }
+  } catch (e) { if (!isMissingSchemaError(e)) throw e; }
   out.newUnits = recent.map(u => {
     const owners = ownersOf.get(u.unit_id) || new Set();
     const after = lastList.filter(([, d]) => d >= u.released_on).map(([uid]) => uid);
@@ -2786,7 +2794,19 @@ async function handleAnalyticsFreshness(request, env) {
       unitId: u.unit_id, name: u.name, releasedOn: u.released_on, owners: owners.size,
       rateAll: r1(owners.size, allReg),
       afterRelease: { users: after.length, owners: cnt(after), rate: r1(cnt(after), after.length) },
-      within60: { users: within60.length, owners: cnt(within60), rate: r1(cnt(within60), within60.length) }
+      within60: { users: within60.length, owners: cnt(within60), rate: r1(cnt(within60), within60.length) },
+      answers: (() => {   // 83 トップの回答の内訳と、「実装後に保存した人＋回答した人」を母数にした率
+        const list = answersOf.get(u.unit_id) || [];
+        const a = { total: list.length, got: 0, notPulled: 0, levels: [0, 0, 0, 0] };
+        for (const r of list) {
+          if (r.answer === "got") { a.got++; if (r.level >= 0 && r.level <= 3) a.levels[r.level]++; }
+          else a.notPulled++;
+        }
+        const base = new Set(after); list.forEach(r => base.add(r.uid));
+        const bo = [...base].filter(uid => owners.has(uid)).length;
+        a.withAnswers = { users: base.size, owners: bo, rate: r1(bo, base.size) };
+        return a;
+      })()
     };
   });
   out.acquisition = await env.DB.prepare(
@@ -2795,6 +2815,93 @@ async function handleAnalyticsFreshness(request, env) {
             COUNT(DISTINCT CASE WHEN gasha_pulls IS NOT NULL THEN user_uid END) AS usersWithPulls
      FROM units_ownership`).first();
   return jsonResponse(out, 200);
+}
+
+// ---- 83 新URの入手状況（ログイン後のトップで聞く）----
+// 実装から NEW_UNIT_ASK_DAYS 日以内のURのうち、その人が未所持のものだけを出す（ESP指示 10-23）。
+// 回答：not_pulled＝引いていない／got＝引いた（凸 0〜3）。got のときだけ所持データに反映する（ESP指示 10-23：2択だけ）。
+// 「引いていない」は NEW_UNIT_REASK_DAYS 日たったら、期間内ならもう一度聞く（ガシャ期間中に引くことがあるため）。
+// 所持データの登録が済んでいない人には出さない（1機だけの登録で集計の母数を崩さないため）。
+const NEW_UNIT_ASK_DAYS = 30;
+const NEW_UNIT_REASK_DAYS = 7;
+const NEW_UNIT_ANSWERS = new Set(["not_pulled", "got"]);
+function addDaysJst(dateStr, n) {
+  return jstDateString(new Date(Date.parse(dateStr + "T00:00:00+09:00") + n * 86400000));
+}
+
+// GET /api/new-units/ask（?preview=1 は運営者の試用：所持・回答に関係なく期間内の新URを全部返す）
+async function handleNewUnitAsk(request, env) {
+  if (new URL(request.url).searchParams.get("preview") === "1") {
+    const admin = await requireAdmin(request, env);
+    if (admin instanceof Response) return admin;
+    const today = jstDateString(new Date());
+    const rows = (await env.DB.prepare(
+      `SELECT unit_id, name, limited, type, released_on FROM units_master
+       WHERE released_on IS NOT NULL AND released_on <= ?1 AND released_on >= ?2 ORDER BY released_on DESC, unit_id`
+    ).bind(today, addDaysJst(today, -NEW_UNIT_ASK_DAYS)).all()).results;
+    return jsonResponse({ loggedIn: true, registered: true, preview: true,
+      units: rows.map(r => ({ unitId: r.unit_id, name: r.name, limited: !!r.limited, type: r.type, released: r.released_on })) }, 200, { "Cache-Control": "private, no-store" });
+  }
+  const user = await getSessionUser(request, env);
+  if (!user) return jsonResponse({ loggedIn: false }, 200, { "Cache-Control": "private, no-store" });
+  const reg = await env.DB.prepare("SELECT units_first_registered_at AS r FROM users WHERE user_uid = ?").bind(user.userUid).first();
+  if (!reg || !reg.r) return jsonResponse({ loggedIn: true, registered: false, units: [] }, 200, { "Cache-Control": "private, no-store" });
+  const today = jstDateString(new Date());
+  let rows = [];
+  try {
+    rows = (await env.DB.prepare(
+      `SELECT m.unit_id, m.name, m.limited, m.type, m.released_on FROM units_master m
+       WHERE m.released_on IS NOT NULL AND m.released_on <= ?1 AND m.released_on >= ?2
+         AND NOT EXISTS (SELECT 1 FROM units_ownership o WHERE o.user_uid = ?3 AND o.unit_id = m.unit_id)
+         AND NOT EXISTS (SELECT 1 FROM new_unit_answers a WHERE a.user_uid = ?3 AND a.unit_id = m.unit_id
+                          AND (a.answer = 'got' OR substr(a.answered_at, 1, 10) > ?4))
+       ORDER BY m.released_on DESC, m.unit_id`
+    ).bind(today, addDaysJst(today, -NEW_UNIT_ASK_DAYS), user.userUid, addDaysJst(today, -NEW_UNIT_REASK_DAYS)).all()).results;
+  } catch (e) {
+    if (!isMissingSchemaError(e)) throw e;   // 0051未適用：何も出さない
+  }
+  return jsonResponse({
+    loggedIn: true, registered: true,
+    units: rows.map(r => ({ unitId: r.unit_id, name: r.name, limited: !!r.limited, type: r.type, released: r.released_on }))
+  }, 200, { "Cache-Control": "private, no-store" });
+}
+
+// POST /api/new-units/answer  body: { unitId, answer, level? }
+async function handleNewUnitAnswer(request, env) {
+  const user = await getSessionUser(request, env);
+  if (!user) return jsonResponse({ error: "not_logged_in", message: "ログインが必要です" }, 401);
+  let body = null;
+  try { body = await request.json(); } catch (e) { body = null; }
+  const unitId = body && Number.isInteger(body.unitId) ? body.unitId : null;
+  const answer = body && NEW_UNIT_ANSWERS.has(body.answer) ? body.answer : null;
+  const level = answer === "got" && Number.isInteger(body.level) && body.level >= 0 && body.level <= 3 ? body.level : null;
+  if (unitId === null || answer === null || (answer === "got" && level === null)) {
+    return jsonResponse({ error: "invalid_params", message: "回答の内容が正しくありません" }, 400);
+  }
+  const reg = await env.DB.prepare("SELECT units_first_registered_at AS r FROM users WHERE user_uid = ?").bind(user.userUid).first();
+  if (!reg || !reg.r) return jsonResponse({ error: "not_registered", message: "先にユニットの所持データを登録してください" }, 409);
+  const today = jstDateString(new Date());
+  const unit = await env.DB.prepare("SELECT unit_id, name, released_on FROM units_master WHERE unit_id = ?").bind(unitId).first();
+  if (!unit || !unit.released_on || unit.released_on > today || unit.released_on < addDaysJst(today, -NEW_UNIT_ASK_DAYS)) {
+    return jsonResponse({ error: "out_of_window", message: "このユニットは回答の対象外です" }, 400);
+  }
+  const now = toJstIsoString(new Date());
+  const st = [];
+  if (answer === "got") {
+    const owned = await env.DB.prepare("SELECT 1 AS x FROM units_ownership WHERE user_uid = ? AND unit_id = ? LIMIT 1").bind(user.userUid, unitId).first();
+    st.push(owned
+      ? env.DB.prepare("UPDATE units_ownership SET level = ?, registered_at = ? WHERE user_uid = ? AND unit_id = ?")
+          .bind(level, now, user.userUid, unitId)
+      : env.DB.prepare("INSERT INTO units_ownership (registered_at, user_uid, unit_id, level) VALUES (?, ?, ?, ?)")
+          .bind(now, user.userUid, unitId, level));
+  }
+  st.push(env.DB.prepare(
+    `INSERT INTO new_unit_answers (user_uid, unit_id, answer, level, answered_at) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(user_uid, unit_id) DO UPDATE SET answer = excluded.answer, level = excluded.level, answered_at = excluded.answered_at`
+  ).bind(user.userUid, unitId, answer, level, now));
+  st.push(env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(new Date().toISOString(), user.userUid));
+  await env.DB.batch(st);
+  return jsonResponse({ ok: true, unitId, name: unit.name, answer, level }, 200);
 }
 
 async function withJsonError(fn, label) {
@@ -2921,6 +3028,13 @@ export default {
     }
     if (url.pathname === "/api/analytics/funnel" && request.method === "GET") {
       return withJsonError(() => handleAnalyticsFunnel(request, env, url), "funnel");
+    }
+    // 83 新URの入手状況（ログイン後のトップ）
+    if (url.pathname === "/api/new-units/ask" && request.method === "GET") {
+      return withJsonError(() => handleNewUnitAsk(request, env), "new-units-ask");
+    }
+    if (url.pathname === "/api/new-units/answer" && request.method === "POST") {
+      return withJsonError(() => handleNewUnitAnswer(request, env), "new-units-answer");
     }
 
     if (url.pathname === "/api/units" && request.method === "GET") {

@@ -130,6 +130,7 @@
       <button type="button" data-tab="dist-supporter">URサポート所持率分布</button>
       <button type="button" data-tab="fresh">データの鮮度</button>
       <button type="button" data-tab="funnel">ユニット一覧からの誘導</button>
+      <button type="button" data-tab="newask">新URフォーム（試用）</button>
     </div>
 
     <section id="areaOshi">
@@ -156,6 +157,15 @@
         </div>
         <div id="distBars"></div>
       </div>
+    </section>
+
+    <!-- 83 新URの入手状況フォームの試用（段階1）。所持・回答に関係なく期間内の新URを全部出し、押しても登録しない -->
+    <section id="areaNewAsk" class="newAsk" hidden>
+      <div class="note"><b>表示のみの試用です。押しても登録されません。</b>公開後はログイン後のトップに、ユニット登録済みの人へ、未所持の新URだけが出ます（実装から30日以内。「引いていない」は7日後にもう一度）。</div>
+      <p class="askLead">まだ登録されていない新URです。引いた場合は凸数を選ぶと、所持データに登録されます。</p>
+      <div id="newAskList"></div>
+      <div id="newAskEmpty" class="stateMsg" hidden>実装から30日以内の新URはありません</div>
+      <button type="button" class="chip" id="newAskReset">表示をやり直す</button>
     </section>
 
     <!-- 82 ユニット一覧からの誘導（81の効果）。運営者専用 -->
@@ -219,9 +229,9 @@
   function selectTab(tab){
     ui.tab = tab;
     document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
-    show("areaOshi", tab === "oshi"); show("areaDist", tab === "dist-unit" || tab === "dist-supporter"); show("areaFresh", tab === "fresh"); show("areaFunnel", tab === "funnel");
+    show("areaOshi", tab === "oshi"); show("areaDist", tab === "dist-unit" || tab === "dist-supporter"); show("areaFresh", tab === "fresh"); show("areaFunnel", tab === "funnel"); show("areaNewAsk", tab === "newask");
     show("errorView", false);
-    if (tab === "oshi") loadOshi(); else if (tab === "fresh") loadFresh(); else if (tab === "funnel") loadFunnel(); else loadDist(tab === "dist-unit" ? "unit" : "supporter");
+    if (tab === "oshi") loadOshi(); else if (tab === "fresh") loadFresh(); else if (tab === "funnel") loadFunnel(); else if (tab === "newask") loadNewAsk(); else loadDist(tab === "dist-unit" ? "unit" : "supporter");
   }
 
   // ---------- 推し統計 ----------
@@ -470,6 +480,24 @@
     sc.appendChild(t); nb.appendChild(sc);
     nb.appendChild(el("p", "meta", "「実装後に保存した人」＝実装日以降に所持データを保存した人だけを母数にした率。実装後に一度も保存していない人は新URを持っていても登録できないため、全登録者の率は実際より低く出る。"));
     body.appendChild(nb);
+    // 83 トップの「新URの入手状況」の回答
+    const qb = el("div", "fBlock");
+    qb.appendChild(el("h3", "", "トップの回答（新URの入手状況）"));
+    const qs = el("div", "fScroll"); const qt = el("table", "fTable compact");
+    const qh = el("tr"); ["ユニット", "回答", "引いた", "引いていない", "回答込みの所持率"].forEach(x => qh.appendChild(el("th", "", x))); qt.appendChild(qh);
+    d.newUnits.filter(u => u.answers && u.answers.total).forEach(u => {
+      const a = u.answers, tr = el("tr");
+      tr.appendChild(el("td", "", u.name));
+      tr.appendChild(el("td", "", a.total + "人"));
+      const g = el("td", "", a.got + "人"); g.appendChild(el("small", "", "無" + a.levels[0] + "・1凸" + a.levels[1] + "・2凸" + a.levels[2] + "・完" + a.levels[3])); tr.appendChild(g);
+      tr.appendChild(el("td", "", a.notPulled + "人"));
+      const w = el("td"); w.appendChild(el("b", "", a.withAnswers.rate === null ? "-" : a.withAnswers.rate + "%")); w.appendChild(el("small", "", a.withAnswers.owners + "/" + a.withAnswers.users + "人")); tr.appendChild(w);
+      qt.appendChild(tr);
+    });
+    if (qt.children.length === 1) qb.appendChild(el("p", "meta", "まだ回答がありません"));
+    else { qs.appendChild(qt); qb.appendChild(qs); }
+    qb.appendChild(el("p", "meta", "トップで「引いた／引いていない」と答えた人数。「回答込みの所持率」は、実装後に保存した人に回答した人を加えた母数での率。"));
+    body.appendChild(qb);
     // 3. 入手記録の入力率
     const ac = d.acquisition || {}; const ab = el("div", "fBlock");
     ab.appendChild(el("h3", "", "入手記録の入力率（URユニット）"));
@@ -482,6 +510,15 @@
     db.appendChild(el("p", "meta", "集計 " + d.asOf + " 時点"));
     body.appendChild(db);
   }
+
+  // ---------- 83 新URフォーム（試用） ----------
+  let newAskShown = false;
+  function loadNewAsk(force){
+    if (newAskShown && !force) return;
+    newAskShown = true; show("newAskEmpty", false);
+    NewAsk.mount($("newAskList"), { preview: true }).then(n => show("newAskEmpty", !n));
+  }
+  $("newAskReset").addEventListener("click", () => loadNewAsk(true));
 
   // ---------- 82 ユニット一覧からの誘導 ----------
   let funnel = null;
@@ -550,6 +587,7 @@
   $("guardLoginBtn").addEventListener("click", () => { const l = $("authOpenLink"); if (l) l.click(); });
 })();
 </script>
+<script src="new-ask.js"></script>
 <script src="auth.js" defer></script>
 </body>
 </html>

@@ -112,6 +112,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0048 | 79 マスターリーグのシーズンTBL：`ml_seasons`（season_code TEXT・name・starts_on・ends_on・stage・note・is_active・updated_at）・`ml_season_targets`（season_code・target_kind＝tag/work・target_id・sort_order）。`CREATE … IF NOT EXISTS`で何度でも。D1適用済み（2026-10-20） |
 | 0049 | 79 SEASON 1〜17（11.5・15.5含む19シーズン・38対象）の登録。CSV（`docs/01_所持チェッカー・DB登録/データ/79_マスリ_シーズン一覧.csv`）から`79_build_ml_seasons_sql.py`で生成。タグ・作品は名前で引く。何度でも流せる。D1適用済み（2026-10-20。確認SQLは期待値どおり：19/19・各2対象・孤児0・S17の対象UR28） |
 | 0050 | ストライカーカスタム（unit_id 3）のEX武装属性「特殊」の追加（物理＋特殊）。何度でも流せる。D1適用済み（2026-10-23） |
+| 0051 | 83 新URの入手状況：`new_unit_answers`（user_uid・unit_id・answer＝`not_pulled`/`got`・level 0〜3・answered_at。PK(user_uid, unit_id)）＋`idx_new_unit_answers_unit`。何度でも流せる。D1適用済み（2026-10-23。確認SQLは2行） |
 | 次の空き | 0041 | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
@@ -250,6 +251,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 81 マスリの所持分布（ログイン必須）・データの鮮度（運営者専用） | 10-21 | D1変更なし。新API2本：`GET /api/analytics/ml?season=`（ログイン必須・母数は`units_first_registered_at`済みの全員・5分メモ）、`GET /api/analytics/freshness`（運営者専用）。`unit-list.html`のマスリの帯に「みんなの所持」、`analytics-admin.html`に「データの鮮度」タブ。本番確認はESP待ち（`docs/02_分析ページ/81_…依頼書.md`） |
 | 81追加改修 「みんな」→「登録ユーザー」・分布の%を最大剰余法で合計100% | 10-21 | D1変更なし。`unit-list.html`の帯見出しは「登録者の所持率」、`analytics.html`・`top.html`の文言も「登録ユーザー」に。分布だけ`pctDist()`で合計100.0%（`docs/02_分析ページ/81_…依頼書.md`末尾） |
 | 82 ユニット一覧からの誘導の計測（運営者ページ） | 10-21 | D1変更なし。`daily_stats`に`ul_*`・`register_src_*`・`login_src_*`を追加。新API：`POST /api/track`（ログイン不要・常に204）、`GET /api/analytics/funnel`（運営者専用）。`auth.js`のログイン・登録bodyに`src`（`sessionStorage.authSrc`）。`unit-list.html`が`trk()`で計測、`analytics-admin.html`にタブ「ユニット一覧からの誘導」。本番確認はESP待ち（`docs/02_分析ページ/82_…依頼書.md`） |
+| 83 新URの入手状況フォーム（段階1：運営者ページで表示のみ試用） | 10-23 | D1：0051。新API：`GET /api/new-units/ask`（`?preview=1`は運営者専用）・`POST /api/new-units/answer`、`handleAnalyticsFreshness`に新URごとの`answers`。新規`new-ask.js`（`NewAsk.mount`）、`analytics-admin.html`にタブ「新URフォーム（試用）」と鮮度タブの「トップの回答」表。ローカル確認済み（試用タブ390/1024px・押してもD1に書かない・preview 401/403）。**段階2（`top.html`のパッチ`docs/02_分析ページ/データ/83_top.html_diff.patch`）は未適用＝ESPの「公開して」待ち**。完了後に仕様書・ER図・COWORK.mdを更新（依頼書9章） |
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
 - **㊵チャレンジ**：実装・push・D1（0020・0021）適用済み（2026-09-30ユーザー確認）。運営者専用で稼働中。**一般公開は後日**（ユーザー決定。公開時は上の「一般公開の手順」）。設計書9章の後回し（分析ページのタブ・カードへの掲載・タグ縛り）は未着手
 - **㉟A 自己紹介カード一般公開・㊹（2026-10-01夜に再公開）**：朝にいったん公開→ユーザー指示で夜公開に変更（非公開に戻した）→夜に再公開（revertのrevert）。残り：依頼書4章A-4と㊹8章の本番確認（iOS Safariの画像保存を含む）。追加改修は運営者用の試用版`profile-card-trial.html`で試してから`profile-card.html`へ反映（ユーザー決定）。切り戻しは㉟依頼書4章・㊹はcommitのrevert
