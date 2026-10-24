@@ -239,6 +239,7 @@
 </style>
 <link rel="stylesheet" href="complete-banner.css">
 <script src="complete-banner.js"></script>
+<script src="site-config.js"></script>
 </head>
 <!-- data-auth-stay: ログイン成功後にトップへ遷移せずこのページをリロードする（auth.js。ログイン案内からログインした人をそのままエタロに戻すため） -->
 <body data-auth-stay>
@@ -326,11 +327,12 @@
 </div>
 
 <script>
+const SITE_CFG = window.SITE_CONFIG || {};   // 83追加改修3：共通の値は site-config.js（読めないときは右の予備の値）
 const CONFIG = {
-  xHandle: "@polarbear148691",
-  siteUrl: "https://ggene-ur-checker.polarbear14869.workers.dev/eternal-road.html",
-  hashtags: ["ジージェネエターナル", "GGETエタロ攻略チェッカー"],
-  quotePostUrl: "https://x.com/polarbear148691/status/2103111095745675510?s=46" // 設定するとXでシェア時にそのポストへの引用RTになる（2026-09-24、4ページ共通の告知ポストに設定）
+  xHandle: "@" + (SITE_CFG.xAccount || "polarbear148691"),
+  siteUrl: (SITE_CFG.origin || "https://ggene-ur-checker.polarbear14869.workers.dev") + "/eternal-road.html",
+  hashtags: [SITE_CFG.baseHashtag || "ジージェネエターナル", "GGETエタロ攻略チェッカー"],
+  quotePostUrl: SITE_CFG.quotePostUrl || ""
 };
 
 /* =========================================================

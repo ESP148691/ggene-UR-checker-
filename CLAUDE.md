@@ -142,10 +142,11 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
   - ユニット・サポート：D1が正本（73）。`ur-units.js`・`supporter.html`の`const UNITS`・`unit-scan.js`/`supporter-scan.js`の`SCAN_FIT`・`favorite-logic.js`の`WORK_NICK`等は**APIが取れないときの予備**で、更新しない（消すのは承諾後。73の確認事項3）
 
 ## 共通の実装パターン
+- **共通の設定**：リンク・Xアカウント名・ドメイン・共通ハッシュタグを変えるときは`site-config.js`だけを直す（シェアのあるページは`<head>`で読み込み、`CONFIG`は`SITE_CONFIG`＋予備の値で作る＝83追加改修3）
 - **ログインガード**：`<head>`で`html.loginLocked`を付け、CSSで本体（authbar・ガード以外と`.actionbar`）を隠す。`/api/me`が`loggedIn:true`なら解除。失敗時はガードのまま。`<body data-auth-stay>`でログイン後にその場へ戻す
 - **運営者専用ページ**：`/api/admin/me`で判定（`adminGate()`）。運営者以外は案内だけ出し、ページ用APIは呼ばない。クライアント側の表示制御なので、サーバーに運営者用データを置くAPIは`requireAdmin`で守る。**一般公開の手順**：`adminGate()`と`#adminOnlyView`を削除して`/api/me`のログイン判定から直接起動、`top.html`の導線を運営者欄から一般の欄へ移す（`hidden`を外す）
 - **チェッカーの3ボタン**：データ登録／画像で保存／Xでシェア（どれもDBへ送る）。起動時に`/api/my-*`からDBの内容を復元。登録状況の表示（`#regStatus`・トップの`.regBadge`）
-- **Xシェア**：`&via=polarbear148691`、引用ポスト`CONFIG.quotePostUrl`＝`https://x.com/polarbear148691/status/2103111095745675510?s=46`（4ページ共通）、ハッシュタグ`#ジージェネエターナル`＋ページ別。画像は自動添付しない（手動添付の運用）。280文字の判定は全角2・半角1・URL23
+- **Xシェア**：`&via=polarbear148691`、引用ポスト`CONFIG.quotePostUrl`＝`site-config.js`の`quotePostUrl`（83追加改修3・8ページ共通。リンク・アカウント名・ドメイン・共通タグを変えるときは`checker/site-config.js`だけを直す）、ハッシュタグ`#ジージェネエターナル`＋ページ別。画像は自動添付しない（手動添付の運用）。280文字の判定は全角2・半角1・URL23
 
 ## 検証の方法（Playwright必須）
 ファイルを作ったら必ずPlaywright（Python版・Chromium）で動作確認してから渡す。

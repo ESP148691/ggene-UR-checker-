@@ -196,6 +196,7 @@
   .pageFooter a{color:var(--cyan);text-decoration:none;}
   @media (max-width:600px){ :root{--tile:72px;--rowhead:96px;} .tile .rg{font-size:14px;} .tile .star{font-size:19px;} h1{font-size:17px;} }
 </style>
+<script src="site-config.js"></script>
 </head>
 <!-- data-auth-stay: ログイン案内からログインした人をトップへ飛ばさず、このページに戻す（auth.js） -->
 <body data-auth-stay>
@@ -275,9 +276,10 @@
 "use strict";
 // 段階2（2026-10-17公開）：false＝ログイン不要で全員に開く。true に戻すと運営者専用に戻る（切り戻し用）
 const ADMIN_ONLY = false;
+const SITE_CFG = window.SITE_CONFIG || {};   // 83追加改修3：共通の値は site-config.js（読めないときは右の予備の値）
 const CONFIG = {
-  xHandle: "@polarbear148691",
-  hashtag: "#ジージェネエターナル"
+  xHandle: "@" + (SITE_CFG.xAccount || "polarbear148691"),
+  hashtag: "#" + (SITE_CFG.baseHashtag || "ジージェネエターナル")
 };
 const IMG = "images/", ICON = "images/effects/";
 const UR = 1;

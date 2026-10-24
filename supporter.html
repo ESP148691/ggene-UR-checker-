@@ -327,6 +327,7 @@
 <script>document.documentElement.classList.add("loginLocked");</script>
 <link rel="stylesheet" href="complete-banner.css">
 <script src="complete-banner.js"></script>
+<script src="site-config.js"></script>
 </head>
 <body data-auth-stay>
 
@@ -447,12 +448,12 @@
 /* =========================================================
    設定：サイト名・URL・ハッシュタグはサイト稼働時に差し替える
    ========================================================= */
+const SITE_CFG = window.SITE_CONFIG || {};   // 83追加改修3：共通の値は site-config.js（読めないときは右の予備の値）
 const CONFIG = {
-  siteName: "Gジェネ攻略ラボ（仮）",
-  xHandle: "@polarbear148691",
-  siteUrl: "https://ggene-ur-checker.polarbear14869.workers.dev/supporter.html",
-  hashtags: ["ジージェネエターナル", "GGETサポート所持率チェッカー"],
-  quotePostUrl: "https://x.com/polarbear148691/status/2103111095745675510?s=46" // ツール公開ポストのURL。設定するとXでシェア時にそのポストへの引用RTになる
+  xHandle: "@" + (SITE_CFG.xAccount || "polarbear148691"),
+  siteUrl: (SITE_CFG.origin || "https://ggene-ur-checker.polarbear14869.workers.dev") + "/supporter.html",
+  hashtags: [SITE_CFG.baseHashtag || "ジージェネエターナル", "GGETサポート所持率チェッカー"],
+  quotePostUrl: SITE_CFG.quotePostUrl || ""
 };
 
 /* =========================================================

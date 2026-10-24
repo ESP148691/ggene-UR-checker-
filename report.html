@@ -87,6 +87,7 @@
   .previewModal .msg{color:var(--muted);text-align:center;max-width:420px;}
   .previewModal .msg b{color:var(--cyan);}
 </style>
+<script src="site-config.js"></script>
 </head>
 <!-- data-auth-stay: ログインした人をトップへ飛ばさず、このページに戻す（auth.js） -->
 <body data-auth-stay>
@@ -250,11 +251,12 @@ return { draw: bgGalaxy };
 })();
 </script>
 <script>
+const SITE_CFG = window.SITE_CONFIG || {};   // 83追加改修3：共通の値は site-config.js（読めないときは右の予備の値）
 const CONFIG = {
-  siteName: "Gジェネエターナル ファンツール",
-  siteUrl: "https://ggene-ur-checker.polarbear14869.workers.dev/",
-  xHandle: "@polarbear148691",
-  hashtag: "#ジージェネエターナル"
+  siteName: SITE_CFG.siteName || "Gジェネエターナル ファンツール",
+  siteUrl: (SITE_CFG.origin || "https://ggene-ur-checker.polarbear14869.workers.dev") + "/",
+  xHandle: "@" + (SITE_CFG.xAccount || "polarbear148691"),
+  hashtag: "#" + (SITE_CFG.baseHashtag || "ジージェネエターナル")
 };
 const $ = (id) => document.getElementById(id);
 const W = 1200, H = 675;

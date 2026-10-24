@@ -169,6 +169,7 @@
   .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
   .pageFooter a{color:var(--cyan);text-decoration:none;}
 </style>
+<script src="site-config.js"></script>
 </head>
 <!-- data-auth-stay: ログイン案内からログインした人をトップへ飛ばさず、このページに戻す（auth.js） -->
 <body data-auth-stay>
@@ -1845,11 +1846,12 @@ return { drawProfileCard, drawThemeBackground, THEMES, eternalSummary, wrapName,
 (function(){
 "use strict";
 
+const SITE_CFG = window.SITE_CONFIG || {};   // 83追加改修3：共通の値は site-config.js（読めないときは右の予備の値）
 const CONFIG = {
-  xHandle: "polarbear148691",
-  siteUrl: "https://ggene-ur-checker.polarbear14869.workers.dev/profile-card.html",
-  hashtags: ["ジージェネエターナル", "GGET自己紹介カード"],
-  quotePostUrl: "https://x.com/polarbear148691/status/2103111095745675510?s=46" // Xでシェア時にこのポストへの引用RTになる（2026-09-24、4ページ共通。㉒6.4の「未設定」から変更）
+  xHandle: SITE_CFG.xAccount || "polarbear148691",
+  siteUrl: (SITE_CFG.origin || "https://ggene-ur-checker.polarbear14869.workers.dev") + "/profile-card.html",
+  hashtags: [SITE_CFG.baseHashtag || "ジージェネエターナル", "GGET自己紹介カード"],
+  quotePostUrl: SITE_CFG.quotePostUrl || ""
 };
 const DRAFT_KEY = "profilecard_draft_v1";
 const COMMENT_MAX = 60;   // ひとことの上限（2026-09-27に40→60。worker.jsのhandleSaveProfile()と合わせる）
