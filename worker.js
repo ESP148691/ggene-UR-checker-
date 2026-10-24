@@ -2781,9 +2781,13 @@ async function handleAnalyticsFreshness(request, env) {
   const answersOf = new Map();
   try {
     const ar = (await env.DB.prepare(
-      `SELECT unit_id AS id, user_uid AS uid, answer, level FROM new_unit_answers
+      `SELECT unit_id AS id, user_uid AS uid, answer, level, prev_level FROM new_unit_answers
        WHERE unit_id IN (SELECT unit_id FROM units_master WHERE released_on IS NOT NULL ORDER BY released_on DESC, unit_id DESC LIMIT 10)`).all()).results;
     for (const r of ar) { if (!answersOf.has(r.id)) answersOf.set(r.id, []); answersOf.get(r.id).push(r); }
+  } catch (e) { if (!isMissingSchemaError(e)) throw e; }
+  const summaryOf = new Map();   // 83 退役済み（実装から40日たった）URの集計
+  try {
+    for (const r of (await env.DB.prepare("SELECT * FROM new_unit_survey_summary").all()).results) summaryOf.set(r.unit_id, r);
   } catch (e) { if (!isMissingSchemaError(e)) throw e; }
   out.newUnits = recent.map(u => {
     const owners = ownersOf.get(u.unit_id) || new Set();
@@ -2796,15 +2800,20 @@ async function handleAnalyticsFreshness(request, env) {
       afterRelease: { users: after.length, owners: cnt(after), rate: r1(cnt(after), after.length) },
       within60: { users: within60.length, owners: cnt(within60), rate: r1(cnt(within60), within60.length) },
       answers: (() => {   // 83 トップの回答の内訳と、「実装後に保存した人＋回答した人」を母数にした率
-        const list = answersOf.get(u.unit_id) || [];
-        const a = { total: list.length, got: 0, notPulled: 0, levels: [0, 0, 0, 0] };
+        const list = answersOf.get(u.unit_id) || [], sm = summaryOf.get(u.unit_id);
+        const a = { total: list.length, got: 0, notPulled: 0, levels: [0, 0, 0, 0], newlyGot: 0, levelUp: 0, retired: false };
         for (const r of list) {
-          if (r.answer === "got") { a.got++; if (r.level >= 0 && r.level <= 3) a.levels[r.level]++; }
-          else a.notPulled++;
+          if (r.answer === "got") {
+            a.got++; if (r.level >= 0 && r.level <= 3) a.levels[r.level]++;
+            if (r.prev_level === null || r.prev_level === undefined) a.newlyGot++; else if (r.level > r.prev_level) a.levelUp++;
+          } else a.notPulled++;
+        }
+        if (!list.length && sm) {   // 退役済み：集計の1行から
+          Object.assign(a, { total: sm.answered, got: sm.got, notPulled: sm.not_pulled, levels: [sm.lv0, sm.lv1, sm.lv2, sm.lv3], newlyGot: sm.newly_got, levelUp: sm.level_up, retired: true });
         }
         const base = new Set(after); list.forEach(r => base.add(r.uid));
         const bo = [...base].filter(uid => owners.has(uid)).length;
-        a.withAnswers = { users: base.size, owners: bo, rate: r1(bo, base.size) };
+        a.withAnswers = a.retired ? { users: 0, owners: 0, rate: null } : { users: base.size, owners: bo, rate: r1(bo, base.size) };
         return a;
       })()
     };
@@ -2818,34 +2827,62 @@ async function handleAnalyticsFreshness(request, env) {
 }
 
 // ---- 83 新ユニット所持率調査（ログイン後のトップ）----
-// 実装から NEW_UNIT_ASK_DAYS 日以内のURを全部並べ、今の所持状況（所持なら今の凸・未所持なら「引いていない」）を入れた状態で出す。
-// 利用者は変わったところだけ直して［登録］を1回押す（変化がなければそのまま押して完了）。ESP指示 10-23 23:37。
-// 回答：not_pulled＝引いていない／got＝所持（凸 0〜3）。所持済みのURは凸を上げる方向にだけ変えられる（下げる・未所持に戻すは不可）。
-// 出すタイミング：対象のURに、まだ回答していないものがある とき（一度［登録］したら再表示しない。新URが追加されたときだけ再び出る）。
+// 実装から NEW_UNIT_ASK_START_DAYS 日目〜 NEW_UNIT_ASK_DAYS 日目のURのうち、その人が**まだ回答していないもの**を並べ、
+// 今の所持状況（所持なら今の凸・未所持なら「引いていない」）を入れた状態で出す。［登録］1回で全機を確定（変化がなくても完了）。
+// 一度回答したURは二度と聞かない。回答には登録前の凸（prev_level）も残し、変化（新たに入手・凸アップ）を数えられるようにする。
+// 回答は実装から NEW_UNIT_RETIRE_DAYS 日たったら、ユニットごとの集計1行（new_unit_survey_summary）だけ残して消す（毎日の定時処理）。
+// ESP指示 10-23 23:37・10-24 10:01。回答：not_pulled＝引いていない／got＝所持（凸 0〜3）。所持済みのURは凸を上げる方向にだけ。
 // 所持データの登録が済んでいない人には出さない（集計の母数を崩さないため）。
+const NEW_UNIT_ASK_START_DAYS = 7;
 const NEW_UNIT_ASK_DAYS = 30;
+const NEW_UNIT_RETIRE_DAYS = 40;
 function addDaysJst(dateStr, n) {
   return jstDateString(new Date(Date.parse(dateStr + "T00:00:00+09:00") + n * 86400000));
 }
-// その人の対象URと今の凸・前回の回答日（0051未適用なら回答はなし扱い）
-async function loadNewUnitSurvey(env, userUid, today) {
-  const from = addDaysJst(today, -NEW_UNIT_ASK_DAYS);
+// 調査期間内のURと、その人の今の凸・回答済みか（0051未適用なら回答はなし扱い）。preview は開始日を待たない（運営者の試用）
+async function loadNewUnitSurvey(env, userUid, today, preview) {
   const units = (await env.DB.prepare(
     `SELECT m.unit_id, m.name, m.limited, m.type, m.released_on,
             (SELECT MAX(o.level) FROM units_ownership o WHERE o.user_uid = ?3 AND o.unit_id = m.unit_id) AS level
      FROM units_master m
      WHERE m.released_on IS NOT NULL AND m.released_on <= ?1 AND m.released_on >= ?2
      ORDER BY m.released_on DESC, m.unit_id`
-  ).bind(today, from, userUid).all()).results;
-  const answered = new Map();
+  ).bind(preview ? today : addDaysJst(today, -NEW_UNIT_ASK_START_DAYS), addDaysJst(today, -NEW_UNIT_ASK_DAYS), userUid).all()).results;
+  const answered = new Set();
   try {
-    const rows = (await env.DB.prepare("SELECT unit_id, answered_at FROM new_unit_answers WHERE user_uid = ?").bind(userUid).all()).results;
-    for (const r of rows) answered.set(r.unit_id, String(r.answered_at).slice(0, 10));
+    const rows = (await env.DB.prepare("SELECT unit_id FROM new_unit_answers WHERE user_uid = ?").bind(userUid).all()).results;
+    for (const r of rows) answered.add(r.unit_id);
   } catch (e) { if (!isMissingSchemaError(e)) throw e; }
   return { units, answered };
 }
+const curLevel = u => (u.level === null || u.level === undefined ? null : u.level);
 
-// GET /api/new-units/ask（?preview=1 は運営者の試用：期限に関係なく出す。中身は運営者自身の所持で埋める）
+// 83 回答の退役：実装から NEW_UNIT_RETIRE_DAYS 日たったURの回答を、ユニットごとの集計1行にまとめてから消す（毎日の定時処理から）
+async function retireNewUnitAnswers(env, today) {
+  const cutoff = addDaysJst(today, -NEW_UNIT_RETIRE_DAYS);
+  const targets = (await env.DB.prepare(
+    `SELECT DISTINCT a.unit_id, m.released_on FROM new_unit_answers a JOIN units_master m ON m.unit_id = a.unit_id
+     WHERE m.released_on IS NOT NULL AND m.released_on < ?`).bind(cutoff).all()).results;
+  const now = toJstIsoString(new Date());
+  for (const t of targets) {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO new_unit_survey_summary (unit_id, released_on, answered, not_pulled, got, newly_got, level_up, lv0, lv1, lv2, lv3, retired_at)
+         SELECT ?1, ?2, COUNT(*), SUM(answer = 'not_pulled'), SUM(answer = 'got'),
+                SUM(answer = 'got' AND prev_level IS NULL), SUM(answer = 'got' AND prev_level IS NOT NULL AND level > prev_level),
+                SUM(answer = 'got' AND level = 0), SUM(answer = 'got' AND level = 1), SUM(answer = 'got' AND level = 2), SUM(answer = 'got' AND level = 3), ?3
+         FROM new_unit_answers WHERE unit_id = ?1
+         ON CONFLICT(unit_id) DO UPDATE SET answered = answered + excluded.answered, not_pulled = not_pulled + excluded.not_pulled, got = got + excluded.got,
+           newly_got = newly_got + excluded.newly_got, level_up = level_up + excluded.level_up,
+           lv0 = lv0 + excluded.lv0, lv1 = lv1 + excluded.lv1, lv2 = lv2 + excluded.lv2, lv3 = lv3 + excluded.lv3, retired_at = excluded.retired_at`
+      ).bind(t.unit_id, t.released_on, now),
+      env.DB.prepare("DELETE FROM new_unit_answers WHERE unit_id = ?").bind(t.unit_id)
+    ]);
+  }
+  return targets.length;
+}
+
+// GET /api/new-units/ask（?preview=1 は運営者の試用：開始日・回答済みに関係なく出す。中身は運営者自身の所持で埋める）
 async function handleNewUnitAsk(request, env) {
   const noStore = { "Cache-Control": "private, no-store" };
   const preview = new URL(request.url).searchParams.get("preview") === "1";
@@ -2858,10 +2895,10 @@ async function handleNewUnitAsk(request, env) {
     if (!reg || !reg.r) return jsonResponse({ loggedIn: true, registered: false, due: false, units: [] }, 200, noStore);
   }
   const today = jstDateString(new Date());
-  const { units, answered } = await loadNewUnitSurvey(env, user.userUid, today);
-  const due = preview || units.some(u => !answered.has(u.unit_id));
+  const { units: all, answered } = await loadNewUnitSurvey(env, user.userUid, today, preview);
+  const units = preview ? all : all.filter(u => !answered.has(u.unit_id));   // 回答済みのURは二度と聞かない
   return jsonResponse({
-    loggedIn: true, registered: true, preview, due,
+    loggedIn: true, registered: true, preview, due: units.length > 0,
     units: units.map(u => ({ unitId: u.unit_id, name: u.name, limited: !!u.limited, type: u.type, released: u.released_on, level: u.level === null || u.level === undefined ? null : u.level }))
   }, 200, noStore);
 }
@@ -2875,7 +2912,8 @@ async function handleNewUnitSurvey(request, env) {
   const reg = await env.DB.prepare("SELECT units_first_registered_at AS r FROM users WHERE user_uid = ?").bind(user.userUid).first();
   if (!reg || !reg.r) return jsonResponse({ error: "not_registered", message: "先にユニットの所持データを登録してください" }, 409);
   const today = jstDateString(new Date());
-  const { units } = await loadNewUnitSurvey(env, user.userUid, today);
+  const { units: all, answered } = await loadNewUnitSurvey(env, user.userUid, today, false);
+  const units = all.filter(u => !answered.has(u.unit_id));   // 対象＝期間内で未回答のURだけ
   const items = body && Array.isArray(body.items) ? body.items : null;
   const byId = new Map();
   for (const it of items || []) {
@@ -2888,7 +2926,7 @@ async function handleNewUnitSurvey(request, env) {
     return jsonResponse({ error: "invalid_params", message: "すべてのユニットを選んでから登録してください" }, 400);
   }
   for (const u of units) {   // 所持済みは凸を下げられない・未所持に戻せない
-    const cur = u.level === null || u.level === undefined ? null : u.level, v = byId.get(u.unit_id);
+    const cur = curLevel(u), v = byId.get(u.unit_id);
     if (cur !== null && (v.answer !== "got" || v.level < cur)) {
       return jsonResponse({ error: "cannot_lower", message: "所持済みのユニットの凸は下げられません" }, 400);
     }
@@ -2897,7 +2935,7 @@ async function handleNewUnitSurvey(request, env) {
   const st = [];
   let changed = 0;
   for (const u of units) {
-    const cur = u.level === null || u.level === undefined ? null : u.level, v = byId.get(u.unit_id);
+    const cur = curLevel(u), v = byId.get(u.unit_id);
     if (v.answer === "got" && cur === null) {
       st.push(env.DB.prepare("INSERT INTO units_ownership (registered_at, user_uid, unit_id, level) VALUES (?, ?, ?, ?)").bind(now, user.userUid, u.unit_id, v.level));
       changed++;
@@ -2906,9 +2944,9 @@ async function handleNewUnitSurvey(request, env) {
       changed++;
     }
     st.push(env.DB.prepare(
-      `INSERT INTO new_unit_answers (user_uid, unit_id, answer, level, answered_at) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(user_uid, unit_id) DO UPDATE SET answer = excluded.answer, level = excluded.level, answered_at = excluded.answered_at`
-    ).bind(user.userUid, u.unit_id, v.answer, v.level, now));
+      `INSERT INTO new_unit_answers (user_uid, unit_id, answer, level, prev_level, answered_at) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_uid, unit_id) DO NOTHING`
+    ).bind(user.userUid, u.unit_id, v.answer, v.level, cur, now));   // prev_level＝登録前の凸（NULL＝未所持）
   }
   st.push(env.DB.prepare("UPDATE users SET last_seen = ? WHERE user_uid = ?").bind(new Date().toISOString(), user.userUid));
   await env.DB.batch(st);
@@ -3113,6 +3151,11 @@ export default {
     ctx.waitUntil(runDailySnapshot(env, snapDate).catch(e => {
       console.error("daily snapshot error", snapDate, e);
     }));
+    // 83 新ユニット所持率調査：実装から40日たったURの回答を集計1行にまとめて消す（別のtry/catch。0052未適用なら何もしない）
+    ctx.waitUntil((async () => {
+      try { await retireNewUnitAnswers(env, jstDateString(new Date(controller.scheduledTime))); }
+      catch (e) { if (!isMissingSchemaError(e)) console.error("new unit answers retire error", e); }
+    })());
     // 54 回数制限の古い記録を掃除（定時分析の結果に影響させないよう別のtry/catch）
     ctx.waitUntil((async () => {
       try {

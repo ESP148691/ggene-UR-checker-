@@ -161,7 +161,7 @@
 
     <!-- 83 新ユニット所持率調査の試用（段階1）。期限に関係なく出し、押しても登録しない -->
     <section id="areaNewAsk" class="newAsk" hidden>
-      <div class="note"><b>表示のみの試用です。押しても登録されません。</b>中身はあなた（運営者）の今の所持で埋めています。公開後はログイン後のトップに「新ユニット所持率調査」として、ユニット登録済みの人へ出ます（実装から30日以内のUR。まだ答えていないURがあるときだけ。一度［登録］したら表示しない）。</div>
+      <div class="note"><b>表示のみの試用です。押しても登録されません。</b>中身はあなた（運営者）の今の所持で埋めています。公開後はログイン後のトップに「新ユニット所持率調査」として、ユニット登録済みの人へ出ます（実装から7日目〜30日目のURのうち、その人がまだ答えていないものだけ。答えたURは二度と聞かない）。試用は開始日を待たずに、実装30日以内のURを全部出します。</div>
       <p class="askLead">実装から30日以内の新URです。今の登録内容を選んであるので、変わったところだけ直して［登録］を押してください（変更がなければそのまま［登録］）。</p>
       <div id="newAskList"></div>
       <div id="newAskEmpty" class="stateMsg" hidden>実装から30日以内の新URはありません</div>
@@ -484,19 +484,20 @@
     const qb = el("div", "fBlock");
     qb.appendChild(el("h3", "", "トップの回答（新ユニット所持率調査）"));
     const qs = el("div", "fScroll"); const qt = el("table", "fTable compact");
-    const qh = el("tr"); ["ユニット", "回答", "所持", "引いていない", "回答込みの所持率"].forEach(x => qh.appendChild(el("th", "", x))); qt.appendChild(qh);
+    const qh = el("tr"); ["ユニット", "回答", "所持", "引いていない", "変化", "回答込みの所持率"].forEach(x => qh.appendChild(el("th", "", x))); qt.appendChild(qh);
     d.newUnits.filter(u => u.answers && u.answers.total).forEach(u => {
       const a = u.answers, tr = el("tr");
-      tr.appendChild(el("td", "", u.name));
+      tr.appendChild(el("td", "", u.name + (a.retired ? "（退役済み）" : "")));
       tr.appendChild(el("td", "", a.total + "人"));
       const g = el("td", "", a.got + "人"); g.appendChild(el("small", "", "無" + a.levels[0] + "・1凸" + a.levels[1] + "・2凸" + a.levels[2] + "・完" + a.levels[3])); tr.appendChild(g);
       tr.appendChild(el("td", "", a.notPulled + "人"));
-      const w = el("td"); w.appendChild(el("b", "", a.withAnswers.rate === null ? "-" : a.withAnswers.rate + "%")); w.appendChild(el("small", "", a.withAnswers.owners + "/" + a.withAnswers.users + "人")); tr.appendChild(w);
+      const cg = el("td", "", (a.newlyGot + a.levelUp) + "人"); cg.appendChild(el("small", "", "新規入手" + a.newlyGot + "・凸アップ" + a.levelUp)); tr.appendChild(cg);
+      const w = el("td"); w.appendChild(el("b", "", a.withAnswers.rate === null ? "-" : a.withAnswers.rate + "%")); if (!a.retired) w.appendChild(el("small", "", a.withAnswers.owners + "/" + a.withAnswers.users + "人")); tr.appendChild(w);
       qt.appendChild(tr);
     });
     if (qt.children.length === 1) qb.appendChild(el("p", "meta", "まだ回答がありません"));
     else { qs.appendChild(qt); qb.appendChild(qs); }
-    qb.appendChild(el("p", "meta", "トップの調査で、そのURを「所持（凸）／引いていない」と登録した人数（変更なしで登録した人も含む）。「回答込みの所持率」は、実装後に保存した人に回答した人を加えた母数での率。"));
+    qb.appendChild(el("p", "meta", "トップの調査で、そのURを「所持（凸）／引いていない」と登録した人数（変更なしで登録した人も含む）。「変化」は登録で所持が変わった人（新規入手＝登録前は未所持、凸アップ＝登録前より凸が上がった）。実装から40日たったURは回答を消して集計だけ残す（退役済み。回答込みの所持率は出ない）。「回答込みの所持率」は、実装後に保存した人に回答した人を加えた母数での率。"));
     body.appendChild(qb);
     // 3. 入手記録の入力率
     const ac = d.acquisition || {}; const ab = el("div", "fBlock");
