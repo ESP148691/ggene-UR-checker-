@@ -19,7 +19,7 @@ Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェ�
 - **チェッカーはログイン必須**（2026-09-26・㉘で転換）。未ログインはログイン案内（ガード）のみ。トップの導線は未ログインでも表示し、ガードから登録へつなげる。**例外：ユニット一覧`/unit-list`は見るだけならログイン不要**（ESP決定 2026-10-16。段階2から）
 - 認証はユーザー名＋パスワードのみ（メール不要・個人情報を持たない）。**パスワードはPBKDF2（10万回）でハッシュ化**（`password_hash`。再設定は本人の変更画面`account.html`と運営者リセット`admin-account.html`のみ。メール・復旧コードは持たない。54）。**A-2が済むまでは`password`列に平文も残している**（A-1の切り戻し用。`worker.js`の`KEEP_PLAINTEXT_PASSWORD`）。セッションはHttpOnly Cookie（`Secure; SameSite=Lax`・30日・`sessions`TBL）
 - ゲストの所持データは保存しない（`usage_counters`に匿名の利用回数だけ）。ゲスト時代のデータをアカウントへ引き継ぐ機能は作らない（ユーザー確認済み）
-- コスト：Workers Paid（月5ドル）の枠内。上限超過は停止ではなく従量課金
+- コスト：Workers Paid（月5ドル）の枠内。上限超過は停止ではなく従量課金。**D1の読み込みは月250億行まで無料。超えると10億行あたり1ドル（2026-10に索引なしで$67.57の請求が出た＝84）。新しいSQLは`EXPLAIN QUERY PLAN`で全件読み（SCAN）になっていないかを確かめる。所持TBL・エタロのクリア記録TBLの索引は消さない**
 - 所持率などの母数は「その機能でデータ登録済みのユーザー」（`users.*_first_registered_at IS NOT NULL`）。分子も同条件で`COUNT(DISTINCT user_uid)`
 
 ## インフラと運用
@@ -63,7 +63,7 @@ Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェ�
 TBLの一覧・列は仕様書4章とER図を正とする。ここには運用上の要点だけを書く。
 
 - ID体系：`units_master.unit_id`（1〜87）・`supporters_master.supporter_id`（1〜50）はチェッカーのNo.と一致。**既存IDは振り直さない**
-- 所持：`units_ownership`は差分更新（`syncOwnership()`。行を消さずUPDATE。入手記録3列あり）。`supporters_ownership`も同関数。未所持は行が無い。`(user_uid, unit_id)`に一意制約は無いが重複は出ていない
+- 所持：`units_ownership`は差分更新（`syncOwnership()`。行を消さずUPDATE。入手記録3列あり）。`supporters_ownership`も同関数。未所持は行が無い。`(user_uid, unit_id)`・`(user_uid, supporter_id)`は0053の一意索引あり。INSERTはUPSERT（`ON CONFLICT … DO UPDATE`。84）
 - 登録済みフラグ：`users.units_first_registered_at`・`supporters_first_registered_at`・`eternal_road_first_registered_at`・`challenge_first_registered_at`（JST。非NULL＝登録済み。「登録済みで0件」と「未登録」を区別する）
 - エタロ・チャレンジ：マスター＋達成スナップショット＋ステージクリア（ミッション達成があるステージは必ずクリア行を持つ＝サーバーで正規化）。`mission_id = stage_id*10 + slot`。受付IDはマスターの集合で検証
 - 自己紹介カード：`works_master`（106作品。`work_id`＝ゲーム内の並び順＝`images/series/{id}.png`）、`unit_work_map`、`user_profiles`（`card_options`はJSON）、`user_favorite_works`・`user_favorite_units`（slot 1〜5のスナップショット）
@@ -79,7 +79,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0001〜0004 | 認証・マスター投入・ゲストデータ削除・利用回数 | 適用済み |
 | 0005 | 所持の`registered_at`をJSTへ一括変換（冪等） | **適用不要**（2026-10-17確認：`registered_at`が`Z`終わりの行は両TBLとも0件。流しても何も変わらない。ESP了承） |
 | 0006 | 登録済みフラグ（ユニット・サポート） | 適用済み |
-| 0007 | 重複行削除案 | **適用しない**（前提が誤りだった記録。⑬） |
+| 0007 | 重複行削除案 | **適用しない**（前提が誤りだった記録。⑬）。索引は0053で作成（84） |
 | 0008〜0010 | エタロ | 適用済み |
 | 0011〜0012 | 自己紹介カード・作品マスター | 適用済み |
 | 0013〜0014 | 入手記録・定時分析 | 適用済み |
@@ -113,7 +113,10 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0049 | 79 SEASON 1〜17（11.5・15.5含む19シーズン・38対象）の登録。CSV（`docs/01_所持チェッカー・DB登録/データ/79_マスリ_シーズン一覧.csv`）から`79_build_ml_seasons_sql.py`で生成。タグ・作品は名前で引く。何度でも流せる。D1適用済み（2026-10-20。確認SQLは期待値どおり：19/19・各2対象・孤児0・S17の対象UR28） |
 | 0050 | ストライカーカスタム（unit_id 3）のEX武装属性「特殊」の追加（物理＋特殊）。何度でも流せる。D1適用済み（2026-10-23） |
 | 0051 | 83 新URの入手状況：`new_unit_answers`（user_uid・unit_id・answer＝`not_pulled`/`got`・level 0〜3・answered_at。PK(user_uid, unit_id)）＋`idx_new_unit_answers_unit`。何度でも流せる。D1適用済み（2026-10-23。確認SQLは2行） |
-| 次の空き | 0041 | ― |
+| 0052 | 83追加改修2 `new_unit_answers.prev_level`・`new_unit_survey_summary`（ALTERは1回だけ） | 適用済み（2026-10-24。確認SQL 1／1行） |
+| 0053 | 84 所持TBLの索引3本（`units_ownership(user_uid, unit_id)`・`supporters_ownership(user_uid, supporter_id)`の一意索引＋`units_ownership(unit_id, user_uid)`。何度でも） | 適用済み（2026-10-25 09:39 Coworkが本番D1のコンソールで適用。重複行0件を確認済み） |
+| 0054 | 84 エタロのクリア記録TBLの索引4本（`eternal_road_mission_clears`・`eternal_road_stage_clears`。一意にはしない。何度でも） | 適用済み（2026-10-25 09:51 Claude Codeがwranglerで適用。索引4本を確認） |
+| 次の空き | 0055 | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
 - **適用はD1が先、pushが後**。逆にすると新コードが未作成のTBL・列を読んで500や保存漏れになる（⑬のデプロイギャップ）。**バックフィルは必ず冪等に書き、間が空いたら再実行する**
@@ -255,6 +258,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 83 新ユニット所持率調査（追加改修。段階1の作り直し） | 10-23 | D1変更なし（0051のまま）。全機を1枚の調査票で1回登録する形に変更：`POST /api/new-units/answer`を廃止し`POST /api/new-units/survey`（全機そろい必須・所持済みを下げると400`cannot_lower`・変化のない機体は所持に触れない・回答は全機分を上書き）、`GET /api/new-units/ask`は期間内の全機＋`level`＋`due`（未回答あり or 前回から7日）を返す。`new-ask.js`を書き直し（選択肢[引いていない][無凸]〜[完凸]の1行・所持済みは下げ不可）。トップは**引き続き運営者のみ試用表示**（`preview:true`）、運営者ページのタブ名は「新ユニット所持率調査（試用）」。ローカルでF表を確認済み。**段階2を公開（10-24。`83段階2_top.html_diff.patch`を適用＝ログイン中・ユニット登録済みの全員に本番で出す。ESP指示で再表示を廃止：`due`は「未回答の対象URがある」ときだけ＝一度［登録］したら出ない・新URが追加されたときだけ再び出る。7日後の再表示は廃止）**。完了後に仕様書・ER図・COWORK.mdを更新（依頼書9章） |
 | 83追加改修2 新ユニット所持率調査の対象条件・変化量・40日退役 | 10-24 | `migrations/0052_new_unit_survey_v2.sql`を本番D1に適用済み（`new_unit_answers.prev_level`・`new_unit_survey_summary`。確認SQL 1／1行）。`worker.js`：調査期間＝実装7〜30日目の未回答URだけ（`NEW_UNIT_ASK_START_DAYS/ASK_DAYS/RETIRE_DAYS`）、`prev_level`つきで回答保存、`retireNewUnitAnswers()`を`scheduled()`に追加（40日超は集計1行にして削除）、鮮度APIに`newlyGot`・`levelUp`・`retired`。`analytics-admin.html`に「変化」列。検証：Nodeハーネス（node:sqlite）でE表1〜8・APIを確認。Playwrightの画面確認（E表9）は未実施 |
 | 83追加改修3 サイト共通設定`site-config.js` | 10-24 | `site-config.js`新設（`window.SITE_CONFIG`：siteName・origin・xAccount・quotePostUrl・baseHashtag）。8ページ（unit・supporter・eternal-road・challenge・profile-card・profile-card-trial・unit-list・report）の`CONFIG`を`SITE_CONFIG`＋予備の値に変更。引用ポストを`…/status/2111356542410965244`に更新（チャレンジも引用するように）。古いリンク0件・8ページ読み込みを確認、予備動作はCONFIG抜き出しで確認。ブラウザでの［Xでシェア］本番確認（ESP）が残り |
+| 84 D1読み込み超過（請求$67.57）の対策 | 10-25 | 原因＝所持TBLに索引が無く毎回全件読み（9/24〜10/23で814億行）。0053（所持TBLの索引3本）を適用・commit、0054（エタロのクリア記録の索引4本）を適用（10-25 09:51）。`worker.js`：`syncOwnership()`のINSERT2か所と`handleNewUnitSurvey()`のINSERT1か所をUPSERTに（他にINSERT無しをgrepで確認。新UR調査は凸を下げない`WHERE excluded.level > units_ownership.level`付き）。Nodeハーネス（`node:sqlite`）でT3〜T8を確認。T9（10-26朝にD1概要のRows readが1億行未満になるか）はESP＋Cowork待ち。依頼書：`docs/05_機能拡張_有料プラン/84_…実装依頼書.md`。0007は引き続き適用しない |
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
 - **㊵チャレンジ**：実装・push・D1（0020・0021）適用済み（2026-09-30ユーザー確認）。運営者専用で稼働中。**一般公開は後日**（ユーザー決定。公開時は上の「一般公開の手順」）。設計書9章の後回し（分析ページのタブ・カードへの掲載・タグ縛り）は未着手
 - **㉟A 自己紹介カード一般公開・㊹（2026-10-01夜に再公開）**：朝にいったん公開→ユーザー指示で夜公開に変更（非公開に戻した）→夜に再公開（revertのrevert）。残り：依頼書4章A-4と㊹8章の本番確認（iOS Safariの画像保存を含む）。追加改修は運営者用の試用版`profile-card-trial.html`で試してから`profile-card.html`へ反映（ユーザー決定）。切り戻しは㉟依頼書4章・㊹はcommitのrevert

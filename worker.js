@@ -528,6 +528,7 @@ async function bumpDailyStat(env, statKey) {
 // 確認した結果、重複行は存在しなかった（詳細はdocs/01_所持チェッカー・DB登録/⑬所持率100%超え
 // 不具合_調査と改善設計.md末尾の訂正）。差分更新でも(user_uid, idColumn)単位で扱うため、万一重複行が
 // あってもUPDATE/DELETEは全行に効く
+// 2026-10-25 0053で一意索引(user_uid, idColumn)を追加。同時登録で後のbatchが落ちないよう、INSERTはUPSERT
 async function syncOwnership(env, table, idColumn, userUid, entries, acqMap) {
   const now = toJstIsoString(new Date()); // ⑪ 表示用のregistered_atはJST表記で保存する
   const { results } = await env.DB.prepare(
@@ -556,11 +557,16 @@ async function syncOwnership(env, table, idColumn, userUid, entries, acqMap) {
     } else if (acq !== undefined) {
       statements.push(env.DB.prepare(
         `INSERT INTO ${table} (registered_at, user_uid, ${idColumn}, level, acquired_on, gasha_pulls, memo)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(user_uid, ${idColumn}) DO UPDATE SET
+           level = excluded.level, registered_at = excluded.registered_at,
+           acquired_on = excluded.acquired_on, gasha_pulls = excluded.gasha_pulls, memo = excluded.memo`
       ).bind(now, userUid, entry.id, entry.level, acq.d, acq.n, acq.m));
     } else {
       statements.push(env.DB.prepare(
-        `INSERT INTO ${table} (registered_at, user_uid, ${idColumn}, level) VALUES (?, ?, ?, ?)`
+        `INSERT INTO ${table} (registered_at, user_uid, ${idColumn}, level) VALUES (?, ?, ?, ?)
+         ON CONFLICT(user_uid, ${idColumn}) DO UPDATE SET
+           level = excluded.level, registered_at = excluded.registered_at`
       ).bind(now, userUid, entry.id, entry.level));
     }
   }
@@ -2937,7 +2943,7 @@ async function handleNewUnitSurvey(request, env) {
   for (const u of units) {
     const cur = curLevel(u), v = byId.get(u.unit_id);
     if (v.answer === "got" && cur === null) {
-      st.push(env.DB.prepare("INSERT INTO units_ownership (registered_at, user_uid, unit_id, level) VALUES (?, ?, ?, ?)").bind(now, user.userUid, u.unit_id, v.level));
+      st.push(env.DB.prepare("INSERT INTO units_ownership (registered_at, user_uid, unit_id, level) VALUES (?, ?, ?, ?) ON CONFLICT(user_uid, unit_id) DO UPDATE SET level = excluded.level, registered_at = excluded.registered_at WHERE excluded.level > units_ownership.level").bind(now, user.userUid, u.unit_id, v.level));
       changed++;
     } else if (v.answer === "got" && v.level > cur) {
       st.push(env.DB.prepare("UPDATE units_ownership SET level = ?, registered_at = ? WHERE user_uid = ? AND unit_id = ?").bind(v.level, now, user.userUid, u.unit_id));
