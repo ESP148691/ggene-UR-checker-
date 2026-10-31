@@ -1318,6 +1318,7 @@ const parseJsonArray = (s) => { try { const v = JSON.parse(s); return Array.isAr
 
 // GET /api/units（認証不要）。URユニットのマスター（unit.html・top.htmlが読む）。unit_id順
 // 75 0043適用後：射程（rangeMin・rangeMax・rangeNote）と効果アイコンのコード配列（effects。sort_order順）も返す。未適用なら付けない
+// 87 0057適用後：units_effects.src＝'ex'（EX武装）／'sub'（サブ武装のデバフ）。effects は ex だけ、subEffects に sub のコード配列。未適用なら全部 effects
 async function handleUnits(request, env) {
   const sql = (cols) =>
     `SELECT u.unit_id, u.name, u.limited, u.type, ${cols}, m.work_id
@@ -1337,14 +1338,18 @@ async function handleUnits(request, env) {
   } catch (e) {
     return jsonResponse({ units: [] }, 200);
   }
-  const effectsByUnit = new Map();
+  const effectsByUnit = new Map(), subByUnit = new Map();
   try {
-    const { results } = await env.DB.prepare(
-      `SELECT unit_id, effect_code FROM units_effects WHERE rarity_code = ${RARITY_CODE.UR} ORDER BY unit_id, sort_order, effect_code`
+    const q = (cols) => env.DB.prepare(
+      `SELECT unit_id, effect_code${cols} FROM units_effects WHERE rarity_code = ${RARITY_CODE.UR} ORDER BY unit_id, sort_order, effect_code`
     ).all();
+    let results;
+    try { ({ results } = await q(", src")); }
+    catch (e) { ({ results } = await q("")); }   // 87 0057未適用（src列なし）＝全部EX
     for (const r of results) {
-      if (!effectsByUnit.has(r.unit_id)) effectsByUnit.set(r.unit_id, []);
-      effectsByUnit.get(r.unit_id).push(r.effect_code);
+      const m = r.src === "sub" ? subByUnit : effectsByUnit;
+      if (!m.has(r.unit_id)) m.set(r.unit_id, []);
+      m.get(r.unit_id).push(r.effect_code);
     }
   } catch (e) { /* 0043未適用 */ }
   return jsonResponse({
@@ -1358,6 +1363,8 @@ async function handleUnits(request, env) {
       if (r.range_note) u.rangeNote = r.range_note;
       const ef = effectsByUnit.get(r.unit_id);
       if (ef) u.effects = ef;
+      const sub = subByUnit.get(r.unit_id);
+      if (sub) u.subEffects = sub;   // 87 サブ武装のデバフ（コード配列。effects と同じ形）
       return u;
     })
   }, 200, MASTER_CACHE);
