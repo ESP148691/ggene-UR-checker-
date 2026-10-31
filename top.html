@@ -202,6 +202,12 @@
   .navcard .regBadge.todo{border-color:rgba(218,185,73,.55);}
   .navcard .regBadge.todo .st{color:var(--gold);}
   /* 88 推し情報設定の4項目へ直接（推し情報設定のカードのすぐ下） */
+  /* 推し情報設定は小さめ（説明文なし・登録済みマークは機能名の右） */
+  .navcard.compact{padding:8px 12px;gap:12px;}
+  .navcard.compact .icon{width:44px;height:44px;}
+  .navcard.compact .icon::before,.navcard.compact .icon::after{display:none;}
+  .navcard .nameRow{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;}
+  .navcard .nameRow .regBadge{margin-top:0;padding:2px 8px;}
   .favQuick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:-6px 0 14px;}
   .favQuick a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;padding:8px 4px;
     background:var(--panel);border:1px solid var(--line);border-radius:4px;color:var(--text);text-decoration:none;
@@ -383,6 +389,24 @@
     </a>
   </div>
 
+  <!-- 推し情報設定（68・72で一般公開）。UR一覧の次・チェッカーの前に置く（ログイン中のみ）。登録状況のバッジはshowFavoriteRegStatus()が出す -->
+  <div class="section" id="favoriteSection" hidden>
+    <a class="navcard compact" href="/favorite-info">
+      <div class="icon" data-pool="favorite"><img class="icoImg" alt="" aria-hidden="true"></div>
+      <div class="body">
+        <div class="nameRow"><div class="name">推し情報設定</div><div class="regBadge" data-reg="favorite" hidden></div></div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
+    <!-- 88 推し作品・推しユニット・推しキャラ・推し編成をトップから直接選ぶ（件数はshowFavoriteRegStatus()が入れる） -->
+    <nav class="favQuick" aria-label="推し情報設定の項目">
+      <a href="/favorite-info?tab=works" data-favq="works"><span class="ic" data-favic="works" aria-hidden="true">🎬</span><span>推し作品</span><span class="n"></span></a>
+      <a href="/favorite-info?tab=units" data-favq="units"><span class="ic" data-favic="units" aria-hidden="true">🤖</span><span>推しユニット</span><span class="n"></span></a>
+      <a href="/favorite-info?tab=chars" data-favq="chars"><span class="ic" data-favic="chars" aria-hidden="true">🧑&zwj;🚀</span><span>推しキャラ</span><span class="n"></span></a>
+      <a href="/favorite-info?tab=formation" data-favq="formation"><span class="ic" data-favic="formation" aria-hidden="true">🛡️</span><span>推し編成</span><span class="n"></span></a>
+    </nav>
+  </div>
+
   <div class="section route">
     <p class="sectionLabel">チェッカー</p>
     <a class="navcard" href="/unit">
@@ -435,23 +459,6 @@
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
-    <!-- 推し情報設定（68・72で一般公開）。登録状況のバッジはshowRegStatus()が出す -->
-    <a class="navcard" href="/favorite-info">
-      <div class="icon" data-pool="favorite"><img class="icoImg" alt="" aria-hidden="true"></div>
-      <div class="body">
-        <div class="name">推し情報<wbr>設定</div>
-        <div class="desc">推し作品・推しユニット・推しキャラ・推し編成を登録</div>
-        <div class="regBadge" data-reg="favorite" hidden></div>
-      </div>
-      <div class="arrow">&rsaquo;</div>
-    </a>
-    <!-- 88 推し作品・推しユニット・推しキャラ・推し編成をトップから直接選ぶ（件数はshowFavoriteRegStatus()が入れる） -->
-    <nav class="favQuick" aria-label="推し情報設定の項目">
-      <a href="/favorite-info?tab=works" data-favq="works"><span class="ic" data-favic="works" aria-hidden="true">🎬</span><span>推し作品</span><span class="n"></span></a>
-      <a href="/favorite-info?tab=units" data-favq="units"><span class="ic" data-favic="units" aria-hidden="true">🤖</span><span>推しユニット</span><span class="n"></span></a>
-      <a href="/favorite-info?tab=chars" data-favq="chars"><span class="ic" data-favic="chars" aria-hidden="true">🧑&zwj;🚀</span><span>推しキャラ</span><span class="n"></span></a>
-      <a href="/favorite-info?tab=formation" data-favq="formation"><span class="ic" data-favic="formation" aria-hidden="true">🛡️</span><span>推し編成</span><span class="n"></span></a>
-    </nav>
     <!-- ㉒ 自己紹介カード。公開済み（2026-09-28・㉟）。
          この節（#analyticsSection）ごとログイン中のみ表示されるため、判定はtoggleAnalyticsNav()と同じ -->
     <a class="navcard" href="/profile-card.html" id="profileCardNav">
@@ -1022,6 +1029,7 @@
       .then(function(data){
         if (data && data.loggedIn) {
           section.hidden = false;
+          var fs = document.getElementById('favoriteSection'); if (fs) fs.hidden = false;
           MASTER_READY.then(showRegStatus);
           // 83 段階2：新ユニット所持率調査（回答の時期のときだけ出す。所持が変わったらユニットの所持率の表示を更新）
           if (window.NewAsk) NewAsk.mount(document.getElementById('newAskList'), { onChanged: function(){ MASTER_READY.then(showRegStatus); } })
@@ -1100,10 +1108,10 @@
         });
         if (d.works + d.units + d.characters + d.formations > 0) {
           el.className = 'regBadge ok';
-          el.innerHTML = '<span class="st">✓ 推し登録済み</span><span>作品' + d.works + '・ユニット' + d.units + '・キャラ' + d.characters + '・編成' + d.formations + '</span>';
+          el.innerHTML = '<span class="st">✓ 登録済み</span>';
         } else {
           el.className = 'regBadge todo';
-          el.innerHTML = '<span class="st">推し未登録</span><span><span style="white-space:nowrap">推しを</span><span style="white-space:nowrap">登録ください。</span></span>';
+          el.innerHTML = '<span class="st">未登録</span>';
         }
         el.hidden = false;
       })
