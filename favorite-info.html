@@ -118,6 +118,12 @@
     background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 14px;}
   .favHub button:hover,.favHub button:focus-visible{border-color:var(--cyan);outline:none;}
   .favHub .ic{flex:0 0 40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;background:rgba(107,224,224,.1);border:1px solid var(--line);}
+  .favHub .ic.hasImg{padding:0;overflow:hidden;}
+  .favHub .ic.hasImg:has(.chars){border-radius:50%;}
+  .favIcImg{display:block;width:100%;height:100%;object-fit:cover;}
+    .favIcImg.works{object-fit:contain;padding:2px;background:#c6c7d6;}
+    .favIcImg.chars{border-radius:50%;}
+    .favIcImg.formation{object-position:100% center;}
   .favHub .bd{flex:1;min-width:0;}
   .favHub .nm{display:block;font-weight:700;font-size:15px;}
   body.inTab .sub{display:none;}   /* 項目ごとの画面では説明文を省いて、すぐ選べるように */
@@ -179,6 +185,7 @@
 
 <script src="favorite-logic.js"></script>
 <script src="favorite-form.js"></script>
+<script src="favorite-icons.js"></script>
 <script>
 (function(){
 "use strict";
@@ -234,6 +241,8 @@ const TABS = [
   { key: "formation", label: "推し編成", icon: "🛡️", desc: "推しサポーター＋ユニット5機（2編成まで）", max: 0 }
 ];
 let curTab = "hub";
+let favPools = null;   // 入口のアイコン用（FavoriteIcons.load）。読めるまでは絵文字
+FavoriteIcons.load().then(p => { favPools = p; if (curTab === "hub") renderNav(); }).catch(() => {});
 function tabCount(key){
   if (key === "works") return draft.favoriteWorks.length;
   if (key === "units") return draft.favoriteUnits.length;
@@ -273,7 +282,8 @@ function renderNav(){
       b.type = "button"; b.dataset.tab = t.key;
       const mk = (cls, txt) => { const e = document.createElement("span"); e.className = cls; e.textContent = txt; return e; };
       const bd = mk("bd", ""); bd.append(mk("nm", t.label), mk("ds", t.desc));
-      b.append(mk("ic", t.icon), bd, mk("st" + (st.zero ? " zero" : ""), st.text), mk("ar", "›"));
+      const ic = mk("ic", t.icon); FavoriteIcons.fill(ic, t.key, favPools);
+      b.append(ic, bd, mk("st" + (st.zero ? " zero" : ""), st.text), mk("ar", "›"));
       b.addEventListener("click", () => goTab(t.key, true));
       hub.appendChild(b);
     }
