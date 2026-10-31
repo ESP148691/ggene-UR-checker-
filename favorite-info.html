@@ -112,6 +112,30 @@
   }
   .toast.show{opacity:1;transform:translate(-50%,0);}
 
+  /* 88 推し情報設定の切り分け：入口（4項目のメニュー）と項目ごとの画面（?tab=works|units|chars|formation） */
+  .favHub{display:grid;gap:10px;margin:0 0 14px;}
+  .favHub button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:var(--text);cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 14px;}
+  .favHub button:hover,.favHub button:focus-visible{border-color:var(--cyan);outline:none;}
+  .favHub .ic{flex:0 0 40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;background:rgba(107,224,224,.1);border:1px solid var(--line);}
+  .favHub .bd{flex:1;min-width:0;}
+  .favHub .nm{display:block;font-weight:700;font-size:15px;}
+  body.inTab .sub{display:none;}   /* 項目ごとの画面では説明文を省いて、すぐ選べるように */
+  .favHub .ds{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.5;overflow-wrap:anywhere;}
+  .favHub .st{flex:0 0 auto;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--gold);text-align:right;white-space:nowrap;}
+  .favHub .st.zero{color:var(--muted);font-family:'Noto Sans JP',sans-serif;font-size:11.5px;}
+  .favHub .ar{color:var(--muted);font-size:20px;}
+  .favTabs{position:sticky;top:0;z-index:20;display:flex;gap:6px;margin:0 -16px 14px;padding:8px 16px;background:rgba(5,7,13,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line-strong);overflow-x:auto;scrollbar-width:none;}
+  .favTabs::-webkit-scrollbar{display:none;}
+  .favTabs button{flex:0 0 auto;font:inherit;font-size:12.5px;font-weight:700;color:var(--muted);background:var(--panel-2);border:1px solid var(--line-strong);border-radius:16px;padding:6px 11px;cursor:pointer;white-space:nowrap;}
+  .favTabs button .c{font-family:'Share Tech Mono',monospace;font-weight:400;margin-left:4px;}
+  .favTabs button.active{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold);}
+  .favTabs .back{color:var(--cyan);border-color:var(--cyan-dim);}
+  #favoriteForm[data-tab="hub"] > section{display:none !important;}
+  #favoriteForm[data-tab="works"] > section:not(#worksSection),
+  #favoriteForm[data-tab="units"] > section:not(#unitsSection),
+  #favoriteForm[data-tab="chars"] > section:not(#charSection),
+  #favoriteForm[data-tab="formation"] > section:not(#formationSection){display:none !important;}
   .pageFooter{margin-top:28px;padding-top:16px;border-top:1px solid var(--line-strong);font-size:10.5px;line-height:1.9;color:var(--muted);}
   .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
   .pageFooter a{color:var(--cyan);text-decoration:none;}
@@ -133,7 +157,10 @@
   <div id="errorView" class="stateMsg" hidden>データの読み込みに失敗しました。時間をおいて再度お試しください。</div>
 
   <div id="contentView" hidden>
-    <div id="favoriteForm"></div>
+    <!-- 88 入口：4項目のメニュー（?tab なし）／項目ごとの画面：上のタブで切り替え（?tab=…） -->
+    <nav class="favHub" id="favHub" aria-label="推し情報の項目" hidden></nav>
+    <nav class="favTabs" id="favTabs" aria-label="推し情報の項目の切り替え" hidden></nav>
+    <div id="favoriteForm" data-tab="hub"></div>
   </div>
 
   <footer class="pageFooter">
@@ -197,7 +224,77 @@ function loadDraft(){
 }
 function clearDraft(){ try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
 
-function onChange(){ saveDraft(); updateDirty(); }
+function onChange(){ saveDraft(); updateDirty(); renderNav(); }
+
+// ---- 88 項目ごとの画面（入口＋タブ）。保存は今までどおり4項目まとめて ----
+const TABS = [
+  { key: "works", label: "推し作品", icon: "🎬", desc: "好きな作品を5つまで", max: 5 },
+  { key: "units", label: "推しユニット", icon: "🤖", desc: "所持URユニット・SSR・ULTから5機まで", max: 5 },
+  { key: "chars", label: "推しキャラ", icon: "🧑\u200d🚀", desc: "セットのキャラ・イベント配布キャラから5人まで", max: 5 },
+  { key: "formation", label: "推し編成", icon: "🛡️", desc: "推しサポーター＋ユニット5機（2編成まで）", max: 0 }
+];
+let curTab = "hub";
+function tabCount(key){
+  if (key === "works") return draft.favoriteWorks.length;
+  if (key === "units") return draft.favoriteUnits.length;
+  if (key === "chars") return draft.favoriteCharacters.length;
+  const fs = draft.useFm2 ? draft.formations : [draft.formations[0]];
+  return fs.filter(f => f.supporterId != null || f.units.some(u => u != null)).length;
+}
+function tabStatus(t){
+  const n = tabCount(t.key);
+  if (!n) return { text: "未設定", zero: true };
+  return { text: t.key === "formation" ? `${n}編成` : `${n} / ${t.max}`, zero: false };
+}
+function readTab(){
+  const k = new URLSearchParams(location.search).get("tab");
+  return TABS.some(t => t.key === k) ? k : "hub";
+}
+function goTab(key, push){
+  curTab = key;
+  if (push) {
+    const url = key === "hub" ? location.pathname : `${location.pathname}?tab=${key}`;
+    try { history.pushState({ tab: key }, "", url); } catch (e) {}
+  }
+  $("favoriteForm").dataset.tab = key;
+  document.body.classList.toggle("inTab", key !== "hub");
+  const t = TABS.find(x => x.key === key);
+  document.title = (t ? t.label + "｜" : "") + "推し情報設定｜Gジェネエターナル ファンツール";
+  renderNav();
+  window.scrollTo(0, 0);
+}
+function renderNav(){
+  const hub = $("favHub"), tabs = $("favTabs");
+  hub.hidden = curTab !== "hub"; tabs.hidden = curTab === "hub";
+  if (curTab === "hub") {
+    hub.textContent = "";
+    for (const t of TABS) {
+      const st = tabStatus(t), b = document.createElement("button");
+      b.type = "button"; b.dataset.tab = t.key;
+      const mk = (cls, txt) => { const e = document.createElement("span"); e.className = cls; e.textContent = txt; return e; };
+      const bd = mk("bd", ""); bd.append(mk("nm", t.label), mk("ds", t.desc));
+      b.append(mk("ic", t.icon), bd, mk("st" + (st.zero ? " zero" : ""), st.text), mk("ar", "›"));
+      b.addEventListener("click", () => goTab(t.key, true));
+      hub.appendChild(b);
+    }
+  } else {
+    tabs.textContent = "";
+    const back = document.createElement("button");
+    back.type = "button"; back.className = "back"; back.textContent = "‹ 一覧";
+    back.addEventListener("click", () => goTab("hub", true));
+    tabs.appendChild(back);
+    for (const t of TABS) {
+      const b = document.createElement("button"), n = tabCount(t.key);
+      b.type = "button"; b.className = t.key === curTab ? "active" : "";
+      b.setAttribute("aria-current", t.key === curTab ? "page" : "false");
+      b.textContent = t.label;
+      if (n) { const c = document.createElement("span"); c.className = "c"; c.textContent = String(n); b.appendChild(c); }
+      b.addEventListener("click", () => goTab(t.key, true));
+      tabs.appendChild(b);
+    }
+  }
+}
+window.addEventListener("popstate", () => goTab(readTab(), false));
 
 // ---- 保存 ----
 const SAVE_ERRORS = {
@@ -284,6 +381,7 @@ async function init(){
   $("contentView").hidden = false;
   $("actionbar").hidden = false;
   form.renderAll();
+  goTab(readTab(), false);   // 88
   updateDirty();
 }
 

@@ -116,7 +116,11 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0052 | 83追加改修2 `new_unit_answers.prev_level`・`new_unit_survey_summary`（ALTERは1回だけ） | 適用済み（2026-10-24。確認SQL 1／1行） |
 | 0053 | 84 所持TBLの索引3本（`units_ownership(user_uid, unit_id)`・`supporters_ownership(user_uid, supporter_id)`の一意索引＋`units_ownership(unit_id, user_uid)`。何度でも） | 適用済み（2026-10-25 09:39 Coworkが本番D1のコンソールで適用。重複行0件を確認済み） |
 | 0054 | 84 エタロのクリア記録TBLの索引4本（`eternal_road_mission_clears`・`eternal_road_stage_clears`。一意にはしない。何度でも） | 適用済み（2026-10-25 09:51 Claude Codeがwranglerで適用。索引4本を確認） |
-| 次の空き | 0055 | ― |
+| 0055 | 86 新UR2機（90 ネオ・ジオング・91 ディジェ。units_master・射程・効果・作品・タグ・characters_master。何度でも） | 適用済み（2026-10-31 Claude Code。確認SQL：units 91・new_ok 2・new_effects 3・tags90 10・tags91 8・works 2・chars 2／orphan_tags 0／red_ur 16） |
+| 0056 | 86 新URサポーター52 マリーダ・クルス&ガランシェール（恒常・HP回復。リーダースキル：赤色）（何度でも） | 適用済み（2026-10-31。sups 52・leader52 1） |
+| 0057 | 87 `units_effects.src`（'ex'／'sub'）追加＋主キーを`(rarity_code, unit_id, src, effect_code)`に作り直し（**1回だけ**。再実行は`duplicate column name: src`） | 適用済み（2026-10-31） |
+| 0058 | 87 支援UR30機のサブ武装デバフ31行（`src = 'sub'`。何度でも） | 適用済み（2026-10-31。確認SQL：ex_links 130・sub_links 31・sub_units 30／orphan_effect 0／sub_not_support 0／サブなしの支援UR 0行／ナイチンゲール＝ex:dmg_beam_up・sub:dmg_special_up,dmg_beam_up） |
+| 次の空き | 0059 | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
 - **適用はD1が先、pushが後**。逆にすると新コードが未作成のTBL・列を読んで500や保存漏れになる（⑬のデプロイギャップ）。**バックフィルは必ず冪等に書き、間が空いたら再実行する**
@@ -259,6 +263,11 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 83追加改修2 新ユニット所持率調査の対象条件・変化量・40日退役 | 10-24 | `migrations/0052_new_unit_survey_v2.sql`を本番D1に適用済み（`new_unit_answers.prev_level`・`new_unit_survey_summary`。確認SQL 1／1行）。`worker.js`：調査期間＝実装7〜30日目の未回答URだけ（`NEW_UNIT_ASK_START_DAYS/ASK_DAYS/RETIRE_DAYS`）、`prev_level`つきで回答保存、`retireNewUnitAnswers()`を`scheduled()`に追加（40日超は集計1行にして削除）、鮮度APIに`newlyGot`・`levelUp`・`retired`。`analytics-admin.html`に「変化」列。検証：Nodeハーネス（node:sqlite）でE表1〜8・APIを確認。Playwrightの画面確認（E表9）は未実施 |
 | 83追加改修3 サイト共通設定`site-config.js` | 10-24 | `site-config.js`新設（`window.SITE_CONFIG`：siteName・origin・xAccount・quotePostUrl・baseHashtag）。8ページ（unit・supporter・eternal-road・challenge・profile-card・profile-card-trial・unit-list・report）の`CONFIG`を`SITE_CONFIG`＋予備の値に変更。引用ポストを`…/status/2111356542410965244`に更新（チャレンジも引用するように）。古いリンク0件・8ページ読み込みを確認、予備動作はCONFIG抜き出しで確認。ブラウザでの［Xでシェア］本番確認（ESP）が残り |
 | 84 D1読み込み超過（請求$67.57）の対策 | 10-25 | 原因＝所持TBLに索引が無く毎回全件読み（9/24〜10/23で814億行）。0053（所持TBLの索引3本）を適用・commit、0054（エタロのクリア記録の索引4本）を適用（10-25 09:51）。`worker.js`：`syncOwnership()`のINSERT2か所と`handleNewUnitSurvey()`のINSERT1か所をUPSERTに（他にINSERT無しをgrepで確認。新UR調査は凸を下げない`WHERE excluded.level > units_ownership.level`付き）。Nodeハーネス（`node:sqlite`）でT3〜T8を確認。T9（10-26朝にD1概要のRows readが1億行未満になるか）はESP＋Cowork待ち。依頼書：`docs/05_機能拡張_有料プラン/84_…実装依頼書.md`。0007は引き続き適用しない |
+| 85 ショート動画：初回動画（v14）と作成フォーム周りの整備 | 10-25 | D1・`checker/`コードは変更なし（本番D1はSELECTのみ）。`shorts/`のみ：BGM（`add_bgm.py`）・MY PLAY／MY TEAM／ツール画面の場面・動画作成フォーム（`studio_form.py`）・提案（`suggest.py`）をcommit。フォームの「最新データを取得」と手動取得を`--remote --file`から`--command`方式へ修正（今のwranglerは`--file`だと行を返さないため）。pop・newsの推移グラフで`punch()`の引数エラーになる不具合を修正。READMEに引数を追記。初回動画の投稿はESPさんがYouTube Studioで手作業 |
+| 86 ショート動画：URサポート回（sup_rank）のコードcommitと v4 への声付け | 10-30 | D1・`checker/`コードは変更なし（記録はこの行のみ追記）。`shorts/`：Coworkが直接編集した`build_episode.py`（sup_rankテーマ・`--bg`ほか）・`render.py`・`space.py`・`add_voice.py`（一言をpunch_atの時刻に読む）・`voice/yomi.csv`・READMEをcommit（`beb4791`）。既存テーマ`ur`は従来どおり動作確認。`episode_sup_v4_warp.json`は`/home/claude/w/…`のパスをこのPCのパスに直した（元は`.json.bak_cowork`）。VOICEVOX（`C:\\Users\\polar\\voicevox\\VOICEVOX\\VOICEVOX.exe`）をCodeが起動し、冥鳴ひまり＋`--fit`で声付き動画を作成（54.3秒。出力は`shorts/out/…_v4_warp_fit_冥鳴ひまり_voice.mp4`）。長すぎる行なし。作業C（最新データで作り直し）は11/1〜11/2にESPさんの依頼で実施 |
+| 86（10-31） 新UR2機・新URサポーター1体 | 10-31 | 画像5枚（`images/units/90・91`・`characters/90・91`・`supporters/52`）をpush→0055・0056をD1適用・確認SQLは期待値どおり。コード変更なし。**新URの効果アイコンを消すSQLには`AND src = 'ex'`を付ける（0057以降）**。残り：スクショ読み取りの`scan_fit`学習、タグ18個のゲーム内確認（`source`を`game`に） |
+| 87 支援URのサブ武装デバフ | 10-31 | 0057・0058をD1適用→`worker.js`（`handleUnits`が`src`を読み`subEffects`を返す。0057未適用なら全部`effects`）・`unit-list.html`（札・詳細・凡例・画像保存・「サブ武装のデバフ」切替`sub=0`）。参考パッチ2本を`git apply --ignore-whitespace`。支援URを足すときはCSV→`87_build_sub_effects_sql.py`→0058流し直し。ESPの実機確認待ち（依頼書8章11） |
+| 88 推し情報設定の項目ごとの画面 | 10-31 | D1変更なし。`favorite-info.html`を入口（4項目）＋`?tab=works|units|chars|formation`に切り分け、`favorite-form.js`に`worksSection`・`unitsSection`のid、`top.html`の「推し情報設定」カード直後に4ボタン（`.favQuick`）。パッチ3本適用。`scripts/card_check/`の確認（依頼書8章9）とESPの確認事項2・3は未 |
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
 - **㊵チャレンジ**：実装・push・D1（0020・0021）適用済み（2026-09-30ユーザー確認）。運営者専用で稼働中。**一般公開は後日**（ユーザー決定。公開時は上の「一般公開の手順」）。設計書9章の後回し（分析ページのタブ・カードへの掲載・タグ縛り）は未着手
 - **㉟A 自己紹介カード一般公開・㊹（2026-10-01夜に再公開）**：朝にいったん公開→ユーザー指示で夜公開に変更（非公開に戻した）→夜に再公開（revertのrevert）。残り：依頼書4章A-4と㊹8章の本番確認（iOS Safariの画像保存を含む）。追加改修は運営者用の試用版`profile-card-trial.html`で試してから`profile-card.html`へ反映（ユーザー決定）。切り戻しは㉟依頼書4章・㊹はcommitのrevert

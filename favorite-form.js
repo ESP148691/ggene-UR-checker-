@@ -43,7 +43,7 @@ const UNIT_LINK = `<a href="/unit" style="color:var(--cyan)">ユニットチェ�
 // 4欄のHTML（静的な文言だけ。ユーザー入力・DB由来の文字列は入れない）
 function formHtml(acqOptions, hintMode) {
   return `
-<section class="section">
+<section class="section" id="worksSection">
   <h2>推し作品<span class="cnt" id="workCount">0 / 5</span></h2>
   <div class="picked" id="pickedWorks"></div>
   <div class="pickTabs" id="workTabs" role="tablist">
@@ -55,7 +55,7 @@ function formHtml(acqOptions, hintMode) {
   <p class="hint">タップで追加・もう一度タップで解除。最大5作品まで選べます。</p>
 </section>
 
-<section class="section">
+<section class="section" id="unitsSection">
   <h2>推しユニット<span class="cnt" id="unitCount">0 / 5</span></h2>
   <div class="picked" id="pickedUnits"></div>
   <div class="seg" id="unitSrcTabs" role="group" aria-label="ユニットの選び方" style="margin:0 0 10px" hidden>
