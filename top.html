@@ -837,7 +837,8 @@
     return Promise.race([load, wait]).then(function(j){
       var list = ((j && j.seasons) || []).filter(function(x){ return x.targets && x.targets.length; });   /* 開始日の新しい順 */
       var started = list.filter(function(x){ return x.startsOn <= today; });
-      var live = started.length && (!started[0].endsOn || started[0].endsOn >= today) ? started[0] : null;   /* 後のシーズンが始まったら前は終了 */
+      var over = function(x){ return !!x.endsOn && (x.endsOn < today || (x.endsOn === today && new Date(Date.now() + 9 * 3600 * 1000).getUTCHours() >= 12)); };   /* 終了日の昼12時（JST）に終了 */
+      var live = started.length && !over(started[0]) ? started[0] : null;   /* 後のシーズンが始まったら前は終了 */
       var up = list.filter(function(x){ return x.startsOn > today && x.startsOn <= addDays(today, ML_FEED_AHEAD); }).pop() || null;
       var x = live || up;
       if (!x) return null;

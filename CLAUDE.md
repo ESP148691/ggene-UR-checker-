@@ -120,7 +120,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0056 | 86 新URサポーター52 マリーダ・クルス&ガランシェール（恒常・HP回復。リーダースキル：赤色）（何度でも） | 適用済み（2026-10-31。sups 52・leader52 1） |
 | 0057 | 87 `units_effects.src`（'ex'／'sub'）追加＋主キーを`(rarity_code, unit_id, src, effect_code)`に作り直し（**1回だけ**。再実行は`duplicate column name: src`） | 適用済み（2026-10-31） |
 | 0058 | 87 支援UR30機のサブ武装デバフ31行（`src = 'sub'`。何度でも） | 適用済み（2026-10-31。確認SQL：ex_links 130・sub_links 31・sub_units 30／orphan_effect 0／sub_not_support 0／サブなしの支援UR 0行／ナイチンゲール＝ex:dmg_beam_up・sub:dmg_special_up,dmg_beam_up） |
-| 次の空き | 0059 | ― |
+| 0059 | マスリSEASON 18（対象：赤色・突破力。開始日2026-11-23は**仮**・終了日なし・note「期間未定」。決まったらUPDATE）（何度でも） | 適用済み（2026-10-31。S18対象2件） |
+| 次の空き | 0060 | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
 - **適用はD1が先、pushが後**。逆にすると新コードが未作成のTBL・列を読んで500や保存漏れになる（⑬のデプロイギャップ）。**バックフィルは必ず冪等に書き、間が空いたら再実行する**
@@ -268,6 +269,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 86（10-31） 新UR2機・新URサポーター1体 | 10-31 | 画像5枚（`images/units/90・91`・`characters/90・91`・`supporters/52`）をpush→0055・0056をD1適用・確認SQLは期待値どおり。コード変更なし。**新URの効果アイコンを消すSQLには`AND src = 'ex'`を付ける（0057以降）**。残り：スクショ読み取りの`scan_fit`学習、タグ18個のゲーム内確認（`source`を`game`に） |
 | 87 支援URのサブ武装デバフ | 10-31 | 0057・0058をD1適用→`worker.js`（`handleUnits`が`src`を読み`subEffects`を返す。0057未適用なら全部`effects`）・`unit-list.html`（札・詳細・凡例・画像保存・「サブ武装のデバフ」切替`sub=0`）。参考パッチ2本を`git apply --ignore-whitespace`。支援URを足すときはCSV→`87_build_sub_effects_sql.py`→0058流し直し。ESPの実機確認待ち（依頼書8章11） |
 | 88 推し情報設定の項目ごとの画面 | 10-31 | D1変更なし。`favorite-info.html`を入口（4項目）＋`?tab=works|units|chars|formation`に切り分け、`favorite-form.js`に`worksSection`・`unitsSection`のid、`top.html`の「推し情報設定」カード直後に4ボタン（`.favQuick`）。パッチ3本適用。`scripts/card_check/`の確認（依頼書8章9）とESPの確認事項2・3は未 |
+| マスリS17終了・S18登録 | 10-31 | ESP指示：S17終了・S18（赤色・突破力）設定。**マスリの終了判定を「終了日の昼12時（JST）」に変更**（`unit-list.html`の`mlOver()`・`top.html`のバナー判定。終了日当日12時前は開催中）。0059でS18登録（開始日は仮の11/23・期間未定）。S18の期間が決まったら`UPDATE ml_seasons SET starts_on=…, ends_on=…, stage=…, note=NULL WHERE season_code='18'` |
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
 - **㊵チャレンジ**：実装・push・D1（0020・0021）適用済み（2026-09-30ユーザー確認）。運営者専用で稼働中。**一般公開は後日**（ユーザー決定。公開時は上の「一般公開の手順」）。設計書9章の後回し（分析ページのタブ・カードへの掲載・タグ縛り）は未着手
 - **㉟A 自己紹介カード一般公開・㊹（2026-10-01夜に再公開）**：朝にいったん公開→ユーザー指示で夜公開に変更（非公開に戻した）→夜に再公開（revertのrevert）。残り：依頼書4章A-4と㊹8章の本番確認（iOS Safariの画像保存を含む）。追加改修は運営者用の試用版`profile-card-trial.html`で試してから`profile-card.html`へ反映（ユーザー決定）。切り戻しは㉟依頼書4章・㊹はcommitのrevert

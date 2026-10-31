@@ -319,16 +319,18 @@ let state={ preset:"A", cols:PRESETS.A.cols.slice(), rows:"kind", none:true, dim
 let ML=[], worksById=new Map();   // 79 /api/ml-seasons（開始日の新しい順）
 let autoSeason="";   // 79 開いたときに出すシーズン（開催中→次回→直近の終了）
 // 79 開催中のシーズン（開始日≦今日≦終了日。終了日なしは開催中扱い。後のシーズンが始まったら前は終了扱い）→ なければ次回（開始日が今日より後で一番近い）→ なければ直近
+// 終了日の昼12時（JST）に終了とする（終了日当日の12時前は開催中）
+function mlOver(x, today){ return !!x.endsOn && (x.endsOn<today || (x.endsOn===today && new Date(Date.now()+9*3600*1000).getUTCHours()>=12)); }
 function pickSeason(list, today){
   if(!list.length) return "";
   const started=list.filter(x=>x.startsOn<=today), last=started[0];   // 始まったシーズンのうち一番新しいものだけが開催中になりうる
-  if(last&&(!last.endsOn||last.endsOn>=today)) return last.code;
+  if(last&&!mlOver(last,today)) return last.code;
   const up=list.filter(x=>x.startsOn>today); if(up.length) return up[up.length-1].code;
   return list[0].code;
 }
 function seasonState(x){ if(!x) return ""; if(x.startsOn>TODAY) return "次回";
   if(ML.some(y=>y.startsOn>x.startsOn&&y.startsOn<=TODAY)) return "終了";   // 後のシーズンが始まった
-  if(!x.endsOn||x.endsOn>=TODAY) return "開催中"; return "終了"; }
+  if(!mlOver(x,TODAY)) return "開催中"; return "終了"; }
 const curSeason=()=>ML.find(x=>x.code===state.season)||null;
 const seasonLabel=x=>x?("SEASON "+x.code):"";   // 79追加改修 10-20：テーマ名（ガンダムファイト等）は出さない
 const md=d=>d?Number(d.slice(5,7))+"/"+Number(d.slice(8,10)):"";
