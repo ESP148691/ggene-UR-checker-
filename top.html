@@ -808,6 +808,11 @@
        mark  : 画像がないときの代わり（短い英字 or 絵文字1つ）
        start / end : 表示期間（日本時間の 'YYYY-MM-DD'。省略で無期限。end の日まで表示） */
   var INFO_FEED = [
+    { kind: 'video', tag: 'YouTube',   /* 2026-11-02 ESP studio のリンクバナー（先頭に出す） */
+      title: 'ESP studio（ショート動画）',
+      desc: 'ファンツールの集計データから、UR所持率などのランキングを毎週月・木にショート動画でお届けしています',
+      href: 'https://www.youtube.com/channel/UCn12pdkzN-CKzFJZz7awtUQ', external: true,
+      img: 'images/partners/esp-studio.jpg', mark: '▶' },
     { kind: 'info',
       title: '新ユニットを追加しました（ネオ・ジオング ほか）',
       desc: 'ネオ・ジオング・ディジェ(シャア・アズナブル機)・マリーダ・クルス&ガランシェールを、所持チェッカーや推し情報設定などに追加',
@@ -817,11 +822,6 @@
       desc: '機体・パイロットのダメージ期待値やスキル発動条件、最強編成を算出・比較できるDBツール',
       href: 'https://athena-gget.com/', external: true,
       img: 'images/partners/athena-gget.jpg', mark: 'DB' },
-    { kind: 'video', tag: 'YouTube',   /* 2026-11-02 ESP studio のリンクバナー（相互リンクの次に出す） */
-      title: 'ESP studio（ショート動画）',
-      desc: 'ファンツールの集計データから、UR所持率などのランキングを毎週月・木にショート動画でお届けしています',
-      href: 'https://www.youtube.com/channel/UCn12pdkzN-CKzFJZz7awtUQ', external: true,
-      img: 'images/partners/esp-studio.jpg', mark: '▶' },
     { kind: 'info',
       title: '推し情報設定ページを公開しました',
       desc: '推し作品・推しユニット・推しキャラ・推し編成をまとめて登録',
