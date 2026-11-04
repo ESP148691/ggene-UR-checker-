@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ドロップ一覧｜Gジェネエターナル ファンツール</title>
+<!-- 92 ドロップ一覧（ハードステージの研究技術書・武装強化パーツ）。ログイン不要（ユニット一覧と同じ）。ADMIN_ONLY を true にすると運営者専用 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+<link rel="prefetch" href="/top">
+<style>
+  :root{
+    --void:#05070d; --panel:rgba(16,22,32,.68); --panel-2:#0e141d; --line:rgba(107,224,224,.16); --line-strong:rgba(140,160,180,.28);
+    --gold:#dab949; --cyan:#6be0e0; --text:#eef3f6; --muted:#93a3b3;
+    --bw:132px; --bh:103px; --logo:176px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--void);color:var(--text);font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;}
+  body{background:radial-gradient(1200px 600px at 70% -10%,rgba(80,60,160,.25),transparent 60%),var(--void);min-height:100vh;}
+  main{max-width:1200px;margin:0 auto;padding:16px 16px 60px;}
+  .eyebrow{font-family:"Rajdhani",sans-serif;font-weight:600;letter-spacing:.18em;font-size:12px;color:var(--cyan);margin:0;}
+  h1{font-size:20px;margin:4px 0 4px;letter-spacing:.04em;}
+  .lead{font-size:12.5px;color:var(--muted);margin:0 0 12px;line-height:1.6;}
+  .stateMsg{padding:40px 0;text-align:center;color:var(--muted);font-size:14px;line-height:1.8;}
+  [hidden]{display:none !important;}
+  .controls{display:flex;flex-direction:column;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px;}
+  .row{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;font-size:12.5px;}
+  .fl{font-size:11.5px;color:var(--muted);min-width:4.5em;}
+  .seg{display:flex;gap:4px;flex-wrap:wrap;}
+  .seg button{font:inherit;font-size:12.5px;font-weight:700;color:var(--muted);background:transparent;border:1px solid var(--line-strong);border-radius:5px;padding:7px 10px;cursor:pointer;}
+  .seg button.active{color:#1b1503;background:var(--gold);border-color:var(--gold);}
+  .row label{display:inline-flex;align-items:center;gap:6px;cursor:pointer;}
+  .row input[type=checkbox]{accent-color:var(--gold);width:16px;height:16px;}
+  .search{font:inherit;font-size:13px;color:var(--text);background:#0b1119;border:1px solid var(--line-strong);border-radius:5px;padding:6px 10px;width:min(320px,100%);}
+  .src{font-size:11px;color:var(--muted);}
+  /* ステージ別 */
+  .work{display:grid;grid-template-columns:var(--logo) 1fr;gap:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:rgba(10,14,22,.55);margin-bottom:10px;}
+  .wlogo{display:flex;flex-direction:column;gap:4px;align-items:flex-start;}
+  .wlogo img{width:var(--logo);height:auto;aspect-ratio:320/140;object-fit:contain;background:#000;border-radius:4px;}
+  .wlogo .wn{font-size:11px;color:var(--muted);line-height:1.4;}
+  .wlogo .txtLogo{width:var(--logo);aspect-ratio:320/140;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700;font-size:13px;background:#000;border-radius:4px;padding:6px;}
+  .hards{display:flex;flex-direction:column;gap:6px;min-width:0;}
+  .hrow{display:flex;gap:8px;align-items:flex-start;min-width:0;}
+  .hard{width:62px;height:53px;flex:none;border-radius:3px;}
+  .part{flex:none;width:84px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;color:var(--text);text-align:center;line-height:1.25;}
+  .part img{width:52px;height:52px;}
+  .part.none{color:var(--muted);justify-content:center;height:53px;}
+  .books{display:flex;flex-wrap:wrap;gap:6px;min-width:0;}
+  .books .noBook{font-size:11px;color:var(--muted);align-self:center;height:53px;display:flex;align-items:center;}
+  .btile{width:var(--bw);flex:none;cursor:pointer;background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left;}
+  .btile img{width:var(--bw);height:var(--bh);object-fit:cover;border-radius:4px;display:block;border:1px solid rgba(107,224,224,.25);}
+  .btile .bn{font-size:10.5px;line-height:1.3;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .hideNames .btile .bn{display:none;}
+  .hideParts .part{display:none;}
+  .hideBooks .books{display:none;}
+  /* 研究技術書から探す */
+  .bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--bw),1fr));gap:10px;}
+  .bgrid .btile{width:auto;}
+  .bgrid .btile img{width:100%;height:auto;aspect-ratio:320/250;}
+  .chip{display:inline-flex;align-items:center;gap:3px;margin-top:3px;}
+  .chip img.l{width:64px;height:28px;object-fit:contain;background:#000;border-radius:2px;}
+  .chip img.h{width:33px;height:28px;border-radius:2px;}
+  .chip .t{font-size:10.5px;color:var(--muted);}
+  /* 武装パーツから探す */
+  .pgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;}
+  .pcol{border:1px solid var(--line);border-radius:8px;background:rgba(10,14,22,.55);padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;}
+  .pcol .ph{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:4px;}
+  .pcol .ph img{width:56px;height:56px;}
+  .pcol .ph b{font-size:12.5px;} .pcol .ph span{font-size:11px;color:var(--muted);}
+  .count{font-size:11.5px;color:var(--muted);margin:4px 0 8px;}
+  .empty{padding:24px 0;text-align:center;color:var(--muted);font-size:13px;}
+  .actions{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap;}
+  .actions button{font:inherit;font-size:13px;font-weight:700;border-radius:6px;padding:9px 14px;cursor:pointer;border:none;}
+  .actions button:disabled{opacity:.6;cursor:default;}
+  .btn-save{background:var(--gold);color:#1b1503;}
+  .actions .btn-save-hq{background:transparent;color:var(--gold);border:1px solid var(--gold);}
+  .sheet{position:fixed;inset:0;background:rgba(5,7,10,.88);display:none;align-items:center;justify-content:center;padding:16px;z-index:50;}
+  .sheet.show{display:flex;}
+  .sheet .box{width:100%;max-width:440px;max-height:90vh;overflow:auto;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;padding:14px;}
+  .sheet .box img.big{width:100%;height:auto;border-radius:6px;display:block;}
+  .sheet h3{margin:8px 0 2px;font-size:15px;} .sheet .meta{font-size:12px;color:var(--muted);line-height:1.7;}
+  .sheet .close{margin-top:12px;width:100%;font:inherit;padding:8px;background:transparent;color:var(--text);border:1px solid var(--line-strong);border-radius:5px;cursor:pointer;}
+  .previewModal{position:fixed;inset:0;background:rgba(5,7,10,.92);display:none;flex-direction:column;align-items:center;gap:10px;padding:16px;z-index:60;overflow:auto;}
+  .previewModal.show{display:flex;}
+  .previewModal img{max-width:100%;height:auto;border-radius:6px;}
+  .previewModal .hint{font-size:12px;color:var(--muted);text-align:center;max-width:520px;}
+  .previewModal .fmt{font-size:12px;color:var(--text);}
+  .previewModal a,.previewModal button{font:inherit;font-size:13px;font-weight:700;border-radius:6px;padding:9px 14px;border:none;cursor:pointer;text-decoration:none;}
+  .previewModal a{background:var(--gold);color:#1b1503;} .previewModal button{background:transparent;color:var(--text);border:1px solid var(--line-strong);}
+  .pageFooter{margin-top:28px;padding-top:16px;border-top:1px solid var(--line-strong);font-size:10.5px;line-height:1.9;color:var(--muted);}
+  .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
+  .pageFooter a{color:var(--cyan);text-decoration:none;}
+  /* 広い画面は資料と同じ2列（作品カードはロゴを上に） */
+  @media (min-width:1000px){
+    #stageView:not([hidden]){display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;}
+    #stageView .work{grid-template-columns:1fr;margin-bottom:0;}
+    #stageView .wlogo{flex-direction:row;align-items:center;gap:10px;}
+    #stageView .wlogo img,#stageView .wlogo .txtLogo{width:150px;}
+    #stageView .empty{grid-column:1/-1;}
+  }
+  @media (max-width:900px){ .pgrid{grid-template-columns:repeat(4,minmax(0,1fr));} }
+  @media (max-width:600px){
+    :root{--bw:96px;--bh:75px;--logo:128px;}
+    h1{font-size:17px;}
+    .work{grid-template-columns:1fr;gap:6px;padding:8px;}
+    .wlogo{flex-direction:row;align-items:center;gap:8px;}
+    .hard{width:44px;height:38px;} .part{width:60px;font-size:10px;} .part img{width:40px;height:40px;} .part.none,.books .noBook{height:38px;}
+    .pgrid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .chip img.l{width:54px;height:24px;} .chip img.h{width:28px;height:24px;}
+  }
+</style>
+<script src="site-config.js"></script>
+</head>
+<body data-auth-stay>
+<main>
+  <p class="eyebrow">DROP LIST</p>
+  <h1>ドロップ一覧</h1>
+  <p class="lead">メインストーリーのハードステージで手に入る<b>研究技術書</b>と<b>武装強化パーツ</b>の一覧です。<span class="src" id="srcNote"></span></p>
+
+  <div id="adminOnlyView" class="stateMsg" hidden>このページは現在、運営者専用です。</div>
+  <div id="loadingView" class="stateMsg">読み込み中...</div>
+  <div id="errorView" class="stateMsg" hidden>データの読み込みに失敗しました。時間をおいて再度お試しください。</div>
+
+  <div id="contentView" hidden>
+    <div class="controls">
+      <div class="row"><span class="fl">表示</span>
+        <div class="seg" id="viewSeg">
+          <button type="button" data-v="stage">ステージ別</button>
+          <button type="button" data-v="book">研究技術書から探す</button>
+          <button type="button" data-v="part">武装パーツから探す</button>
+        </div>
+      </div>
+      <div class="row"><span class="fl">区分</span>
+        <div class="seg" id="eraSeg">
+          <button type="button" data-e="all">すべて</button>
+          <button type="button" data-e="UC">宇宙世紀</button>
+          <button type="button" data-e="ALT">オルタナティブ</button>
+        </div>
+      </div>
+      <div class="row" id="stageOpts">
+        <label><input type="checkbox" id="optBooks" checked> 研究技術書</label>
+        <label><input type="checkbox" id="optParts" checked> 武装強化パーツ</label>
+        <label><input type="checkbox" id="optNames" checked> 名前を表示</label>
+      </div>
+      <div class="row" id="bookOpts" hidden>
+        <input type="search" class="search" id="q" placeholder="機体名・型式番号で絞り込み（例：バルバトス、RX-0）" aria-label="研究技術書を検索">
+      </div>
+    </div>
+
+    <div id="stageView"></div>
+    <div id="bookView" hidden><div class="count" id="bookCount"></div><div class="bgrid" id="bookGrid"></div></div>
+    <div id="partView" hidden><div class="pgrid" id="partGrid"></div></div>
+
+    <div class="actions"><button type="button" class="btn-save" id="btnSave">画像で保存</button><button type="button" class="btn-save-hq" id="btnSaveHq">高画質で保存（PNG）</button></div>
+  </div>
+
+  <footer class="pageFooter">
+    <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
+    <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
+    <p>掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
+    <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+  </footer>
+</main>
+
+<div class="sheet" id="sheet"><div class="box" id="sheetBox"></div></div>
+<div class="previewModal" id="previewModal">
+  <img id="previewImg" alt="ドロップ一覧の画像">
+  <div class="fmt" id="previewFmt"></div>
+  <div class="hint" id="previewHint">画像を長押し（PCは右クリック）で保存もできます</div>
+  <a id="downloadLink" download="drop_list.jpg">ダウンロード</a>
+  <button type="button" id="btnClosePreview">閉じる</button>
+</div>
+
+<script>
+(function(){
+"use strict";
+const ADMIN_ONLY = true;    // true＝運営者専用（公開前の確認・切り戻し用）
+const SITE_CFG = window.SITE_CONFIG || {};
+const CONFIG = { xHandle: "@" + (SITE_CFG.xAccount || "polarbear148691") };
+const IMG = "images/", DROP = "images/drops/";
+const ERA_LABEL = { UC:"宇宙世紀", ALT:"オルタナティブ" };
+const $ = id => document.getElementById(id);
+function el(tag, attrs, kids){ const e=document.createElement(tag); if(attrs) for(const k in attrs){ if(k==="text") e.textContent=attrs[k]; else if(k==="class") e.className=attrs[k]; else e.setAttribute(k,attrs[k]); } (kids||[]).forEach(c=>c&&e.appendChild(c)); return e; }
+const jget = url => fetch(url, { credentials:"same-origin" }).then(r => r.ok ? r.json() : null).catch(() => null);
+const bookImg = id => `${DROP}book/${id}.jpg`, partImg = id => `${DROP}part/${id}.png`, hardImg = n => `${DROP}hard/${n}.png`, logoImg = w => `${IMG}series/${w}.png`;
+const norm = s => String(s||"").normalize("NFKC").toLowerCase().replace(/[\s・･\-‐ー]/g,"");
+
+let STAGES=[], ITEMS=new Map(), WORKS=[], BOOKS=[], PARTS=[];
+const state = { view:"stage", era:"all", books:true, parts:true, names:true, q:"" };
+
+// ---- データ ----
+function build(d){
+  ITEMS=new Map((d.items||[]).map(i=>[i.itemId,i]));
+  const byStage=new Map();
+  (d.links||[]).forEach(l=>{ const it=ITEMS.get(l.itemId); if(!it) return; (byStage.get(l.stageId)||byStage.set(l.stageId,[]).get(l.stageId)).push({it,checkedOn:l.checkedOn}); });
+  STAGES=(d.stages||[]).map(s=>Object.assign({},s,{drops:byStage.get(s.stageId)||[]}));
+  const wmap=new Map();
+  STAGES.forEach(s=>{ let w=wmap.get(s.workId); if(!w){ w={workId:s.workId,name:s.workName,short:s.shortName,era:s.era,stages:[]}; wmap.set(s.workId,w); WORKS.push(w);} w.stages.push(s); s.work=w; });
+  BOOKS=[]; const pmap=new Map();
+  STAGES.forEach(s=>s.drops.forEach(x=>{
+    if(x.it.kind==="book") BOOKS.push({it:x.it,stage:s});
+    else { let p=pmap.get(x.it.itemId); if(!p){ p={it:x.it,stages:[]}; pmap.set(x.it.itemId,p);} p.stages.push(s); }
+  }));
+  PARTS=[...ITEMS.values()].filter(i=>i.kind==="part").sort((a,b)=>a.itemId-b.itemId).map(i=>pmap.get(i.itemId)||{it:i,stages:[]});
+  // 調べた時点（種類ごとに最新）
+  const last={book:"",part:""};
+  (d.links||[]).forEach(l=>{ const it=ITEMS.get(l.itemId); if(it&&l.checkedOn&&l.checkedOn>last[it.kind]) last[it.kind]=l.checkedOn; });
+  const fmt=s=>s?s.replace(/-/g,"."):"—";
+  $("srcNote").textContent=`ESPがゲーム内で確認（研究技術書 ${fmt(last.book)}／武装強化パーツ ${fmt(last.part)} 時点）。`;
+  return last;
+}
+const eraOk = w => state.era==="all" || w.era===state.era;
+
+// ---- 表示部品 ----
+function logoEl(w){
+  const box=el("div",{class:"wlogo"});
+  const img=el("img",{src:logoImg(w.workId),alt:w.name,loading:"lazy"});
+  img.onerror=()=>{ img.replaceWith(el("div",{class:"txtLogo",text:w.short||w.name})); };
+  box.appendChild(img); box.appendChild(el("div",{class:"wn",text:w.name})); return box;
+}
+function bookTile(it,stage){
+  const b=el("button",{type:"button",class:"btile",title:it.name});
+  b.appendChild(el("img",{src:bookImg(it.itemId),alt:it.name,loading:"lazy"}));
+  b.appendChild(el("div",{class:"bn",text:it.name}));
+  b.addEventListener("click",()=>openSheet(it,stage));
+  return b;
+}
+function chip(s){
+  const c=el("span",{class:"chip",title:`${s.work.name} HARD${s.hardNo}`});
+  const l=el("img",{class:"l",src:logoImg(s.workId),alt:s.work.short||s.work.name,loading:"lazy"}); l.onerror=()=>l.replaceWith(el("span",{class:"t",text:s.work.short||s.work.name}));
+  c.appendChild(l); c.appendChild(el("img",{class:"h",src:hardImg(s.hardNo),alt:"HARD"+s.hardNo,loading:"lazy"}));
+  return c;
+}
+function openSheet(it,stage){
+  const box=$("sheetBox"); box.textContent="";
+  box.appendChild(el("img",{class:"big",src:bookImg(it.itemId),alt:it.name}));
+  box.appendChild(el("h3",{text:it.name}));
+  box.appendChild(el("div",{class:"meta",text:(it.modelNo?`型式番号：${it.modelNo}　`:"")+`ドロップ：${stage.work.name} HARD${stage.hardNo}`}));
+  const c=el("button",{type:"button",class:"close",text:"閉じる"}); c.onclick=()=>$("sheet").classList.remove("show"); box.appendChild(c);
+  $("sheet").classList.add("show");
+}
+
+// ---- 描画 ----
+function renderStage(){
+  const root=$("stageView"); root.textContent="";
+  root.classList.toggle("hideNames",!state.names); root.classList.toggle("hideParts",!state.parts); root.classList.toggle("hideBooks",!state.books);
+  WORKS.filter(eraOk).forEach(w=>{
+    const sec=el("section",{class:"work"}); sec.appendChild(logoEl(w));
+    const hs=el("div",{class:"hards"});
+    w.stages.forEach(s=>{
+      const r=el("div",{class:"hrow"});
+      r.appendChild(el("img",{class:"hard",src:hardImg(s.hardNo),alt:"HARD"+s.hardNo}));
+      const part=s.drops.find(x=>x.it.kind==="part");
+      const pd=el("div",{class:"part"+(part?"":" none")});
+      if(part){ pd.appendChild(el("img",{src:partImg(part.it.itemId),alt:part.it.name})); pd.appendChild(el("span",{text:part.it.name})); } else pd.textContent="—";
+      r.appendChild(pd);
+      const bs=el("div",{class:"books"}); const books=s.drops.filter(x=>x.it.kind==="book");
+      if(books.length) books.forEach(x=>bs.appendChild(bookTile(x.it,s))); else bs.appendChild(el("span",{class:"noBook",text:"研究技術書：未掲載"}));
+      r.appendChild(bs); hs.appendChild(r);
+    });
+    sec.appendChild(hs); root.appendChild(sec);
+  });
+  if(!root.childElementCount) root.appendChild(el("div",{class:"empty",text:"該当するステージがありません"}));
+}
+function filteredBooks(){ const q=norm(state.q); return BOOKS.filter(b=>eraOk(b.stage.work)&&(!q||norm(b.it.name).includes(q)||(!!b.it.modelNo&&norm(b.it.modelNo).startsWith(q)))); }
+function renderBook(){
+  const g=$("bookGrid"); g.textContent=""; const list=filteredBooks();
+  $("bookCount").textContent=`${list.length}件`+(state.q?`（「${state.q}」で絞り込み）`:"");
+  list.forEach(b=>{ const t=bookTile(b.it,b.stage); t.appendChild(chip(b.stage)); g.appendChild(t); });
+  if(!list.length) g.appendChild(el("div",{class:"empty",text:"見つかりませんでした"}));
+}
+function renderPart(){
+  const g=$("partGrid"); g.textContent="";
+  PARTS.forEach(p=>{
+    const ss=p.stages.filter(s=>eraOk(s.work));
+    const col=el("div",{class:"pcol"});
+    col.appendChild(el("div",{class:"ph"},[el("img",{src:partImg(p.it.itemId),alt:p.it.name}),el("b",{text:p.it.name}),el("span",{text:ss.length+"ステージ"})]));
+    ss.forEach(s=>col.appendChild(chip(s)));
+    g.appendChild(col);
+  });
+}
+function render(){
+  document.querySelectorAll("#viewSeg button").forEach(b=>b.classList.toggle("active",b.dataset.v===state.view));
+  document.querySelectorAll("#eraSeg button").forEach(b=>b.classList.toggle("active",b.dataset.e===state.era));
+  $("stageView").hidden=state.view!=="stage"; $("bookView").hidden=state.view!=="book"; $("partView").hidden=state.view!=="part";
+  $("stageOpts").hidden=state.view!=="stage"; $("bookOpts").hidden=state.view!=="book";
+  if(state.view==="stage") renderStage(); else if(state.view==="book") renderBook(); else renderPart();
+  writeUrl();
+}
+function readUrl(){
+  const p=new URLSearchParams(location.search);
+  if(["stage","book","part"].includes(p.get("v"))) state.view=p.get("v");
+  if(["all","UC","ALT"].includes(p.get("era"))) state.era=p.get("era");
+  if(p.get("q")) state.q=p.get("q").slice(0,40);
+  $("q").value=state.q;
+}
+function writeUrl(){
+  const p=new URLSearchParams(); if(state.view!=="stage") p.set("v",state.view); if(state.era!=="all") p.set("era",state.era); if(state.view==="book"&&state.q) p.set("q",state.q);
+  const u=location.pathname+(p.toString()?"?"+p:""); try { history.replaceState(null,"",u); } catch(e){}
+}
+
+// ---- 画像で保存（Canvas。77と同じ：通常＝JPEG・高画質＝PNG） ----
+function loadImg(src){ return new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src; }); }
+const ymd=()=>new Date(Date.now()+9*3600*1000).toISOString().slice(0,10).replace(/-/g,".");
+const FONT='"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif';
+function imgTitle(){
+  const era=state.era==="all"?"":`（${ERA_LABEL[state.era]}）`;
+  if(state.view==="book") return `${ymd()} 研究技術書 ドロップステージ一覧${era}`;
+  if(state.view==="part") return `${ymd()} 武装強化パーツ ドロップステージ一覧${era}`;
+  return `${ymd()} ハードステージ ドロップ一覧${era}`;
+}
+function imgSub(){
+  if(state.view==="book") return state.q?`「${state.q}」で絞り込み・${filteredBooks().length}件`:"研究技術書 → 落ちるステージ";
+  if(state.view==="part") return "武装強化パーツ → 落ちるステージ";
+  return [state.books?"研究技術書":"",state.parts?"武装強化パーツ":""].filter(Boolean).join("＋")+" をステージごとに";
+}
+// レイアウト：各ビューで「描く箱」の一覧を作り、高さを決めてから一度に描く
+async function generateImage(){
+  const W=1200, PAD=20, TOP=96, S=2;
+  const boxes=[]; let y=TOP;
+  const urls=new Set(["images/logo.png"]);
+  if(state.view==="stage"){
+    // 資料と同じ2列（左右に作品を並べる）。1作品＝ロゴ＋HARD行（HARD・パーツ・技術書）
+    const CW=(W-PAD*2-16)/2, LW=150, LH=66, HW=44, HH=38, PW=46, BW=92, BH=72, G=4;
+    const ws=WORKS.filter(eraOk);
+    const perRow=Math.max(1,Math.floor((CW-LW-10-HW-6-(state.parts?PW+6:0)+G)/(BW+G)));
+    const bookRows=s=>state.books?Math.max(1,Math.ceil(s.drops.filter(x=>x.it.kind==="book").length/perRow)):1;
+    const rowH=s=>Math.max(HH,state.books?bookRows(s)*(BH+G)-G:HH);
+    const workH=w=>Math.max(LH+18,w.stages.reduce((a,s)=>a+rowH(s)+6,0)-6)+16;
+    const cols=[{x:PAD,y:TOP},{x:PAD+CW+16,y:TOP}];
+    ws.forEach(w=>{ const c=cols[0].y<=cols[1].y?cols[0]:cols[1]; const h=workH(w);
+      boxes.push({k:"work",w,x:c.x,y:c.y,wd:CW,h,LW,LH,HW,HH,PW,BW,BH,G,perRow,rowH}); c.y+=h+10;
+      urls.add(logoImg(w.workId)); w.stages.forEach(s=>{ urls.add(hardImg(s.hardNo)); s.drops.forEach(x=>urls.add(x.it.kind==="book"?bookImg(x.it.itemId):partImg(x.it.itemId))); }); });
+    y=Math.max(cols[0].y,cols[1].y);
+    if(state.parts){ boxes.push({k:"legend",x:PAD,y:y+4}); PARTS.forEach(p=>urls.add(partImg(p.it.itemId))); y+=44; }
+  } else if(state.view==="part"){
+    const CW=(W-PAD*2-6*8)/7, CH=30, G=4;
+    const cols=PARTS.map(p=>({p,ss:p.stages.filter(s=>eraOk(s.work))}));
+    const maxN=Math.max(1,...cols.map(c=>c.ss.length));
+    cols.forEach((c,i)=>{ boxes.push({k:"pcol",c,x:PAD+i*(CW+8),y:TOP,wd:CW,CH,G}); urls.add(partImg(c.p.it.itemId)); c.ss.forEach(s=>{ urls.add(logoImg(s.workId)); urls.add(hardImg(s.hardNo)); }); });
+    y=TOP+96+maxN*(CH+G)+10;
+  } else {
+    const list=filteredBooks(), N=7, G=10, TW=(W-PAD*2-G*(N-1))/N, TH=TW*250/320, CAP=48;
+    list.forEach((b,i)=>{ const x=PAD+(i%N)*(TW+G), yy=TOP+Math.floor(i/N)*(TH+CAP+G); boxes.push({k:"book",b,x,y:yy,TW,TH}); urls.add(bookImg(b.it.itemId)); urls.add(logoImg(b.stage.workId)); urls.add(hardImg(b.stage.hardNo)); });
+    y=TOP+Math.ceil(list.length/N)*(TH+CAP+G);
+  }
+  const H=Math.ceil(y+44);
+  const imgs=new Map(); await Promise.all([...urls].map(async u=>imgs.set(u,await loadImg(u))));
+  try { await document.fonts.load('700 14px "Noto Sans JP"'); } catch(e){}
+  const cv=document.createElement("canvas"); cv.width=W*S; cv.height=H*S;
+  const ctx=cv.getContext("2d"); ctx.scale(S,S);
+  ctx.fillStyle="#05070d"; ctx.fillRect(0,0,W,H);
+  const grad=ctx.createRadialGradient(W*.7,-60,0,W*.7,-60,W*.6); grad.addColorStop(0,"rgba(80,60,160,.3)"); grad.addColorStop(1,"rgba(80,60,160,0)"); ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+  const txt=(s,x,yy,font,color,align)=>{ ctx.font=font; ctx.fillStyle=color; ctx.textAlign=align||"left"; ctx.fillText(s,x,yy); ctx.textAlign="left"; };
+  const draw=(u,x,yy,w,h,fit)=>{ const im=imgs.get(u); if(!im) return false; if(fit){ const sc=Math.min(w/im.width,h/im.height), dw=im.width*sc, dh=im.height*sc; ctx.drawImage(im,x+(w-dw)/2,yy+(h-dh)/2,dw,dh);} else ctx.drawImage(im,x,yy,w,h); return true; };
+  const logo=imgs.get("images/logo.png"); if(logo){ const LS=68, sc=Math.min(LS/logo.width,LS/logo.height); ctx.drawImage(logo,PAD+(LS-logo.width*sc)/2,14+(LS-logo.height*sc)/2,logo.width*sc,logo.height*sc); }
+  txt(imgTitle(),PAD+84,40,`700 22px ${FONT}`,"#eef3f6"); txt(imgSub(),PAD+84,68,`500 17px ${FONT}`,"#b4c2d0");
+  txt(CONFIG.xHandle,W-PAD,38,"13px monospace","#5ad1d1","right");
+  const wlogo=(w,x,yy,lw,lh)=>{ ctx.fillStyle="#000"; ctx.fillRect(x,yy,lw,lh); if(!draw(logoImg(w.workId),x,yy,lw,lh,true)) txt(w.short||w.name,x+lw/2,yy+lh/2+5,`700 13px ${FONT}`,"#eef3f6","center"); };
+  ctx.textBaseline="alphabetic";
+  boxes.forEach(b=>{
+    if(b.k==="work"){
+      ctx.fillStyle="rgba(10,14,22,.85)"; ctx.strokeStyle="rgba(107,224,224,.25)"; ctx.lineWidth=1; ctx.fillRect(b.x,b.y,b.wd,b.h); ctx.strokeRect(b.x+.5,b.y+.5,b.wd-1,b.h-1);
+      wlogo(b.w,b.x+8,b.y+8,b.LW,b.LH);
+      let yy=b.y+8; const x0=b.x+8+b.LW+10;
+      b.w.stages.forEach(s=>{
+        draw(hardImg(s.hardNo),x0,yy,b.HW,b.HH); let x=x0+b.HW+6;
+        if(state.parts){ const p=s.drops.find(q=>q.it.kind==="part"); if(p) draw(partImg(p.it.itemId),x,yy-2,b.PW,b.PW,true); x+=b.PW+6; }
+        if(state.books){ const bs=s.drops.filter(q=>q.it.kind==="book");
+          if(!bs.length) txt("研究技術書：未掲載",x,yy+b.HH/2+5,`500 12px ${FONT}`,"#7d8a98");
+          bs.forEach((q,i)=>{ const bx=x+(i%b.perRow)*(b.BW+b.G), by=yy+Math.floor(i/b.perRow)*(b.BH+b.G); draw(bookImg(q.it.itemId),bx,by,b.BW,b.BH); }); }
+        yy+=b.rowH(s)+6;
+      });
+    } else if(b.k==="legend"){
+      let x=b.x; PARTS.forEach(p=>{ draw(partImg(p.it.itemId),x,b.y,30,30,true); txt(p.it.name,x+34,b.y+20,`500 13px ${FONT}`,"#b4c2d0"); ctx.font=`500 13px ${FONT}`; x+=34+ctx.measureText(p.it.name).width+18; });
+    } else if(b.k==="pcol"){
+      ctx.fillStyle="rgba(10,14,22,.85)"; ctx.fillRect(b.x,b.y,b.wd,H-b.y-44);
+      draw(partImg(b.c.p.it.itemId),b.x+b.wd/2-28,b.y+6,56,56,true);
+      txt(b.c.p.it.name,b.x+b.wd/2,b.y+78,`700 14px ${FONT}`,"#eef3f6","center"); txt(b.c.ss.length+"ステージ",b.x+b.wd/2,b.y+92,`500 11px ${FONT}`,"#93a3b3","center");
+      b.c.ss.forEach((s,i)=>{ const yy=b.y+100+i*(b.CH+b.G), lw=b.CH*320/140; const x=b.x+(b.wd-lw-b.CH*110/94-3)/2; wlogo(s.work,x,yy,lw,b.CH); draw(hardImg(s.hardNo),x+lw+3,yy,b.CH*110/94,b.CH); });
+    } else {
+      draw(bookImg(b.b.it.itemId),b.x,b.y,b.TW,b.TH);
+      const s=b.b.stage, ch=22, lw=ch*320/140; wlogo(s.work,b.x,b.y+b.TH+4,lw,ch); draw(hardImg(s.hardNo),b.x+lw+3,b.y+b.TH+4,ch*110/94,ch);
+    }
+  });
+  txt("データ：ESPがゲーム内で確認したもの（"+$("srcNote").textContent.replace(/^.*?（|）。?$/g,"")+"）",PAD,H-18,`500 12px ${FONT}`,"#93a3b3");
+  return cv;
+}
+const JPEG_QUALITIES=[0.85,0.8,0.75,0.7,0.6], JPEG_MAX_CHARS=1900000;
+let previewBlobUrl=null;
+const releasePreviewBlob=()=>{ if(previewBlobUrl){ URL.revokeObjectURL(previewBlobUrl); previewBlobUrl=null; } };
+const canvasToBlob=(cv,type,q)=>new Promise(res=>{ try { cv.toBlob(b=>res(b),type,q); } catch(e){ res(null); } });
+function encodeJpeg(cv){ let url="", q=JPEG_QUALITIES[0]; for(const v of JPEG_QUALITIES){ q=v; url=cv.toDataURL("image/jpeg",v); if(url.length<=JPEG_MAX_CHARS) break; } return {url,q}; }
+async function saveImage(fmt,btn){
+  const label=btn.textContent; btn.textContent="生成中..."; $("btnSave").disabled=true; $("btnSaveHq").disabled=true;
+  try {
+    const cv=await generateImage(), hq=fmt==="png";
+    const enc=hq?{url:cv.toDataURL("image/png"),q:null}:encodeJpeg(cv);
+    const blob=await canvasToBlob(cv,hq?"image/png":"image/jpeg",enc.q==null?undefined:enc.q);
+    releasePreviewBlob(); if(blob) previewBlobUrl=URL.createObjectURL(blob);
+    const mb=((blob?blob.size:enc.url.length*0.75)/1048576).toFixed(1);
+    $("previewImg").src=enc.url;
+    const a=$("downloadLink"); a.href=previewBlobUrl||enc.url; a.download=hq?"drop_list.png":"drop_list.jpg";
+    $("previewFmt").textContent=(hq?"高画質（PNG）":"通常画質（JPEG）")+"・約"+mb+"MB";
+    $("previewHint").textContent=hq?"高画質はファイルが大きいため、長押しで保存できない端末があります。下の「ダウンロード」を使ってください":"画像を長押し（PCは右クリック）で保存もできます";
+    $("previewModal").classList.add("show");
+  } catch(err){ console.error(err); alert("画像の生成に失敗しました。\n(エラー内容: "+err.message+")"); }
+  finally { btn.textContent=label; $("btnSave").disabled=false; $("btnSaveHq").disabled=false; }
+}
+
+// ---- 操作 ----
+$("viewSeg").addEventListener("click",e=>{ const b=e.target.closest("button[data-v]"); if(!b) return; state.view=b.dataset.v; render(); });
+$("eraSeg").addEventListener("click",e=>{ const b=e.target.closest("button[data-e]"); if(!b) return; state.era=b.dataset.e; render(); });
+$("optBooks").addEventListener("change",e=>{ state.books=e.target.checked; render(); });
+$("optParts").addEventListener("change",e=>{ state.parts=e.target.checked; render(); });
+$("optNames").addEventListener("change",e=>{ state.names=e.target.checked; render(); });
+let qt=null; $("q").addEventListener("input",e=>{ clearTimeout(qt); qt=setTimeout(()=>{ state.q=e.target.value.trim().slice(0,40); render(); },150); });
+$("sheet").addEventListener("click",e=>{ if(e.target===$("sheet")) $("sheet").classList.remove("show"); });
+$("btnSave").addEventListener("click",()=>saveImage("jpeg",$("btnSave")));
+$("btnSaveHq").addEventListener("click",()=>saveImage("png",$("btnSaveHq")));
+$("btnClosePreview").addEventListener("click",()=>{ $("previewModal").classList.remove("show"); $("previewImg").removeAttribute("src"); releasePreviewBlob(); });
+function trk(k){ try { if(sessionStorage.getItem("trk_"+k)) return; sessionStorage.setItem("trk_"+k,"1"); } catch(e){} fetch("/api/track",{method:"POST",body:JSON.stringify({k}),keepalive:true}).catch(()=>{}); }
+
+// ---- 起動 ----
+function showOnly(id){ $("loadingView").hidden=true; $(id).hidden=false; }
+async function init(me){
+  const d=await jget("/api/drops");
+  if(!d||!d.stages||!d.stages.length){ showOnly("errorView"); return; }
+  build(d); readUrl();
+  trk(me&&me.loggedIn?"dl_view_member":"dl_view_guest");
+  $("loadingView").hidden=true; $("contentView").hidden=false; render();
+}
+async function start(){
+  const me=await jget("/api/me");
+  if(!ADMIN_ONLY){ init(me); return; }
+  const a=me&&me.loggedIn?await jget("/api/admin/me"):null;
+  if(a&&a.admin===true) init(me); else showOnly("adminOnlyView");
+}
+start();
+})();
+</script>
+<script src="auth.js" defer></script>
+</body>
+</html>

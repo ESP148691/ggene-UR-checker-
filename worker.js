@@ -467,7 +467,7 @@ async function incrementUsageCounter(env, counterKey) {
 // 82 ユニット一覧からの誘導の計測（81の効果を見る。運営者専用の表示だけに使い、一般には出さない）
 //   POST /api/track {k}：ログイン不要。決まったキーだけ daily_stats に1足す（人やブラウザは記録しない）
 //   ログイン・新規登録の body.src：直前に押したユニット一覧の案内（ul_ml＝登録者の所持率の案内／ul_note＝自分の所持の案内）
-const TRACK_KEYS = new Set(["ul_view_guest", "ul_view_member", "ul_ml_seen_guest", "ul_click_ml", "ul_click_note"]);
+const TRACK_KEYS = new Set(["ul_view_guest", "ul_view_member", "ul_ml_seen_guest", "ul_click_ml", "ul_click_note", "dl_view_guest", "dl_view_member"]);
 const AUTH_SRC_KEYS = new Set(["ul_ml", "ul_note"]);
 async function handleTrack(request, env) {
   let k = null;
@@ -1419,6 +1419,30 @@ async function handleMlSeasons(request, env) {
     if (r.target_kind && r.target_name) s.targets.push({ kind: r.target_kind, id: r.target_id, name: r.target_name });
   }
   return jsonResponse({ seasons }, 200, MASTER_CACHE);
+}
+
+// 92 GET /api/drops（認証不要）。ハードステージのドロップ一覧（研究技術書・武装強化パーツ）。0060未適用なら空
+async function handleDrops(request, env) {
+  let st, it, ln;
+  try {
+    [{ results: st }, { results: it }, { results: ln }] = await env.DB.batch([
+      env.DB.prepare(`SELECT s.stage_id, s.work_id, s.hard_no, w.name, w.short_name, w.era
+                      FROM drop_stages s JOIN works_master w ON w.work_id = s.work_id
+                      WHERE s.is_active = 1 ORDER BY w.sort_order, s.hard_no`),
+      env.DB.prepare(`SELECT item_id, kind, code, name, model_no FROM drop_items WHERE is_active = 1 ORDER BY item_id`),
+      env.DB.prepare(`SELECT l.stage_id, l.item_id, l.checked_on FROM drop_stage_items l
+                      JOIN drop_stages s ON s.stage_id = l.stage_id AND s.is_active = 1
+                      JOIN drop_items i ON i.item_id = l.item_id AND i.is_active = 1
+                      ORDER BY l.stage_id, l.sort_order`)
+    ]);
+  } catch (e) {
+    return jsonResponse({ stages: [], items: [], links: [] }, 200);   // 0060未適用
+  }
+  return jsonResponse({
+    stages: st.map(r => ({ stageId: r.stage_id, workId: r.work_id, hardNo: r.hard_no, workName: r.name, shortName: r.short_name, era: r.era })),
+    items: it.map(r => { const o = { itemId: r.item_id, kind: r.kind, name: r.name }; if (r.code) o.code = r.code; if (r.model_no) o.modelNo = r.model_no; return o; }),
+    links: ln.map(r => ({ stageId: r.stage_id, itemId: r.item_id, checkedOn: r.checked_on }))
+  }, 200, MASTER_CACHE);
 }
 
 // GET /api/supporters（認証不要）。URサポートのマスター（supporter.html・top.htmlが読む）。supporter_id順
@@ -3107,6 +3131,9 @@ export default {
     }
     if (url.pathname === "/api/ml-seasons" && request.method === "GET") {
       return handleMlSeasons(request, env);
+    }
+    if (url.pathname === "/api/drops" && request.method === "GET") {
+      return handleDrops(request, env);
     }
     if (url.pathname === "/api/supporters" && request.method === "GET") {
       return handleSupporters(request, env);
