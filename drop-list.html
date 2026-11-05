@@ -74,7 +74,7 @@
   .pcol .ph b{font-size:12.5px;} .pcol .ph span{font-size:11px;color:var(--muted);}
   .count{font-size:11.5px;color:var(--muted);margin:4px 0 8px;}
   .empty{padding:24px 0;text-align:center;color:var(--muted);font-size:13px;}
-  .actions{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap;}
+  .actions{display:flex;gap:8px;margin:10px 0 0;flex-wrap:wrap;}
   .actions button{font:inherit;font-size:13px;font-weight:700;border-radius:6px;padding:9px 14px;cursor:pointer;border:none;}
   .actions button:disabled{opacity:.6;cursor:default;}
   .btn-save{background:var(--gold);color:#1b1503;}
@@ -153,13 +153,13 @@
       <div class="row" id="bookOpts" hidden>
         <input type="search" class="search" id="q" placeholder="機体名・型式番号で絞り込み（例：バルバトス、RX-0）" aria-label="研究技術書を検索">
       </div>
+      <div class="actions"><div class="seg shapeSeg" id="shapeSeg" role="group" aria-label="保存する画像の形"><button type="button" data-s="tall">縦長（スマホ向け）</button><button type="button" data-s="wide">横長（PC向け）</button></div><button type="button" class="btn-save" id="btnSave">画像で保存</button><button type="button" class="btn-save-hq" id="btnSaveHq">高画質で保存（PNG）</button></div>
     </div>
 
     <div id="stageView"></div>
     <div id="bookView" hidden><div class="count" id="bookCount"></div><div class="bgrid" id="bookGrid"></div></div>
     <div id="partView" hidden><div class="pgrid" id="partGrid"></div></div>
 
-    <div class="actions"><div class="seg shapeSeg" id="shapeSeg" role="group" aria-label="保存する画像の形"><button type="button" data-s="tall">縦長（スマホ向け）</button><button type="button" data-s="wide">横長（PC向け）</button></div><button type="button" class="btn-save" id="btnSave">画像で保存</button><button type="button" class="btn-save-hq" id="btnSaveHq">高画質で保存（PNG）</button></div>
   </div>
 
   <footer class="pageFooter">

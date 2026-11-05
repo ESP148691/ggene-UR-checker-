@@ -501,7 +501,7 @@
     </a>
     <!-- 92 ドロップ一覧（試用・運営者専用）。公開時は drop-list.html の ADMIN_ONLY を false にして、このカードを一般の欄へ移す -->
     <a class="navcard" href="/drop-list">
-      <div class="icon"><img class="icoImg" src="images/drops/part/4.png" alt="" aria-hidden="true"></div>
+      <div class="icon" data-pool="drop"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
         <div class="name">ドロップ<wbr>一覧<wbr>（試用）</div>
         <div class="desc">ハードステージの武装強化パーツを一覧で参照可能（運営者専用）</div>
@@ -571,6 +571,8 @@
       replaceItems(FAVORITE_IMAGES, list.map(function(c){ return 'images/characters/' + c.charId + '.jpg'; }));
     })
   ].map(function(p){ return p.catch(function(){ /* 失敗時は予備の固定値のまま */ }); }));
+  // 92 ドロップ一覧：武装強化パーツ7種のアイコン
+  var DROP_PART_IMAGES = [1,2,3,4,5,6,7].map(function(n){ return 'images/drops/part/' + n + '.png'; });
   var PROFILE_CARD_IMAGES = ['standard', 'units', 'eternal'].map(function(k){ return 'images/profile-card/' + k + '.jpg'; });
 
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -768,7 +770,7 @@
 
     function poolFor(el){
       var pool = el.getAttribute('data-pool');
-      return pool === 'unit' ? UNIT_IMAGES : pool === 'eternal' ? ETERNAL_ROAD_IMAGES : pool === 'challenge' ? CHALLENGE_IMAGES : pool === 'profile' ? PROFILE_CARD_IMAGES : pool === 'favorite' ? FAVORITE_IMAGES : SUPPORTER_IMAGES;
+      return pool === 'unit' ? UNIT_IMAGES : pool === 'eternal' ? ETERNAL_ROAD_IMAGES : pool === 'challenge' ? CHALLENGE_IMAGES : pool === 'profile' ? PROFILE_CARD_IMAGES : pool === 'favorite' ? FAVORITE_IMAGES : pool === 'drop' ? DROP_PART_IMAGES : SUPPORTER_IMAGES;
     }
 
     function setImage(img, src){
