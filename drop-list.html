@@ -312,10 +312,13 @@ function renderPart(){
     g.appendChild(col);
   });
 }
+// 縦長で保存するのは、ステージ別以外（武装パーツから探す等）で「縦長」を選んだときだけ
+const isTall = () => state.view!=="stage" && state.shape==="tall";
 function render(){
   document.querySelectorAll("#viewSeg button").forEach(b=>b.classList.toggle("active",b.dataset.v===state.view));
   document.querySelectorAll("#eraSeg button").forEach(b=>b.classList.toggle("active",b.dataset.e===state.era));
   document.querySelectorAll("#shapeSeg button").forEach(b=>b.classList.toggle("active",b.dataset.s===state.shape));
+  $("shapeSeg").hidden=state.view==="stage";   // ステージ別は縦長だと長すぎて見づらいため横長のみ（形の切替は出さない）
   $("stageView").hidden=state.view!=="stage"; $("bookView").hidden=state.view!=="book"; $("partView").hidden=state.view!=="part";
   $("stageOpts").hidden=state.view!=="stage"||!SHOW_BOOKS; $("bookOpts").hidden=state.view!=="book";
   if(state.view==="stage") renderStage(); else if(state.view==="book") renderBook(); else renderPart();
@@ -352,7 +355,7 @@ function imgSub(){
 }
 // レイアウト：各ビューで「描く箱」の一覧を作り、高さを決めてから一度に描く
 async function generateImage(){
-  const TALL=state.shape==="tall", W=TALL?720:1200, PAD=20, TOP=96, S=2, NC=TALL?1:2;   // 縦長は1列・横長は2列
+  const TALL=isTall(), W=TALL?720:1200, PAD=20, TOP=96, S=2, NC=TALL?1:2;   // 縦長は1列・横長は2列
   const boxes=[]; let y=TOP;
   const urls=new Set(["images/logo.png"]);
   if(state.view==="stage"&&!showBooks()){
@@ -468,7 +471,7 @@ async function saveImage(fmt,btn){
     releasePreviewBlob(); if(blob) previewBlobUrl=URL.createObjectURL(blob);
     const mb=((blob?blob.size:enc.url.length*0.75)/1048576).toFixed(1);
     $("previewImg").src=enc.url;
-    const a=$("downloadLink"); a.href=previewBlobUrl||enc.url; a.download="drop_list"+(state.shape==="tall"?"_tall":"")+(hq?".png":".jpg");
+    const a=$("downloadLink"); a.href=previewBlobUrl||enc.url; a.download="drop_list"+(isTall()?"_tall":"")+(hq?".png":".jpg");
     $("previewFmt").textContent=(hq?"高画質（PNG）":"通常画質（JPEG）")+"・約"+mb+"MB";
     $("previewHint").textContent=hq?"高画質はファイルが大きいため、長押しで保存できない端末があります。下の「ダウンロード」を使ってください":"画像を長押し（PCは右クリック）で保存もできます";
     $("previewModal").classList.add("show");
