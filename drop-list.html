@@ -53,6 +53,9 @@
   .btile img{width:var(--bw);height:var(--bh);object-fit:cover;border-radius:4px;display:block;border:1px solid rgba(107,224,224,.25);}
   .btile .bn{font-size:10.5px;line-height:1.3;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   .hideNames .btile .bn{display:none;}
+  .pcells{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;min-width:0;}
+  .pcell{width:66px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;text-align:center;line-height:1.25;}
+  .pcell .hard{width:56px;height:48px;} .pcell .pic{width:52px;height:52px;} .pcell .none{color:var(--muted);height:52px;display:flex;align-items:center;}
   .hideParts .part{display:none;}
   .hideBooks .books{display:none;}
   /* 研究技術書から探す */
@@ -75,6 +78,8 @@
   .actions button{font:inherit;font-size:13px;font-weight:700;border-radius:6px;padding:9px 14px;cursor:pointer;border:none;}
   .actions button:disabled{opacity:.6;cursor:default;}
   .btn-save{background:var(--gold);color:#1b1503;}
+  .actions .shapeSeg{flex-basis:100%;}
+  .actions .shapeSeg button{padding:6px 10px;font-size:12px;}
   .actions .btn-save-hq{background:transparent;color:var(--gold);border:1px solid var(--gold);}
   .sheet{position:fixed;inset:0;background:rgba(5,7,10,.88);display:none;align-items:center;justify-content:center;padding:16px;z-index:50;}
   .sheet.show{display:flex;}
@@ -106,6 +111,7 @@
     h1{font-size:17px;}
     .work{grid-template-columns:1fr;gap:6px;padding:8px;}
     .wlogo{flex-direction:row;align-items:center;gap:8px;}
+    .pcell{width:58px;} .pcell .hard{width:46px;height:39px;} .pcell .pic{width:44px;height:44px;}
     .hard{width:44px;height:38px;} .part{width:60px;font-size:10px;} .part img{width:40px;height:40px;} .part.none,.books .noBook{height:38px;}
     .pgrid{grid-template-columns:repeat(2,minmax(0,1fr));}
     .chip img.l{width:54px;height:24px;} .chip img.h{width:28px;height:24px;}
@@ -117,7 +123,7 @@
 <main>
   <p class="eyebrow">DROP LIST</p>
   <h1>ドロップ一覧</h1>
-  <p class="lead">メインストーリーのハードステージで手に入る<b>研究技術書</b>と<b>武装強化パーツ</b>の一覧です。<span class="src" id="srcNote"></span></p>
+  <p class="lead" id="lead">メインストーリーのハードステージで手に入る<b>研究技術書</b>と<b>武装強化パーツ</b>の一覧です。<span class="src" id="srcNote"></span></p>
 
   <div id="adminOnlyView" class="stateMsg" hidden>このページは現在、運営者専用です。</div>
   <div id="loadingView" class="stateMsg">読み込み中...</div>
@@ -153,7 +159,7 @@
     <div id="bookView" hidden><div class="count" id="bookCount"></div><div class="bgrid" id="bookGrid"></div></div>
     <div id="partView" hidden><div class="pgrid" id="partGrid"></div></div>
 
-    <div class="actions"><button type="button" class="btn-save" id="btnSave">画像で保存</button><button type="button" class="btn-save-hq" id="btnSaveHq">高画質で保存（PNG）</button></div>
+    <div class="actions"><div class="seg shapeSeg" id="shapeSeg" role="group" aria-label="保存する画像の形"><button type="button" data-s="tall">縦長（スマホ向け）</button><button type="button" data-s="wide">横長（PC向け）</button></div><button type="button" class="btn-save" id="btnSave">画像で保存</button><button type="button" class="btn-save-hq" id="btnSaveHq">高画質で保存（PNG）</button></div>
   </div>
 
   <footer class="pageFooter">
@@ -177,6 +183,8 @@
 (function(){
 "use strict";
 const ADMIN_ONLY = true;    // true＝運営者専用（公開前の確認・切り戻し用）
+// 92追加改修（11-05）：研究技術書は準備が整うまで出さない。true にすると研究技術書の表示・検索・画像保存が戻る（APIも worker.js の DROPS_SHOW_BOOKS と合わせる）
+const SHOW_BOOKS = false;
 const SITE_CFG = window.SITE_CONFIG || {};
 const CONFIG = { xHandle: "@" + (SITE_CFG.xAccount || "polarbear148691") };
 const IMG = "images/", DROP = "images/drops/";
@@ -188,11 +196,12 @@ const bookImg = id => `${DROP}book/${id}.jpg`, partImg = id => `${DROP}part/${id
 const norm = s => String(s||"").normalize("NFKC").toLowerCase().replace(/[\s・･\-‐ー]/g,"");
 
 let STAGES=[], ITEMS=new Map(), WORKS=[], BOOKS=[], PARTS=[];
-const state = { view:"stage", era:"all", books:true, parts:true, names:true, q:"" };
+// shape：保存する画像の形（tall＝縦長・幅720、wide＝横長・幅1200）。最初はスマホ幅なら縦長
+const state = { view:"stage", era:"all", books:true, parts:true, names:true, q:"", shape:(window.innerWidth<700?"tall":"wide") };
 
 // ---- データ ----
 function build(d){
-  ITEMS=new Map((d.items||[]).map(i=>[i.itemId,i]));
+  ITEMS=new Map((d.items||[]).filter(i=>SHOW_BOOKS||i.kind!=="book").map(i=>[i.itemId,i]));
   const byStage=new Map();
   (d.links||[]).forEach(l=>{ const it=ITEMS.get(l.itemId); if(!it) return; (byStage.get(l.stageId)||byStage.set(l.stageId,[]).get(l.stageId)).push({it,checkedOn:l.checkedOn}); });
   STAGES=(d.stages||[]).map(s=>Object.assign({},s,{drops:byStage.get(s.stageId)||[]}));
@@ -205,12 +214,15 @@ function build(d){
   }));
   PARTS=[...ITEMS.values()].filter(i=>i.kind==="part").sort((a,b)=>a.itemId-b.itemId).map(i=>pmap.get(i.itemId)||{it:i,stages:[]});
   // 調べた時点（種類ごとに最新）
-  const last={book:"",part:""};
-  (d.links||[]).forEach(l=>{ const it=ITEMS.get(l.itemId); if(it&&l.checkedOn&&l.checkedOn>last[it.kind]) last[it.kind]=l.checkedOn; });
+  // 調べた時点：種類ごとに最も古い日〜新しい日（同じなら1つ）
+  const rng={book:[],part:[]};
+  (d.links||[]).forEach(l=>{ const it=ITEMS.get(l.itemId); if(it&&l.checkedOn) rng[it.kind].push(l.checkedOn); });
+  const last={}; for(const k in rng){ const a=rng[k].sort(); last[k]=a.length?(a[0]===a[a.length-1]?a[0]:a[0]+"〜"+a[a.length-1]):""; }
   const fmt=s=>s?s.replace(/-/g,"."):"—";
-  $("srcNote").textContent=`ESPがゲーム内で確認（研究技術書 ${fmt(last.book)}／武装強化パーツ ${fmt(last.part)} 時点）。`;
+  $("srcNote").textContent=SHOW_BOOKS?`ESPがゲーム内で確認（研究技術書 ${fmt(last.book)}／武装強化パーツ ${fmt(last.part)} 時点）。`:`ESPがゲーム内で確認（${fmt(last.part)} 時点）。`;
   return last;
 }
+const showBooks = () => SHOW_BOOKS && state.books;
 const eraOk = w => state.era==="all" || w.era===state.era;
 
 // ---- 表示部品 ----
@@ -245,6 +257,7 @@ function openSheet(it,stage){
 // ---- 描画 ----
 function renderStage(){
   const root=$("stageView"); root.textContent="";
+  if(!showBooks()) return renderStageCompact(root);
   root.classList.toggle("hideNames",!state.names); root.classList.toggle("hideParts",!state.parts); root.classList.toggle("hideBooks",!state.books);
   WORKS.filter(eraOk).forEach(w=>{
     const sec=el("section",{class:"work"}); sec.appendChild(logoEl(w));
@@ -261,6 +274,24 @@ function renderStage(){
       r.appendChild(bs); hs.appendChild(r);
     });
     sec.appendChild(hs); root.appendChild(sec);
+  });
+  if(!root.childElementCount) root.appendChild(el("div",{class:"empty",text:"該当するステージがありません"}));
+}
+// 研究技術書を出さないとき：資料の「シリーズ別」と同じ横並び（ロゴ｜HARD1〜5のパーツ）
+function renderStageCompact(root){
+  root.classList.remove("hideNames","hideParts","hideBooks");
+  WORKS.filter(eraOk).forEach(w=>{
+    const sec=el("section",{class:"work compact"}); sec.appendChild(logoEl(w));
+    const cells=el("div",{class:"pcells"});
+    w.stages.forEach(s=>{
+      const part=s.drops.find(x=>x.it.kind==="part");
+      const c=el("div",{class:"pcell"});
+      c.appendChild(el("img",{class:"hard",src:hardImg(s.hardNo),alt:"HARD"+s.hardNo}));
+      if(part){ c.appendChild(el("img",{class:"pic",src:partImg(part.it.itemId),alt:part.it.name})); c.appendChild(el("span",{text:part.it.name})); }
+      else c.appendChild(el("span",{class:"none",text:"—"}));
+      cells.appendChild(c);
+    });
+    sec.appendChild(cells); root.appendChild(sec);
   });
   if(!root.childElementCount) root.appendChild(el("div",{class:"empty",text:"該当するステージがありません"}));
 }
@@ -284,14 +315,16 @@ function renderPart(){
 function render(){
   document.querySelectorAll("#viewSeg button").forEach(b=>b.classList.toggle("active",b.dataset.v===state.view));
   document.querySelectorAll("#eraSeg button").forEach(b=>b.classList.toggle("active",b.dataset.e===state.era));
+  document.querySelectorAll("#shapeSeg button").forEach(b=>b.classList.toggle("active",b.dataset.s===state.shape));
   $("stageView").hidden=state.view!=="stage"; $("bookView").hidden=state.view!=="book"; $("partView").hidden=state.view!=="part";
-  $("stageOpts").hidden=state.view!=="stage"; $("bookOpts").hidden=state.view!=="book";
+  $("stageOpts").hidden=state.view!=="stage"||!SHOW_BOOKS; $("bookOpts").hidden=state.view!=="book";
   if(state.view==="stage") renderStage(); else if(state.view==="book") renderBook(); else renderPart();
   writeUrl();
 }
 function readUrl(){
   const p=new URLSearchParams(location.search);
   if(["stage","book","part"].includes(p.get("v"))) state.view=p.get("v");
+  if(!SHOW_BOOKS&&state.view==="book") state.view="stage";
   if(["all","UC","ALT"].includes(p.get("era"))) state.era=p.get("era");
   if(p.get("q")) state.q=p.get("q").slice(0,40);
   $("q").value=state.q;
@@ -309,32 +342,47 @@ function imgTitle(){
   const era=state.era==="all"?"":`（${ERA_LABEL[state.era]}）`;
   if(state.view==="book") return `${ymd()} 研究技術書 ドロップステージ一覧${era}`;
   if(state.view==="part") return `${ymd()} 武装強化パーツ ドロップステージ一覧${era}`;
-  return `${ymd()} ハードステージ ドロップ一覧${era}`;
+  return SHOW_BOOKS?`${ymd()} ハードステージ ドロップ一覧${era}`:`${ymd()} 武装強化パーツ ドロップ一覧${era}`;
 }
 function imgSub(){
   if(state.view==="book") return state.q?`「${state.q}」で絞り込み・${filteredBooks().length}件`:"研究技術書 → 落ちるステージ";
   if(state.view==="part") return "武装強化パーツ → 落ちるステージ";
+  if(!showBooks()) return "ハードステージごとの武装強化パーツ";
   return [state.books?"研究技術書":"",state.parts?"武装強化パーツ":""].filter(Boolean).join("＋")+" をステージごとに";
 }
 // レイアウト：各ビューで「描く箱」の一覧を作り、高さを決めてから一度に描く
 async function generateImage(){
-  const W=1200, PAD=20, TOP=96, S=2;
+  const TALL=state.shape==="tall", W=TALL?720:1200, PAD=20, TOP=96, S=2, NC=TALL?1:2;   // 縦長は1列・横長は2列
   const boxes=[]; let y=TOP;
   const urls=new Set(["images/logo.png"]);
-  if(state.view==="stage"){
+  if(state.view==="stage"&&!showBooks()){
+    // 研究技術書なし：2列。1作品＝ロゴ｜HARD1〜5（HARDラベルの下にパーツ）
+    const CW=(W-PAD*2-16*(NC-1))/NC, LW=150, LH=66, HW=56, HH=48, PW=52, CELL=74;
+    const ws=WORKS.filter(eraOk), H1=HH+4+PW+20+16;
+    ws.forEach((w,i)=>{ const x=PAD+(i%NC)*(CW+16), yy=TOP+Math.floor(i/NC)*(H1+10);
+      boxes.push({k:"workC",w,x,y:yy,wd:CW,h:H1,LW,LH,HW,HH,PW,CELL});
+      urls.add(logoImg(w.workId)); w.stages.forEach(s=>{ urls.add(hardImg(s.hardNo)); s.drops.forEach(q=>urls.add(partImg(q.it.itemId))); }); });
+    y=TOP+Math.ceil(ws.length/NC)*(H1+10);
+  } else if(state.view==="stage"){
     // 資料と同じ2列（左右に作品を並べる）。1作品＝ロゴ＋HARD行（HARD・パーツ・技術書）
-    const CW=(W-PAD*2-16)/2, LW=150, LH=66, HW=44, HH=38, PW=46, BW=92, BH=72, G=4;
+    const CW=(W-PAD*2-16*(NC-1))/NC, LW=TALL?120:150, LH=TALL?53:66, HW=44, HH=38, PW=46, BW=92, BH=72, G=4;
     const ws=WORKS.filter(eraOk);
     const perRow=Math.max(1,Math.floor((CW-LW-10-HW-6-(state.parts?PW+6:0)+G)/(BW+G)));
     const bookRows=s=>state.books?Math.max(1,Math.ceil(s.drops.filter(x=>x.it.kind==="book").length/perRow)):1;
     const rowH=s=>Math.max(HH,state.books?bookRows(s)*(BH+G)-G:HH);
     const workH=w=>Math.max(LH+18,w.stages.reduce((a,s)=>a+rowH(s)+6,0)-6)+16;
-    const cols=[{x:PAD,y:TOP},{x:PAD+CW+16,y:TOP}];
-    ws.forEach(w=>{ const c=cols[0].y<=cols[1].y?cols[0]:cols[1]; const h=workH(w);
+    const cols=Array.from({length:NC},(_,i)=>({x:PAD+i*(CW+16),y:TOP}));
+    ws.forEach(w=>{ const c=cols.reduce((a,b)=>b.y<a.y?b:a); const h=workH(w);
       boxes.push({k:"work",w,x:c.x,y:c.y,wd:CW,h,LW,LH,HW,HH,PW,BW,BH,G,perRow,rowH}); c.y+=h+10;
       urls.add(logoImg(w.workId)); w.stages.forEach(s=>{ urls.add(hardImg(s.hardNo)); s.drops.forEach(x=>urls.add(x.it.kind==="book"?bookImg(x.it.itemId):partImg(x.it.itemId))); }); });
-    y=Math.max(cols[0].y,cols[1].y);
-    if(state.parts){ boxes.push({k:"legend",x:PAD,y:y+4}); PARTS.forEach(p=>urls.add(partImg(p.it.itemId))); y+=44; }
+    y=Math.max(...cols.map(c=>c.y));
+    if(state.parts){ boxes.push({k:"legend",x:PAD,y:y+4}); PARTS.forEach(p=>urls.add(partImg(p.it.itemId))); y+=TALL?80:44; }
+  } else if(state.view==="part"&&TALL){
+    // 縦長：パーツごとの帯を上から並べる（帯の中は「ロゴ＋HARD」を横に詰める）
+    const CH=30, G=6, CHW=CH*320/140+3+CH*110/94, IW=W-PAD*2-16, K=Math.max(1,Math.floor((IW+G)/(CHW+G)));
+    PARTS.forEach(p=>{ const ss=p.stages.filter(s=>eraOk(s.work)), h=60+Math.max(1,Math.ceil(ss.length/K))*(CH+G)-G+14;
+      boxes.push({k:"pblk",p,ss,x:PAD,y,wd:W-PAD*2,h,CH,G,K,CHW}); y+=h+10;
+      urls.add(partImg(p.it.itemId)); ss.forEach(s=>{ urls.add(logoImg(s.workId)); urls.add(hardImg(s.hardNo)); }); });
   } else if(state.view==="part"){
     const CW=(W-PAD*2-6*8)/7, CH=30, G=4;
     const cols=PARTS.map(p=>({p,ss:p.stages.filter(s=>eraOk(s.work))}));
@@ -342,7 +390,7 @@ async function generateImage(){
     cols.forEach((c,i)=>{ boxes.push({k:"pcol",c,x:PAD+i*(CW+8),y:TOP,wd:CW,CH,G}); urls.add(partImg(c.p.it.itemId)); c.ss.forEach(s=>{ urls.add(logoImg(s.workId)); urls.add(hardImg(s.hardNo)); }); });
     y=TOP+96+maxN*(CH+G)+10;
   } else {
-    const list=filteredBooks(), N=7, G=10, TW=(W-PAD*2-G*(N-1))/N, TH=TW*250/320, CAP=48;
+    const list=filteredBooks(), N=TALL?3:7, G=10, TW=(W-PAD*2-G*(N-1))/N, TH=TW*250/320, CAP=48;
     list.forEach((b,i)=>{ const x=PAD+(i%N)*(TW+G), yy=TOP+Math.floor(i/N)*(TH+CAP+G); boxes.push({k:"book",b,x,y:yy,TW,TH}); urls.add(bookImg(b.it.itemId)); urls.add(logoImg(b.stage.workId)); urls.add(hardImg(b.stage.hardNo)); });
     y=TOP+Math.ceil(list.length/N)*(TH+CAP+G);
   }
@@ -357,8 +405,12 @@ async function generateImage(){
   const draw=(u,x,yy,w,h,fit)=>{ const im=imgs.get(u); if(!im) return false; if(fit){ const sc=Math.min(w/im.width,h/im.height), dw=im.width*sc, dh=im.height*sc; ctx.drawImage(im,x+(w-dw)/2,yy+(h-dh)/2,dw,dh);} else ctx.drawImage(im,x,yy,w,h); return true; };
   const logo=imgs.get("images/logo.png"); if(logo){ const LS=68, sc=Math.min(LS/logo.width,LS/logo.height); ctx.drawImage(logo,PAD+(LS-logo.width*sc)/2,14+(LS-logo.height*sc)/2,logo.width*sc,logo.height*sc); }
   txt(imgTitle(),PAD+84,40,`700 22px ${FONT}`,"#eef3f6"); txt(imgSub(),PAD+84,68,`500 17px ${FONT}`,"#b4c2d0");
-  txt(CONFIG.xHandle,W-PAD,38,"13px monospace","#5ad1d1","right");
-  const wlogo=(w,x,yy,lw,lh)=>{ ctx.fillStyle="#000"; ctx.fillRect(x,yy,lw,lh); if(!draw(logoImg(w.workId),x,yy,lw,lh,true)) txt(w.short||w.name,x+lw/2,yy+lh/2+5,`700 13px ${FONT}`,"#eef3f6","center"); };
+  txt(CONFIG.xHandle,W-PAD,TALL?68:38,"13px monospace","#5ad1d1","right");   // 縦長はタイトルと重ならないよう2行目の右
+  const wlogo=(w,x,yy,lw,lh)=>{ ctx.fillStyle="#000"; ctx.fillRect(x,yy,lw,lh); if(draw(logoImg(w.workId),x,yy,lw,lh,true)) return;
+    // ロゴが無いときは作品名を枠に収まる大きさで（はみ出す分は切る）
+    const t=w.short||w.name; let fs=Math.min(13,Math.round(lh*.45)); ctx.font=`700 ${fs}px ${FONT}`;
+    while(fs>8&&ctx.measureText(t).width>lw-6){ fs--; ctx.font=`700 ${fs}px ${FONT}`; }
+    ctx.save(); ctx.beginPath(); ctx.rect(x,yy,lw,lh); ctx.clip(); txt(t,x+lw/2,yy+lh/2+fs*.36,`700 ${fs}px ${FONT}`,"#eef3f6","center"); ctx.restore(); };
   ctx.textBaseline="alphabetic";
   boxes.forEach(b=>{
     if(b.k==="work"){
@@ -373,8 +425,22 @@ async function generateImage(){
           bs.forEach((q,i)=>{ const bx=x+(i%b.perRow)*(b.BW+b.G), by=yy+Math.floor(i/b.perRow)*(b.BH+b.G); draw(bookImg(q.it.itemId),bx,by,b.BW,b.BH); }); }
         yy+=b.rowH(s)+6;
       });
+    } else if(b.k==="workC"){
+      ctx.fillStyle="rgba(10,14,22,.85)"; ctx.strokeStyle="rgba(107,224,224,.25)"; ctx.lineWidth=1; ctx.fillRect(b.x,b.y,b.wd,b.h); ctx.strokeRect(b.x+.5,b.y+.5,b.wd-1,b.h-1);
+      wlogo(b.w,b.x+8,b.y+(b.h-b.LH)/2,b.LW,b.LH);
+      b.w.stages.forEach((s,i)=>{ const cx=b.x+8+b.LW+12+i*b.CELL, cy=b.y+8;
+        draw(hardImg(s.hardNo),cx+(b.CELL-6-b.HW)/2,cy,b.HW,b.HH);
+        const p=s.drops.find(q=>q.it.kind==="part");
+        if(p){ draw(partImg(p.it.itemId),cx+(b.CELL-6-b.PW)/2,cy+b.HH+4,b.PW,b.PW,true); txt(p.it.name,cx+(b.CELL-6)/2,cy+b.HH+4+b.PW+15,`700 12px ${FONT}`,"#eef3f6","center"); }
+      });
     } else if(b.k==="legend"){
-      let x=b.x; PARTS.forEach(p=>{ draw(partImg(p.it.itemId),x,b.y,30,30,true); txt(p.it.name,x+34,b.y+20,`500 13px ${FONT}`,"#b4c2d0"); ctx.font=`500 13px ${FONT}`; x+=34+ctx.measureText(p.it.name).width+18; });
+      let x=b.x, ly=b.y; PARTS.forEach(p=>{ ctx.font=`500 13px ${FONT}`; const w=34+ctx.measureText(p.it.name).width+18; if(x+w>W-PAD&&x>b.x){ x=b.x; ly+=36; } draw(partImg(p.it.itemId),x,ly,30,30,true); txt(p.it.name,x+34,ly+20,`500 13px ${FONT}`,"#b4c2d0"); x+=w; });
+    } else if(b.k==="pblk"){
+      ctx.fillStyle="rgba(10,14,22,.85)"; ctx.strokeStyle="rgba(107,224,224,.25)"; ctx.lineWidth=1; ctx.fillRect(b.x,b.y,b.wd,b.h); ctx.strokeRect(b.x+.5,b.y+.5,b.wd-1,b.h-1);
+      draw(partImg(b.p.it.itemId),b.x+8,b.y+6,46,46,true);
+      txt(b.p.it.name,b.x+62,b.y+30,`700 18px ${FONT}`,"#eef3f6"); ctx.font=`700 18px ${FONT}`; const nw=ctx.measureText(b.p.it.name).width;
+      txt(b.ss.length+"ステージ",b.x+62+nw+10,b.y+30,`500 13px ${FONT}`,"#93a3b3");
+      b.ss.forEach((s,i)=>{ const cx=b.x+8+(i%b.K)*(b.CHW+b.G), cy=b.y+60+Math.floor(i/b.K)*(b.CH+b.G), lw=b.CH*320/140; wlogo(s.work,cx,cy,lw,b.CH); draw(hardImg(s.hardNo),cx+lw+3,cy,b.CH*110/94,b.CH); });
     } else if(b.k==="pcol"){
       ctx.fillStyle="rgba(10,14,22,.85)"; ctx.fillRect(b.x,b.y,b.wd,H-b.y-44);
       draw(partImg(b.c.p.it.itemId),b.x+b.wd/2-28,b.y+6,56,56,true);
@@ -402,7 +468,7 @@ async function saveImage(fmt,btn){
     releasePreviewBlob(); if(blob) previewBlobUrl=URL.createObjectURL(blob);
     const mb=((blob?blob.size:enc.url.length*0.75)/1048576).toFixed(1);
     $("previewImg").src=enc.url;
-    const a=$("downloadLink"); a.href=previewBlobUrl||enc.url; a.download=hq?"drop_list.png":"drop_list.jpg";
+    const a=$("downloadLink"); a.href=previewBlobUrl||enc.url; a.download="drop_list"+(state.shape==="tall"?"_tall":"")+(hq?".png":".jpg");
     $("previewFmt").textContent=(hq?"高画質（PNG）":"通常画質（JPEG）")+"・約"+mb+"MB";
     $("previewHint").textContent=hq?"高画質はファイルが大きいため、長押しで保存できない端末があります。下の「ダウンロード」を使ってください":"画像を長押し（PCは右クリック）で保存もできます";
     $("previewModal").classList.add("show");
@@ -412,6 +478,7 @@ async function saveImage(fmt,btn){
 
 // ---- 操作 ----
 $("viewSeg").addEventListener("click",e=>{ const b=e.target.closest("button[data-v]"); if(!b) return; state.view=b.dataset.v; render(); });
+$("shapeSeg").addEventListener("click",e=>{ const b=e.target.closest("button[data-s]"); if(!b) return; state.shape=b.dataset.s; document.querySelectorAll("#shapeSeg button").forEach(x=>x.classList.toggle("active",x===b)); });
 $("eraSeg").addEventListener("click",e=>{ const b=e.target.closest("button[data-e]"); if(!b) return; state.era=b.dataset.e; render(); });
 $("optBooks").addEventListener("change",e=>{ state.books=e.target.checked; render(); });
 $("optParts").addEventListener("change",e=>{ state.parts=e.target.checked; render(); });
@@ -428,6 +495,10 @@ function showOnly(id){ $("loadingView").hidden=true; $(id).hidden=false; }
 async function init(me){
   const d=await jget("/api/drops");
   if(!d||!d.stages||!d.stages.length){ showOnly("errorView"); return; }
+  if(!SHOW_BOOKS){   // 研究技術書は準備中：切替ボタンを消し、説明文を武装強化パーツだけに
+    const bb=document.querySelector('#viewSeg button[data-v="book"]'); if(bb) bb.remove();
+    const ld=$("lead"), sn=$("srcNote"); ld.textContent=""; ld.append("メインストーリーのハードステージで手に入る",el("b",{text:"武装強化パーツ"}),"の一覧です（研究技術書は準備中）。",sn);
+  }
   build(d); readUrl();
   trk(me&&me.loggedIn?"dl_view_member":"dl_view_guest");
   $("loadingView").hidden=true; $("contentView").hidden=false; render();

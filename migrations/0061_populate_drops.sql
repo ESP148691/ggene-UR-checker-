@@ -62,6 +62,9 @@ INSERT OR REPLACE INTO drop_stages (stage_id, work_id, hard_no, is_active, updat
 INSERT OR REPLACE INTO drop_stages (stage_id, work_id, hard_no, is_active, updated_at) VALUES (361, 36, 1, 1, '2026-11-04T00:00:00+09:00');
 INSERT OR REPLACE INTO drop_stages (stage_id, work_id, hard_no, is_active, updated_at) VALUES (362, 36, 2, 1, '2026-11-04T00:00:00+09:00');
 INSERT OR REPLACE INTO drop_stages (stage_id, work_id, hard_no, is_active, updated_at) VALUES (363, 36, 3, 1, '2026-11-04T00:00:00+09:00');
+INSERT OR REPLACE INTO drop_stages (stage_id, work_id, hard_no, is_active, updated_at) VALUES (611, 61, 1, 1, '2026-11-04T00:00:00+09:00');
+INSERT OR REPLACE INTO drop_stages (stage_id, work_id, hard_no, is_active, updated_at) VALUES (612, 61, 2, 1, '2026-11-04T00:00:00+09:00');
+INSERT OR REPLACE INTO drop_stages (stage_id, work_id, hard_no, is_active, updated_at) VALUES (613, 61, 3, 1, '2026-11-04T00:00:00+09:00');
 INSERT OR REPLACE INTO drop_stages (stage_id, work_id, hard_no, is_active, updated_at) VALUES (671, 67, 1, 1, '2026-11-04T00:00:00+09:00');
 INSERT OR REPLACE INTO drop_stages (stage_id, work_id, hard_no, is_active, updated_at) VALUES (672, 67, 2, 1, '2026-11-04T00:00:00+09:00');
 INSERT OR REPLACE INTO drop_stages (stage_id, work_id, hard_no, is_active, updated_at) VALUES (673, 67, 3, 1, '2026-11-04T00:00:00+09:00');
@@ -336,3 +339,6 @@ INSERT OR REPLACE INTO drop_stage_items (stage_id, item_id, sort_order, checked_
 INSERT OR REPLACE INTO drop_stage_items (stage_id, item_id, sort_order, checked_on) VALUES (183, 1092, 3, '2026-03-01');
 INSERT OR REPLACE INTO drop_stage_items (stage_id, item_id, sort_order, checked_on) VALUES (711, 1093, 2, '2026-03-01');
 INSERT OR REPLACE INTO drop_stage_items (stage_id, item_id, sort_order, checked_on) VALUES (711, 1094, 3, '2026-03-01');
+INSERT OR REPLACE INTO drop_stage_items (stage_id, item_id, sort_order, checked_on) VALUES (611, 5, 1, '2026-11-05');
+INSERT OR REPLACE INTO drop_stage_items (stage_id, item_id, sort_order, checked_on) VALUES (612, 2, 1, '2026-11-05');
+INSERT OR REPLACE INTO drop_stage_items (stage_id, item_id, sort_order, checked_on) VALUES (613, 5, 1, '2026-11-05');

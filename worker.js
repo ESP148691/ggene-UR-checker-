@@ -1421,18 +1421,21 @@ async function handleMlSeasons(request, env) {
   return jsonResponse({ seasons }, 200, MASTER_CACHE);
 }
 
+// 92 追加改修（11-05）：false の間は武装強化パーツだけを返す（研究技術書は準備が整うまで外に出さない）
+const DROPS_SHOW_BOOKS = false;
 // 92 GET /api/drops（認証不要）。ハードステージのドロップ一覧（研究技術書・武装強化パーツ）。0060未適用なら空
 async function handleDrops(request, env) {
+  const KIND = DROPS_SHOW_BOOKS ? "" : " AND i.kind = 'part'";
   let st, it, ln;
   try {
     [{ results: st }, { results: it }, { results: ln }] = await env.DB.batch([
       env.DB.prepare(`SELECT s.stage_id, s.work_id, s.hard_no, w.name, w.short_name, w.era
                       FROM drop_stages s JOIN works_master w ON w.work_id = s.work_id
                       WHERE s.is_active = 1 ORDER BY w.sort_order, s.hard_no`),
-      env.DB.prepare(`SELECT item_id, kind, code, name, model_no FROM drop_items WHERE is_active = 1 ORDER BY item_id`),
+      env.DB.prepare(`SELECT i.item_id, i.kind, i.code, i.name, i.model_no FROM drop_items i WHERE i.is_active = 1${KIND} ORDER BY i.item_id`),
       env.DB.prepare(`SELECT l.stage_id, l.item_id, l.checked_on FROM drop_stage_items l
                       JOIN drop_stages s ON s.stage_id = l.stage_id AND s.is_active = 1
-                      JOIN drop_items i ON i.item_id = l.item_id AND i.is_active = 1
+                      JOIN drop_items i ON i.item_id = l.item_id AND i.is_active = 1${KIND}
                       ORDER BY l.stage_id, l.sort_order`)
     ]);
   } catch (e) {
