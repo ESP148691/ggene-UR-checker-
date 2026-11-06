@@ -224,6 +224,37 @@
   .favQuick .n{font-family:'Share Tech Mono',monospace;font-weight:400;font-size:12px;color:var(--gold);min-height:14px;}
   .favQuick .n.zero{color:var(--muted);font-family:inherit;font-size:11px;}
   @media (max-width:420px){ .favQuick{grid-template-columns:repeat(2,minmax(0,1fr));} .favQuick a{flex-direction:row;gap:6px;min-height:44px;} }
+  /* 93 チェッカー4種（推し情報設定の4ボタンと同じ括り。PCは横4つ、420px以下は2×2） */
+  .chkQuick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+  .chkQuick a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:96px;padding:10px 4px 8px;
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;color:var(--text);text-decoration:none;
+    font-size:12.5px;font-weight:700;text-align:center;line-height:1.3;transition:border-color .2s ease;}
+  .chkQuick a:hover{border-color:var(--gold);}
+  .chkQuick a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
+  .chkQuick .ic{position:relative;flex:0 0 auto;width:40px;height:40px;border-radius:6px;overflow:hidden;border:1px solid var(--line);background:var(--panel-solid);}
+  .chkQuick .ic .icoImg{display:block;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s ease;}
+  .chkQuick .ic .icoImg.show{opacity:1;}
+  .chkQuick .ic .icoImg.poolSupporter{object-position:78% center;}
+  .chkQuick .ic .icoImg.poolChallenge{object-fit:contain;background:#c6c7d6;padding:2px;}
+  .chkQuick .t{display:flex;flex-direction:column;align-items:center;min-width:0;}
+  .chkQuick .nm{word-break:keep-all;overflow-wrap:break-word;}
+  .chkQuick .sb{font-family:'Rajdhani',sans-serif;font-weight:600;font-size:10.5px;color:var(--muted);letter-spacing:.04em;}
+  .chkQuick .n{font-family:'Share Tech Mono',monospace;font-weight:400;font-size:12px;color:var(--gold);min-height:14px;white-space:nowrap;}
+  .chkQuick .n.zero{color:var(--muted);font-family:inherit;font-size:11px;}
+  .chkQuick .n.full{color:#7fd9a0;}
+  @media (max-width:420px){
+    .chkQuick{grid-template-columns:repeat(2,minmax(0,1fr));}
+    /* スマホ：左に絵、右の1行目に名前、2行目に「所持率 62%」のように小見出しと登録状況 */
+    .chkQuick a{display:grid;grid-template-columns:40px auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:8px;row-gap:1px;
+      align-items:baseline;justify-items:start;text-align:left;min-height:58px;padding:8px 10px;}
+    .chkQuick .ic{grid-row:1 / 3;grid-column:1;align-self:center;}
+    .chkQuick .t{display:contents;}
+    .chkQuick .nm{grid-row:1;grid-column:2 / 4;}
+    .chkQuick .sb{grid-row:2;grid-column:2;}
+    .chkQuick .n{grid-row:2;grid-column:3;margin-left:-3px;}
+    .chkQuick a:not(:has(.sb)) .n{grid-column:2 / 4;margin-left:0;}   /* 小見出しの無いボタン（URユニット所持率・URサポート所持率）は名前の下に左寄せ */
+  }  @media (max-width:360px){ .chkQuick a{grid-template-columns:36px auto minmax(0,1fr);column-gap:6px;padding:8px 7px;} .chkQuick .ic{width:36px;height:36px;} .chkQuick .sb{font-size:10px;letter-spacing:0;} }   /* 320px幅で「EXPERT 未登録」が収まるように */
+
   .navcard .regBadge .rate{font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;white-space:nowrap;}
   .navcard .regBadge .cnt{color:var(--muted);white-space:nowrap;}
 
@@ -376,25 +407,48 @@
     <div id="newAskList"></div>
   </section>
 
-  <!-- 75 ユニット一覧（2026-10-17公開。ログイン不要・全員に表示） -->
+  <!-- 75 URユニット一覧（2026-10-17公開。ログイン不要・全員に表示）。93 ドロップ一覧（92）もこの欄の下に置く -->
   <div class="section" id="unitListSection">
-    <p class="sectionLabel">ユニット一覧</p>
+    <p class="sectionLabel">一覧</p>
     <a class="navcard" href="/unit-list">
       <div class="icon" data-pool="unit"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
-        <div class="name">ユニット一覧</div>
+        <div class="name">URユニット<wbr>一覧</div>
         <div class="desc">全URユニットをタグ別に一覧で参照可能。</div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
+    <!-- 92 ドロップ一覧。一般公開（drop-list.html の ADMIN_ONLY を false）までは運営者だけに出す（data-admin-only は toggleAdminNav() が外す）。
+         公開時は hidden と data-admin-only を消すだけ -->
+    <a class="navcard" href="/drop-list" id="dropListNav" data-admin-only hidden>
+      <div class="icon" data-pool="drop"><img class="icoImg" alt="" aria-hidden="true"></div>
+      <div class="body">
+        <div class="name">ドロップ<wbr>一覧</div>
+        <div class="desc">ハードステージの武装強化パーツを一覧で参照可能。</div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
   </div>
 
-  <!-- 推し情報設定（68・72で一般公開）。UR一覧の次・チェッカーの前に置く（ログイン中のみ）。登録状況のバッジはshowFavoriteRegStatus()が出す -->
+  <!-- 93 チェッカー4種を推し情報設定（88）と同じ4つのボタンにまとめる。チェッカーはすべてログイン必須（⑮・㉘）だが、
+       未ログインでもボタンは出し、開いた先のログイン案内から登録へつなげる。登録状況はshowRegStatus()が .n に入れる -->
+  <div class="section" id="checkerSection">
+    <p class="sectionLabel">チェッカー</p>
+    <nav class="chkQuick" aria-label="チェッカー">
+      <a href="/unit" data-chk="unit" data-label="URユニット所持率チェッカー" aria-label="URユニット所持率チェッカー"><span class="ic" data-pool="unit"><img class="icoImg" alt="" aria-hidden="true"></span><span class="t"><span class="nm">URユニット<wbr>所持率</span></span><span class="n"></span></a>
+      <a href="/supporter.html" data-chk="supporter" data-label="URサポート所持率チェッカー" aria-label="URサポート所持率チェッカー"><span class="ic" data-pool="supporter"><img class="icoImg" alt="" aria-hidden="true"></span><span class="t"><span class="nm">URサポート<wbr>所持率</span></span><span class="n"></span></a>
+      <a href="/eternal-road.html" data-chk="eternal-road" data-label="エタロ攻略チェッカー" aria-label="エタロ攻略チェッカー"><span class="ic" data-pool="eternal"><img class="icoImg" alt="" aria-hidden="true"></span><span class="t"><span class="nm">エタロ攻略</span><span class="sb">EXPERT</span></span><span class="n"></span></a>
+      <a href="/challenge.html" data-chk="challenge" data-label="チャレンジミッションチェッカー" aria-label="チャレンジミッションチェッカー"><span class="ic" data-pool="challenge"><img class="icoImg" alt="" aria-hidden="true"></span><span class="t"><span class="nm">チャレンジ</span><span class="sb">HARD</span></span><span class="n"></span></a>
+    </nav>
+  </div>
+
+  <!-- 推し情報設定（68・72で一般公開）。93でチェッカーの次へ移し、見出し「推し設定」を付けた（ログイン中のみ）。登録状況のバッジはshowFavoriteRegStatus()が出す -->
   <div class="section" id="favoriteSection" hidden>
+    <p class="sectionLabel">推し設定</p>
     <a class="navcard compact" href="/favorite-info">
       <div class="icon" data-pool="favorite"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
-        <div class="nameRow"><div class="name">推し情報設定</div><div class="regBadge" data-reg="favorite" hidden></div></div>
+        <div class="nameRow"><div class="name">推し情報設定<wbr>一覧</div><div class="regBadge" data-reg="favorite" hidden></div></div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
@@ -405,48 +459,6 @@
       <a href="/favorite-info?tab=chars" data-favq="chars"><span class="ic" data-favic="chars" aria-hidden="true">🧑&zwj;🚀</span><span>推しキャラ</span><span class="n"></span></a>
       <a href="/favorite-info?tab=formation" data-favq="formation"><span class="ic" data-favic="formation" aria-hidden="true">🛡️</span><span>推し編成</span><span class="n"></span></a>
     </nav>
-  </div>
-
-  <div class="section route">
-    <p class="sectionLabel">チェッカー</p>
-    <a class="navcard" href="/unit">
-      <div class="icon" data-pool="unit"><img class="icoImg" alt="" aria-hidden="true"></div>
-      <div class="body">
-        <div class="name">URユニット<wbr>所持率<wbr>チェッカー</div>
-        <div class="desc">全<span id="unitTotal">87</span>機のURユニット所持状況を記録・可視化</div>
-        <div class="regBadge" data-reg="unit" hidden></div>
-      </div>
-      <div class="arrow">&rsaquo;</div>
-    </a>
-    <a class="navcard" href="/supporter.html">
-      <div class="icon" data-pool="supporter"><img class="icoImg" alt="" aria-hidden="true"></div>
-      <div class="body">
-        <div class="name">URサポート<wbr>所持率<wbr>チェッカー</div>
-        <div class="desc">全<span id="supporterTotal">50</span>体のURサポート所持状況を記録・可視化</div>
-        <div class="regBadge" data-reg="supporter" hidden></div>
-      </div>
-      <div class="arrow">&rsaquo;</div>
-    </a>
-    <!-- チェッカーはすべてログイン必須（⑮・㉘）。未ログインでも導線は出し、開いた先のログイン案内から登録へつなげる -->
-    <a class="navcard" href="/eternal-road.html">
-      <div class="icon" data-pool="eternal"><img class="icoImg" alt="" aria-hidden="true"></div>
-      <div class="body">
-        <div class="name">エタロ攻略<wbr>チェッカー</div>
-        <div class="desc">エターナルロード エキスパート全30ステージ・71ミッションの達成状況を記録</div>
-        <div class="regBadge" data-reg="eternal-road" hidden></div>
-      </div>
-      <div class="arrow">&rsaquo;</div>
-    </a>
-    <!-- ㊵ チャレンジミッションチェッカー（一般公開済み 2026-10-06） -->
-    <a class="navcard" href="/challenge.html">
-      <div class="icon" data-pool="challenge"><img class="icoImg" alt="" aria-hidden="true"></div>
-      <div class="body">
-        <div class="name">チャレンジ<wbr>ミッション<wbr>チェッカー</div>
-        <div class="desc">メインステージCHALLENGE HARD全15ステージ・30ミッションの達成状況を記録</div>
-        <div class="regBadge" data-reg="challenge" hidden></div>
-      </div>
-      <div class="arrow">&rsaquo;</div>
-    </a>
   </div>
 
   <div class="section" id="analyticsSection" hidden>
@@ -496,15 +508,6 @@
       <div class="body">
         <div class="name">自己紹介<wbr>カード<wbr>（試用）</div>
         <div class="desc">新機能の試用版。本番の自己紹介カードへ反映する前に確認（運営者専用）</div>
-      </div>
-      <div class="arrow">&rsaquo;</div>
-    </a>
-    <!-- 92 ドロップ一覧（試用・運営者専用）。公開時は drop-list.html の ADMIN_ONLY を false にして、このカードを一般の欄へ移す -->
-    <a class="navcard" href="/drop-list">
-      <div class="icon" data-pool="drop"><img class="icoImg" alt="" aria-hidden="true"></div>
-      <div class="body">
-        <div class="name">ドロップ<wbr>一覧<wbr>（試用）</div>
-        <div class="desc">ハードステージの武装強化パーツを一覧で参照可能（運営者専用）</div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
@@ -765,7 +768,7 @@
 
   /* ---------------- チェッカーアイコン:各チェッカーの画像をランダムに5秒周期で切替 ---------------- */
   (function initIconGallery(){
-    var icons = document.querySelectorAll('.navcard .icon[data-pool]');
+    var icons = document.querySelectorAll('.navcard .icon[data-pool], .chkQuick .ic[data-pool]');
     if(!icons.length) return;
 
     function poolFor(el){
@@ -1062,13 +1065,24 @@
       .then(function(data){
         if (data && data.admin === true) {
           section.hidden = false;
+          document.querySelectorAll('[data-admin-only]').forEach(function(e){ e.hidden = false; });   /* 93 公開前のドロップ一覧など */
         }
       })
       .catch(function(){ /* 失敗時は非表示のまま */ });
   }
 
-  /* ---------------- ログイン中のみ、各チェッカーのデータ登録状況を導線カードに表示 ----------------
-     登録済みならDBに登録されている所持率、未登録ならデータ登録を促す。取得失敗時は何も表示しない */
+  /* ---------------- ログイン中のみ、各チェッカーのデータ登録状況を4つのボタン（93 .chkQuick）に表示 ----------------
+     登録済みなら所持率・クリア数（全部そろったら緑）、未登録なら「未登録」。取得失敗時・未ログインは何も表示しない。
+     細かい内訳（所持数・ミッション数）はボタンのtitle（PCのマウスオーバー）と読み上げ用のaria-labelに入れる */
+  function chkEl(key){ return document.querySelector('.chkQuick [data-chk="' + key + '"]'); }
+  function setChk(key, text, cls, detail){
+    var a = chkEl(key); if (!a) return;
+    var n = a.querySelector('.n'); if (!n) return;
+    n.textContent = text;
+    n.className = 'n' + (cls ? ' ' + cls : '');
+    a.title = detail || text;
+    a.setAttribute('aria-label', a.getAttribute('data-label') + '（' + (detail || text) + '）');
+  }
   function showRegStatus(){
     showEternalRoadRegStatus();
     showChallengeRegStatus();
@@ -1078,8 +1092,7 @@
       { key: 'supporter', api: '/api/my-ownership-supporter', total: function(){ return SUPPORTER_IMAGES.length; }, word: '体' }
     ];
     targets.forEach(function(t){
-      var el = document.querySelector('.regBadge[data-reg="' + t.key + '"]');
-      if (!el) return;
+      if (!chkEl(t.key)) return;
       var ids = masterIds[t.key];
       var total = t.total();
       fetch(t.api, { credentials: 'same-origin' })
@@ -1089,13 +1102,10 @@
           if (data.registered) {
             var count = Object.keys(data.ownership || {}).filter(function(id){ var n = Number(id); return ids ? ids.has(n) : (n >= 1 && n <= total); }).length;
             var pct = total ? Math.round(count / total * 100) : 0;
-            el.className = 'regBadge ok';
-            el.innerHTML = '<span class="st">✓ データ登録済み</span><span>所持率 <span class="rate">' + pct + '%</span> <span class="cnt">(' + count + ' / ' + total + t.word + ')</span></span>';
+            setChk(t.key, pct + '%', total && count >= total ? 'full' : '', '所持率 ' + pct + '%（' + count + ' / ' + total + t.word + '）');
           } else {
-            el.className = 'regBadge todo';
-            el.innerHTML = '<span class="st">データ未登録</span><span><span style="white-space:nowrap">所持データを</span><span style="white-space:nowrap">登録ください。</span></span>';
+            setChk(t.key, '未登録', 'zero', 'データ未登録。所持データを登録ください');
           }
-          el.hidden = false;
         })
         .catch(function(){ /* 失敗時は表示しない */ });
     });
@@ -1134,8 +1144,7 @@
   /* エタロ攻略チェッカーの登録状況。分母（30ステージ・71ミッション）はeternal-road.htmlと同じくマスターから算出し、
      マスターに無いIDは数えない（所持率側の範囲外ID除外と同じ扱い） */
   function showEternalRoadRegStatus(){
-    var el = document.querySelector('.regBadge[data-reg="eternal-road"]');
-    if (!el) return;
+    if (!chkEl('eternal-road')) return;
     function getJson(url){ return fetch(url, { credentials: 'same-origin' }).then(function(res){ return res.json(); }); }
     Promise.all([getJson('/api/eternal-road/missions'), getJson('/api/my-eternal-road')])
       .then(function(r){
@@ -1147,13 +1156,11 @@
           var totalStages = Object.keys(stageIds).length, totalMissions = master.missions.length;
           var stages = (data.clearedStageIds || []).filter(function(id){ return stageIds[id]; }).length;
           var missions = (data.clearedIds || []).filter(function(id){ return missionIds[id]; }).length;
-          el.className = 'regBadge ok';
-          el.innerHTML = '<span class="st">✓ データ登録済み</span><span>ステージクリア <span class="rate">' + stages + ' / ' + totalStages + '</span> <span class="cnt">(ミッション ' + missions + ' / ' + totalMissions + ')</span></span>';
+          setChk('eternal-road', stages + '/' + totalStages, totalMissions && missions >= totalMissions ? 'full' : '',
+            'ステージクリア ' + stages + ' / ' + totalStages + '（ミッション ' + missions + ' / ' + totalMissions + '）');
         } else {
-          el.className = 'regBadge todo';
-          el.innerHTML = '<span class="st">データ未登録</span><span><span style="white-space:nowrap">攻略データを</span><span style="white-space:nowrap">登録ください。</span></span>';
+          setChk('eternal-road', '未登録', 'zero', 'データ未登録。攻略データを登録ください');
         }
-        el.hidden = false;
       })
       .catch(function(){ /* 失敗時は表示しない */ });
   }
@@ -1161,8 +1168,7 @@
   /* ㊵ チャレンジミッションチェッカーの登録状況。分母（15ステージ・30ミッション）はマスターから算出し、
      マスターに無いIDは数えない（エタロと同じ扱い）。showRegStatus()から呼ぶ */
   function showChallengeRegStatus(){
-    var el = document.querySelector('.regBadge[data-reg="challenge"]');
-    if (!el) return;
+    if (!chkEl('challenge')) return;
     function getJson(url){ return fetch(url, { credentials: 'same-origin' }).then(function(res){ return res.json(); }); }
     Promise.all([getJson('/api/challenge/master'), getJson('/api/my-challenge')])
       .then(function(r){
@@ -1174,13 +1180,11 @@
           var totalStages = master.stages.length, totalMissions = master.missions.length;
           var stages = (data.clearedStageIds || []).filter(function(id){ return stageIds[id]; }).length;
           var missions = (data.clearedMissionIds || []).filter(function(id){ return missionIds[id]; }).length;
-          el.className = 'regBadge ok';
-          el.innerHTML = '<span class="st">✓ データ登録済み</span><span>HARDクリア <span class="rate">' + stages + ' / ' + totalStages + '</span> <span class="cnt">(ミッション ' + missions + ' / ' + totalMissions + ')</span></span>';
+          setChk('challenge', stages + '/' + totalStages, totalMissions && missions >= totalMissions ? 'full' : '',
+            'HARDクリア ' + stages + ' / ' + totalStages + '（ミッション ' + missions + ' / ' + totalMissions + '）');
         } else {
-          el.className = 'regBadge todo';
-          el.innerHTML = '<span class="st">データ未登録</span><span><span style="white-space:nowrap">攻略データを</span><span style="white-space:nowrap">登録ください。</span></span>';
+          setChk('challenge', '未登録', 'zero', 'データ未登録。攻略データを登録ください');
         }
-        el.hidden = false;
       })
       .catch(function(){ /* 失敗時は表示しない */ });
   }
