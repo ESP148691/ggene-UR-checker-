@@ -1,4 +1,4 @@
-DELETE FROM units_effects WHERE rarity_code = 1 AND src = 'sub';
+DELETE FROM units_effects WHERE rarity_code = 1 AND src = 'sub' AND unit_id IN (SELECT unit_id FROM units_master WHERE type = '支援');
 INSERT INTO units_effects (rarity_code, unit_id, effect_code, sort_order, src) VALUES (1, 4, 'dmg_beam_up', 1, 'sub');
 INSERT INTO units_effects (rarity_code, unit_id, effect_code, sort_order, src) VALUES (1, 5, 'def_down', 1, 'sub');
 INSERT INTO units_effects (rarity_code, unit_id, effect_code, sort_order, src) VALUES (1, 10, 'def_down', 1, 'sub');
