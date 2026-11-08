@@ -665,7 +665,7 @@ function openSheet(u){
     el("h3",{text:u.name}),
     el("div",{class:"meta",text:`${u.type}${u.limited?"・期間限定":""}・射程 ${u.rangeMax!=null?u.rangeMin+"-"+u.rangeMax:"未登録"}${u.rangeNote?"（"+u.rangeNote+"）":""}`}),
     el("div",{class:"meta",text:`実装日 ${u.released||"-"}${OWN?(own!==undefined?"・所持（"+(LV_LABEL[own]||"")+"）":"・未所持"):""}`})])]));
-  if(u.effects&&u.effects.length){ const s=el("div",{class:"sec"},[el("b",{text:"効果アイコン"})]); u.effects.forEach(c=>s.appendChild(el("div",{},[el("span",{class:"eicd ex"},[el("img",{src:ICON+c+".png",alt:""})]),document.createTextNode(effName(c))]))); b.appendChild(s); }
+  if(u.effects&&u.effects.length){ const s=el("div",{class:"sec"},[el("b",{text:"EX武装"})]); u.effects.forEach(c=>s.appendChild(el("div",{},[el("span",{class:"eicd ex"},[el("img",{src:ICON+c+".png",alt:""})]),document.createTextNode(effName(c))]))); b.appendChild(s); }
   if(u.subEffects&&u.subEffects.length){ const s=el("div",{class:"sec"},[el("b",{text:"サブ武装のデバフ"})]);   // 87 水色の枠＝札と同じ
     u.subEffects.forEach(c=>s.appendChild(el("div",{},[el("span",{class:"eicd"},[el("img",{src:ICON+c+".png",alt:""})]),document.createTextNode(effName(c))]))); b.appendChild(s); }
   { const x=curSeason(); if(x){ const h=mlHits(u).map(t=>mlShort(t.name)); b.appendChild(el("div",{class:"sec"},[el("b",{text:"マスターリーグ "+seasonLabel(x)+"（"+seasonState(x)+"）"}),el("div",{text:h.length?"ブースト対象（"+h.join("・")+"）":"対象外"})].concat((()=>{ const d=ML_STAT.get(x.code), r=h.length&&d&&d.units?d.units.find(z=>z.unitId===u.unitId):null;   // 81 ログイン中は対象のみんなの所持率も

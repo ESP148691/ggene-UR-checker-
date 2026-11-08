@@ -254,6 +254,13 @@
     .chkQuick .n{grid-row:2;grid-column:3;margin-left:-3px;}
     .chkQuick a:not(:has(.sb)) .n{grid-column:2 / 4;margin-left:0;}   /* 小見出しの無いボタン（URユニット所持率・URサポート所持率）は名前の下に左寄せ */
   }  @media (max-width:360px){ .chkQuick a{grid-template-columns:36px auto minmax(0,1fr);column-gap:6px;padding:8px 7px;} .chkQuick .ic{width:36px;height:36px;} .chkQuick .sb{font-size:10px;letter-spacing:0;} }   /* 320px幅で「EXPERT 未登録」が収まるように */
+  /* URユニット・URサポートは推し情報設定一覧と同じ大きさの横長ボタンにして上に並べ、エタロ・チャレンジはその下に横並び */
+  .chkQuick a[data-chk="unit"],.chkQuick a[data-chk="supporter"]{grid-column:1 / -1;display:flex;flex-direction:row;justify-content:flex-start;align-items:center;gap:12px;min-height:0;padding:8px 12px;text-align:left;}
+  @media (min-width:421px){ .chkQuick a[data-chk="eternal-road"],.chkQuick a[data-chk="challenge"]{grid-column:span 2;} }
+  .chkQuick a[data-chk="unit"] .ic,.chkQuick a[data-chk="supporter"] .ic{width:44px;height:44px;grid-row:auto;grid-column:auto;}
+  .chkQuick a[data-chk="unit"] .t,.chkQuick a[data-chk="supporter"] .t{display:flex;flex-direction:row;align-items:center;}
+  .chkQuick a[data-chk="unit"] .n,.chkQuick a[data-chk="supporter"] .n{margin:0;min-height:0;}
+  .chkQuick a[data-chk="unit"]::after,.chkQuick a[data-chk="supporter"]::after{content:"›";margin-left:auto;color:var(--cyan);font-size:19px;}
 
   .navcard .regBadge .rate{font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;white-space:nowrap;}
   .navcard .regBadge .cnt{color:var(--muted);white-space:nowrap;}
@@ -875,7 +882,7 @@
       return { kind: 'ml', tag: 'マスリ',
         title: 'S' + x.code + ' ブースト：' + targets,   /* タグが「マスリ」なので見出しは短く（スマホで対象まで見えるように） */
         desc: when + (x.stage ? '・ステージ：' + x.stage : '') + '。マスターリーグ SEASON ' + x.code + ' の対象URをユニット一覧で確認できます',
-        href: '/unit-list?v=M', mark: 'ML' };
+        href: '/unit-list?v=M', mark: 'ML', live: !!live };
     });
   }
 
@@ -884,12 +891,13 @@
     if (!root) return;
     var today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); /* 日本時間の日付 */
     mlFeedItem(today).then(function(mlItem){   /* 79 マスリを1番手に（今の1番手の相互リンクは2番手になる） */
-    var items = (mlItem ? [mlItem] : []).concat(INFO_FEED.filter(function(it){
+    var items = (mlItem && mlItem.live ? [mlItem] : []).concat(INFO_FEED.filter(function(it){
       if (!it.href) return false;
       if (it.start && today < it.start) return false;
       if (it.end && today > it.end) return false;
       return true;
     }));
+    if (mlItem && !mlItem.live) items.push(mlItem);   /* 開催前の次回は最後。開催が始まったら先頭 */
     if (!items.length) return; /* 0件なら欄ごと出さない */
 
     var track = document.getElementById('infoFeedTrack');
