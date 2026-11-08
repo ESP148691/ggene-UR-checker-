@@ -128,14 +128,14 @@
   .tile .rg{position:absolute;right:3px;top:2px;font-family:"Rajdhani","Share Tech Mono",monospace;font-weight:700;font-size:17px;color:#fff;text-shadow:0 0 2px #000,0 0 3px #000,1px 1px 0 #000;}
   .tile .note{position:absolute;right:3px;top:22px;font-weight:700;font-size:11px;color:#fff;text-shadow:0 0 2px #000,0 0 3px #000;}
   .tile .ef{position:absolute;right:1px;bottom:1px;display:flex;flex-direction:column;gap:2px;width:26%;}
-  .tile .ef img{width:100%;display:block;border-radius:2px;}
+  .tile .ef img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;border-radius:2px;}
   /* 87 サブ武装のデバフ：EX武装のアイコンの下に同じ大きさで並べ、水色の枠で区別（攻撃機の属性アイコン2つと同じ並べ方） */
   .tile .ef .eic{position:relative;display:block;}
   .eic::before,.eicd::before{content:"";position:absolute;inset:-1px;border-radius:3px;padding:1px;pointer-events:none;background:#6be0e0;
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);}
   .eic.ex::before,.eicd.ex::before{background:conic-gradient(from 225deg,#ff5f6d,#ffc371,#fff27a,#9dff8a,#5bd8ef,#5b8def,#c471f5,#ff5f6d);}   /* アイコンの外側に角丸どおりの細い縁：EX＝虹・サブ＝水色（絵は隠さない） */
   .eicd{position:relative;display:inline-block;vertical-align:middle;margin-right:6px;line-height:0;}
-  .eicd img{width:20px;border-radius:2px;display:block;}
+  .eicd img{width:20px;height:20px;object-fit:cover;border-radius:2px;display:block;}
   .tile .ef.n3{width:21%;}   /* アイコンが3つ（EX＋サブ2）のときは少し小さく */
   .legend .subk,.legend .exk{flex:none;display:inline-block;width:16px;height:16px;border:1px solid #6be0e0;border-radius:3px;vertical-align:middle;margin-right:4px;}
   .legend .exk{border-color:transparent;background:linear-gradient(#0b1119,#0b1119) padding-box,conic-gradient(from 225deg,#ff5f6d,#ffc371,#fff27a,#9dff8a,#5bd8ef,#5b8def,#c471f5,#ff5f6d) border-box;}
@@ -176,7 +176,7 @@
   .legend{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 8px;font-size:12px;line-height:1.3;color:var(--muted);margin-top:12px;align-items:center;}
   .legend>span{display:flex;align-items:center;min-width:0;}
   .legend>span.wide{grid-column:1/-1;}
-  .legend img{width:22px;height:22px;flex:none;margin-right:4px;border-radius:3px;}
+  .legend img{width:22px;height:22px;object-fit:cover;flex:none;margin-right:4px;border-radius:3px;}
   .legend .newk{display:inline-block;width:18px;height:14px;border:3px solid #ff3b3b;border-radius:2px;vertical-align:middle;margin-right:4px;}
   .actions{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap;}
   .actions button{font:inherit;font-size:13px;font-weight:700;border-radius:6px;padding:9px 14px;cursor:pointer;border:none;}
@@ -358,7 +358,7 @@ function mlHits(u){ return mlTargets(curSeason()).filter(t=>t.has(u)); }
 let model=null;   // 今の表（画面とCanvasで共用）
 
 function isNew(u){ if(!u.released) return false; const d=(Date.parse(TODAY)-Date.parse(u.released))/86400000; return d>=0 && d<=30; }
-const legName = n => String(n).replace(/ダメージ/g,"ダメ");   // 凡例だけ短く
+const legName = n => String(n).replace(/ダメージ/g,"ダメ").replace(/武装(?=パワー)/g,"");   // 凡例だけ短く
 const effName = c => (effByCode.get(c)||{}).name || c;
 const subCodes = u => state.sub ? (u.subEffects||[]) : [];   // 87 サブ武装のデバフ（units_effects の src='sub'。コード配列）
 
@@ -736,6 +736,7 @@ async function generateImage(){
   const rr=(x,y,w,h,r)=>{ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); };
   // 虹色（UR所持率チェッカーの完凸と同じ配色）。枠は円すい状（各辺で色が回る）、帯・文字は横向き
   const RAINBOW=["#ff5f6d","#ffc371","#fff27a","#9dff8a","#5bd8ef","#5b8def","#c471f5","#ff5f6d"];
+  const sqImg=(im,x,y,sz)=>{ const m=Math.min(im.width,im.height); ctx.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,x,y,sz,sz); };   // 効果アイコンは正方形に切り抜いて描く
   const rainbowRing=(x,y,w,h)=>{ let g; if(ctx.createConicGradient){ g=ctx.createConicGradient(Math.PI*1.25,x+w/2,y+h/2); } else g=ctx.createLinearGradient(x,y,x+w,y+h);
     RAINBOW.forEach((c,i)=>g.addColorStop(i/(RAINBOW.length-1),c)); return g; };
   const rainbowBar=(x,w)=>{ const g=ctx.createLinearGradient(x,0,x+w,0); RAINBOW.slice(0,-1).forEach((c,i,a)=>g.addColorStop(i/(a.length-1),c)); return g; };
@@ -847,7 +848,7 @@ async function generateImage(){
         const hideInfo=state.dim&&OWN&&own===undefined;
         // 87 EX武装のアイコン→サブ武装のデバフ（水色の枠）の順に、下から積む。3つのときは少し小さく
         const ec=hideInfo?[]:(u.effects||[]).map(c=>({c,sub:false})).concat(subCodes(u).map(c=>({c,sub:true}))); const ew=T*(ec.length>=3?.21:.26); let ey=ty+TH-1;
-        for(let j=ec.length-1;j>=0;j--){ const ei=imgs.get(ICON+ec[j].c+".png"); if(ei){ const eh=ew*ei.height/ei.width; ey-=eh; const ex=tx+T-1-ew; if(ec[j].sub){ ctx.save(); rr(ex,ey,ew,eh,2); ctx.clip(); ctx.drawImage(ei,ex,ey,ew,eh); ctx.restore(); ctx.strokeStyle="#6be0e0"; ctx.lineWidth=1; rr(ex-.5,ey-.5,ew+1,eh+1,2.5); ctx.stroke(); } else { ctx.save(); rr(ex,ey,ew,eh,2); ctx.clip(); ctx.drawImage(ei,ex,ey,ew,eh); ctx.restore(); ctx.strokeStyle=rainbowRing(ex,ey,ew,eh); ctx.lineWidth=1; rr(ex-.5,ey-.5,ew+1,eh+1,2.5); ctx.stroke(); } ey-=2; } }
+        for(let j=ec.length-1;j>=0;j--){ const ei=imgs.get(ICON+ec[j].c+".png"); if(ei){ const eh=ew; ey-=eh; const ex=tx+T-1-ew; if(ec[j].sub){ ctx.save(); rr(ex,ey,ew,eh,2); ctx.clip(); sqImg(ei,ex,ey,ew); ctx.restore(); ctx.strokeStyle="#6be0e0"; ctx.lineWidth=1; rr(ex-.5,ey-.5,ew+1,eh+1,2.5); ctx.stroke(); } else { ctx.save(); rr(ex,ey,ew,eh,2); ctx.clip(); sqImg(ei,ex,ey,ew); ctx.restore(); ctx.strokeStyle=rainbowRing(ex,ey,ew,eh); ctx.lineWidth=1; rr(ex-.5,ey-.5,ew+1,eh+1,2.5); ctx.stroke(); } ey-=2; } }
         ctx.restore();
         ctx.strokeStyle="rgba(255,255,255,.12)"; ctx.lineWidth=1; ctx.strokeRect(tx+.5,ty+.5,T-1,TH-1);
         const outline=(s,ax,ay,font,align)=>{ ctx.save(); ctx.font=font; ctx.textAlign=align; ctx.lineJoin="round"; ctx.lineWidth=3; ctx.strokeStyle="#000"; ctx.strokeText(s,ax,ay); ctx.fillStyle="#fff"; ctx.fillText(s,ax,ay); ctx.restore(); };
@@ -884,7 +885,7 @@ async function generateImage(){
   ctx.textBaseline="middle"; ctx.textAlign="left";
   litems.forEach(it=>{
     const lx=PAD+it.x, ly=ly0+it.row*LROW+LROW/2-6;
-    if(it.e){ const im=imgs.get(ICON+it.e.code+".png"); if(im) ctx.drawImage(im,lx,ly-LIC/2,LIC,LIC); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText(legName(it.e.name),lx+LIC+6,ly); }
+    if(it.e){ const im=imgs.get(ICON+it.e.code+".png"); if(im) sqImg(im,lx,ly-LIC/2,LIC); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText(legName(it.e.name),lx+LIC+6,ly); }
     else if(it.k==="max"){ ctx.save(); ctx.fillStyle="#1a2433"; rr(lx+3,ly-7,LIC-10,14,3); ctx.fill(); ctx.restore(); maxFrame(lx+3,ly-7,LIC-10,14); ctx.textBaseline="middle"; ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("完凸",lx+LIC+6,ly); }
     else if(it.k==="ex"){ ctx.strokeStyle=rainbowRing(lx+4,ly-10,LIC-8,20); ctx.lineWidth=1.25; rr(lx+4,ly-10,LIC-8,20,3); ctx.stroke(); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("虹の枠＝EX武装の効果",lx+LIC+6,ly); }
     else if(it.k==="sub"){ ctx.strokeStyle="#6be0e0"; ctx.lineWidth=1.25; ctx.strokeRect(lx+4,ly-10,LIC-8,20); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("水色の枠＝サブ武装のデバフ",lx+LIC+6,ly); }   // 87
