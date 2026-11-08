@@ -130,9 +130,9 @@
   .tile .ef{position:absolute;right:1px;bottom:1px;display:flex;flex-direction:column;gap:1px;width:26%;}
   .tile .ef img{width:100%;display:block;border-radius:2px;}
   /* 87 サブ武装のデバフ：EX武装のアイコンの下に同じ大きさで並べ、水色の枠で区別（攻撃機の属性アイコン2つと同じ並べ方） */
-  .tile .ef img.sub{outline:2px solid #6be0e0;outline-offset:-2px;}
+  .tile .ef img.sub{outline:1px solid #6be0e0;outline-offset:-1px;}
   .tile .ef.n3{width:21%;}   /* アイコンが3つ（EX＋サブ2）のときは少し小さく */
-  .legend .subk{display:inline-block;width:16px;height:16px;border:2px solid #6be0e0;border-radius:3px;vertical-align:middle;margin-right:4px;}
+  .legend .subk{display:inline-block;width:16px;height:16px;border:1px solid #6be0e0;border-radius:3px;vertical-align:middle;margin-right:4px;}
   /* 期間限定の★：大きく・黒い縁＋金色の光で目立たせる（ESP 10-16） */
   .tile .star{left:3px;bottom:3px;font-size:23px;color:#ffe14d;
     text-shadow:-1.5px -1.5px 0 #000,1.5px -1.5px 0 #000,-1.5px 1.5px 0 #000,1.5px 1.5px 0 #000,0 0 6px rgba(255,210,60,.95),0 0 12px rgba(255,170,0,.7);}
@@ -656,7 +656,7 @@ function openSheet(u){
     el("div",{class:"meta",text:`実装日 ${u.released||"-"}${OWN?(own!==undefined?"・所持（"+(LV_LABEL[own]||"")+"）":"・未所持"):""}`})])]));
   if(u.effects&&u.effects.length){ const s=el("div",{class:"sec"},[el("b",{text:"効果アイコン"})]); u.effects.forEach(c=>s.appendChild(el("div",{},[el("img",{src:ICON+c+".png",alt:"",style:"width:20px;vertical-align:middle;margin-right:6px"}),document.createTextNode(effName(c))]))); b.appendChild(s); }
   if(u.subEffects&&u.subEffects.length){ const s=el("div",{class:"sec"},[el("b",{text:"サブ武装のデバフ"})]);   // 87 水色の枠＝札と同じ
-    u.subEffects.forEach(c=>s.appendChild(el("div",{},[el("img",{src:ICON+c+".png",alt:"",style:"width:20px;vertical-align:middle;margin-right:6px;outline:2px solid #6be0e0;outline-offset:-2px;border-radius:2px"}),document.createTextNode(effName(c))]))); b.appendChild(s); }
+    u.subEffects.forEach(c=>s.appendChild(el("div",{},[el("img",{src:ICON+c+".png",alt:"",style:"width:20px;vertical-align:middle;margin-right:6px;outline:1px solid #6be0e0;outline-offset:-1px;border-radius:2px"}),document.createTextNode(effName(c))]))); b.appendChild(s); }
   { const x=curSeason(); if(x){ const h=mlHits(u).map(t=>mlShort(t.name)); b.appendChild(el("div",{class:"sec"},[el("b",{text:"マスターリーグ "+seasonLabel(x)+"（"+seasonState(x)+"）"}),el("div",{text:h.length?"ブースト対象（"+h.join("・")+"）":"対象外"})].concat((()=>{ const d=ML_STAT.get(x.code), r=h.length&&d&&d.units?d.units.find(z=>z.unitId===u.unitId):null;   // 81 ログイン中は対象のみんなの所持率も
       return r?[el("div",{text:"登録ユーザーの所持率 "+pct1(r.owners,d.totalUsers)+"%（完凸 "+pct1(r.maxed,d.totalUsers)+"%）"})]:[]; })()))); } }   // 79
   const s2=el("div",{class:"sec"},[el("b",{text:"タグ"})]); tg.forEach(t=>s2.appendChild(el("span",{class:"tagchip"+(hit.has(t.name)?" hit":""),text:t.name}))); b.appendChild(s2);
@@ -837,7 +837,7 @@ async function generateImage(){
         // 87 EX武装のアイコン→サブ武装のデバフ（水色の枠）の順に、下から積む。3つのときは少し小さく
         const ec=hideInfo?[]:(u.effects||[]).map(c=>({c,sub:false})).concat(subCodes(u).map(c=>({c,sub:true}))); const ew=T*(ec.length>=3?.21:.26); let ey=ty+TH-1;
         for(let j=ec.length-1;j>=0;j--){ const ei=imgs.get(ICON+ec[j].c+".png"); if(ei){ const eh=ew*ei.height/ei.width; ey-=eh; ctx.drawImage(ei,tx+T-1-ew,ey,ew,eh);
-          if(ec[j].sub){ ctx.strokeStyle="#6be0e0"; ctx.lineWidth=2; ctx.strokeRect(tx+T-1-ew+1,ey+1,ew-2,eh-2); } ey-=1; } }
+          if(ec[j].sub){ ctx.strokeStyle="#6be0e0"; ctx.lineWidth=1; ctx.strokeRect(tx+T-1-ew+.5,ey+.5,ew-1,eh-1); } ey-=1; } }
         ctx.restore();
         ctx.strokeStyle="rgba(255,255,255,.12)"; ctx.lineWidth=1; ctx.strokeRect(tx+.5,ty+.5,T-1,TH-1);
         const outline=(s,ax,ay,font,align)=>{ ctx.save(); ctx.font=font; ctx.textAlign=align; ctx.lineJoin="round"; ctx.lineWidth=3; ctx.strokeStyle="#000"; ctx.strokeText(s,ax,ay); ctx.fillStyle="#fff"; ctx.fillText(s,ax,ay); ctx.restore(); };
@@ -876,7 +876,7 @@ async function generateImage(){
     const lx=PAD+it.x, ly=ly0+it.row*LROW+LROW/2-6;
     if(it.e){ const im=imgs.get(ICON+it.e.code+".png"); if(im) ctx.drawImage(im,lx,ly-LIC/2,LIC,LIC); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText(it.e.name,lx+LIC+6,ly); }
     else if(it.k==="max"){ ctx.save(); ctx.fillStyle="#1a2433"; rr(lx+3,ly-7,LIC-10,14,3); ctx.fill(); ctx.restore(); maxFrame(lx+3,ly-7,LIC-10,14); ctx.textBaseline="middle"; ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("完凸",lx+LIC+6,ly); }
-    else if(it.k==="sub"){ ctx.strokeStyle="#6be0e0"; ctx.lineWidth=2.5; ctx.strokeRect(lx+4,ly-10,LIC-8,20); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("水色の枠＝サブ武装のデバフ",lx+LIC+6,ly); }   // 87
+    else if(it.k==="sub"){ ctx.strokeStyle="#6be0e0"; ctx.lineWidth=1.25; ctx.strokeRect(lx+4,ly-10,LIC-8,20); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("水色の枠＝サブ武装のデバフ",lx+LIC+6,ly); }   // 87
     else { ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; ctx.strokeRect(lx+1.5,ly-9.5,LIC-6,19); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("実装30日以内",lx+LIC+6,ly); }
   });
   ctx.textBaseline="alphabetic";
