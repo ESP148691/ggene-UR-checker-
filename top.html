@@ -4,6 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gジェネエターナル ファンツール</title>
+<!-- 95 サイトアイコン（Fan Tool）。ファイルは checker/ 直下。差し替えたら ?v= の数字を上げる -->
+<link rel="icon" href="/favicon.ico?v=1" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1">
+<link rel="manifest" href="/site.webmanifest?v=1">
+<meta name="theme-color" content="#05070d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fan Tool">
+<meta name="description" content="Gジェネエターナルのファン向け非公式ツール。UR所持率・凸状況チェッカー、エタロ攻略、ドロップ一覧、自己紹介カードなど。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Gジェネエターナル ファンツール">
+<meta property="og:title" content="Gジェネエターナル ファンツール">
+<meta property="og:description" content="UR所持率・凸状況チェッカー、エタロ攻略、ドロップ一覧、自己紹介カードなど。ファン向け非公式ツール">
+<meta property="og:url" content="https://ggene-ur-checker.polarbear14869.workers.dev/top">
+<meta property="og:image" content="https://ggene-ur-checker.polarbear14869.workers.dev/images/ogp.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Fan Tool Gジェネエターナル ファンツール（ESP）">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@polarbear148691">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
@@ -374,6 +394,13 @@
   .infoFeed.single .ctrl{display:none;}
   @media (prefers-reduced-motion: reduce){.infoFeed .track{transition:none;}.infoFeed .progress{display:none;}.infoFeed .feedHead .live{animation:none;}}
   @media (min-width: 760px){.infoFeed .slide{height:48px;}.infoFeed .slide .txt{display:flex;align-items:baseline;gap:12px;}.infoFeed .slide .dsc{margin-top:0;flex:1;min-width:0;}}
+  /* 95 ホーム画面から全画面で開いたときだけ出す部品（再読み込み・ログインの案内） */
+  .standaloneBar{display:none;position:absolute;left:18px;top:calc(28px + env(safe-area-inset-top,0px));z-index:3}  /* ログインボタンと同じ行の左端 */
+  .is-standalone .standaloneBar{display:block}
+  .standaloneBar button{font-family:'Rajdhani','Noto Sans JP',sans-serif;font-weight:600;font-size:12.5px;color:#9fb0c0;background:rgba(16,22,32,.78);border:1px solid rgba(107,224,224,.22);border-radius:3px;padding:6px 12px;cursor:pointer}
+  .standaloneBar button:active{transform:scale(.97)}
+  .is-standalone .authbar{padding-left:114px}  /* 再読み込みボタンの幅を空け、狭い画面で長いユーザー名は次の行に回して重ならないようにする */
+  .standaloneNote{font-size:12px;line-height:1.6;color:#cfd8e3;background:rgba(107,224,224,.07);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:-20px 0 30px}
 </style>
 </head>
 <body>
@@ -399,6 +426,9 @@
     <h1>ファンツール トップ</h1>
   </div>
   <p class="sub">Gジェネエターナルの<wbr>ファン向け<wbr>非公式ツールです。<wbr>新規登録・<wbr>ログインすることで<wbr>各種機能を<wbr>利用できます。</p>
+  <!-- 95 ホーム画面から全画面で開いたときだけ表示（ブラウザで開いたときは出ない） -->
+  <div class="standaloneBar"><button type="button" id="reloadBtn" aria-label="ページを再読み込み">&#x21bb; 再読み込み</button></div>
+  <p class="standaloneNote" id="standaloneNote" hidden>ホーム画面から開いた場合は、ブラウザとは別にログインが必要です（最初の1回だけ）。</p>
 
   <!-- 71 インフォバナー。中身はスクリプト内の INFO_FEED を書き換えるだけで増減できる（D1・APIなし）。79 先頭のマスターリーグだけは /api/ml-seasons から自動 -->
   <section class="infoFeed" id="infoFeed" aria-roledescription="carousel" aria-label="お知らせ・リンク" hidden>
@@ -555,6 +585,14 @@
 <script>
 (function(){
   "use strict";
+
+  /* 95 ホーム画面から全画面（standalone）で開いているか。iOSの旧方式 navigator.standalone も見る */
+  var IS_STANDALONE = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  if (IS_STANDALONE) {
+    document.documentElement.classList.add('is-standalone');
+    var reloadBtn = document.getElementById('reloadBtn');
+    if (reloadBtn) reloadBtn.addEventListener('click', function(){ window.location.reload(); });
+  }
 
   var UNIT_IMAGES = Array.from({length:87}, function(_, i){ return 'images/units/' + (i+1) + '.jpg'; });
   var SUPPORTER_IMAGES = Array.from({length:50}, function(_, i){ return 'images/supporters/' + (i+1) + '.jpg'; });
@@ -1068,6 +1106,9 @@
           if (window.NewAsk) NewAsk.mount(document.getElementById('newAskList'), { onChanged: function(){ MASTER_READY.then(showRegStatus); } })
             .then(function(n){ if (n) document.getElementById('newAsk').hidden = false; });
           toggleAdminNav();
+        } else if (IS_STANDALONE) {
+          // 95 全画面で開いていて未ログイン：保存領域がブラウザと別なので、ログインし直しの案内を出す（/api/me は既存の1回だけ）
+          var note = document.getElementById('standaloneNote'); if (note) note.hidden = false;
         }
       })
       .catch(function(){ /* 失敗時は非表示のまま（ゲスト表示にフォールバック） */ });

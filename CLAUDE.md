@@ -122,6 +122,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0058 | 87 支援UR30機のサブ武装デバフ31行（`src = 'sub'`。何度でも） | 適用済み（2026-10-31。確認SQL：ex_links 130・sub_links 31・sub_units 30／orphan_effect 0／sub_not_support 0／サブなしの支援UR 0行／ナイチンゲール＝ex:dmg_beam_up・sub:dmg_special_up,dmg_beam_up） |
 | 0059 | マスリSEASON 18（対象：赤色・突破力。開始日2026-11-23は**仮**・終了日なし・note「期間未定」。決まったらUPDATE）（何度でも） | 適用済み（2026-10-31。S18対象2件） |
 | 0060 | 92 ドロップ一覧のTBL3つ（`drop_stages`・`drop_items`・`drop_stage_items`＋索引。何度でも） | 適用済み（2026-11-04 Claude Code） |
+| 95 サイトアイコン（Fan Tool）・ホーム画面・リンクカード | 11-10 | D1・`worker.js`変更なし。`favicon.ico`・`apple-touch-icon.png`・`icon-192/512/maskable-512.png`・`site.webmanifest`・`images/ogp.png`を`checker/`に追加。全15ページの`<head>`にアイコン7行、公開10ページにOGP。`top.html`に全画面用の再読み込みボタン・未ログイン案内（`/api/me`は増やさない。ログイン中の狭い画面でユーザー名と重ならないよう`.is-standalone .authbar`に左余白）。生成は`docs/08_トップページ/データ/95_make_icons.py` |
 | 0061 | 92 ドロップのデータ（ステージ71・物101・紐付け165。先頭で`drop_stage_items`を全件消して入れ直す。何度でも） | 適用済み（2026-11-04。確認SQLは期待値どおり：71／101／165・orphan_work 0・orphan_item 0・stage_without_part 0・パーツ別 10／10／11／15／8／11／6・works_master 106のまま） |
 | 0066 | 94 耐久UR19機のサブ武装デバフ19行（`src = 'sub'`。先頭で耐久のサブ行だけ消す。何度でも。番号は91の0062〜0065予約を避けて仮に0066）。**0058は中身を支援だけ消す版に差し替え**（入る行は同じ・D1再適用なし） | 適用済み（2026-11-08 Claude Codeがwranglerで適用。確認SQL：sub_links 50・sub_units 49／支援31・30／耐久19・19／orphan_effect 0／sub_attack 0／サブなしの耐久UR＝27・55／耐久の効果別 atk_down 4・mob_down 4・wpn_beam_down 4・hit_down 3・wpn_physical_down 3・wpn_special_down 1） |
 | 次の空き | 0062（91用の0062〜0065は予約。通常は0067以降） | ― |
@@ -158,6 +159,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 - **運営者専用ページ**：`/api/admin/me`で判定（`adminGate()`）。運営者以外は案内だけ出し、ページ用APIは呼ばない。クライアント側の表示制御なので、サーバーに運営者用データを置くAPIは`requireAdmin`で守る。**一般公開の手順**：`adminGate()`と`#adminOnlyView`を削除して`/api/me`のログイン判定から直接起動、`top.html`の導線を運営者欄から一般の欄へ移す（`hidden`を外す）
 - **チェッカーの3ボタン**：データ登録／画像で保存／Xでシェア（どれもDBへ送る）。起動時に`/api/my-*`からDBの内容を復元。登録状況の表示（`#regStatus`・トップの`.regBadge`）
 - **Xシェア**：`&via=polarbear148691`、引用ポスト`CONFIG.quotePostUrl`＝`site-config.js`の`quotePostUrl`（83追加改修3・8ページ共通。リンク・アカウント名・ドメイン・共通タグを変えるときは`checker/site-config.js`だけを直す）、ハッシュタグ`#ジージェネエターナル`＋ページ別。画像は自動添付しない（手動添付の運用）。280文字の判定は全角2・半角1・URL23
+- **サイトアイコン・OGP（95）**：新しいページには`<head>`にアイコン7行（依頼書95の4.3）を入れる（公開ページは4.4のOGPも。OGPはJSで差し込まずHTMLに直接書く）。アイコンを変えるときは`docs/08_トップページ/データ/95_make_icons.py`で作り直し、各ページの`?v=`を上げる。ドメインを変えるときは`site-config.js`と各ページOGPの`og:url`・`og:image`も直す
 
 ## 検証の方法（Playwright必須）
 ファイルを作ったら必ずPlaywright（Python版・Chromium）で動作確認してから渡す。
