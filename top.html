@@ -260,6 +260,15 @@
   .chkQuick a[data-chk="unit"] .ic,.chkQuick a[data-chk="supporter"] .ic{width:44px;height:44px;grid-row:auto;grid-column:auto;}
   .chkQuick a[data-chk="unit"] .t,.chkQuick a[data-chk="supporter"] .t{display:flex;flex-direction:row;align-items:center;}
   .chkQuick a[data-chk="unit"] .n,.chkQuick a[data-chk="supporter"] .n{margin:0;min-height:0;}
+  /* URユニット・URサポートの名前と登録状況は推し情報設定一覧（.navcard）と同じ文字サイズ・配色・バッジ */
+  .chkQuick a[data-chk="unit"] .nm,.chkQuick a[data-chk="supporter"] .nm{font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:18px;letter-spacing:.02em;
+    background:linear-gradient(100deg, var(--cyan), var(--gold) 50%, var(--cyan));background-size:240% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 8s linear infinite;}
+  .chkQuick a[data-chk="unit"] .n,.chkQuick a[data-chk="supporter"] .n{font-family:inherit;font-size:11.5px;line-height:1.5;font-weight:700;padding:2px 8px;border-radius:3px;margin:0 0 0 10px;
+    background:rgba(5,7,13,.45);border:1px solid var(--line-strong);color:var(--text);}
+  .chkQuick a[data-chk="unit"] .n:empty,.chkQuick a[data-chk="supporter"] .n:empty{display:none;}
+  .chkQuick a[data-chk="unit"] .n.ok,.chkQuick a[data-chk="supporter"] .n.ok{border-color:rgba(127,217,160,.55);color:#7fd9a0;}
+  .chkQuick a[data-chk="unit"] .n.todo,.chkQuick a[data-chk="supporter"] .n.todo{border-color:rgba(218,185,73,.55);color:var(--gold);}
+  .chkQuick a[data-chk="unit"] .t,.chkQuick a[data-chk="supporter"] .t{flex-wrap:wrap;}
   .chkQuick a[data-chk="unit"]::after,.chkQuick a[data-chk="supporter"]::after{content:"›";margin-left:auto;color:var(--cyan);font-size:19px;}
 
   .navcard .regBadge .rate{font-family:'Share Tech Mono',monospace;color:var(--gold);font-size:13px;white-space:nowrap;}
@@ -1110,9 +1119,9 @@
           if (data.registered) {
             var count = Object.keys(data.ownership || {}).filter(function(id){ var n = Number(id); return ids ? ids.has(n) : (n >= 1 && n <= total); }).length;
             var pct = total ? Math.round(count / total * 100) : 0;
-            setChk(t.key, pct + '%', total && count >= total ? 'full' : '', '所持率 ' + pct + '%（' + count + ' / ' + total + t.word + '）');
+            setChk(t.key, '✓ 登録済み 所持率 ' + pct + '%', 'ok', '所持率 ' + pct + '%（' + count + ' / ' + total + t.word + '）');
           } else {
-            setChk(t.key, '未登録', 'zero', 'データ未登録。所持データを登録ください');
+            setChk(t.key, '未登録', 'todo', 'データ未登録。所持データを登録ください');
           }
         })
         .catch(function(){ /* 失敗時は表示しない */ });
