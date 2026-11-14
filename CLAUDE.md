@@ -127,7 +127,8 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 0066 | 94 耐久UR19機のサブ武装デバフ19行（`src = 'sub'`。先頭で耐久のサブ行だけ消す。何度でも。番号は91の0062〜0065予約を避けて仮に0066）。**0058は中身を支援だけ消す版に差し替え**（入る行は同じ・D1再適用なし） | 適用済み（2026-11-08 Claude Codeがwranglerで適用。確認SQL：sub_links 50・sub_units 49／支援31・30／耐久19・19／orphan_effect 0／sub_attack 0／サブなしの耐久UR＝27・55／耐久の効果別 atk_down 4・mob_down 4・wpn_beam_down 4・hit_down 3・wpn_physical_down 3・wpn_special_down 1） |
 | 0062 | 97 `rank_hist`（何度でも） | 適用済み（2026-11-14 Claude Codeがwranglerで適用。確認SQL1本目：`rank_hist`あり。行はpush後の今すぐ集計／定時分析から） |
 | 0067〜0068 | 98 `game_events`・`game_event_items`（0067）／初期データ10件（0068）。何度でも | 適用済み（2026-11-14 Claude Code。確認SQL：TBL2つ・campaign 3／gacha 1／raid 2／story 1／tower 1／update 2・孤児0／0。`EXPLAIN`は`idx_game_events_ends`のSEARCH） |
-| 次の空き | 0069（0063〜0065は91用に予約） | ― |
+| 0069 | マスリSEASON 5の終了日（空だった）を仮に2025-10-30・注記「終了日は仮（開始から1週間）」（`ends_on IS NULL`のときだけ。何度でも）。CSVも同じ値に直した（0049を作り直しても戻らない） | 適用済み（2026-11-14 Claude Code。終了日が空のシーズンはS18だけ） |
+| 次の空き | 0070（0063〜0065は91用に予約） | ― |
 
 ### D1マイグレーションのルール（過去の不具合から）
 - **適用はD1が先、pushが後**。逆にすると新コードが未作成のTBL・列を読んで500や保存漏れになる（⑬のデプロイギャップ）。**バックフィルは必ず冪等に書き、間が空いたら再実行する**
