@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>イベント予定の入力（運営者） | Gジェネエターナル ファンツール</title>
+<!-- 95 サイトアイコン（Fan Tool）。ファイルは checker/ 直下。差し替えたら ?v= の数字を上げる -->
+<link rel="icon" href="/favicon.ico?v=1" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1">
+<link rel="manifest" href="/site.webmanifest?v=1">
+<meta name="theme-color" content="#05070d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fan Tool">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+<style>
+  :root{
+    --void:#05070d; --panel:rgba(16,22,32,.68); --panel-2:#0e141d; --line:rgba(107,224,224,.16); --line-strong:rgba(140,160,180,.28);
+    --gold:#dab949; --cyan:#6be0e0; --text:#eef3f6; --muted:#93a3b3; --ok:#7fd9a0; --ng:#ff8a8f;
+  }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  html,body{height:100%;}
+  body{margin:0;background:var(--void);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100%;-webkit-font-smoothing:antialiased;}
+  main.wrap{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 18px calc(28px + env(safe-area-inset-bottom,0px));}
+  .eyebrow{font-family:'Share Tech Mono',monospace;letter-spacing:.16em;font-size:11px;color:var(--cyan);text-transform:uppercase;margin:0 0 14px;}
+  h1{font-size:22px;margin:0 0 8px;}
+  .sub{color:var(--muted);font-size:12.5px;line-height:1.8;margin:0 0 20px;}
+  .stateMsg{color:var(--muted);font-size:14px;padding:28px 0;text-align:center;}
+  .section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:16px;}
+  .section h2{font-size:15px;margin:0 0 12px;}
+  textarea{display:block;width:100%;min-height:150px;background:var(--panel-2);color:var(--text);border:1px solid var(--line-strong);
+    font-size:13px;padding:9px 12px;border-radius:3px;margin:0 0 12px;font-family:'Share Tech Mono','Noto Sans JP',monospace;line-height:1.6;}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;}
+  button.btn{font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:14px;cursor:pointer;background:var(--gold);color:#1b1503;border:1px solid var(--gold);padding:9px 16px;border-radius:3px;}
+  button.btn.sec{background:transparent;color:var(--cyan);border-color:var(--cyan);}
+  button.btn.sm{font-size:12px;padding:3px 10px;}
+  button.btn:disabled{opacity:.45;cursor:default;}
+  .msg{font-size:12.5px;line-height:1.7;margin:10px 0 0;min-height:1em;}
+  .msg.ok{color:var(--ok);} .msg.ng{color:var(--ng);}
+  .note{font-size:12px;color:var(--muted);line-height:1.8;margin:10px 0 0;}
+  .fmt{background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-family:'Share Tech Mono',monospace;font-size:11.5px;color:var(--muted);overflow-x:auto;white-space:pre;margin:0 0 12px;}
+  .tblWrap{overflow-x:auto;}
+  table{border-collapse:collapse;width:100%;font-size:12px;}
+  th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top;}
+  th{color:var(--muted);font-weight:500;white-space:nowrap;}
+  tr.off td{color:var(--muted);opacity:.6;}
+  td.nw{white-space:nowrap;}
+</style>
+</head>
+<!-- data-auth-stay: ログインした人をトップへ飛ばさず、このページに戻す（auth.js） -->
+<body data-auth-stay>
+<main class="wrap">
+  <p class="eyebrow">ADMIN EVENTS</p>
+  <div id="loadingView" class="stateMsg">読み込み中...</div>
+  <div id="guardView" class="stateMsg" hidden>運営者専用ページです</div>
+
+  <div id="contentView" hidden>
+    <h1>イベント予定の入力</h1>
+    <p class="sub">公式のお知らせをもとに、予定を貼り付けて登録します。同じIDをもう一度貼ると上書きになります（重複しません）。マスターリーグは ml_seasons が正本のため、ここでは入れません。</p>
+
+    <section class="section">
+      <h2>まとめて貼り付け</h2>
+      <div class="fmt">ID|種別|名前|補足|開始|終了|ピックアップ
+2026103104|gacha|新ユニット追加！ピックアップガシャ|補足|2026-10-31 12:00|2026-11-23 11:59|u90,u91,s52
+2026111203|story|ストーリーイベント「G-UNIT」||2026-11-17 12:00||
+2026102602|update|エタロ新ステージ|日付は未発表|未定:11月中旬||</div>
+      <textarea id="bulkText" spellcheck="false" placeholder="1行1件。「#」で始まる行と空行は読み飛ばします（1回40行まで）"></textarea>
+      <div class="btns">
+        <button type="button" class="btn sec" id="btnCheck">確認（保存しない）</button>
+        <button type="button" class="btn" id="btnSave" disabled>保存</button>
+      </div>
+      <p class="msg" id="bulkMsg" role="status"></p>
+      <div class="tblWrap" id="previewWrap" hidden>
+        <table>
+          <thead><tr><th>ID</th><th>種別</th><th>名前</th><th>開始</th><th>終了</th><th>ピックアップ</th></tr></thead>
+          <tbody id="previewBody"></tbody>
+        </table>
+      </div>
+      <p class="note">種別：gacha／story／raid／tower／campaign／update。ピックアップは u＝ユニット、s＝サポートとID（12件まで）。開始を「未定:11月中旬」と書くと日付未発表になります。確認が通ったあとだけ［保存］を押せます。</p>
+    </section>
+
+    <section class="section">
+      <h2>直近の一覧</h2>
+      <p class="msg" id="listMsg" role="status"></p>
+      <div class="tblWrap">
+        <table>
+          <thead><tr><th>ID</th><th>種別</th><th>名前</th><th>開始</th><th>終了</th><th></th></tr></thead>
+          <tbody id="listBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  function $(id){ return document.getElementById(id); }
+  function setMsg(el, text, ok){ el.textContent = text; el.className = 'msg' + (ok === true ? ' ok' : ok === false ? ' ng' : ''); }
+  function post(body){
+    return fetch('/api/admin/events', { method:'POST', credentials:'same-origin', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) })
+      .then(function(res){ return res.json().then(function(j){ return { status: res.status, data: j }; }); });
+  }
+  function td(text, cls){ var c = document.createElement('td'); if (cls) c.className = cls; c.textContent = text == null ? '' : String(text); return c; }
+  var FIELD = { id:'ID', kind:'種別', title:'名前', sub:'補足', startsAt:'開始', endsAt:'終了', whenLabel:'未定の表記', url:'URLは使えません',
+    items:'ピックアップ（マスターにあるID・重複なし・12件まで）', master:'マスターを読めませんでした' };
+  var checkedText = null;   /* 確認が通った本文。変えたら保存できなくなる */
+
+  function showError(res){
+    var d = res.data || {};
+    if (res.status === 403 || res.status === 401) return '運営者としてログインしてください';
+    if (d.error === 'invalid') return d.line + '件目の「' + (FIELD[d.field] || d.field) + '」が正しくありません。何も保存していません。';
+    if (d.error === 'count') return '1回に入れられるのは1〜40件です';
+    return 'エラーが発生しました（' + (d.error || res.status) + '）';
+  }
+  function renderPreview(events){
+    var body = $('previewBody'); body.textContent = '';
+    events.forEach(function(ev){
+      var tr = document.createElement('tr');
+      tr.appendChild(td(ev.id, 'nw')); tr.appendChild(td(ev.kind, 'nw')); tr.appendChild(td(ev.title));
+      tr.appendChild(td(ev.whenLabel ? ev.whenLabel + '（日付未定）' : ev.startsAt, 'nw')); tr.appendChild(td(ev.endsAt || '未定', 'nw'));
+      tr.appendChild(td((ev.items || []).map(function(i){ return (i.kind === 'supporter' ? 's' : 'u') + i.id; }).join(',')));
+      body.appendChild(tr);
+    });
+    $('previewWrap').hidden = !events.length;
+  }
+
+  $('bulkText').addEventListener('input', function(){ if ($('bulkText').value !== checkedText) $('btnSave').disabled = true; });
+  $('btnCheck').addEventListener('click', function(){
+    var text = $('bulkText').value; $('btnSave').disabled = true; checkedText = null;
+    setMsg($('bulkMsg'), '確認中...');
+    post({ action:'bulk', text:text, dryRun:true }).then(function(res){
+      if (!res.data || !res.data.ok) { $('previewWrap').hidden = true; setMsg($('bulkMsg'), showError(res), false); return; }
+      renderPreview(res.data.events);
+      checkedText = text; $('btnSave').disabled = false;
+      setMsg($('bulkMsg'), res.data.events.length + '件を確認しました。問題なければ［保存］を押してください（まだ保存していません）。', true);
+    }).catch(function(){ setMsg($('bulkMsg'), '通信エラーが発生しました', false); });
+  });
+  $('btnSave').addEventListener('click', function(){
+    var text = $('bulkText').value; if (text !== checkedText) return;
+    $('btnSave').disabled = true;
+    post({ action:'bulk', text:text }).then(function(res){
+      if (!res.data || !res.data.ok) { setMsg($('bulkMsg'), showError(res), false); return; }
+      setMsg($('bulkMsg'), res.data.saved + '件を保存しました。', true);
+      checkedText = null; $('bulkText').value = ''; $('previewWrap').hidden = true; loadList();
+    }).catch(function(){ setMsg($('bulkMsg'), '通信エラーが発生しました', false); });
+  });
+
+  function loadList(){
+    post({ action:'list' }).then(function(res){
+      if (!res.data || !res.data.ok) { setMsg($('listMsg'), showError(res), false); return; }
+      var body = $('listBody'); body.textContent = '';
+      setMsg($('listMsg'), res.data.events.length + '件（非表示は灰色）');
+      res.data.events.forEach(function(ev){
+        var tr = document.createElement('tr'); if (!ev.is_active) tr.className = 'off';
+        tr.appendChild(td(ev.event_id, 'nw')); tr.appendChild(td(ev.kind, 'nw')); tr.appendChild(td(ev.title));
+        tr.appendChild(td(ev.date_fixed === 0 && ev.when_label ? ev.when_label + '（日付未定）' : ev.starts_at, 'nw')); tr.appendChild(td(ev.ends_at || '未定', 'nw'));
+        var act = document.createElement('td');
+        if (ev.is_active) {
+          var b = document.createElement('button'); b.type = 'button'; b.className = 'btn sec sm'; b.textContent = '非表示';
+          b.addEventListener('click', function(){
+            if (!confirm('「' + ev.title + '」を非表示にしますか？（行は残ります。同じIDを貼り直すと表示に戻ります）')) return;
+            post({ action:'hide', id: ev.event_id }).then(function(r){ if (r.data && r.data.ok) loadList(); else setMsg($('listMsg'), showError(r), false); });
+          });
+          act.appendChild(b);
+        }
+        tr.appendChild(act); body.appendChild(tr);
+      });
+    }).catch(function(){ setMsg($('listMsg'), '通信エラーが発生しました', false); });
+  }
+
+  function showGuard(){ $('loadingView').hidden = true; $('guardView').hidden = false; }
+  fetch('/api/admin/me', { credentials:'same-origin' })
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      if (!data || data.admin !== true) { showGuard(); return; }
+      $('loadingView').hidden = true; $('contentView').hidden = false;
+      loadList();
+    })
+    .catch(showGuard);
+})();
+</script>
+<script src="auth.js" defer></script>
+</body>
+</html>

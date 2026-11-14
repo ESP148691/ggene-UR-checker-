@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>イベントカレンダー | Gジェネエターナル ファンツール</title>
+<!-- 95 サイトアイコン（Fan Tool）。ファイルは checker/ 直下。差し替えたら ?v= の数字を上げる -->
+<link rel="icon" href="/favicon.ico?v=1" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1">
+<link rel="manifest" href="/site.webmanifest?v=1">
+<meta name="theme-color" content="#05070d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fan Tool">
+<meta name="description" content="Gジェネエターナルのファン向け非公式ツール。UR所持率・凸状況チェッカー、エタロ攻略、ドロップ一覧、自己紹介カードなど。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Gジェネエターナル ファンツール">
+<meta property="og:title" content="イベントカレンダー｜Gジェネエターナル ファンツール">
+<meta property="og:description" content="UR所持率・凸状況チェッカー、エタロ攻略、ドロップ一覧、自己紹介カードなど。ファン向け非公式ツール">
+<meta property="og:url" content="https://ggene-ur-checker.polarbear14869.workers.dev/calendar.html">
+<meta property="og:image" content="https://ggene-ur-checker.polarbear14869.workers.dev/images/ogp.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Fan Tool Gジェネエターナル ファンツール（ESP）">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@polarbear148691">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+<!-- "/"ではなく"/top"を対象にする。過去の"/"→/unit 301キャッシュを引き当てても意味がないため（⑧） -->
+<link rel="prefetch" href="/top">
+<style>
+  :root{
+    --void:#05070d;
+    --panel:rgba(16,22,32,.68);
+    --panel-2:#0e141d;
+    --panel-solid:#121924;
+    --line:rgba(107,224,224,.16);
+    --line-strong:rgba(140,160,180,.28);
+    --gold:#dab949;
+    --gold-dim:#8a7128;
+    --cyan:#6be0e0;
+    --cyan-dim:#3f8f8f;
+    --text:#eef3f6;
+    --muted:#93a3b3;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;background:var(--void);color:var(--text);
+    font-family:'Noto Sans JP',sans-serif;min-height:100%;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* 軽量な静止ネビュラ背景（top.htmlのCanvas演出は情報量の多いこのページでは使わず、統一感だけ踏襲） */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 60vmax 60vmax at 10% -10%, rgba(122,95,207,.28), transparent 60%),
+      radial-gradient(ellipse 55vmax 55vmax at 110% 10%, rgba(52,224,177,.16), transparent 60%),
+      radial-gradient(ellipse 70vmax 70vmax at 50% 120%, rgba(44,63,122,.35), transparent 60%);
+  }
+  ::selection{background:rgba(107,224,224,.3);color:#fff;}
+
+  main.wrap{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 18px calc(48px + env(safe-area-inset-bottom,0px));}
+  main.wrap.wide{max-width:880px;}
+  .headArea{max-width:640px;margin:0 auto;}
+
+  .eyebrow{
+    font-family:'Share Tech Mono',monospace;font-weight:400;letter-spacing:.16em;font-size:11px;
+    color:var(--cyan);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin:0 0 14px;opacity:.9;
+    text-shadow:0 1px 3px rgba(2,4,9,.85), 0 0 10px rgba(2,4,9,.6);
+  }
+  .eyebrow::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);display:inline-block;border-radius:1px;}
+
+  h1{
+    font-family:'Zen Kaku Gothic New','Rajdhani',sans-serif;font-weight:900;font-size:23px;margin:0 0 12px;
+    word-break:keep-all;overflow-wrap:break-word;
+    text-shadow:0 1px 4px rgba(2,4,9,.9), 0 0 16px rgba(2,4,9,.6);
+  }
+  .sub{
+    color:#c7d2dc;font-size:13.5px;margin:0 0 26px;line-height:1.85;max-width:46ch;
+    word-break:keep-all;overflow-wrap:break-word;
+  }
+
+  /* ---- ログイン必須ガード ---- */
+  .guardCard{
+    background:var(--panel);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);
+    border:1px solid var(--line);border-radius:6px;padding:28px 22px;text-align:center;
+  }
+  .guardCard p{color:var(--muted);font-size:13px;line-height:1.8;margin:0 0 18px;}
+  .guardCard button{
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.03em;
+    background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;
+    border:1px solid var(--gold);border-radius:3px;padding:10px 26px;cursor:pointer;
+  }
+
+  /* ---- 集計対象の明記 ---- */
+  .sampleNote{
+    display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:11.5px;color:var(--muted);
+    background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;
+    padding:9px 12px;margin:0 0 18px;
+  }
+  .sampleNote strong{color:var(--cyan);font-family:'Share Tech Mono',monospace;font-weight:400;}
+
+  /* ---- タブ ---- */
+  .tabs{display:flex;gap:8px;margin:0 0 16px;}
+  .tabs button{
+    flex:1;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.03em;
+    background:var(--panel-2);border:1px solid var(--line-strong);color:var(--muted);
+    padding:10px 8px;cursor:pointer;border-radius:4px;transition:border-color .2s ease,color .2s ease;
+  }
+  .tabs button.active{
+    background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1b1503;border-color:var(--gold);
+  }
+
+  /* ---- 凡例・絞り込み ---- */
+  .legend{font-size:11px;color:var(--muted);margin:0 0 10px;display:flex;gap:14px;flex-wrap:wrap;}
+  .filterRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;}
+  .filterLabel{font-size:11.5px;color:var(--muted);flex:0 0 auto;}
+  .chipGroup{display:flex;gap:6px;flex-wrap:wrap;}
+  .chip{
+    font-family:'Rajdhani',sans-serif;font-weight:600;font-size:12px;
+    background:var(--panel-2);border:1px solid var(--line-strong);color:var(--muted);
+    padding:5px 11px;border-radius:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  }
+  .chip.active{background:linear-gradient(135deg,var(--cyan),var(--cyan-dim));color:#04262b;border-color:var(--cyan);font-weight:700;}
+  .matchCount{font-size:11px;color:var(--muted);margin-left:auto;white-space:nowrap;}
+  .toggleRow{display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:10px 0 16px;}
+  .toggleItem{display:flex;align-items:center;gap:7px;}
+  .toggleItem input{accent-color:var(--cyan);width:15px;height:15px;}
+  .toggleItem label{cursor:pointer;}
+
+  .syncNote{
+    font-size:11.5px;color:var(--muted);background:var(--panel-2);border:1px solid var(--line-strong);
+    border-radius:4px;padding:10px 12px;margin:0 0 16px;line-height:1.75;
+  }
+
+  /* ---- ティアリスト ---- */
+  .tierGroup{margin:0 0 22px;}
+  .tierGroup:last-child{margin-bottom:0;}
+  .tierHead{
+    display:flex;align-items:baseline;gap:7px;border-left:3px solid var(--tier-color);
+    padding-left:9px;margin:0 0 10px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13.5px;color:var(--text);
+  }
+  .tierHead .tierCount{font-size:11px;color:var(--muted);font-weight:500;}
+  .tierGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:9px 8px;}
+  @media (min-width:481px){ .tierGrid{grid-template-columns:repeat(8,1fr);} }
+  @media (min-width:880px){ .tierGrid{grid-template-columns:repeat(12,1fr);} }
+
+  .tile{
+    position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;
+    background:none;border:none;padding:0;cursor:pointer;font-family:inherit;
+    -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  }
+  .tile .tileIconWrap{
+    position:relative;width:100%;aspect-ratio:1/1;border-radius:6px;overflow:hidden;
+    border:1px solid var(--tier-color);background:var(--panel-solid);transition:transform .12s ease;
+  }
+  .tile:active .tileIconWrap{transform:scale(.92);}
+  .tile img{width:100%;height:100%;object-fit:cover;display:block;}
+  .tile img.supIcon{object-position:right center;}
+  .tile.dim{opacity:.25;}
+  .tileBadgeLimited{
+    position:absolute;top:2px;left:2px;background:var(--gold);color:#1b1503;
+    font-size:8px;font-weight:700;line-height:1;padding:2px 3px;border-radius:2px;
+    font-family:'Share Tech Mono',monospace;
+  }
+  .tileBadgeMine{
+    position:absolute;bottom:2px;right:2px;background:var(--cyan);color:#04262b;
+    font-size:9px;font-weight:700;line-height:1;width:14px;height:14px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px var(--panel-solid);
+  }
+  .tilePct{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text);font-variant-numeric:tabular-nums;}
+
+  /* ---- 詳細表示（ボトムシート） ---- */
+  .detailBackdrop{position:fixed;inset:0;background:rgba(3,5,9,.72);z-index:40;}
+  .detailSheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:41;margin:0 auto;max-width:460px;
+    background:var(--panel-solid);border:1px solid var(--line-strong);border-bottom:none;
+    border-radius:14px 14px 0 0;padding:22px 22px calc(26px + env(safe-area-inset-bottom,0px));
+    max-height:82vh;overflow-y:auto;box-shadow:0 -8px 30px rgba(0,0,0,.55);
+  }
+  .detailSheet .closeBtn{
+    position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);
+    font-size:20px;line-height:1;cursor:pointer;padding:4px;
+  }
+  .detailHead{display:flex;gap:14px;align-items:center;margin:0 0 16px;}
+  .detailHead img{width:72px;height:72px;border-radius:8px;object-fit:cover;border:1px solid var(--line-strong);background:var(--panel-2);flex:0 0 auto;}
+  .detailHead img.supIcon{object-position:right center;}
+  .detailHead .name{font-size:15px;font-weight:700;margin:0 0 4px;}
+  .detailHead .rank{font-family:'Share Tech Mono',monospace;font-size:11.5px;color:var(--cyan);}
+  .detailRows{display:flex;flex-direction:column;gap:9px;}
+  .detailRow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;border-bottom:1px solid var(--line);padding-bottom:9px;}
+  .detailRow:last-child{border-bottom:none;padding-bottom:0;}
+  .detailRow .k{color:var(--muted);}
+  .detailRow .v{color:var(--text);font-variant-numeric:tabular-nums;text-align:right;}
+  .detailRow .v.mine-owned{color:var(--cyan);}
+  .detailRow .v.limited{color:var(--gold);}
+
+  .stateMsg{color:var(--muted);font-size:12.5px;text-align:center;padding:28px 0;}
+
+  /* ---- エタロ攻略タブ ----
+     クリア率=金・全ミッション達成率=シアン（dataviz validate_palette.js：dark / surface #121924で全チェック合格）。
+     サイトのアクセント色（--gold・--cyan）は明度が高すぎて基準帯を外れるため、バー専用に一段落とした色を使う。
+     文字色はデータ色を使わず、ラベルは常にテキストで併記する */
+  :root{ --er-clear:#b09020; --er-perfect:#2f9aa0; --er-violet:#a58cf0; }
+  .tabs button{white-space:nowrap;min-width:0;}
+  @media (max-width:360px){ .tabs{gap:6px;} .tabs button{font-size:13px;padding:10px 4px;} }
+  .erStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px;}
+  .erStat{background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;padding:9px 10px;min-width:0;}
+  .erStat .k{font-size:10.5px;color:var(--muted);line-height:1.4;word-break:keep-all;overflow-wrap:break-word;}
+  .erStat .v{font-family:'Share Tech Mono',monospace;font-size:19px;color:var(--text);margin-top:3px;white-space:nowrap;}
+  .erStat .v small{font-size:11px;color:var(--muted);margin-left:2px;}
+  .erStat .n{font-size:10.5px;color:var(--muted);white-space:nowrap;}
+  .erKey{display:inline-block;width:14px;height:8px;border-radius:0 4px 4px 0;margin-right:5px;vertical-align:middle;}
+  .erKey.clear{background:var(--er-clear);}
+  .erKey.perfect{background:var(--er-perfect);}
+  .erList{display:flex;flex-direction:column;gap:10px;max-width:640px;margin:0 auto;}
+  .erRow{
+    display:grid;grid-template-columns:104px 1fr;gap:10px 12px;align-items:start;text-align:left;width:100%;
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px;cursor:pointer;
+    color:inherit;font-family:inherit;-webkit-tap-highlight-color:transparent;
+  }
+  .erRow:hover{border-color:var(--line-strong);}
+  .erRow:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
+  @media (min-width:600px){ .erRow{grid-template-columns:150px 1fr;} }
+  .erBanner{position:relative;aspect-ratio:640/234;border-radius:4px;overflow:hidden;background:var(--panel-solid);border:1px solid var(--line-strong);}
+  .erBanner img, .erSheetBanner img{width:100%;height:100%;object-fit:cover;display:block;}
+  .erBanner .ph, .erSheetBanner .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);padding:4px;text-align:center;}
+  .erBody, .erBanner, .erTrack{display:block;}
+  .erBody{min-width:0;}
+  .erBanner img, .erSheetBanner img{position:relative;z-index:1;} /* 読み込めた画像はプレースホルダーの上に重ねる */
+  .erHead{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin:0 0 6px;}
+  .erNo{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan);}
+  .erName{font-size:13.5px;font-weight:700;}
+  .erMine{font-size:10.5px;font-weight:700;border-radius:3px;padding:1px 6px;white-space:nowrap;}
+  .erMine.cleared{color:#1b1503;background:var(--gold);}
+  .erMine.perfect{color:#04262b;background:var(--cyan);}
+  .erBarRow{display:grid;grid-template-columns:3.6em 1fr 3.2em;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin:0 0 4px;}
+  .erTrack{height:8px;background:rgba(147,163,179,.14);border-radius:0 4px 4px 0;overflow:hidden;}
+  .erFill{display:block;height:100%;border-radius:0 4px 4px 0;}
+  .erFill.clear{background:var(--er-clear);}
+  .erFill.perfect{background:var(--er-perfect);}
+  .erBarRow .pct{font-family:'Share Tech Mono',monospace;color:var(--text);text-align:right;font-variant-numeric:tabular-nums;}
+  .erChips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+  .erChip{font-size:10.5px;line-height:1;border:1px solid var(--line-strong);border-radius:10px;padding:4px 8px;color:var(--muted);white-space:nowrap;}
+  .erChip .r{font-family:'Share Tech Mono',monospace;color:var(--text);margin-left:4px;}
+  .erChip.title{border-color:rgba(165,140,240,.6);}
+  .erChip.mine{border-color:var(--gold);color:var(--text);}
+  .erChip.mine::before{content:"✓ ";color:var(--gold);}
+  .erChip.title.mine{border-color:var(--er-violet);}
+  .erChip.title.mine::before{color:var(--er-violet);}
+  .erSheetBanner{aspect-ratio:640/234;border-radius:6px;overflow:hidden;background:var(--panel-2);border:1px solid var(--line-strong);margin:22px 0 12px;position:relative;}
+  .detailSheet .closeBtn{z-index:2;} /* バナー画像（z-index:1）より前面に */
+  .erSheetName{font-size:15px;font-weight:700;margin:0 0 4px;padding-right:28px;}
+  .erSheetRank{font-family:'Share Tech Mono',monospace;font-size:11.5px;color:var(--cyan);margin:0 0 14px;}
+  .erSheetSection{font-size:11.5px;color:var(--muted);margin:18px 0 8px;}
+  .erSheetMissions{display:flex;flex-direction:column;gap:8px;}
+  .erMission{border:1px solid var(--line);border-radius:4px;padding:9px 10px;font-size:12px;}
+  .erMission .top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;}
+  .erMission .lbl{font-weight:700;}
+  .erMission .lbl.title{color:var(--er-violet);}
+  .erMission .rate{font-family:'Share Tech Mono',monospace;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .erMission .txt{color:var(--muted);margin-top:4px;line-height:1.6;}
+  .erMission .me{font-size:11px;margin-top:4px;color:var(--muted);}
+  .erMission .me.done{color:var(--cyan);}
+
+  .pageFooter{
+    margin-top:36px;padding-top:16px;border-top:1px solid var(--line);
+    font-size:10.5px;line-height:1.9;color:var(--muted);
+    max-width:640px;margin-left:auto;margin-right:auto;
+  }
+  .pageFooter p{margin:0 0 8px;word-break:keep-all;overflow-wrap:break-word;}
+  .pageFooter a{color:var(--cyan);text-decoration:none;}
+  .pageFooter a:hover{text-decoration:underline;}
+
+  [hidden]{display:none !important;}
+/* ---- 共通：ログイン案内・読み込み表示は analytics.html と同じ ---- */
+
+  /* 98 イベントカレンダー */
+  main.wrap{max-width:560px;}
+  .section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 10px 8px;}
+  .tabs2{display:flex;gap:6px;margin:0 0 8px;flex-wrap:wrap;}
+  .tab2{font-size:12px;border:1px solid var(--line-strong);border-radius:999px;padding:4px 11px;color:var(--muted);background:transparent;cursor:pointer;font-family:inherit;}
+  .tab2.on{background:var(--cyan);color:#06222a;border-color:var(--cyan);font-weight:700;}
+  .row{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:7px 4px;border-top:1px solid rgba(140,160,180,.14);}
+  .grpTitle + .row{border-top:0;}
+  .chip{font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px;white-space:nowrap;border:1px solid currentColor;min-width:4.6em;text-align:center;}
+  .k-gacha{color:var(--gold);} .k-story{color:var(--cyan);} .k-raid{color:#f08ac0;} .k-tower{color:#9d86e8;} .k-ml{color:#34e0b1;} .k-campaign{color:#7fb2ff;} .k-update{color:#c9d3dc;}
+  .ttl{min-width:0;}
+  .ttl .nm{font-size:13px;font-weight:700;overflow-wrap:anywhere;}
+  .ttl .sub{font-size:11px;color:var(--muted);overflow-wrap:anywhere;}
+  .left{font-size:12px;font-weight:700;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;}
+  .left small{display:block;font-size:10px;color:var(--muted);font-weight:400;}
+  .left.today{color:#ff7a7a;} .left.soon{color:var(--gold);} .left.up{color:var(--muted);}
+  .tbd{font-size:9px;color:var(--muted);border:1px dashed var(--line-strong);border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:1px;font-weight:400;}
+  .own{display:inline-block;font-size:10px;border-radius:3px;padding:0 4px;margin-left:4px;}
+  .own.no{background:rgba(255,122,122,.16);color:#ff7a7a;} .own.yes{background:rgba(52,224,177,.14);color:#34e0b1;}
+  .grpTitle{font-size:11px;color:var(--muted);margin:10px 2px 2px;letter-spacing:.08em;}
+  .grpTitle:first-child{margin-top:2px;}
+  .pk{margin-top:2px;}
+  .tl{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:var(--panel-2);padding:0 0 6px;}
+  .tlHead{display:grid;height:34px;border-bottom:1px solid var(--line);font-size:10px;color:var(--muted);}
+  .tlHead div{display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1px solid rgba(140,160,180,.08);line-height:1.15;}
+  .tlHead .we{color:#f08ac0;} .tlHead .td{color:var(--text);font-weight:700;background:rgba(107,224,224,.12);}
+  .tlBody{position:relative;padding-top:6px;}
+  .tlRow{position:relative;height:30px;}
+  .bar{position:absolute;top:4px;height:22px;border-radius:5px;font-size:10.5px;font-weight:700;line-height:22px;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#07101a;}
+  .bar.gacha{background:var(--gold);} .bar.story{background:var(--cyan);} .bar.raid{background:#f08ac0;} .bar.tower{background:#9d86e8;} .bar.ml{background:#34e0b1;} .bar.campaign{background:#7fb2ff;} .bar.update{background:#c9d3dc;}
+  .bar.tbdBar{background:repeating-linear-gradient(45deg,rgba(107,224,224,.55) 0 6px,rgba(107,224,224,.25) 6px 12px);color:var(--text);}
+  .bar.cutL{border-top-left-radius:0;border-bottom-left-radius:0;} .bar.cutR{border-top-right-radius:0;border-bottom-right-radius:0;}
+  .nowLine{position:absolute;top:0;bottom:0;width:2px;background:#ff7a7a;box-shadow:0 0 6px #ff7a7a;}
+  .calNote{font-size:10.5px;color:var(--muted);margin:8px 2px 0;line-height:1.7;}
+  .pageFooter{margin-top:28px;}
+</style>
+</head>
+<body>
+
+<main class="wrap" id="mainWrap">
+  <div class="headArea">
+    <p class="eyebrow">EVENT CALENDAR</p>
+    <h1>イベントカレンダー</h1>
+    <p class="sub">ガシャ・イベントの期間をまとめて確認できます。期間はゲーム内のお知らせをもとに運営者が入力しています。</p>
+
+    <div id="guardView" class="guardCard" hidden>
+      <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、開催中・もうすぐ始まるイベントの期間が見られるようになります。</p>
+      <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
+    </div>
+    <div id="adminOnlyView" class="guardCard" hidden><p>イベントカレンダーは準備中です。公開までもうしばらくお待ちください。</p></div>
+    <div id="loadingView" class="stateMsg">読み込み中...</div>
+    <div id="errorView" class="stateMsg" hidden>データの取得に失敗しました。時間をおいて再度お試しください。</div>
+
+    <div id="contentView" hidden>
+      <div class="tabs2" id="viewTabs"><button type="button" class="tab2 on" data-view="list">リスト</button><button type="button" class="tab2" data-view="tl">タイムライン</button></div>
+      <div class="tabs2" id="kindTabs">
+        <button type="button" class="tab2 on" data-kind="all">すべて</button>
+        <button type="button" class="tab2" data-kind="gacha">ガシャ</button>
+        <button type="button" class="tab2" data-kind="event">イベント</button>
+        <button type="button" class="tab2" data-kind="campaign">ミッション</button>
+        <button type="button" class="tab2" data-kind="ml">マスリ</button>
+      </div>
+      <div class="section" id="listBox"></div>
+      <div class="tl" id="tl" hidden></div>
+      <p class="calNote">※期間は予定です。変更されることがあります。正確な情報はゲーム内のお知らせをご確認ください。</p>
+      <p class="calNote" id="lastUpdated"></p>
+    </div>
+  </div>
+
+  <footer class="pageFooter">
+    <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
+    <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
+    <p>掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
+    <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+  </footer>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  var ADMIN_ONLY = true;   /* true＝運営者専用（公開前の確認・切り戻し用）。一般公開は false＋worker.js・top.html の切り替え */
+  var KIND = { gacha:'ガシャ', story:'イベント', raid:'強敵襲来', tower:'タワー', ml:'マスリ', campaign:'ミッション', update:'更新' };
+  var KIND_GROUP = { gacha:'gacha', story:'event', raid:'event', tower:'event', campaign:'campaign', ml:'ml', update:'update' };
+  var guardView = document.getElementById('guardView'), loadingView = document.getElementById('loadingView'),
+      errorView = document.getElementById('errorView'), contentView = document.getElementById('contentView');
+  var EVENTS = [], OWN = { unit: null, supporter: null }, viewMode = 'list', kindFilter = 'all';
+
+  function el(tag, cls, text){ var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function track(k){
+    try { if (sessionStorage.getItem('trk_' + k)) return; sessionStorage.setItem('trk_' + k, '1'); } catch (e) {}
+    try { fetch('/api/track', { method:'POST', body: JSON.stringify({ k:k }), keepalive:true }).catch(function(){}); } catch (e) {}
+  }
+  function d(s){ return new Date(s.replace(' ', 'T') + ':00+09:00'); }
+  function jst(dt){ return new Date(dt.getTime() + 9*3600000); }
+  function pad(n){ return (n < 10 ? '0' : '') + n; }
+  function md(dt){ var j = jst(dt); return (j.getUTCMonth() + 1) + '/' + j.getUTCDate(); }
+  function hm(dt){ var j = jst(dt); return j.getUTCHours() + ':' + pad(j.getUTCMinutes()); }
+  function dayKey(dt){ return jst(dt).toISOString().slice(0, 10); }
+  function startOf(ev){ return d(ev.startsAt); }
+  function endOf(ev){ return ev.endsAt ? d(ev.endsAt) : null; }
+
+  function leftInfo(ev, now){
+    var s = startOf(ev), e = endOf(ev);
+    if (s > now){
+      if (!ev.dateFixed) return { cls:'up', main: ev.whenLabel || '日付未定', small:'日付未定' };
+      return { cls:'up', main: md(s) + ' ' + hm(s) + ' 開始', small:'あと' + Math.ceil((s - now) / 86400000) + '日' };
+    }
+    if (!e) return { cls:'', main:'開催中', small:'終了未定' };
+    if (e < now) return { cls:'up', main:'終了', small: md(e) + ' ' + hm(e) };
+    if (dayKey(e) === dayKey(now)) return { cls:'today', main:'今日 ' + hm(e) + ' まで', small:'あと' + Math.max(0, Math.floor((e - now) / 3600000)) + '時間' };
+    var days = Math.floor((e - now) / 86400000);
+    return { cls: days <= 3 ? 'soon' : '', main:'あと' + days + '日', small: md(e) + ' ' + hm(e) + ' まで' };
+  }
+
+  function rowEl(ev, now){
+    var li = leftInfo(ev, now), row = el('div', 'row');
+    row.appendChild(el('span', 'chip k-' + ev.kind, KIND[ev.kind] || ev.kind));
+    var ttl = el('div', 'ttl'), nm = el('div', 'nm', ev.title);
+    if (!ev.dateFixed) nm.appendChild(el('span', 'tbd', '日付未定'));
+    ttl.appendChild(nm);
+    if (ev.sub) ttl.appendChild(el('div', 'sub', ev.sub));
+    if (ev.items && ev.items.length){
+      var pk = el('div', 'sub pk');
+      ev.items.forEach(function(it, i){
+        if (i) pk.appendChild(document.createTextNode('　'));
+        pk.appendChild(document.createTextNode(it.name));
+        var owned = OWN[it.kind];
+        if (owned) pk.appendChild(el('span', 'own ' + (owned.has(it.id) ? 'yes' : 'no'), owned.has(it.id) ? '所持' : '未所持'));
+      });
+      ttl.appendChild(pk);
+      var rates = ev.items.filter(function(it){ return typeof it.rate === 'number'; }).map(function(it){ return it.rate + '%'; });
+      if (rates.length) ttl.appendChild(el('div', 'sub', '登録者の所持率 ' + rates.join('・')));
+    }
+    row.appendChild(ttl);
+    var left = el('div', 'left ' + li.cls, li.main); left.appendChild(el('small', null, li.small));
+    row.appendChild(left);
+    return row;
+  }
+
+  function filtered(){ return EVENTS.filter(function(ev){ return kindFilter === 'all' || KIND_GROUP[ev.kind] === kindFilter; }); }
+
+  function renderList(){
+    var now = new Date(), box = document.getElementById('listBox'); box.textContent = '';
+    var evs = filtered();
+    var live = evs.filter(function(ev){ var e = endOf(ev); return startOf(ev) <= now && (!e || e >= now); })
+      .sort(function(a, b){ return (endOf(a) ? endOf(a).getTime() : 9e15) - (endOf(b) ? endOf(b).getTime() : 9e15); });
+    var soon = evs.filter(function(ev){ return startOf(ev) > now; }).sort(function(a, b){ return startOf(a) - startOf(b); });
+    var past = evs.filter(function(ev){ var e = endOf(ev); return e && e < now; }).sort(function(a, b){ return endOf(b) - endOf(a); });
+    [['開催中（終わりが近い順）', live], ['もうすぐ（始まりが近い順）', soon], ['終了（30日以内）', past]].forEach(function(g){
+      if (!g[1].length) return;
+      box.appendChild(el('p', 'grpTitle', g[0]));
+      g[1].forEach(function(ev){ box.appendChild(rowEl(ev, now)); });
+    });
+    if (!box.firstChild) box.appendChild(el('p', 'stateMsg', '表示できる予定がありません'));
+  }
+
+  function renderTimeline(){
+    var now = new Date(), tl = document.getElementById('tl'); tl.textContent = '';
+    var DAYS = 21, wd = ['日','月','火','水','木','金','土'];
+    var j = jst(now), dow = (j.getUTCDay() + 6) % 7;   /* 月曜起点 */
+    var start = new Date(Date.parse(dayKey(now) + 'T00:00:00+09:00') - dow * 86400000), total = DAYS * 86400000;
+    var head = el('div', 'tlHead'); head.style.gridTemplateColumns = 'repeat(' + DAYS + ',1fr)';
+    for (var i = 0; i < DAYS; i++){
+      var dt = new Date(start.getTime() + i * 86400000), jd = jst(dt), w = jd.getUTCDay();
+      var cell = el('div', dayKey(dt) === dayKey(now) ? 'td' : (w === 0 || w === 6 ? 'we' : ''));
+      cell.appendChild(el('span', null, (jd.getUTCDate() === 1 || i === 0) ? md(dt) : String(jd.getUTCDate())));
+      cell.appendChild(el('span', null, wd[w]));
+      head.appendChild(cell);
+    }
+    tl.appendChild(head);
+    var body = el('div', 'tlBody');
+    filtered().filter(function(ev){ var e = endOf(ev); return !e || e - startOf(ev) >= 3600000; })   /* 期間1時間未満（更新など）は帯にしない */
+      .sort(function(a, b){ return (endOf(a) ? endOf(a).getTime() : 9e15) - (endOf(b) ? endOf(b).getTime() : 9e15); })
+      .forEach(function(ev){
+        var s = Math.max(0, startOf(ev) - start), eDate = endOf(ev), e = Math.min(total, (eDate ? eDate : new Date(start.getTime() + total)) - start);
+        if (e <= 0 || s >= total) return;
+        var cls = 'bar ' + ev.kind + (!ev.dateFixed || !eDate ? ' tbdBar' : '') + (startOf(ev) < start ? ' cutL' : '') + (eDate && eDate - start > total ? ' cutR' : '');
+        var row = el('div', 'tlRow'), bar = el('div', cls, ev.title);
+        bar.style.left = (s / total * 100) + '%'; bar.style.width = Math.max(1.6, (e - s) / total * 100) + '%';
+        row.appendChild(bar); body.appendChild(row);
+      });
+    var line = el('div', 'nowLine'); line.style.left = ((now - start) / total * 100) + '%'; body.appendChild(line);
+    tl.appendChild(body);
+  }
+
+  function render(){
+    document.getElementById('listBox').hidden = viewMode !== 'list';
+    document.getElementById('tl').hidden = viewMode !== 'tl';
+    if (viewMode === 'list') renderList(); else renderTimeline();
+  }
+  document.getElementById('viewTabs').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-view]'); if (!b) return; viewMode = b.getAttribute('data-view');
+    Array.prototype.forEach.call(this.children, function(c){ c.classList.toggle('on', c === b); }); render();
+  });
+  document.getElementById('kindTabs').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-kind]'); if (!b) return; kindFilter = b.getAttribute('data-kind');
+    Array.prototype.forEach.call(this.children, function(c){ c.classList.toggle('on', c === b); }); render();
+  });
+
+  /* 本人の所持。未登録（registered:false）なら null（所持の札は出さず、所持率だけ） */
+  function ownedSet(url){
+    return fetch(url, { credentials: "same-origin" }).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+      if (!j || !j.loggedIn || !j.registered || !j.ownership) return null;
+      return new Set(Object.keys(j.ownership).map(Number));
+    }).catch(function(){ return null; });
+  }
+
+  function showGuard(){ loadingView.hidden = true; guardView.hidden = false; }
+  fetch('/api/me', { credentials: 'same-origin' })
+    .then(function(res){ return res.json(); })
+    .then(function(me){
+      if (!(me && me.loggedIn)) { showGuard(); return; }
+      if (ADMIN_ONLY) {
+        return fetch('/api/admin/me', { credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(a){
+          if (a && a.admin === true) return load();
+          loadingView.hidden = true; document.getElementById('adminOnlyView').hidden = false;
+        });
+      }
+      return load();
+    })
+    .catch(function(){ loadingView.hidden = true; errorView.hidden = false; });
+
+  function load(){
+      return Promise.all([
+        fetch('/api/events', { credentials: 'same-origin' }).then(function(r){ if (!r.ok) throw new Error('http ' + r.status); return r.json(); }),
+        ownedSet('/api/my-ownership'),
+        ownedSet('/api/my-ownership-supporter')
+      ]).then(function(res){
+        var data = res[0]; if (!data || !data.loggedIn) { showGuard(); return; }
+        EVENTS = data.events || []; OWN.unit = res[1]; OWN.supporter = res[2];
+        var upd = document.getElementById('lastUpdated');
+        if (data.lastUpdated) upd.textContent = '最終更新 ' + data.lastUpdated.slice(5).replace('-', '/');
+        render();
+        loadingView.hidden = true; contentView.hidden = false;
+        track('cal_view');
+      });
+  }
+})();
+</script>
+<script src="auth.js" defer></script>
+</body>
+</html>

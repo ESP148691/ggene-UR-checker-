@@ -221,6 +221,24 @@
   .navcard .regBadge.ok .st{color:#7fd9a0;}
   .navcard .regBadge.todo{border-color:rgba(218,185,73,.55);}
   .navcard .regBadge.todo .st{color:var(--gold);}
+  /* 97 あなたの位置のバッジ / 98 イベントカレンダー欄 */
+  .navcard .rankBadge{display:inline-block;margin-left:8px;font-size:11px;font-weight:700;color:var(--gold);border:1px solid rgba(218,185,73,.55);border-radius:999px;padding:0 8px;vertical-align:2px;white-space:nowrap;}
+  .navcard .rankBadge[hidden]{display:none;}
+  .evSec[hidden]{display:none;}
+  .evSec .secHead{display:flex;align-items:baseline;gap:8px;margin:0 0 6px;}
+  .evSec .secHead .sectionLabel{margin:0;}
+  .evSec .reset{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap;}
+  .evSec .reset b{color:var(--text);font-variant-numeric:tabular-nums;}
+  .evRow{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:7px 2px;border-top:1px solid rgba(140,160,180,.14);}
+  .evRow:first-child{border-top:0;}
+  .evChip{font-size:10px;font-weight:700;border-radius:3px;padding:1px 6px;white-space:nowrap;border:1px solid currentColor;min-width:4.6em;text-align:center;}
+  .evK-gacha{color:var(--gold);} .evK-story{color:var(--cyan);} .evK-raid{color:#f08ac0;} .evK-tower{color:#9d86e8;} .evK-ml{color:#34e0b1;} .evK-campaign{color:#7fb2ff;} .evK-update{color:#c9d3dc;}
+  .evTtl{min-width:0;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .evTbd{font-size:9px;color:var(--muted);border:1px dashed var(--line-strong);border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:1px;font-weight:400;}
+  .evLeft{font-size:12px;font-weight:700;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;}
+  .evLeft small{display:block;font-size:10px;color:var(--muted);font-weight:400;}
+  .evLeft.today{color:#ff7a7a;} .evLeft.soon{color:var(--gold);} .evLeft.up{color:var(--muted);}
+  .evMore{display:block;text-align:right;font-size:12px;color:var(--cyan);text-decoration:none;padding:6px 2px 0;}
   /* 88 推し情報設定の4項目へ直接（推し情報設定のカードのすぐ下） */
   /* 推し情報設定は小さめ（説明文なし・登録済みマークは機能名の右） */
   .navcard.compact{padding:8px 12px;gap:12px;}
@@ -446,6 +464,14 @@
     </div>
   </section>
 
+  <!-- 98 公開前は運営者だけ（worker.js の EVENTS_ADMIN_ONLY＝true の間は /api/events が運営者以外に空の予定を返す＝欄は出ない） -->
+  <!-- 98 開催中・もうすぐ（ログイン中だけ。toggleAnalyticsNav() が /api/events を呼んで1件以上あれば表示） -->
+  <section class="section evSec" id="eventSection" hidden aria-label="開催中・もうすぐ">
+    <div class="secHead"><p class="sectionLabel">開催中・もうすぐ</p><span class="reset">デイリー更新まで <b id="evReset">-</b></span></div>
+    <div id="evRows"></div>
+    <a class="evMore" href="/calendar.html" id="evMore">カレンダーを見る ›</a>
+  </section>
+
   <!-- 83 新ユニット所持率調査（段階2で公開。ログイン中・ユニット登録済みの人に、回答の時期のときだけ。部品は new-ask.js） -->
   <section class="section newAsk" id="newAsk" hidden aria-label="新ユニット所持率調査">
     <p class="sectionLabel">新ユニット所持率調査</p>
@@ -517,6 +543,16 @@
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
+    <!-- 97 公開前は運営者だけ（data-admin-only hidden）。一般公開は2つの属性を消し、worker.js の MY_RANK_ADMIN_ONLY と my-rank.html の ADMIN_ONLY を false に -->
+    <!-- 97 あなたの位置（上位n%）。この節ごとログイン中のみ表示。バッジは /api/my-rank の結果（上位50%以内の一番良い指標） -->
+    <a class="navcard" href="/my-rank.html" id="myRankNav" data-admin-only hidden>
+      <div class="icon analyticsIcon" aria-hidden="true">🏅</div>
+      <div class="body">
+        <div class="name">あなたの<wbr>位置<span class="rankBadge" id="myRankBadge" hidden></span></div>
+        <div class="desc">登録ユーザーの中で上位何%かを確認できます。</div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
     <!-- ㉒ 自己紹介カード。公開済み（2026-09-28・㉟）。
          この節（#analyticsSection）ごとログイン中のみ表示されるため、判定はtoggleAnalyticsNav()と同じ -->
     <a class="navcard" href="/profile-card.html" id="profileCardNav">
@@ -537,6 +573,14 @@
       <div class="body">
         <div class="name">X投稿用<wbr>レポート</div>
         <div class="desc">定時集計からURユニット・URサポートの所持率レポート画像と投稿文を作成（運営者専用）</div>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+    </a>
+    <a class="navcard" href="/admin-events.html">
+      <div class="icon analyticsIcon" aria-hidden="true">📅</div>
+      <div class="body">
+        <div class="name">イベント<wbr>予定の<wbr>入力</div>
+        <div class="desc">イベントカレンダーの予定を貼り付けで登録（運営者専用）</div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
@@ -1106,6 +1150,8 @@
           if (window.NewAsk) NewAsk.mount(document.getElementById('newAskList'), { onChanged: function(){ MASTER_READY.then(showRegStatus); } })
             .then(function(n){ if (n) document.getElementById('newAsk').hidden = false; });
           toggleAdminNav();
+          loadEventBox();    /* 98 開催中・もうすぐ */
+          loadMyRankBadge(); /* 97 あなたの位置のバッジ（他の読み込みの後） */
         } else if (IS_STANDALONE) {
           // 95 全画面で開いていて未ログイン：保存領域がブラウザと別なので、ログインし直しの案内を出す（/api/me は既存の1回だけ）
           var note = document.getElementById('standaloneNote'); if (note) note.hidden = false;
@@ -1113,6 +1159,76 @@
       })
       .catch(function(){ /* 失敗時は非表示のまま（ゲスト表示にフォールバック） */ });
   })();
+
+  /* ---------------- 97 あなたの位置：上位50%以内で一番良い指標をバッジに。トップの表示を遅らせないよう、他の読み込みの後に呼ぶ ---------------- */
+  function loadMyRankBadge(){
+    var NAMES = { unit_owned: 'URユニット', unit_max: 'URユニット完凸', sup_owned: 'URサポート', er_stage: 'エタロ' };
+    setTimeout(function(){
+      fetch('/api/my-rank', { credentials: 'same-origin' })
+        .then(function(res){ return res.json(); })
+        .then(function(data){
+          var best = null;
+          ((data && data.items) || []).forEach(function(it){
+            if (it.registered && !it.collecting && it.topPercent <= 50 && (!best || it.topPercent < best.topPercent)) best = it;
+          });
+          var b = document.getElementById('myRankBadge');
+          if (best && b) { b.textContent = NAMES[best.metric] + ' 上位' + best.topPercent + '%'; b.hidden = false; }
+        })
+        .catch(function(){ /* バッジなし */ });
+    }, 800);
+  }
+
+  /* ---------------- 98 開催中・もうすぐ（ログイン中だけ）。名前はtextContentで入れる ---------------- */
+  var EV_KIND = { gacha:'ガシャ', story:'イベント', raid:'強敵襲来', tower:'タワー', ml:'マスリ', campaign:'ミッション', update:'更新' };
+  function evDate(s){ return new Date(s.replace(' ', 'T') + ':00+09:00'); }
+  function evJst(d){ return new Date(d.getTime() + 9*3600000); }
+  function evMd(d){ var j = evJst(d); return (j.getUTCMonth()+1) + '/' + j.getUTCDate(); }
+  function evHm(d){ var j = evJst(d); return j.getUTCHours() + ':' + ('0' + j.getUTCMinutes()).slice(-2); }
+  function evLeft(ev, now){
+    var s = evDate(ev.startsAt), e = ev.endsAt ? evDate(ev.endsAt) : null;
+    if (s > now) {
+      if (!ev.dateFixed) return { cls:'up', main: ev.whenLabel || '日付未定', small:'日付未定' };
+      return { cls:'up', main: evMd(s) + ' ' + evHm(s) + ' 開始', small:'あと' + Math.ceil((s - now)/86400000) + '日' };
+    }
+    if (!e) return { cls:'', main:'開催中', small:'終了未定' };
+    if (evJst(now).toISOString().slice(0,10) === evJst(e).toISOString().slice(0,10)) return { cls:'today', main:'今日 ' + evHm(e) + ' まで', small:'あと' + Math.max(0, Math.floor((e - now)/3600000)) + '時間' };
+    var days = Math.floor((e - now)/86400000);
+    return { cls: days <= 3 ? 'soon' : '', main:'あと' + days + '日', small: evMd(e) + ' ' + evHm(e) + ' まで' };
+  }
+  function evResetText(now){
+    var j = evJst(now), left = 60 - (j.getUTCHours()*60 + j.getUTCMinutes()); if (left <= 0) left += 24*60;
+    return Math.floor(left/60) + ':' + ('0' + (left % 60)).slice(-2);
+  }
+  function loadEventBox(){
+    fetch('/api/events', { credentials: 'same-origin' })
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        if (!data || !data.loggedIn) return;
+        var now = new Date(), evs = data.events || [];
+        var live = evs.filter(function(ev){ return evDate(ev.startsAt) <= now && (!ev.endsAt || evDate(ev.endsAt) >= now); })
+          .sort(function(a, b){ return (a.endsAt ? evDate(a.endsAt).getTime() : 9e15) - (b.endsAt ? evDate(b.endsAt).getTime() : 9e15); });
+        var soon = evs.filter(function(ev){ return evDate(ev.startsAt) > now; })
+          .sort(function(a, b){ return evDate(a.startsAt) - evDate(b.startsAt); });
+        var rows = live.slice(0, 4).concat(soon.slice(0, 1));
+        if (!rows.length) return;
+        var box = document.getElementById('evRows'); box.textContent = '';
+        rows.forEach(function(ev){
+          var li = evLeft(ev, now), row = document.createElement('div'); row.className = 'evRow';
+          var chip = document.createElement('span'); chip.className = 'evChip evK-' + ev.kind; chip.textContent = EV_KIND[ev.kind] || ev.kind;
+          var ttl = document.createElement('div'); ttl.className = 'evTtl'; ttl.textContent = ev.title;
+          if (!ev.dateFixed) { var tb = document.createElement('span'); tb.className = 'evTbd'; tb.textContent = '日付未定'; ttl.appendChild(tb); }
+          var left = document.createElement('div'); left.className = 'evLeft ' + li.cls; left.textContent = li.main;
+          var sm = document.createElement('small'); sm.textContent = li.small; left.appendChild(sm);
+          row.appendChild(chip); row.appendChild(ttl); row.appendChild(left); box.appendChild(row);
+        });
+        document.getElementById('evMore').textContent = 'カレンダーを見る（開催中' + live.length + '件・予定' + soon.length + '件） ›';
+        var rs = document.getElementById('evReset'); rs.textContent = evResetText(now);
+        setInterval(function(){ rs.textContent = evResetText(new Date()); }, 60000);
+        document.getElementById('eventSection').hidden = false;
+        try { if (!sessionStorage.getItem('trk_cal_top_view')) { sessionStorage.setItem('trk_cal_top_view', '1'); fetch('/api/track', { method:'POST', body: JSON.stringify({ k:'cal_top_view' }), keepalive:true }).catch(function(){}); } } catch (e) {}
+      })
+      .catch(function(){ /* 失敗時は非表示のまま */ });
+  }
 
   /* ---------------- ㉖ 運営者（wrangler.jsoncのADMIN_USERNAMES）にだけ運営者専用の導線を表示 ---------------- */
   function toggleAdminNav(){

@@ -467,7 +467,7 @@ async function incrementUsageCounter(env, counterKey) {
 // 82 ユニット一覧からの誘導の計測（81の効果を見る。運営者専用の表示だけに使い、一般には出さない）
 //   POST /api/track {k}：ログイン不要。決まったキーだけ daily_stats に1足す（人やブラウザは記録しない）
 //   ログイン・新規登録の body.src：直前に押したユニット一覧の案内（ul_ml＝登録者の所持率の案内／ul_note＝自分の所持の案内）
-const TRACK_KEYS = new Set(["ul_view_guest", "ul_view_member", "ul_ml_seen_guest", "ul_click_ml", "ul_click_note", "dl_view_guest", "dl_view_member"]);
+const TRACK_KEYS = new Set(["ul_view_guest", "ul_view_member", "ul_ml_seen_guest", "ul_click_ml", "ul_click_note", "dl_view_guest", "dl_view_member", "rank_view", "rank_share", "cal_top_view", "cal_view"]);
 const AUTH_SRC_KEYS = new Set(["ul_ml", "ul_note"]);
 async function handleTrack(request, env) {
   let k = null;
@@ -1038,6 +1038,9 @@ async function runDailySnapshot(env, snapDate) {
      VALUES (?, ?, ?, ?, ?, ?)`
   ).bind(snapDate, accountsRow ? accountsRow.c : 0, units.totalUsers, supporters.totalUsers, er.totalUsers, toJstIsoString(new Date())));
   await env.DB.batch(statements);
+  // 97 あなたの位置：指標ごとの分布を rank_hist に保存（0062未適用なら何もしない）
+  try { await saveRankHist(env, snapDate); }
+  catch (e) { if (!isMissingSchemaError(e)) console.error("rank_hist error", snapDate, e); }
   return { snapDate, rows: rows.length };
 }
 
@@ -1419,6 +1422,310 @@ async function handleMlSeasons(request, env) {
     if (r.target_kind && r.target_name) s.targets.push({ kind: r.target_kind, id: r.target_id, name: r.target_name });
   }
   return jsonResponse({ seasons }, 200, MASTER_CACHE);
+}
+
+// ==== 97 あなたの位置（上位n%）参考実装 ====
+// worker.js に足す部分だけ。既存の getSessionUser / jsonResponse / isMissingSchemaError / toJstIsoString / addDays をそのまま使う。
+// 置く場所：「81 みんなのデータ」の節の後ろ（handleAnalyticsFreshness の前後どちらでもよい）。
+
+// 指標。unit_owned＝URユニット所持数／unit_max＝URユニット完凸数（level = 3）／sup_owned＝URサポート所持数／er_stage＝エタロのクリアステージ数
+// 公開前の確認用：true の間は /api/my-rank を運営者だけに返す（一般公開は false にして my-rank.html・top.html の切り替えと一緒にpush）
+const MY_RANK_ADMIN_ONLY = true;
+const RANK_METRICS = ["unit_owned", "unit_max", "sup_owned", "er_stage"];
+const RANK_MIN_USERS = 20;                  // 母数がこれ未満の指標は「集計中」
+const RANK_HIST_KEEP_DAYS = 7;              // rank_hist に残す日数
+const RANK_MEMO_TTL_MS = 10 * 60 * 1000;    // 分布（全員共通）をWorkerのメモリに持つ時間
+let RANK_MEMO = null;                       // { at, snapDate, hist: { metric: [[value, users], ...] }, max: { metric: n } }
+
+// 定時分析から呼ぶ。指標ごとの度数分布（値 → 人数）を作って rank_hist に保存する。
+// 母数は既存のルールどおり「その種別でデータ登録済み」（users.*_first_registered_at IS NOT NULL）。所持0件で登録した人は 0 に入る。
+// 所持数はマスターにある行だけ数える（/api/analytics/distribution と同じ）。
+async function saveRankHist(env, snapDate) {
+  const perUser = async (own, master, idc, reg) => (await env.DB.prepare(
+    `SELECT COUNT(m.${idc}) AS owned, COUNT(CASE WHEN o.level = 3 THEN m.${idc} END) AS maxed
+     FROM users u
+     LEFT JOIN ${own} o ON o.user_uid = u.user_uid
+     LEFT JOIN ${master} m ON m.${idc} = o.${idc}
+     WHERE u.${reg} IS NOT NULL
+     GROUP BY u.user_uid`).all()).results || [];
+  const units = await perUser("units_ownership", "units_master", "unit_id", "units_first_registered_at");
+  const sups = await perUser("supporters_ownership", "supporters_master", "supporter_id", "supporters_first_registered_at");
+  const ers = (await env.DB.prepare(
+    `SELECT COUNT(DISTINCT c.stage_id) AS n
+     FROM users u LEFT JOIN eternal_road_stage_clears c ON c.user_uid = u.user_uid
+     WHERE u.eternal_road_first_registered_at IS NOT NULL
+     GROUP BY u.user_uid`).all()).results || [];
+
+  const tally = (rows, key) => { const m = new Map(); for (const r of rows) m.set(r[key], (m.get(r[key]) || 0) + 1); return m; };
+  const hists = {
+    unit_owned: tally(units, "owned"), unit_max: tally(units, "maxed"),
+    sup_owned: tally(sups, "owned"), er_stage: tally(ers, "n")
+  };
+  const stmts = [env.DB.prepare("DELETE FROM rank_hist WHERE snap_date = ? OR snap_date < ?").bind(snapDate, addDays(snapDate, -RANK_HIST_KEEP_DAYS))];
+  const ins = "INSERT INTO rank_hist (snap_date, metric, value, users) VALUES (?, ?, ?, ?)";
+  let rows = 0;
+  for (const metric of RANK_METRICS) {
+    for (const [value, users] of hists[metric]) { stmts.push(env.DB.prepare(ins).bind(snapDate, metric, value, users)); rows++; }
+  }
+  await env.DB.batch(stmts);
+  RANK_MEMO = null;
+  return rows;
+}
+
+// 最新日の分布と、分母（マスターの件数・エタロのステージ数）を読む。10分メモ
+async function loadRankHist(env) {
+  if (RANK_MEMO && Date.now() - RANK_MEMO.at < RANK_MEMO_TTL_MS) return RANK_MEMO;
+  const { results } = await env.DB.prepare(
+    "SELECT snap_date, metric, value, users FROM rank_hist WHERE snap_date = (SELECT MAX(snap_date) FROM rank_hist) ORDER BY metric, value"
+  ).all();
+  const hist = {}; let snapDate = null;
+  for (const r of results || []) { snapDate = r.snap_date; (hist[r.metric] = hist[r.metric] || []).push([r.value, r.users]); }
+  const unitMax = (await env.DB.prepare("SELECT COUNT(*) AS c FROM units_master").first()).c;
+  const supMax = (await env.DB.prepare("SELECT COUNT(*) AS c FROM supporters_master").first()).c;
+  RANK_MEMO = { at: Date.now(), snapDate, hist,
+    max: { unit_owned: unitMax, unit_max: unitMax, sup_owned: supMax, er_stage: ETERNAL_ROAD_STAGE_IDS.size } };
+  return RANK_MEMO;
+}
+
+// 分布（[[値, 人数], ...] 値の昇順）と自分の値から、上位n%・中央値・10段の帯を出す。
+// 上位n% ＝ ceil((自分より多い人数 + 1) ÷ 母数 × 100)。/api/analytics/distribution・/api/analytics/ml と同じ定義。1〜100に収める
+function rankStats(pairs, mine, max) {
+  let total = 0, higher = 0;
+  for (const [v, u] of pairs) { total += u; if (v > mine) higher += u; }
+  if (total < RANK_MIN_USERS) return { total, collecting: true };
+  const at = k => { let acc = 0; for (const [v, u] of pairs) { acc += u; if (acc > k) return v; } return pairs.length ? pairs[pairs.length - 1][0] : 0; };
+  const median = total % 2 ? at((total - 1) / 2) : (at(total / 2 - 1) + at(total / 2)) / 2;
+  const band = v => max > 0 ? Math.min(9, Math.floor(v * 10 / max)) : 0;
+  const bands = new Array(10).fill(0);
+  for (const [v, u] of pairs) bands[band(v)] += u;
+  return { total, topPercent: Math.min(100, Math.max(1, Math.ceil((higher + 1) * 100 / total))), median, bands, myBand: band(mine) };
+}
+
+// GET /api/my-rank（ログイン必須）。未ログインは { loggedIn:false }（/api/my-ownership と同じ形）
+async function handleMyRank(request, env) {
+  const user = await getSessionUser(request, env);
+  if (!user) return jsonResponse({ loggedIn: false }, 200);
+  if (MY_RANK_ADMIN_ONLY && !isAdminUser(user, env)) return jsonResponse({ loggedIn: true, adminOnly: true, snapDate: null, items: [] }, 200, { "Cache-Control": "private, no-store" });   // 公開前：中身は返さない（403だとトップを開くたびにコンソールが赤くなるため200で空）
+  let memo;
+  try { memo = await loadRankHist(env); }
+  catch (e) { if (isMissingSchemaError(e)) return jsonResponse({ loggedIn: true, snapDate: null, items: [] }, 200); throw e; }   // 0062未適用
+  if (!memo.snapDate) return jsonResponse({ loggedIn: true, snapDate: null, items: [] }, 200);   // まだ1回も集計していない
+
+  const reg = await env.DB.prepare(
+    "SELECT units_first_registered_at AS u, supporters_first_registered_at AS s, eternal_road_first_registered_at AS e FROM users WHERE user_uid = ?"
+  ).bind(user.userUid).first() || {};
+  const mine = {};
+  if (reg.u) {
+    const r = await env.DB.prepare(
+      `SELECT COUNT(m.unit_id) AS owned, COUNT(CASE WHEN o.level = 3 THEN m.unit_id END) AS maxed
+       FROM units_ownership o JOIN units_master m ON m.unit_id = o.unit_id WHERE o.user_uid = ?`).bind(user.userUid).first();
+    mine.unit_owned = r.owned; mine.unit_max = r.maxed;
+  }
+  if (reg.s) {
+    mine.sup_owned = (await env.DB.prepare(
+      `SELECT COUNT(m.supporter_id) AS owned
+       FROM supporters_ownership o JOIN supporters_master m ON m.supporter_id = o.supporter_id WHERE o.user_uid = ?`).bind(user.userUid).first()).owned;
+  }
+  if (reg.e) {
+    mine.er_stage = (await env.DB.prepare(
+      "SELECT COUNT(DISTINCT stage_id) AS n FROM eternal_road_stage_clears WHERE user_uid = ?").bind(user.userUid).first()).n;
+  }
+  const items = RANK_METRICS.map(metric => {
+    const max = memo.max[metric];
+    if (!(metric in mine)) return { metric, registered: false, max };
+    return { metric, registered: true, value: mine[metric], max, ...rankStats(memo.hist[metric] || [], mine[metric], max) };
+  });
+  return jsonResponse({ loggedIn: true, snapDate: memo.snapDate, items }, 200, { "Cache-Control": "private, no-store" });
+}
+
+// ==== 98 イベントカレンダー 参考実装 ====
+// worker.js に足す部分だけ。既存の getSessionUser / requireAdmin / jsonResponse / isMissingSchemaError / loadMasterIdSet / jstDateString / addDays を使う。
+// 置く場所：「79 マスリ（/api/ml-seasons）」の節の後ろ。
+// 時刻の持ち方：game_events の starts_at・ends_at は JST の 'YYYY-MM-DD HH:MM'（タイムゾーンなし）。文字列のまま大小比較できる。
+
+// 公開前の確認用：true の間は /api/events を運営者だけに返す（一般公開は false にして calendar.html・top.html の切り替えと一緒にpush）
+const EVENTS_ADMIN_ONLY = true;
+const EVENT_KINDS = ["gacha", "story", "raid", "tower", "ml", "campaign", "update"];
+const EVENT_PAST_DAYS = 30;               // 終了から何日まで返すか（終了の一覧用）
+const EVENT_MEMO_TTL_MS = 5 * 60 * 1000;  // 全員共通の予定をWorkerのメモリに持つ時間（運営者が保存したら消す）
+let EVENT_MEMO = null;                    // { at, events, lastUpdated }
+const EVENT_TITLE_MAX = 80, EVENT_SUB_MAX = 80, EVENT_WHEN_MAX = 20, EVENT_ITEMS_MAX = 12, EVENT_BULK_MAX = 40;
+
+// 今（JST）の 'YYYY-MM-DD HH:MM'
+function jstMinuteString(date) {
+  return new Date(date.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 16).replace("T", " ");
+}
+
+// 予定（game_events＋マスリ）を読む。5分メモ。is_active=1 で、終了が30日以内か終了未定のもの
+async function loadEvents(env) {
+  if (EVENT_MEMO && Date.now() - EVENT_MEMO.at < EVENT_MEMO_TTL_MS) return EVENT_MEMO;
+  const today = jstDateString(new Date());
+  const cutoff = addDays(today, -EVENT_PAST_DAYS) + " 00:00";
+  const events = [];
+  let lastUpdated = null;
+  try {
+    const { results: rows } = await env.DB.prepare(
+      `SELECT event_id, kind, title, sub_title, starts_at, ends_at, date_fixed, when_label, updated_at
+       FROM game_events
+       WHERE is_active = 1 AND (ends_at IS NULL OR ends_at >= ?)
+       ORDER BY starts_at, event_id`).bind(cutoff).all();
+    const byId = new Map();
+    for (const r of rows || []) {
+      const e = { id: r.event_id, kind: r.kind, title: r.title, startsAt: r.starts_at, dateFixed: r.date_fixed === 1, items: [] };
+      if (r.sub_title) e.sub = r.sub_title;
+      if (r.ends_at) e.endsAt = r.ends_at;
+      if (r.when_label) e.whenLabel = r.when_label;
+      if (r.updated_at && (!lastUpdated || r.updated_at > lastUpdated)) lastUpdated = r.updated_at;
+      byId.set(r.event_id, e); events.push(e);
+    }
+    if (byId.size) {
+      // ピックアップの名前と、登録者の所持率（定時分析の最新日。owned_count / total_users）
+      const { results: items } = await env.DB.prepare(
+        `SELECT i.event_id, i.item_kind, i.item_id, COALESCE(u.name, s.name) AS name, a.owned_count, a.total_users
+         FROM game_event_items i
+         JOIN game_events e ON e.event_id = i.event_id AND e.is_active = 1 AND (e.ends_at IS NULL OR e.ends_at >= ?)
+         LEFT JOIN units_master u ON i.item_kind = 'unit' AND u.unit_id = i.item_id
+         LEFT JOIN supporters_master s ON i.item_kind = 'supporter' AND s.supporter_id = i.item_id
+         LEFT JOIN analytics_daily a ON a.kind = i.item_kind AND a.item_id = i.item_id
+              AND a.snap_date = (SELECT MAX(snap_date) FROM analytics_daily WHERE kind = 'unit')
+         ORDER BY i.event_id, i.sort_order, i.item_id`).bind(cutoff).all();
+      for (const it of items || []) {
+        const e = byId.get(it.event_id);
+        if (!e || !it.name) continue;   // マスターに無いIDは出さない
+        const x = { kind: it.item_kind, id: it.item_id, name: it.name };
+        if (it.total_users > 0) x.rate = Math.round(it.owned_count * 1000 / it.total_users) / 10;
+        e.items.push(x);
+      }
+    }
+  } catch (e) {
+    if (!isMissingSchemaError(e)) throw e;   // 0067未適用なら game_events は空のまま（マスリだけ出す）
+  }
+  // マスリは ml_seasons が正本（二重に入れない）。開始日12:00〜終了日11:00（SEASON 17 の公式のお知らせどおり）
+  // 終了日が空のシーズンは開始から30日以内だけ（本番に終了日の入っていない古いSEASON 5があるため）
+  try {
+    const { results: ml } = await env.DB.prepare(
+      `SELECT season_code, name, starts_on, ends_on FROM ml_seasons
+       WHERE is_active = 1 AND ((ends_on IS NULL AND starts_on >= ?) OR ends_on >= ?) ORDER BY starts_on`).bind(addDays(today, -EVENT_PAST_DAYS), addDays(today, -EVENT_PAST_DAYS)).all();
+    for (const s of ml || []) {
+      const e = { id: "ml-" + s.season_code, kind: "ml", title: "マスターリーグ SEASON " + s.season_code + (s.name ? " " + s.name : ""),
+        startsAt: s.starts_on + " 12:00", dateFixed: true, items: [] };
+      if (s.ends_on) e.endsAt = s.ends_on + " 11:00";
+      events.push(e);
+    }
+  } catch (e) {
+    if (!isMissingSchemaError(e)) throw e;
+  }
+  EVENT_MEMO = { at: Date.now(), events, lastUpdated };
+  return EVENT_MEMO;
+}
+
+// GET /api/events（ログイン必須）。未ログインは { loggedIn:false }
+async function handleEvents(request, env) {
+  const user = await getSessionUser(request, env);
+  if (!user) return jsonResponse({ loggedIn: false }, 200);
+  if (EVENTS_ADMIN_ONLY && !isAdminUser(user, env)) return jsonResponse({ loggedIn: true, adminOnly: true, events: [] }, 200, { "Cache-Control": "private, no-store" });   // 公開前：中身は返さない
+  const memo = await loadEvents(env);
+  const body = { loggedIn: true, now: jstMinuteString(new Date()), events: memo.events };
+  if (memo.lastUpdated) body.lastUpdated = memo.lastUpdated;
+  return jsonResponse(body, 200, { "Cache-Control": "private, max-age=60" });
+}
+
+// ---- 運営者の入力 ----
+// 1件の検査。OKなら { row, items }、だめなら { error }
+async function validateEventInput(env, ev) {
+  const id = Number(ev.id);
+  if (!Number.isSafeInteger(id) || id <= 0) return { error: "id" };
+  if (!EVENT_KINDS.includes(ev.kind) || ev.kind === "ml") return { error: "kind" };   // マスリは ml_seasons で入れる
+  const title = String(ev.title || "").trim();
+  if (!title || title.length > EVENT_TITLE_MAX) return { error: "title" };
+  const sub = String(ev.sub || "").trim();
+  if (sub.length > EVENT_SUB_MAX) return { error: "sub" };
+  const re = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/;
+  const startsAt = String(ev.startsAt || "").trim();
+  const endsAt = String(ev.endsAt || "").trim();
+  const whenLabel = String(ev.whenLabel || "").trim();
+  const dateFixed = !whenLabel;
+  if (!re.test(startsAt)) return { error: "startsAt" };
+  if (endsAt && (!re.test(endsAt) || endsAt < startsAt)) return { error: "endsAt" };
+  if (whenLabel.length > EVENT_WHEN_MAX) return { error: "whenLabel" };
+  if (/https?:/i.test(title + sub + whenLabel)) return { error: "url" };
+  const items = [];
+  const list = Array.isArray(ev.items) ? ev.items : [];
+  if (list.length > EVENT_ITEMS_MAX) return { error: "items" };
+  const units = await loadMasterIdSet(env, "unit"), sups = await loadMasterIdSet(env, "supporter");
+  if (!units || !sups) return { error: "master" };
+  list.forEach((it, i) => {
+    const k = it.kind === "supporter" ? "supporter" : "unit", n = Number(it.id);
+    if ((k === "unit" ? units : sups).has(n) && !items.some(x => x.kind === k && x.id === n)) items.push({ kind: k, id: n, sort: i + 1 });
+  });
+  if (items.length !== list.length) return { error: "items" };
+  return { row: { id, kind: ev.kind, title, sub: sub || null, startsAt, endsAt: endsAt || null, dateFixed: dateFixed ? 1 : 0,
+    whenLabel: whenLabel || null, sourceRef: ev.sourceRef ? String(ev.sourceRef).slice(0, 20) : String(id) }, items };
+}
+
+function eventUpsertStatements(env, row, items) {
+  const now = jstDateString(new Date());
+  return [
+    env.DB.prepare(`INSERT OR REPLACE INTO game_events (event_id, kind, title, sub_title, starts_at, ends_at, date_fixed, when_label, source_ref, is_active, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`)
+      .bind(row.id, row.kind, row.title, row.sub, row.startsAt, row.endsAt, row.dateFixed, row.whenLabel, row.sourceRef, now),
+    env.DB.prepare("DELETE FROM game_event_items WHERE event_id = ?").bind(row.id),
+    ...items.map(it => env.DB.prepare("INSERT INTO game_event_items (event_id, item_kind, item_id, sort_order) VALUES (?, ?, ?, ?)").bind(row.id, it.kind, it.id, it.sort))
+  ];
+}
+
+// まとめて貼り付け：1行1件。区切りは「|」
+//   ID|種別|名前|補足|開始|終了|ピックアップ
+//   2026103104|gacha|新ユニット追加！ピックアップガシャ|ネオ・ジオング(限定)…|2026-10-31 12:00|2026-11-23 11:59|u90,u91,s52
+// 開始を「未定:11月中旬」と書くと日付未定（開始の並び順は終了の欄に書いた仮の日付、無ければ今日）。終了は空でよい
+function parseEventBulk(text) {
+  const out = [];
+  for (const raw of String(text || "").split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const c = line.split("|").map(s => s.trim());
+    const ev = { id: c[0], kind: c[1], title: c[2], sub: c[3], startsAt: c[4], endsAt: c[5], items: [] };
+    const m = /^未定[:：](.+)$/.exec(c[4] || "");
+    if (m) { ev.whenLabel = m[1]; ev.startsAt = (c[5] && /^\d{4}-\d{2}-\d{2}/.test(c[5]) ? c[5].slice(0, 10) : jstDateString(new Date())) + " 12:00"; ev.endsAt = ""; }
+    for (const t of (c[6] || "").split(",").map(s => s.trim()).filter(Boolean)) {
+      ev.items.push({ kind: t[0] === "s" ? "supporter" : "unit", id: t.slice(1) });
+    }
+    out.push(ev);
+  }
+  return out;
+}
+
+// POST /api/admin/events（運営者のみ）
+//   { action: "upsert", event: {...} } ／ { action: "bulk", text: "..." , dryRun: true|false } ／ { action: "hide", id } ／ { action: "list" }
+async function handleAdminEvents(request, env) {
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
+  let body; try { body = await request.json(); } catch (e) { return jsonResponse({ error: "bad_json" }, 400); }
+  if (body.action === "list") {
+    const { results } = await env.DB.prepare(
+      "SELECT event_id, kind, title, sub_title, starts_at, ends_at, date_fixed, when_label, is_active, updated_at FROM game_events ORDER BY COALESCE(ends_at, '9999') DESC LIMIT 100").all();
+    return jsonResponse({ ok: true, events: results }, 200);
+  }
+  if (body.action === "hide") {
+    const id = Number(body.id);
+    if (!Number.isSafeInteger(id)) return jsonResponse({ error: "id" }, 400);
+    await env.DB.prepare("UPDATE game_events SET is_active = 0, updated_at = ? WHERE event_id = ?").bind(jstDateString(new Date()), id).run();
+    EVENT_MEMO = null;
+    return jsonResponse({ ok: true }, 200);
+  }
+  const inputs = body.action === "bulk" ? parseEventBulk(body.text) : body.action === "upsert" ? [body.event || {}] : null;
+  if (!inputs) return jsonResponse({ error: "action" }, 400);
+  if (!inputs.length || inputs.length > EVENT_BULK_MAX) return jsonResponse({ error: "count" }, 400);
+  const checked = [];
+  for (let i = 0; i < inputs.length; i++) {
+    const v = await validateEventInput(env, inputs[i]);
+    if (v.error) return jsonResponse({ error: "invalid", line: i + 1, field: v.error }, 400);   // 1件でもだめなら何も書かない
+    checked.push(v);
+  }
+  if (body.dryRun) return jsonResponse({ ok: true, dryRun: true, events: checked.map(v => ({ ...v.row, items: v.items })) }, 200);
+  await env.DB.batch(checked.flatMap(v => eventUpsertStatements(env, v.row, v.items)));
+  EVENT_MEMO = null;
+  return jsonResponse({ ok: true, saved: checked.length }, 200);
 }
 
 // 92 追加改修（11-05）：false の間は武装強化パーツだけを返す（研究技術書は準備が整うまで外に出さない）
@@ -3105,6 +3412,10 @@ export default {
       return withJsonError(() => handleAnalyticsTrend(request, env, url), "trend");
     }
     // 81 みんなのデータ：案8 マスリの所持分布（ログイン必須）・案10 データの鮮度（運営者専用・一般公開しない）
+    // 97 あなたの位置（ログイン必須）
+    if (url.pathname === "/api/my-rank" && request.method === "GET") {
+      return withJsonError(() => handleMyRank(request, env), "my-rank");
+    }
     if (url.pathname === "/api/analytics/ml" && request.method === "GET") {
       return withJsonError(() => handleAnalyticsMl(request, env, url), "ml");
     }
@@ -3134,6 +3445,13 @@ export default {
     }
     if (url.pathname === "/api/ml-seasons" && request.method === "GET") {
       return handleMlSeasons(request, env);
+    }
+    // 98 イベントカレンダー（ログイン必須）・運営者の入力
+    if (url.pathname === "/api/events" && request.method === "GET") {
+      return withJsonError(() => handleEvents(request, env), "events");
+    }
+    if (url.pathname === "/api/admin/events" && request.method === "POST") {
+      return withJsonError(() => handleAdminEvents(request, env), "admin-events");
     }
     if (url.pathname === "/api/drops" && request.method === "GET") {
       return handleDrops(request, env);
