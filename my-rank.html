@@ -362,10 +362,10 @@
   };
   /* 10%刻みの帯の名前（worker.js の DIST_BAND_LABELS と同じ）。上から多い順に並べる */
   var BAND_LABELS = ['10%未満','10%台','20%台','30%台','40%台','50%台','60%台','70%台','80%台','90%以上'];
-  var SHARE_LABEL = {   /* Xシェアに載せる指標と表記（この順で並ぶ＝items の順） */
-    unit_owned:{ name:'URユニット所持率', word:'機' },
-    unit_max:  { name:'URユニット完凸率', word:'機' },
-    sup_owned: { name:'URサポート所持率', word:'体' }
+  var SHARE_LABEL = {   /* Xシェアに載せる指標と表記（この順で並ぶ＝items の順）。Xのスマホ表示で1行に収まるよう「UR」は付けない（11-15 ESP指示） */
+    unit_owned:{ name:'ユニット所持率', word:'機' },
+    unit_max:  { name:'ユニット完凸率', word:'機' },
+    sup_owned: { name:'サポート所持率', word:'体' }
   };
   var RANK_SHOW_TOP_MAX = 50; /* Xシェアの文面に上位n%を添えるのは上位50%以内の指標だけ（画面の上位n%は運営者ページと同じく常に出す） */
   var TOP_URL = 'https://ggene-ur-checker.polarbear14869.workers.dev/top';
