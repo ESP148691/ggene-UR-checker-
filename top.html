@@ -221,7 +221,7 @@
   .navcard .regBadge.ok .st{color:#7fd9a0;}
   .navcard .regBadge.todo{border-color:rgba(218,185,73,.55);}
   .navcard .regBadge.todo .st{color:var(--gold);}
-  /* 97 あなたの位置のバッジ / 98 イベントカレンダー欄 */
+  /* 97 ユーザー別所持率分布のバッジ / 98 イベントカレンダー欄 */
   .navcard .rankBadge{display:inline-block;margin-left:8px;font-size:11px;font-weight:700;color:var(--gold);border:1px solid rgba(218,185,73,.55);border-radius:999px;padding:0 8px;vertical-align:2px;white-space:nowrap;}
   .navcard .rankBadge[hidden]{display:none;}
   .evSec[hidden]{display:none;}
@@ -544,11 +544,11 @@
       <div class="arrow">&rsaquo;</div>
     </a>
     <!-- 97 公開前は運営者だけ（data-admin-only hidden）。一般公開は2つの属性を消し、worker.js の MY_RANK_ADMIN_ONLY と my-rank.html の ADMIN_ONLY を false に -->
-    <!-- 97 あなたの位置（上位n%）。この節ごとログイン中のみ表示。バッジは /api/my-rank の結果（上位50%以内の一番良い指標） -->
+    <!-- 97 ユーザー別所持率分布（上位n%）。この節ごとログイン中のみ表示。バッジは /api/my-rank の結果（上位50%以内の一番良い指標） -->
     <a class="navcard" href="/my-rank.html" id="myRankNav" data-admin-only hidden>
       <div class="icon analyticsIcon" aria-hidden="true">🏅</div>
       <div class="body">
-        <div class="name">あなたの<wbr>位置<span class="rankBadge" id="myRankBadge" hidden></span></div>
+        <div class="name">ユーザー別<wbr>所持率分布<span class="rankBadge" id="myRankBadge" hidden></span></div>
         <div class="desc">登録ユーザーの中で上位何%かを確認できます。</div>
       </div>
       <div class="arrow">&rsaquo;</div>
@@ -1151,7 +1151,7 @@
             .then(function(n){ if (n) document.getElementById('newAsk').hidden = false; });
           toggleAdminNav();
           loadEventBox();    /* 98 イベント情報 */
-          loadMyRankBadge(); /* 97 あなたの位置のバッジ（他の読み込みの後） */
+          loadMyRankBadge(); /* 97 ユーザー別所持率分布のバッジ（他の読み込みの後） */
         } else if (IS_STANDALONE) {
           // 95 全画面で開いていて未ログイン：保存領域がブラウザと別なので、ログインし直しの案内を出す（/api/me は既存の1回だけ）
           var note = document.getElementById('standaloneNote'); if (note) note.hidden = false;
@@ -1160,7 +1160,7 @@
       .catch(function(){ /* 失敗時は非表示のまま（ゲスト表示にフォールバック） */ });
   })();
 
-  /* ---------------- 97 あなたの位置：上位50%以内で一番良い指標をバッジに。トップの表示を遅らせないよう、他の読み込みの後に呼ぶ ---------------- */
+  /* ---------------- 97 ユーザー別所持率分布：上位50%以内で一番良い指標をバッジに。トップの表示を遅らせないよう、他の読み込みの後に呼ぶ ---------------- */
   function loadMyRankBadge(){
     var NAMES = { unit_owned: 'URユニット', unit_max: 'URユニット完凸', sup_owned: 'URサポート', er_stage: 'エタロ' };
     setTimeout(function(){

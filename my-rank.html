@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>あなたの位置 | Gジェネエターナル ファンツール</title>
+<title>ユーザー別所持率分布 | Gジェネエターナル ファンツール</title>
 <!-- 95 サイトアイコン（Fan Tool）。ファイルは checker/ 直下。差し替えたら ?v= の数字を上げる -->
 <link rel="icon" href="/favicon.ico?v=1" sizes="16x16 32x32 48x48">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1">
@@ -15,7 +15,7 @@
 <meta name="description" content="Gジェネエターナルのファン向け非公式ツール。UR所持率・凸状況チェッカー、エタロ攻略、ドロップ一覧、自己紹介カードなど。">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Gジェネエターナル ファンツール">
-<meta property="og:title" content="あなたの位置｜Gジェネエターナル ファンツール">
+<meta property="og:title" content="ユーザー別所持率分布｜Gジェネエターナル ファンツール">
 <meta property="og:description" content="UR所持率・凸状況チェッカー、エタロ攻略、ドロップ一覧、自己紹介カードなど。ファン向け非公式ツール">
 <meta property="og:url" content="https://ggene-ur-checker.polarbear14869.workers.dev/my-rank.html">
 <meta property="og:image" content="https://ggene-ur-checker.polarbear14869.workers.dev/images/ogp.png?v=1">
@@ -278,7 +278,7 @@
   [hidden]{display:none !important;}
 /* ---- 共通：ログイン案内・読み込み表示は analytics.html と同じ ---- */
 
-  /* 97 あなたの位置 */
+  /* 97 ユーザー別所持率分布 */
   .rankGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   @media (max-width:340px){ .rankGrid{grid-template-columns:1fr;} }
   .rankCard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 10px 8px;min-width:0;}
@@ -305,14 +305,14 @@
 <main class="wrap" id="mainWrap">
   <div class="headArea">
     <p class="eyebrow">YOUR POSITION</p>
-    <h1>あなたの位置</h1>
+    <h1>ユーザー別所持率分布</h1>
     <p class="sub">登録ユーザーの中で、あなたの所持数・攻略状況がどのあたりかを表示します。</p>
 
     <div id="guardView" class="guardCard" hidden>
       <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、登録ユーザーの中での自分の位置が見られるようになります。</p>
       <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
     </div>
-    <div id="adminOnlyView" class="guardCard" hidden><p>あなたの位置は準備中です。公開までもうしばらくお待ちください。</p></div>
+    <div id="adminOnlyView" class="guardCard" hidden><p>ユーザー別所持率分布は準備中です。公開までもうしばらくお待ちください。</p></div>
     <div id="loadingView" class="stateMsg">読み込み中...</div>
     <div id="errorView" class="stateMsg" hidden>データの取得に失敗しました。時間をおいて再度お試しください。</div>
 

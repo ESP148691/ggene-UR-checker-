@@ -1038,7 +1038,7 @@ async function runDailySnapshot(env, snapDate) {
      VALUES (?, ?, ?, ?, ?, ?)`
   ).bind(snapDate, accountsRow ? accountsRow.c : 0, units.totalUsers, supporters.totalUsers, er.totalUsers, toJstIsoString(new Date())));
   await env.DB.batch(statements);
-  // 97 あなたの位置：指標ごとの分布を rank_hist に保存（0062未適用なら何もしない）
+  // 97 ユーザー別所持率分布：指標ごとの分布を rank_hist に保存（0062未適用なら何もしない）
   try { await saveRankHist(env, snapDate); }
   catch (e) { if (!isMissingSchemaError(e)) console.error("rank_hist error", snapDate, e); }
   return { snapDate, rows: rows.length };
@@ -1424,7 +1424,7 @@ async function handleMlSeasons(request, env) {
   return jsonResponse({ seasons }, 200, MASTER_CACHE);
 }
 
-// ==== 97 あなたの位置（上位n%）参考実装 ====
+// ==== 97 ユーザー別所持率分布（上位n%）参考実装 ====
 // worker.js に足す部分だけ。既存の getSessionUser / jsonResponse / isMissingSchemaError / toJstIsoString / addDays をそのまま使う。
 // 置く場所：「81 みんなのデータ」の節の後ろ（handleAnalyticsFreshness の前後どちらでもよい）。
 
@@ -3412,7 +3412,7 @@ export default {
       return withJsonError(() => handleAnalyticsTrend(request, env, url), "trend");
     }
     // 81 みんなのデータ：案8 マスリの所持分布（ログイン必須）・案10 データの鮮度（運営者専用・一般公開しない）
-    // 97 あなたの位置（ログイン必須）
+    // 97 ユーザー別所持率分布（ログイン必須）
     if (url.pathname === "/api/my-rank" && request.method === "GET") {
       return withJsonError(() => handleMyRank(request, env), "my-rank");
     }
