@@ -465,9 +465,9 @@
   </section>
 
   <!-- 98 公開前は運営者だけ（worker.js の EVENTS_ADMIN_ONLY＝true の間は /api/events が運営者以外に空の予定を返す＝欄は出ない） -->
-  <!-- 98 開催中・もうすぐ（ログイン中だけ。toggleAnalyticsNav() が /api/events を呼んで1件以上あれば表示） -->
-  <section class="section evSec" id="eventSection" hidden aria-label="開催中・もうすぐ">
-    <div class="secHead"><p class="sectionLabel">開催中・もうすぐ</p><span class="reset">デイリー更新まで <b id="evReset">-</b></span></div>
+  <!-- 98 イベント情報（ログイン中だけ。toggleAnalyticsNav() が /api/events を呼んで1件以上あれば表示） -->
+  <section class="section evSec" id="eventSection" hidden aria-label="イベント情報">
+    <div class="secHead"><p class="sectionLabel">イベント情報</p><span class="reset">デイリー更新まで <b id="evReset">-</b></span></div>
     <div id="evRows"></div>
     <a class="evMore" href="/calendar.html" id="evMore">カレンダーを見る ›</a>
   </section>
@@ -1150,7 +1150,7 @@
           if (window.NewAsk) NewAsk.mount(document.getElementById('newAskList'), { onChanged: function(){ MASTER_READY.then(showRegStatus); } })
             .then(function(n){ if (n) document.getElementById('newAsk').hidden = false; });
           toggleAdminNav();
-          loadEventBox();    /* 98 開催中・もうすぐ */
+          loadEventBox();    /* 98 イベント情報 */
           loadMyRankBadge(); /* 97 あなたの位置のバッジ（他の読み込みの後） */
         } else if (IS_STANDALONE) {
           // 95 全画面で開いていて未ログイン：保存領域がブラウザと別なので、ログインし直しの案内を出す（/api/me は既存の1回だけ）
@@ -1178,7 +1178,7 @@
     }, 800);
   }
 
-  /* ---------------- 98 開催中・もうすぐ（ログイン中だけ）。名前はtextContentで入れる ---------------- */
+  /* ---------------- 98 イベント情報（ログイン中だけ）。名前はtextContentで入れる ---------------- */
   var EV_KIND = { gacha:'ガシャ', story:'イベント', raid:'強敵襲来', tower:'タワー', ml:'マスリ', campaign:'ミッション', update:'更新' };
   function evDate(s){ return new Date(s.replace(' ', 'T') + ':00+09:00'); }
   function evJst(d){ return new Date(d.getTime() + 9*3600000); }
