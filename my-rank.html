@@ -295,6 +295,25 @@
   .rankCard .n{font-size:10px;color:var(--muted);margin:4px 0 0;}
   .rankCard.todo{display:flex;flex-direction:column;justify-content:center;}
   .rankCard.todo a{color:var(--cyan);font-size:12px;text-decoration:none;margin-top:4px;}
+  /* 運営者ページ（analytics-admin.html）の所持率分布と同じ見せ方：自分の率・件数・上位n%、集計対象・平均・中央値、10段の帯ごとの人数と割合 */
+  .rankList{display:flex;flex-direction:column;gap:12px;}
+  .distCard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 12px 8px;min-width:0;}
+  .distCard h2{font-size:14px;margin:0 0 8px;color:var(--text);}
+  .distCard .big{font-size:14px;font-weight:700;line-height:1.6;margin:0;}
+  .distCard .big b{color:var(--gold);font-size:22px;font-variant-numeric:tabular-nums;margin:0 2px;}
+  .distCard .nw{display:inline-block;white-space:nowrap;}
+  .distCard .meta .nw{margin-right:1em;}
+  .distCard .meta{font-size:11.5px;color:var(--muted);margin:4px 0 10px;line-height:1.7;}
+  .distCard.todo a{color:var(--cyan);font-size:12px;text-decoration:none;}
+  .distCard .msg{font-size:12px;color:var(--muted);margin:2px 0 6px;}
+  .dRow{display:grid;grid-template-columns:5.2em 1fr 8.5em;gap:8px;align-items:center;font-size:12px;margin:0 0 5px;padding:3px 4px;border-radius:4px;border:1px solid transparent;}
+  .dRow.mine{border-color:var(--gold);background:rgba(218,185,73,.08);}
+  .dTrack{height:14px;background:rgba(147,163,179,.14);border-radius:0 4px 4px 0;overflow:hidden;}
+  .dFill{display:block;height:100%;background:rgba(77,208,225,.55);}
+  .dRow.mine .dFill{background:var(--gold);}
+  .dVal{font-family:'Share Tech Mono',monospace;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .dVal small{color:var(--muted);margin-left:3px;}
+  @media (max-width:380px){ .dRow{grid-template-columns:4.6em 1fr 7.4em;gap:5px;font-size:11px;} }
   .rankNote{font-size:11px;color:var(--muted);margin:10px 2px 0;line-height:1.7;}
   .shareBtn{display:block;margin:12px 0 0;text-align:center;border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:8px;font-size:13px;text-decoration:none;background:transparent;width:100%;cursor:pointer;font-family:inherit;}
   .pageFooter{margin-top:28px;}
@@ -317,7 +336,7 @@
     <div id="errorView" class="stateMsg" hidden>データの取得に失敗しました。時間をおいて再度お試しください。</div>
 
     <div id="contentView" hidden>
-      <div class="rankGrid" id="rankGrid"></div>
+      <div class="rankList" id="rankGrid"></div>
       <p class="rankNote" id="rankNote"></p>
       <button type="button" class="shareBtn" id="shareBtn" hidden>Xでシェア</button>
     </div>
@@ -336,12 +355,14 @@
   "use strict";
   var ADMIN_ONLY = true;   /* true＝運営者専用（公開前の確認・切り戻し用）。一般公開は false＋worker.js・top.html の切り替え */
   var RANK_LABEL = {
-    unit_owned:{ name:'URユニット 所持数', word:'機', href:'/unit' },
-    unit_max:  { name:'URユニット 完凸数', word:'機', href:'/unit' },
-    sup_owned: { name:'URサポート 所持数', word:'体', href:'/supporter.html' },
-    er_stage:  { name:'エタロ クリアステージ', word:'', href:'/eternal-road.html' }
+    unit_owned:{ name:'URユニット 所持率分布', rate:'所持率', count:'所持数', word:'機', href:'/unit' },
+    unit_max:  { name:'URユニット 完凸率分布', rate:'完凸率', count:'完凸数', word:'機', href:'/unit' },
+    sup_owned: { name:'URサポート 所持率分布', rate:'所持率', count:'所持数', word:'体', href:'/supporter.html' },
+    er_stage:  { name:'エタロ クリア率分布', rate:'クリア率', count:'クリアステージ', word:'ステージ', href:'/eternal-road.html' }
   };
-  var RANK_SHOW_TOP_MAX = 50; /* 上位n%を出すのは上位50%以内の人だけ。それより下は中央値との比較 */
+  /* 10%刻みの帯の名前（worker.js の DIST_BAND_LABELS と同じ）。上から多い順に並べる */
+  var BAND_LABELS = ['10%未満','10%台','20%台','30%台','40%台','50%台','60%台','70%台','80%台','90%以上'];
+  var RANK_SHOW_TOP_MAX = 50; /* Xシェアの文面を作るのは上位50%以内の指標だけ（画面の上位n%は運営者ページと同じく常に出す） */
   var TOP_URL = 'https://ggene-ur-checker.polarbear14869.workers.dev/top';
   var guardView = document.getElementById('guardView'), loadingView = document.getElementById('loadingView'),
       errorView = document.getElementById('errorView'), contentView = document.getElementById('contentView');
@@ -353,43 +374,53 @@
     try { fetch('/api/track', { method:'POST', body: JSON.stringify({ k:k }), keepalive:true }).catch(function(){}); } catch (e) {}
   }
 
+  function pct1(n, total){ return total > 0 ? (Math.round(n * 1000 / total) / 10).toFixed(1) + '%' : '0.0%'; }
   function renderRank(data){
     var grid = document.getElementById('rankGrid'); grid.textContent = '';
     var share = [];
     (data.items || []).forEach(function(it){
       var lb = RANK_LABEL[it.metric]; if (!lb) return;
-      var card = el('div', 'rankCard');
-      card.appendChild(el('p', 'lb', lb.name));
+      var card = el('section', 'distCard');
+      card.appendChild(el('h2', null, lb.name));
       if (!it.registered){
         card.className += ' todo';
-        card.appendChild(el('p', 'top', '未登録'));
-        var a = el('a', null, '登録すると位置が分かります ›'); a.href = lb.href; card.appendChild(a);
+        card.appendChild(el('p', 'msg', 'あなたの' + lb.rate + 'はデータ登録後に表示されます'));
+        var a = el('a', null, '登録する ›'); a.href = lb.href; card.appendChild(a);
         grid.appendChild(card); return;
       }
-      var v = el('p', 'val', String(it.value)); v.appendChild(el('small', null, ' / ' + it.max + lb.word)); card.appendChild(v);
       if (it.collecting){
-        card.appendChild(el('p', 'top', '集計中（登録者が20人以上になると表示）'));
+        var bg = el('p', 'big', 'あなたの' + lb.count + ' ' + it.value + ' / ' + it.max + lb.word); card.appendChild(bg);
+        card.appendChild(el('p', 'msg', '集計中（登録者が20人以上になると分布を表示します）'));
         grid.appendChild(card); return;
       }
-      var top = el('p', 'top');
-      if (it.topPercent <= RANK_SHOW_TOP_MAX){
-        top.appendChild(document.createTextNode('登録者の上位')); top.appendChild(el('b', null, it.topPercent + '%'));
-        share.push(lb.name.replace(' ', '') + ' ' + it.value + '/' + it.max + lb.word + ' 登録者の上位' + it.topPercent + '%');
-      } else {
-        top.className += ' mid';
-        top.appendChild(document.createTextNode('登録者の中央値')); top.appendChild(el('b', null, it.median + lb.word));
+      /* 1行目：あなたの所持率 n%（x機／y機）・上位n% */
+      var big = el('p', 'big');
+      big.appendChild(document.createTextNode('あなたの' + lb.rate + ' '));
+      big.appendChild(el('b', null, it.rate + '%'));
+      big.appendChild(el('span', 'nw', '（' + it.value + lb.word + '／' + it.max + lb.word + '）'));
+      big.appendChild(el('span', 'nw', '・上位' + it.topPercent + '%'));
+      card.appendChild(big);
+      if (it.topPercent <= RANK_SHOW_TOP_MAX) share.push(lb.name.replace(' ', '').replace('分布', '') + ' ' + it.rate + '%（' + it.value + '/' + it.max + lb.word + '） 登録者の上位' + it.topPercent + '%');
+      /* 2行目：集計対象・平均・中央値（運営者ページと同じ） */
+      var meta = el('p', 'meta');   /* 項目の途中で折り返さない（狭い画面では項目ごとに次の行へ） */
+      ['集計対象 ' + it.total.toLocaleString() + '人', '平均 ' + it.avgRate + '%（' + it.avg + lb.word + '）', '中央値 ' + it.medianRate + '%（' + it.median + lb.word + '）']
+        .forEach(function(t){ meta.appendChild(el('span', 'nw', t)); });
+      card.appendChild(meta);
+      /* 帯ごとの人数と割合。90%以上を上に */
+      var mx = Math.max.apply(null, it.bands) || 1;
+      for (var i = 9; i >= 0; i--){
+        var n = it.bands[i] || 0;
+        var row = el('div', 'dRow' + (i === it.myBand ? ' mine' : ''));
+        row.appendChild(el('div', null, BAND_LABELS[i]));
+        var tr = el('div', 'dTrack'), f = el('span', 'dFill'); f.style.width = (n * 100 / mx) + '%'; tr.appendChild(f); row.appendChild(tr);
+        var v = el('div', 'dVal', n + '人'); v.appendChild(el('small', null, pct1(n, it.total))); row.appendChild(v);
+        card.appendChild(row);
       }
-      card.appendChild(top);
-      var bars = el('div', 'bars'), mx = Math.max.apply(null, it.bands) || 1;
-      it.bands.forEach(function(n, i){ var b = el('i', i === it.myBand ? 'me' : ''); b.style.height = Math.max(4, Math.round(n / mx * 100)) + '%'; bars.appendChild(b); });
-      card.appendChild(bars);
-      var ax = el('div', 'axis'); ax.appendChild(el('span', null, '少')); ax.appendChild(el('span', null, 'あなたは金色の帯')); ax.appendChild(el('span', null, '多')); card.appendChild(ax);
-      card.appendChild(el('p', 'n', '集計対象 ' + it.total.toLocaleString() + '人'));
       grid.appendChild(card);
     });
     var d = data.snapDate ? data.snapDate.slice(5).replace('-', '/') : null;
     document.getElementById('rankNote').textContent = d
-      ? '登録者の分布は毎日4:00に更新します（' + d + ' 時点）。あなたの数は今の登録内容です。'
+      ? '登録者の分布は毎日4:00に更新します（' + d + ' 時点）。あなたの数は今の登録内容です。金色の枠があなたのいる帯です。'
       : '集計の準備中です。明日4:00以降にもう一度開いてください。';
     var btn = document.getElementById('shareBtn');
     shareText = share.length ? share[0] + 'でした #ジージェネエターナル' : '';

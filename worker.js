@@ -1497,8 +1497,13 @@ function rankStats(pairs, mine, max) {
   const median = total % 2 ? at((total - 1) / 2) : (at(total / 2 - 1) + at(total / 2)) / 2;
   const band = v => max > 0 ? Math.min(9, Math.floor(v * 10 / max)) : 0;
   const bands = new Array(10).fill(0);
-  for (const [v, u] of pairs) bands[band(v)] += u;
-  return { total, topPercent: Math.min(100, Math.max(1, Math.ceil((higher + 1) * 100 / total))), median, bands, myBand: band(mine) };
+  let sum = 0;
+  for (const [v, u] of pairs) { bands[band(v)] += u; sum += v * u; }
+  // 運営者ページの所持率分布（/api/analytics/distribution）と同じ指標：率（%）・平均・中央値は小数1桁、自分の率は切り捨て整数
+  const r1 = x => Math.round(x * 10) / 10;
+  const rate = v => max > 0 ? v * 100 / max : 0;
+  return { total, topPercent: Math.min(100, Math.max(1, Math.ceil((higher + 1) * 100 / total))), median, bands, myBand: band(mine),
+    rate: max > 0 ? Math.floor(mine * 100 / max) : 0, avg: r1(sum / total), avgRate: r1(rate(sum / total)), medianRate: r1(rate(median)) };
 }
 
 // GET /api/my-rank（ログイン必須）。未ログインは { loggedIn:false }（/api/my-ownership と同じ形）
