@@ -1586,7 +1586,7 @@ async function loadEvents(env) {
     if (byId.size) {
       // ピックアップの名前と、登録者の所持率（定時分析の最新日。owned_count / total_users）
       const { results: items } = await env.DB.prepare(
-        `SELECT i.event_id, i.item_kind, i.item_id, COALESCE(u.name, s.name) AS name, a.owned_count, a.total_users
+        `SELECT i.event_id, i.item_kind, i.item_id, COALESCE(u.name, s.name) AS name, COALESCE(u.limited, s.limited) AS limited, a.owned_count, a.total_users
          FROM game_event_items i
          JOIN game_events e ON e.event_id = i.event_id AND e.is_active = 1 AND (e.ends_at IS NULL OR e.ends_at >= ?)
          LEFT JOIN units_master u ON i.item_kind = 'unit' AND u.unit_id = i.item_id
@@ -1597,7 +1597,7 @@ async function loadEvents(env) {
       for (const it of items || []) {
         const e = byId.get(it.event_id);
         if (!e || !it.name) continue;   // マスターに無いIDは出さない
-        const x = { kind: it.item_kind, id: it.item_id, name: it.name };
+        const x = { kind: it.item_kind, id: it.item_id, name: it.name, limited: it.limited === 1 };
         if (it.total_users > 0) x.rate = Math.round(it.owned_count * 1000 / it.total_users) / 10;
         e.items.push(x);
       }

@@ -362,7 +362,12 @@
   };
   /* 10%刻みの帯の名前（worker.js の DIST_BAND_LABELS と同じ）。上から多い順に並べる */
   var BAND_LABELS = ['10%未満','10%台','20%台','30%台','40%台','50%台','60%台','70%台','80%台','90%以上'];
-  var RANK_SHOW_TOP_MAX = 50; /* Xシェアの文面を作るのは上位50%以内の指標だけ（画面の上位n%は運営者ページと同じく常に出す） */
+  var SHARE_LABEL = {   /* Xシェアに載せる指標と表記（この順で並ぶ＝items の順） */
+    unit_owned:{ name:'URユニット所持率', word:'機' },
+    unit_max:  { name:'URユニット完凸率', word:'機' },
+    sup_owned: { name:'URサポート所持率', word:'体' }
+  };
+  var RANK_SHOW_TOP_MAX = 50; /* Xシェアの文面に上位n%を添えるのは上位50%以内の指標だけ（画面の上位n%は運営者ページと同じく常に出す） */
   var TOP_URL = 'https://ggene-ur-checker.polarbear14869.workers.dev/top';
   var guardView = document.getElementById('guardView'), loadingView = document.getElementById('loadingView'),
       errorView = document.getElementById('errorView'), contentView = document.getElementById('contentView');
@@ -400,7 +405,6 @@
       big.appendChild(el('span', 'nw', '（' + it.value + lb.word + '／' + it.max + lb.word + '）'));
       big.appendChild(el('span', 'nw', '・上位' + it.topPercent + '%'));
       card.appendChild(big);
-      if (it.topPercent <= RANK_SHOW_TOP_MAX) share.push(lb.name.replace(' ', '').replace('分布', '') + ' ' + it.rate + '%（' + it.value + '/' + it.max + lb.word + '） 登録者の上位' + it.topPercent + '%');
       /* 2行目：集計対象・平均・中央値（運営者ページと同じ） */
       var meta = el('p', 'meta');   /* 項目の途中で折り返さない（狭い画面では項目ごとに次の行へ） */
       ['集計対象 ' + it.total.toLocaleString() + '人', '平均 ' + it.avgRate + '%（' + it.avg + lb.word + '）', '中央値 ' + it.medianRate + '%（' + it.median + lb.word + '）']
@@ -423,7 +427,16 @@
       ? '登録者の分布は毎日4:00に更新します（' + d + ' 時点）。あなたの数は今の登録内容です。金色の枠があなたのいる帯です。'
       : '集計の準備中です。明日4:00以降にもう一度開いてください。';
     var btn = document.getElementById('shareBtn');
-    shareText = share.length ? share[0] + 'でした #ジージェネエターナル' : '';
+    /* Xシェア：URユニット所持率・URユニット完凸率・URサポート所持率の3つ（登録済みのものだけ）を1行ずつ。
+       上位n%は上位50%以内のときだけ添える（エタロは入れない） */
+    (data.items || []).forEach(function(it){
+      var sl = SHARE_LABEL[it.metric]; if (!sl || !it.registered) return;
+      var rate = it.max > 0 ? Math.floor(it.value * 100 / it.max) : 0;
+      var line = sl.name + ' ' + rate + '%（' + it.value + '/' + it.max + sl.word + '）';
+      if (!it.collecting && it.topPercent <= RANK_SHOW_TOP_MAX) line += ' 上位' + it.topPercent + '%';
+      share.push(line);
+    });
+    shareText = share.length ? '【ユーザー別所持率分布】\n' + share.join('\n') + '\n#ジージェネエターナル' : '';
     btn.hidden = !share.length;
   }
 

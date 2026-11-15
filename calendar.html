@@ -290,13 +290,18 @@
   .k-gacha{color:var(--gold);} .k-story{color:var(--cyan);} .k-raid{color:#f08ac0;} .k-tower{color:#9d86e8;} .k-ml{color:#34e0b1;} .k-campaign{color:#7fb2ff;} .k-update{color:#c9d3dc;}
   .ttl{min-width:0;}
   /* 改行は文節の切れ目（phrase() が入れる <wbr>）だけ。入りきらない長い語だけ途中で折る。対応ブラウザ（Chrome 119〜）は文節の自動判定も使う */
-  .ttl .nm,.ttl .sub{word-break:keep-all;overflow-wrap:anywhere;line-break:strict;}
-  @supports (word-break:auto-phrase){ .ttl .nm,.ttl .sub{word-break:auto-phrase;} }
+  .ttl .nm,.ttl .sub,.pkName{word-break:keep-all;overflow-wrap:anywhere;line-break:strict;text-wrap:pretty;}
+  .ttl .nm{text-wrap:balance;}   /* 見出しは行の長さをそろえる（長いカタカナ語が途中で折れても最後の行に1〜2文字だけ残らない） */
+  @supports (word-break:auto-phrase){ .ttl .nm,.ttl .sub,.pkName{word-break:auto-phrase;} }
   .ttl .nm{font-size:13px;font-weight:700;line-height:1.45;}
   /* ページ見出しの .sub（下に26pxの余白・幅46ch）が効かないように打ち消す */
   .ttl .sub{font-size:11px;color:var(--muted);margin:1px 0 0;max-width:none;line-height:1.55;}
-  .pkItem{display:inline;margin-right:.9em;}
-  .pkItem:last-child{margin-right:0;}
+  .pk{margin-top:3px;display:flex;flex-direction:column;gap:2px;}
+  .pkItem{font-size:11.5px;line-height:1.55;color:var(--text);}
+  .pkName{word-break:keep-all;overflow-wrap:anywhere;}
+  .nowrapTail{white-space:nowrap;}
+  .lim{display:inline-block;font-size:9.5px;color:var(--gold);border:1px solid rgba(218,185,73,.6);border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:1px;white-space:nowrap;}
+  .pkItem .rate{display:inline-block;font-size:10.5px;color:var(--muted);margin-left:6px;white-space:nowrap;font-variant-numeric:tabular-nums;}
   .own,.tbd{white-space:nowrap;}
   .left{font-size:12px;font-weight:700;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;}
   .left small{display:block;font-size:10px;color:var(--muted);font-weight:400;}
@@ -306,7 +311,6 @@
   .own.no{background:rgba(255,122,122,.16);color:#ff7a7a;} .own.yes{background:rgba(52,224,177,.14);color:#34e0b1;}
   .grpTitle{font-size:11px;color:var(--muted);margin:10px 2px 2px;letter-spacing:.08em;}
   .grpTitle:first-child{margin-top:2px;}
-  .pk{margin-top:2px;}
   .tl{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:var(--panel-2);padding:0 0 6px;}
   .tlHead{display:grid;height:34px;border-bottom:1px solid var(--line);font-size:10px;color:var(--muted);}
   .tlHead div{display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1px solid rgba(140,160,180,.08);line-height:1.15;}
@@ -314,14 +318,11 @@
   .tlBody{position:relative;padding-top:6px;}
   .tlRow{position:relative;height:30px;}
   .bar{position:absolute;top:4px;height:22px;border-radius:5px;font-size:10.5px;font-weight:700;line-height:22px;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#07101a;}
-  /* 帯に入りきらない名前は、バナーのように右から左へ流して全文を見せる（同じ文を2つ並べて -50% まで動かす＝切れ目なく繰り返す） */
+  /* 帯に入りきらない名前は、先頭を3秒見せてから右から左へ流して全文を見せる（同じ文を2つ並べて -50% まで動かす＝流し終わると先頭に戻る。動きは flowBars() の Web Animations） */
   .bar.flow{text-overflow:clip;padding:0;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6px,#000 calc(100% - 6px),transparent);mask-image:linear-gradient(90deg,transparent,#000 6px,#000 calc(100% - 6px),transparent);}
-  .bar .mq{display:inline-block;will-change:transform;animation:barFlow var(--flow-s,8s) linear infinite;}
+  .bar .mq{display:inline-block;will-change:transform;}
   .bar .mq span{padding:0 6px;}
   .bar .mq span + span{padding-left:2.5em;}
-  .bar.flow:hover .mq{animation-play-state:paused;}
-  @keyframes barFlow{ from{transform:translateX(0);} to{transform:translateX(-50%);} }
-  @media (prefers-reduced-motion: reduce){ .bar .mq{animation:none;} }
   .bar.gacha{background:var(--gold);} .bar.story{background:var(--cyan);} .bar.raid{background:#f08ac0;} .bar.tower{background:#9d86e8;} .bar.ml{background:#34e0b1;} .bar.campaign{background:#7fb2ff;} .bar.update{background:#c9d3dc;}
   .bar.tbdBar{background:repeating-linear-gradient(45deg,rgba(107,224,224,.55) 0 6px,rgba(107,224,224,.25) 6px 12px);color:var(--text);}
   .bar.cutL{border-top-left-radius:0;border-bottom-left-radius:0;} .bar.cutR{border-top-right-radius:0;border-bottom-right-radius:0;}
@@ -413,22 +414,31 @@
     var ttl = el('div', 'ttl'), nm = elp('div', 'nm', ev.title);
     if (!ev.dateFixed) nm.appendChild(el('span', 'tbd', '日付未定'));
     ttl.appendChild(nm);
-    if (ev.sub) ttl.appendChild(elp('div', 'sub', ev.sub));
-    if (ev.items && ev.items.length){
-      var pk = el('div', 'sub pk');
-      ev.items.forEach(function(it){
-        var item = elp('span', 'pkItem', it.name), owned = OWN[it.kind];
+    var items = ev.items || [];
+    /* ピックアップの名前は「ピックアップ」欄に1回だけ出す。sub がピックアップの名前の並び（ガシャの登録時の書き方）なら sub は出さない */
+    if (ev.sub && !(items.length && subRepeatsItems(ev.sub, items))) ttl.appendChild(elp('div', 'sub', ev.sub));
+    if (items.length){
+      var pk = el('div', 'pk');
+      items.forEach(function(it){
+        /* 1体1行：名前［限定］［所持／未所持］ 登録者の所持率 n% */
+        var item = el('div', 'pkItem'), owned = OWN[it.kind];
+        item.appendChild(elp('span', 'pkName', it.name));
+        if (it.limited) item.appendChild(el('span', 'lim', '限定'));
         if (owned) item.appendChild(el('span', 'own ' + (owned.has(it.id) ? 'yes' : 'no'), owned.has(it.id) ? '所持' : '未所持'));
-        pk.appendChild(item); pk.appendChild(document.createElement('wbr'));
+        if (typeof it.rate === 'number') item.appendChild(el('span', 'rate', '登録者の所持率 ' + it.rate + '%'));
+        pk.appendChild(item);
       });
       ttl.appendChild(pk);
-      var rates = ev.items.filter(function(it){ return typeof it.rate === 'number'; }).map(function(it){ return it.rate + '%'; });
-      if (rates.length) ttl.appendChild(elp('div', 'sub', '登録者の所持率 ' + rates.join('・')));
     }
     row.appendChild(ttl);
     var left = el('div', 'left ' + li.cls, li.main); left.appendChild(el('small', null, li.small));
     row.appendChild(left);
     return row;
+  }
+
+  /* sub がピックアップの名前を並べただけか（名前の先頭3文字がどれか sub に含まれていれば、同じ内容とみなす） */
+  function subRepeatsItems(sub, items){
+    return items.some(function(it){ var k = String(it.name || '').replace(/[\s(（].*$/, '').slice(0, 3); return k && sub.indexOf(k) >= 0; });
   }
 
   /* 文節の切れ目に <wbr> を入れた断片を返す（日本語は空白が無いので、記号・空白・文字種の変わり目・助詞の後ろで切る）。
@@ -443,6 +453,7 @@
     return 'o';
   }
   var run = {};
+  var KATA_TAIL = ['ガシャ', 'ミッション', 'キャンペーン', 'イベント', 'ステージ', 'タワー', 'ボーナス', 'パック', 'ログイン'];
   function runLen(s, i, c, dir){ var n = 0; while (s[i] && cls(s[i]) === c) { n++; i += dir; } return n; }
   function canBreak(a, b, prev2){
     if (!a || !b) return false;
@@ -452,18 +463,25 @@
     var ca = cls(a), cb = cls(b);
     if (ca === 'h' && cb !== 'h' && cb !== 'o' && PARTICLE.indexOf(a) >= 0 && !(a === 'り' && cls(prev2) === 'j')) return true;  /* 助詞の後ろ（送り仮名の「り」は除く） */
     if ((ca === 'k' || ca === 'j' || ca === 'h') && cb === 'd') return true;       /* ユニット/1111体 */
+    if (ca === 'd' && cb === 'h') return true;       /* 11/24 11:59/までです（日時の後ろ） */
     /* 漢字2字以上とカタカナ4字以上の境目（記念/パネルミッション、ユニット/追加）。特務モード・アズナブル機のような短い組は切らない */
     if (ca === 'j' && cb === 'k' && run.j >= 2 && run.kNext >= 4) return true;
     if (ca === 'k' && cb === 'j' && run.k >= 4 && run.jNext >= 2) return true;
+    /* カタカナの複合語は、よく出る後ろの語の前で切れるようにする（ピックアップ/ガシャ、パネル/ミッション）。
+       切れ目が無いと、幅に入りきらないとき語の途中で折れて最後の行に1〜2文字だけ残るため */
+    if (ca === 'k' && cb === 'k' && run.k >= 3 && KATA_TAIL.some(function(w){ return run.rest.lastIndexOf(w, 0) === 0; })) return true;
     return false;
   }
+  var PHRASE_TAIL_MIN = 2, PHRASE_TAIL_RE = new RegExp('[ \u3000](\\S{1,' + PHRASE_TAIL_MIN + '})$');
   function phrase(text){
     var frag = document.createDocumentFragment(), s = String(text == null ? '' : text), buf = '';
     s = s.replace(/(\d) (?=\d)/g, '$1\u00a0');   /* 11/24 11:59 は離さない（ブラウザの文節判定でも） */
+    s = s.replace(PHRASE_TAIL_RE, '\u00a0$1');   /* 末尾の短い語（SEASON 17 の 17）は前の語と離さない */
     for (var i = 0; i < s.length; i++){
-      run = { j: runLen(s, i, 'j', -1), k: runLen(s, i, 'k', -1), jNext: runLen(s, i + 1, 'j', 1), kNext: runLen(s, i + 1, 'k', 1) };
+      run = { j: runLen(s, i, 'j', -1), k: runLen(s, i, 'k', -1), jNext: runLen(s, i + 1, 'j', 1), kNext: runLen(s, i + 1, 'k', 1), rest: s.slice(i + 1) };
       buf += s[i];
-      if (canBreak(s[i], s[i + 1], s[i - 1])) { frag.appendChild(document.createTextNode(buf)); frag.appendChild(document.createElement('wbr')); buf = ''; }
+      /* 残りが PHRASE_TAIL_MIN 文字以下なら切らない（最後の行に「確定」「。」だけが落ちるのを防ぐ） */
+      if (s.length - i - 1 > PHRASE_TAIL_MIN && canBreak(s[i], s[i + 1], s[i - 1])) { frag.appendChild(document.createTextNode(buf)); frag.appendChild(document.createElement('wbr')); buf = ''; }
     }
     if (buf) frag.appendChild(document.createTextNode(buf));
     return frag;
@@ -485,6 +503,36 @@
       g[1].forEach(function(ev){ box.appendChild(rowEl(ev, now)); });
     });
     if (!box.firstChild) box.appendChild(el('p', 'stateMsg', '表示できる予定がありません'));
+    fixOrphans(box);
+  }
+
+  /* 最後の行に1〜2文字（「す。」「。」など）だけ残った文は、末尾の数文字を折り返さない塊にして前の行から一緒に送る。
+     文節の切れ目（phrase）で防ぎきれない、幅より長い語が途中で折れた場合の後始末。text-wrap:pretty が効かない環境（iOS Safari など）向け */
+  function lastLineLen(e){
+    var w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT), n, lastTop = null, len = 0, lines = 0;
+    while ((n = w.nextNode())){
+      for (var i = 0; i < n.length; i++){
+        if (/\s/.test(n.data[i])) continue;
+        var r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1);
+        var b = r.getClientRects()[0]; if (!b) continue;
+        var t = Math.round(b.top);
+        if (lastTop === null || Math.abs(t - lastTop) > 2){ lastTop = t; len = 0; lines++; }
+        len++;
+      }
+    }
+    return lines > 1 ? len : 99;
+  }
+  function fixOrphans(root){
+    Array.prototype.forEach.call(root.querySelectorAll('.nm, .sub, .pkName'), function(e){
+      if (lastLineLen(e) > PHRASE_TAIL_MIN) return;
+      /* 末尾のテキストから4文字を nowrap の span に移す（子要素の札＝日付未定などは対象外） */
+      var w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT), n, last = null;
+      while ((n = w.nextNode())) if (n.parentNode === e && n.data.trim()) last = n;
+      if (!last || last.length < 2) return;
+      var k = Math.min(last.length, PHRASE_TAIL_MIN + 2), keep = last.data.slice(0, last.length - k);
+      var span = el('span', 'nowrapTail', last.data.slice(last.length - k));
+      last.data = keep; e.insertBefore(span, last.nextSibling);
+    });
   }
 
   function renderTimeline(){
@@ -517,21 +565,32 @@
     flowBars(body);
   }
 
-  /* 名前が帯に入りきらないものだけ、同じ文を2つ並べて流す。速さは1秒に40px（文が長いほど1周に時間がかかる） */
-  var FLOW_PX_PER_SEC = 40;
+  /* 名前が帯に入りきらないものだけ、同じ文を2つ並べて流す。先頭を FLOW_HOLD_MS 見せて止め、それから1秒に40pxで流す
+     （1周＝先頭で3秒止まる→流れて先頭に戻る、を繰り返す。常に動き続けると読みにくいため）。
+     マウスを乗せている間は止める。動きを減らす設定（prefers-reduced-motion）の端末では流さない */
+  var FLOW_PX_PER_SEC = 40, FLOW_HOLD_MS = 3000;
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function flowBars(root){
     Array.prototype.forEach.call(root.querySelectorAll('.bar'), function(bar){
       if (bar.scrollWidth <= bar.clientWidth + 1 || bar.clientWidth < 24) return;   /* 入る／細すぎる帯（数px）はそのまま */
       var text = bar.textContent, mq = el('span', 'mq');
       mq.appendChild(el('span', null, text)); var dup = el('span', null, text); dup.setAttribute('aria-hidden', 'true'); mq.appendChild(dup);
       bar.textContent = ''; bar.classList.add('flow'); bar.appendChild(mq);
-      bar.style.setProperty('--flow-s', Math.max(4, mq.scrollWidth / 2 / FLOW_PX_PER_SEC).toFixed(1) + 's');
+      if (reduceMotion || !mq.animate) return;   /* 先頭だけ見える（帯の title で全文） */
+      var moveMs = Math.max(4000, mq.scrollWidth / 2 / FLOW_PX_PER_SEC * 1000), total = FLOW_HOLD_MS + moveMs, hold = FLOW_HOLD_MS / total;
+      var anim = mq.animate([
+        { transform: 'translateX(0)', offset: 0 },
+        { transform: 'translateX(0)', offset: hold },
+        { transform: 'translateX(-50%)', offset: 1 }
+      ], { duration: total, iterations: Infinity, easing: 'linear' });
+      bar.addEventListener('mouseenter', function(){ anim.pause(); });
+      bar.addEventListener('mouseleave', function(){ anim.play(); });
     });
   }
   var resizeTimer = null;
   window.addEventListener('resize', function(){
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function(){ if (viewMode === 'tl' && EVENTS.length) renderTimeline(); }, 200);
+    resizeTimer = setTimeout(function(){ if (!EVENTS.length) return; if (viewMode === 'tl') renderTimeline(); else renderList(); }, 200);
   });
 
   function render(){
@@ -581,8 +640,10 @@
         EVENTS = data.events || []; OWN.unit = res[1]; OWN.supporter = res[2];
         var upd = document.getElementById('lastUpdated');
         if (data.lastUpdated) upd.textContent = '最終更新 ' + data.lastUpdated.slice(5).replace('-', '/');
+        loadingView.hidden = true; contentView.hidden = false;   /* 先に見える状態にしてから描く（行の折り返しを測る fixOrphans・帯の幅を測る flowBars のため） */
         render();
-        loadingView.hidden = true; contentView.hidden = false;
+        /* Webフォントが後から読み込まれると文字幅が変わるので、読み込み後にもう一度描く（折り返し・流す帯の判定をやり直す） */
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ render(); });
         track('cal_view');
       });
   }
