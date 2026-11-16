@@ -316,6 +316,7 @@
   @media (max-width:380px){ .dRow{grid-template-columns:4.6em 1fr 7.4em;gap:5px;font-size:11px;} }
   .rankNote{font-size:11px;color:var(--muted);margin:10px 2px 0;line-height:1.7;}
   .shareBtn{display:block;margin:12px 0 0;text-align:center;border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:8px;font-size:13px;text-decoration:none;background:transparent;width:100%;cursor:pointer;font-family:inherit;}
+  .shareBtn.top{margin:0 0 12px;}   /* 11-15 分布の上に置く */
   .pageFooter{margin-top:28px;}
 </style>
 </head>
@@ -325,7 +326,7 @@
   <div class="headArea">
     <p class="eyebrow">YOUR POSITION</p>
     <h1>ユーザー別所持率分布</h1>
-    <p class="sub">登録ユーザーの中で、あなたの所持数・攻略状況がどのあたりかを表示します。</p>
+    <p class="sub">登録ユーザーの中で、あなたの所持数・完凸数がどのあたりかを表示します。</p>
 
     <div id="guardView" class="guardCard" hidden>
       <p>この機能はログイン済みの方のみご利用いただけます。<br>ログインすると、登録ユーザーの中での自分の位置が見られるようになります。</p>
@@ -336,9 +337,9 @@
     <div id="errorView" class="stateMsg" hidden>データの取得に失敗しました。時間をおいて再度お試しください。</div>
 
     <div id="contentView" hidden>
+      <button type="button" class="shareBtn top" id="shareBtn" hidden>Xでシェア</button>
       <div class="rankList" id="rankGrid"></div>
       <p class="rankNote" id="rankNote"></p>
-      <button type="button" class="shareBtn" id="shareBtn" hidden>Xでシェア</button>
     </div>
   </div>
 
@@ -357,9 +358,8 @@
   var RANK_LABEL = {
     unit_owned:{ name:'URユニット 所持率分布', rate:'所持率', count:'所持数', word:'機', href:'/unit' },
     unit_max:  { name:'URユニット 完凸率分布', rate:'完凸率', count:'完凸数', word:'機', href:'/unit' },
-    sup_owned: { name:'URサポート 所持率分布', rate:'所持率', count:'所持数', word:'体', href:'/supporter.html' },
-    er_stage:  { name:'エタロ クリア率分布', rate:'クリア率', count:'クリアステージ', word:'ステージ', href:'/eternal-road.html' }
-  };
+    sup_owned: { name:'URサポート 所持率分布', rate:'所持率', count:'所持数', word:'体', href:'/supporter.html' }
+  };   /* エタロのクリア率は 11-15 ESP指示で表示対象から外した（APIも返さない） */
   /* 10%刻みの帯の名前（worker.js の DIST_BAND_LABELS と同じ）。上から多い順に並べる */
   var BAND_LABELS = ['10%未満','10%台','20%台','30%台','40%台','50%台','60%台','70%台','80%台','90%以上'];
   var SHARE_LABEL = {   /* Xシェアに載せる指標と表記（この順で並ぶ＝items の順）。Xのスマホ表示で1行に収まるよう「UR」は付けない（11-15 ESP指示） */
@@ -443,7 +443,15 @@
   document.getElementById('shareBtn').addEventListener('click', function(){
     if (!shareText) return;
     track('rank_share');
-    window.open('https://x.com/intent/post?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(TOP_URL), '_blank', 'noopener');
+    var url = 'https://x.com/intent/post?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(TOP_URL);
+    /* シェアのあとに空白のタブが残らないように：
+       スマホ（指で操作する端末）は新しいタブを開かず、このタブのまま X へ移る（Xアプリに切り替わっても空白のタブが増えない。戻るでこのページに戻れる）。
+       PCは小さな別ウィンドウで開く。noopener を付けないので、投稿が終わると X 側がそのウィンドウを自分で閉じる */
+    var touch = window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    if (touch) { location.href = url; return; }
+    var w = Math.min(600, screen.availWidth || 600), h = Math.min(520, screen.availHeight || 520);
+    var win = window.open(url, 'xshare', 'width=' + w + ',height=' + h + ',left=' + Math.max(0, ((screen.availWidth || w) - w) / 2) + ',top=' + Math.max(0, ((screen.availHeight || h) - h) / 2));
+    if (!win) location.href = url;   /* ポップアップが止められたときはこのタブで開く */
   });
 
   function showGuard(){ loadingView.hidden = true; guardView.hidden = false; }

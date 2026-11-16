@@ -1428,10 +1428,11 @@ async function handleMlSeasons(request, env) {
 // worker.js に足す部分だけ。既存の getSessionUser / jsonResponse / isMissingSchemaError / toJstIsoString / addDays をそのまま使う。
 // 置く場所：「81 みんなのデータ」の節の後ろ（handleAnalyticsFreshness の前後どちらでもよい）。
 
-// 指標。unit_owned＝URユニット所持数／unit_max＝URユニット完凸数（level = 3）／sup_owned＝URサポート所持数／er_stage＝エタロのクリアステージ数
+// 指標。unit_owned＝URユニット所持数／unit_max＝URユニット完凸数（level = 3）／sup_owned＝URサポート所持数
+// （エタロのクリアステージ数 er_stage は 11-15 ESP指示で外した。rank_hist に残っている古い行は7日で消える）
 // 公開前の確認用：true の間は /api/my-rank を運営者だけに返す（一般公開は false にして my-rank.html・top.html の切り替えと一緒にpush）
 const MY_RANK_ADMIN_ONLY = true;
-const RANK_METRICS = ["unit_owned", "unit_max", "sup_owned", "er_stage"];
+const RANK_METRICS = ["unit_owned", "unit_max", "sup_owned"];
 const RANK_MIN_USERS = 20;                  // 母数がこれ未満の指標は「集計中」
 const RANK_HIST_KEEP_DAYS = 7;              // rank_hist に残す日数
 const RANK_MEMO_TTL_MS = 10 * 60 * 1000;    // 分布（全員共通）をWorkerのメモリに持つ時間
@@ -1450,16 +1451,12 @@ async function saveRankHist(env, snapDate) {
      GROUP BY u.user_uid`).all()).results || [];
   const units = await perUser("units_ownership", "units_master", "unit_id", "units_first_registered_at");
   const sups = await perUser("supporters_ownership", "supporters_master", "supporter_id", "supporters_first_registered_at");
-  const ers = (await env.DB.prepare(
-    `SELECT COUNT(DISTINCT c.stage_id) AS n
-     FROM users u LEFT JOIN eternal_road_stage_clears c ON c.user_uid = u.user_uid
-     WHERE u.eternal_road_first_registered_at IS NOT NULL
-     GROUP BY u.user_uid`).all()).results || [];
+  // エタロのクリアステージ数（er_stage）は 11-15 ESP指示で表示対象から外したので集計しない
 
   const tally = (rows, key) => { const m = new Map(); for (const r of rows) m.set(r[key], (m.get(r[key]) || 0) + 1); return m; };
   const hists = {
     unit_owned: tally(units, "owned"), unit_max: tally(units, "maxed"),
-    sup_owned: tally(sups, "owned"), er_stage: tally(ers, "n")
+    sup_owned: tally(sups, "owned")
   };
   const stmts = [env.DB.prepare("DELETE FROM rank_hist WHERE snap_date = ? OR snap_date < ?").bind(snapDate, addDays(snapDate, -RANK_HIST_KEEP_DAYS))];
   const ins = "INSERT INTO rank_hist (snap_date, metric, value, users) VALUES (?, ?, ?, ?)";
@@ -1483,7 +1480,7 @@ async function loadRankHist(env) {
   const unitMax = (await env.DB.prepare("SELECT COUNT(*) AS c FROM units_master").first()).c;
   const supMax = (await env.DB.prepare("SELECT COUNT(*) AS c FROM supporters_master").first()).c;
   RANK_MEMO = { at: Date.now(), snapDate, hist,
-    max: { unit_owned: unitMax, unit_max: unitMax, sup_owned: supMax, er_stage: ETERNAL_ROAD_STAGE_IDS.size } };
+    max: { unit_owned: unitMax, unit_max: unitMax, sup_owned: supMax } };
   return RANK_MEMO;
 }
 
@@ -1517,7 +1514,7 @@ async function handleMyRank(request, env) {
   if (!memo.snapDate) return jsonResponse({ loggedIn: true, snapDate: null, items: [] }, 200);   // まだ1回も集計していない
 
   const reg = await env.DB.prepare(
-    "SELECT units_first_registered_at AS u, supporters_first_registered_at AS s, eternal_road_first_registered_at AS e FROM users WHERE user_uid = ?"
+    "SELECT units_first_registered_at AS u, supporters_first_registered_at AS s FROM users WHERE user_uid = ?"
   ).bind(user.userUid).first() || {};
   const mine = {};
   if (reg.u) {
@@ -1530,10 +1527,6 @@ async function handleMyRank(request, env) {
     mine.sup_owned = (await env.DB.prepare(
       `SELECT COUNT(m.supporter_id) AS owned
        FROM supporters_ownership o JOIN supporters_master m ON m.supporter_id = o.supporter_id WHERE o.user_uid = ?`).bind(user.userUid).first()).owned;
-  }
-  if (reg.e) {
-    mine.er_stage = (await env.DB.prepare(
-      "SELECT COUNT(DISTINCT stage_id) AS n FROM eternal_road_stage_clears WHERE user_uid = ?").bind(user.userUid).first()).n;
   }
   const items = RANK_METRICS.map(metric => {
     const max = memo.max[metric];

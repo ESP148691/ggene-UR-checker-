@@ -1162,7 +1162,7 @@
 
   /* ---------------- 97 ユーザー別所持率分布：上位50%以内で一番良い指標をバッジに。トップの表示を遅らせないよう、他の読み込みの後に呼ぶ ---------------- */
   function loadMyRankBadge(){
-    var NAMES = { unit_owned: 'URユニット', unit_max: 'URユニット完凸', sup_owned: 'URサポート', er_stage: 'エタロ' };
+    var NAMES = { unit_owned: 'URユニット', unit_max: 'URユニット完凸', sup_owned: 'URサポート' };   /* エタロは 11-15 に対象外 */
     setTimeout(function(){
       fetch('/api/my-rank', { credentials: 'same-origin' })
         .then(function(res){ return res.json(); })
