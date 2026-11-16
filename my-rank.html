@@ -365,9 +365,8 @@
   var SHARE_LABEL = {   /* Xシェアに載せる指標と表記（この順で並ぶ＝items の順）。Xのスマホ表示で1行に収まるよう「UR」は付けない（11-15 ESP指示） */
     unit_owned:{ name:'ユニット所持率', word:'機' },
     unit_max:  { name:'ユニット完凸率', word:'機' },
-    sup_owned: { name:'サポート所持率', word:'体' }
+    sup_owned: { name:'サポート所持率', word:'' }   /* サポートは行が長くなるので「体」を付けない（11-16 ESP指示） */
   };
-  var RANK_SHOW_TOP_MAX = 50; /* Xシェアの文面に上位n%を添えるのは上位50%以内の指標だけ（画面の上位n%は運営者ページと同じく常に出す） */
   var TOP_URL = 'https://ggene-ur-checker.polarbear14869.workers.dev/top';
   var guardView = document.getElementById('guardView'), loadingView = document.getElementById('loadingView'),
       errorView = document.getElementById('errorView'), contentView = document.getElementById('contentView');
@@ -428,12 +427,12 @@
       : '集計の準備中です。明日4:00以降にもう一度開いてください。';
     var btn = document.getElementById('shareBtn');
     /* Xシェア：URユニット所持率・URユニット完凸率・URサポート所持率の3つ（登録済みのものだけ）を1行ずつ。
-       上位n%は上位50%以内のときだけ添える（エタロは入れない） */
+       上位n%は常に添える（エタロは入れない） */
     (data.items || []).forEach(function(it){
       var sl = SHARE_LABEL[it.metric]; if (!sl || !it.registered) return;
       var rate = it.max > 0 ? Math.floor(it.value * 100 / it.max) : 0;
       var line = sl.name + ' ' + rate + '%（' + it.value + '/' + it.max + sl.word + '）';
-      if (!it.collecting && it.topPercent <= RANK_SHOW_TOP_MAX) line += ' 上位' + it.topPercent + '%';
+      if (!it.collecting) line += ' 上位' + it.topPercent + '%';   /* 上位n%は常に添える（11-16 ESP指示） */
       share.push(line);
     });
     shareText = share.length ? '【ユーザー別所持率分布】\n' + share.join('\n') + '\n#ジージェネエターナル' : '';
