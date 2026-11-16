@@ -28,6 +28,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="auth.css">
+<!-- 102 英語対応：i18n.js（共通）→ i18n-top.js（トップの辞書）の順。auth.js より先 -->
+<script src="i18n.js"></script>
+<script src="i18n-top.js"></script>
 <style>
   :root{
     --void:#05070d;
@@ -126,6 +129,15 @@
     text-shadow:0 1px 4px rgba(2,4,9,.9), 0 0 14px rgba(2,4,9,.55);
   }
 
+  /* 102 言語の切り替え（日本語 / English） */
+  .langBar{display:flex;justify-content:flex-end;margin:6px 0 22px;}
+  .langBar[hidden]{display:none;} /* display:flex が hidden属性を打ち消さないように（公開前は運営者だけ） */
+  .lang-en .eyebrow .jp{display:none;}   /* 英語のときは見出し上の日本語読みを出さない */
+  .langSwitch{display:inline-flex;align-items:center;gap:2px;font-family:'Rajdhani','Noto Sans JP',sans-serif;font-size:12.5px;}
+  .langSwitch button{background:none;border:0;color:#9fb0c0;cursor:pointer;padding:4px 8px;font:inherit;font-weight:600;}
+  .langSwitch button.on{color:var(--gold);text-decoration:underline;text-underline-offset:3px;}
+  .langSwitch .sep{color:#4d5b6b;}
+  .chkQuick .jaOnly{margin:2px 0 0;font-size:9px;padding:0 4px;}
   .sectionLabel{
     font-family:'Rajdhani',sans-serif;font-weight:600;font-size:12.5px;color:var(--muted);
     letter-spacing:.14em;text-transform:uppercase;margin:0 0 14px;display:flex;align-items:center;gap:8px;
@@ -441,21 +453,23 @@
       <div class="ring ring-2"></div>
       <img src="images/logo.png" alt="ESP logo">
     </div>
-    <h1>ファンツール トップ</h1>
+    <h1 data-i18n="top.h1">ファンツール トップ</h1>
   </div>
-  <p class="sub">Gジェネエターナルの<wbr>ファン向け<wbr>非公式ツールです。<wbr>新規登録・<wbr>ログインすることで<wbr>各種機能を<wbr>利用できます。</p>
+  <p class="sub" data-i18n="top.sub">Gジェネエターナルの<wbr>ファン向け<wbr>非公式ツールです。<wbr>新規登録・<wbr>ログインすることで<wbr>各種機能を<wbr>利用できます。</p>
   <!-- 95 ホーム画面から全画面で開いたときだけ表示（ブラウザで開いたときは出ない） -->
-  <div class="standaloneBar"><button type="button" id="reloadBtn" aria-label="ページを再読み込み">&#x21bb; 再読み込み</button></div>
-  <p class="standaloneNote" id="standaloneNote" hidden>ホーム画面から開いた場合は、ブラウザとは別にログインが必要です（最初の1回だけ）。</p>
+  <!-- 102 言語の切り替え。公開前は運営者だけ（data-admin-only は toggleAdminNav() が外す）。公開時は hidden と data-admin-only を消す -->
+  <div class="langBar" data-admin-only hidden><div data-lang-switch role="group" aria-label="言語" data-i18n-attr="aria-label:top.langAria"></div></div>
+  <div class="standaloneBar"><button type="button" id="reloadBtn" aria-label="ページを再読み込み" data-i18n="top.reload" data-i18n-attr="aria-label:top.reloadAria">&#x21bb; 再読み込み</button></div>
+  <p class="standaloneNote" id="standaloneNote" hidden data-i18n="top.standaloneNote">ホーム画面から開いた場合は、ブラウザとは別にログインが必要です（最初の1回だけ）。</p>
 
   <!-- 71 インフォバナー。中身はスクリプト内の INFO_FEED を書き換えるだけで増減できる（D1・APIなし）。79 先頭のマスターリーグだけは /api/ml-seasons から自動 -->
-  <section class="infoFeed" id="infoFeed" aria-roledescription="carousel" aria-label="お知らせ・リンク" hidden>
+  <section class="infoFeed" id="infoFeed" aria-roledescription="carousel" aria-label="お知らせ・リンク" data-i18n-attr="aria-label:feed.aria" hidden>
     <div class="feedHead"><span class="live" aria-hidden="true"></span>INFO FEED<span class="count" id="infoFeedCount"></span>
       <div class="ctrl">
-        <button type="button" id="infoFeedPrev" aria-label="前のお知らせ">&lsaquo;</button>
+        <button type="button" id="infoFeedPrev" aria-label="前のお知らせ" data-i18n-attr="aria-label:feed.prev">&lsaquo;</button>
         <div class="dots" id="infoFeedDots"></div>
-        <button type="button" id="infoFeedNext" aria-label="次のお知らせ">&rsaquo;</button>
-        <button type="button" id="infoFeedPause" aria-label="自動切り替えを停止">❚❚</button>
+        <button type="button" id="infoFeedNext" aria-label="次のお知らせ" data-i18n-attr="aria-label:feed.next">&rsaquo;</button>
+        <button type="button" id="infoFeedPause" aria-label="自動切り替えを停止" data-i18n-attr="aria-label:feed.pause">❚❚</button>
       </div>
     </div>
     <div class="viewport" id="infoFeedViewport">
@@ -467,36 +481,36 @@
   <!-- 98 公開前は運営者だけ（worker.js の EVENTS_ADMIN_ONLY＝true の間は /api/events が運営者以外に空の予定を返す＝欄は出ない） -->
   <!-- 98 イベント情報（ログイン中だけ。toggleAnalyticsNav() が /api/events を呼んで1件以上あれば表示） -->
   <section class="section evSec" id="eventSection" hidden aria-label="イベント情報">
-    <div class="secHead"><p class="sectionLabel">イベント情報</p><span class="reset">デイリー更新まで <b id="evReset">-</b></span></div>
+    <div class="secHead"><p class="sectionLabel" data-i18n="ev.label">イベント情報</p><span class="reset"><span data-i18n="ev.reset">デイリー更新まで</span> <b id="evReset">-</b></span></div>
     <div id="evRows"></div>
-    <a class="evMore" href="/calendar.html" id="evMore">カレンダーを見る ›</a>
+    <a class="evMore" href="/calendar.html" id="evMore" data-i18n-page="calendar"><span id="evMoreText" data-i18n="ev.more">カレンダーを見る ›</span></a>
   </section>
 
   <!-- 83 新ユニット所持率調査（段階2で公開。ログイン中・ユニット登録済みの人に、回答の時期のときだけ。部品は new-ask.js） -->
   <section class="section newAsk" id="newAsk" hidden aria-label="新ユニット所持率調査">
-    <p class="sectionLabel">新ユニット所持率調査</p>
-    <p class="askLead">実装から30日以内の新URです。今の登録内容を選んであるので、変わったところだけ直して［登録］を押してください（変更がなければそのまま［登録］）。</p>
+    <p class="sectionLabel" data-i18n="ask.label">新ユニット所持率調査</p>
+    <p class="askLead" data-i18n="ask.lead">実装から30日以内の新URです。今の登録内容を選んであるので、変わったところだけ直して［登録］を押してください（変更がなければそのまま［登録］）。</p>
     <div id="newAskList"></div>
   </section>
 
   <!-- 75 URユニット一覧（2026-10-17公開。ログイン不要・全員に表示）。93 ドロップ一覧（92）もこの欄の下に置く -->
   <div class="section" id="unitListSection">
-    <p class="sectionLabel">一覧</p>
-    <a class="navcard" href="/unit-list">
+    <p class="sectionLabel" data-i18n="list.label">一覧</p>
+    <a class="navcard" href="/unit-list" data-i18n-page="unit-list">
       <div class="icon" data-pool="unit"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
-        <div class="name">URユニット<wbr>一覧</div>
-        <div class="desc">全URユニットをタグ別に一覧で参照可能。</div>
+        <div class="name" data-jaonly-slot><span data-i18n="list.unit.name">URユニット<wbr>一覧</span></div>
+        <div class="desc" data-i18n="list.unit.desc">全URユニットをタグ別に一覧で参照可能。</div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
     <!-- 92 ドロップ一覧。一般公開（drop-list.html の ADMIN_ONLY を false）までは運営者だけに出す（data-admin-only は toggleAdminNav() が外す）。
          公開時は hidden と data-admin-only を消すだけ -->
-    <a class="navcard" href="/drop-list" id="dropListNav" data-admin-only hidden>
+    <a class="navcard" href="/drop-list" id="dropListNav" data-admin-only hidden data-i18n-page="drop-list">
       <div class="icon" data-pool="drop"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
-        <div class="name">ドロップ<wbr>一覧</div>
-        <div class="desc">ハードステージの武装強化パーツを一覧で参照可能。</div>
+        <div class="name" data-jaonly-slot><span data-i18n="list.drop.name">ドロップ<wbr>一覧</span></div>
+        <div class="desc" data-i18n="list.drop.desc">ハードステージの武装強化パーツを一覧で参照可能。</div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
@@ -505,61 +519,61 @@
   <!-- 93 チェッカー4種を推し情報設定（88）と同じ4つのボタンにまとめる。チェッカーはすべてログイン必須（⑮・㉘）だが、
        未ログインでもボタンは出し、開いた先のログイン案内から登録へつなげる。登録状況はshowRegStatus()が .n に入れる -->
   <div class="section" id="checkerSection">
-    <p class="sectionLabel">チェッカー</p>
-    <nav class="chkQuick" aria-label="チェッカー">
-      <a href="/unit" data-chk="unit" data-label="URユニット所持率チェッカー" aria-label="URユニット所持率チェッカー"><span class="ic" data-pool="unit"><img class="icoImg" alt="" aria-hidden="true"></span><span class="t"><span class="nm">URユニット<wbr>所持率</span></span><span class="n"></span></a>
-      <a href="/supporter.html" data-chk="supporter" data-label="URサポート所持率チェッカー" aria-label="URサポート所持率チェッカー"><span class="ic" data-pool="supporter"><img class="icoImg" alt="" aria-hidden="true"></span><span class="t"><span class="nm">URサポート<wbr>所持率</span></span><span class="n"></span></a>
-      <a href="/eternal-road.html" data-chk="eternal-road" data-label="エタロ攻略チェッカー" aria-label="エタロ攻略チェッカー"><span class="ic" data-pool="eternal"><img class="icoImg" alt="" aria-hidden="true"></span><span class="t"><span class="nm">エタロ攻略</span><span class="sb">EXPERT</span></span><span class="n"></span></a>
-      <a href="/challenge.html" data-chk="challenge" data-label="チャレンジミッションチェッカー" aria-label="チャレンジミッションチェッカー"><span class="ic" data-pool="challenge"><img class="icoImg" alt="" aria-hidden="true"></span><span class="t"><span class="nm">チャレンジ</span><span class="sb">HARD</span></span><span class="n"></span></a>
+    <p class="sectionLabel" data-i18n="chk.label">チェッカー</p>
+    <nav class="chkQuick" aria-label="チェッカー" data-i18n-attr="aria-label:chk.label">
+      <a href="/unit" data-chk="unit" data-label="URユニット所持率チェッカー" aria-label="URユニット所持率チェッカー" data-i18n-attr="data-label:chk.unit.aria;aria-label:chk.unit.aria" data-i18n-page="unit"><span class="ic" data-pool="unit"><img class="icoImg" alt="" aria-hidden="true"></span><span class="t" data-jaonly-slot><span class="nm" data-i18n="chk.unit.nm">URユニット<wbr>所持率</span></span><span class="n"></span></a>
+      <a href="/supporter.html" data-chk="supporter" data-label="URサポート所持率チェッカー" aria-label="URサポート所持率チェッカー" data-i18n-attr="data-label:chk.sup.aria;aria-label:chk.sup.aria" data-i18n-page="supporter"><span class="ic" data-pool="supporter"><img class="icoImg" alt="" aria-hidden="true"></span><span class="t" data-jaonly-slot><span class="nm" data-i18n="chk.sup.nm">URサポート<wbr>所持率</span></span><span class="n"></span></a>
+      <a href="/eternal-road.html" data-chk="eternal-road" data-label="エタロ攻略チェッカー" aria-label="エタロ攻略チェッカー" data-i18n-attr="data-label:chk.er.aria;aria-label:chk.er.aria" data-i18n-page="eternal-road"><span class="ic" data-pool="eternal"><img class="icoImg" alt="" aria-hidden="true"></span><span class="t" data-jaonly-slot><span class="nm" data-i18n="chk.er.nm">エタロ攻略</span><span class="sb">EXPERT</span></span><span class="n"></span></a>
+      <a href="/challenge.html" data-chk="challenge" data-label="チャレンジミッションチェッカー" aria-label="チャレンジミッションチェッカー" data-i18n-attr="data-label:chk.ch.aria;aria-label:chk.ch.aria" data-i18n-page="challenge"><span class="ic" data-pool="challenge"><img class="icoImg" alt="" aria-hidden="true"></span><span class="t" data-jaonly-slot><span class="nm" data-i18n="chk.ch.nm">チャレンジ</span><span class="sb">HARD</span></span><span class="n"></span></a>
     </nav>
   </div>
 
   <!-- 推し情報設定（68・72で一般公開）。93でチェッカーの次へ移し、見出し「推し設定」を付けた（ログイン中のみ）。登録状況のバッジはshowFavoriteRegStatus()が出す -->
   <div class="section" id="favoriteSection" hidden>
-    <p class="sectionLabel">推し設定</p>
+    <p class="sectionLabel" data-i18n-page="favorite-info"><span data-i18n="fav.label">推し設定</span></p>
     <a class="navcard compact" href="/favorite-info">
       <div class="icon" data-pool="favorite"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
-        <div class="nameRow"><div class="name">推し情報設定<wbr>一覧</div><div class="regBadge" data-reg="favorite" hidden></div></div>
+        <div class="nameRow"><div class="name" data-i18n="fav.list">推し情報設定<wbr>一覧</div><div class="regBadge" data-reg="favorite" hidden></div></div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
     <!-- 88 推し作品・推しユニット・推しキャラ・推し編成をトップから直接選ぶ（件数はshowFavoriteRegStatus()が入れる） -->
-    <nav class="favQuick" aria-label="推し情報設定の項目">
-      <a href="/favorite-info?tab=works" data-favq="works"><span class="ic" data-favic="works" aria-hidden="true">🎬</span><span>推し作品</span><span class="n"></span></a>
-      <a href="/favorite-info?tab=units" data-favq="units"><span class="ic" data-favic="units" aria-hidden="true">🤖</span><span>推しユニット</span><span class="n"></span></a>
-      <a href="/favorite-info?tab=chars" data-favq="chars"><span class="ic" data-favic="chars" aria-hidden="true">🧑&zwj;🚀</span><span>推しキャラ</span><span class="n"></span></a>
-      <a href="/favorite-info?tab=formation" data-favq="formation"><span class="ic" data-favic="formation" aria-hidden="true">🛡️</span><span>推し編成</span><span class="n"></span></a>
+    <nav class="favQuick" aria-label="推し情報設定の項目" data-i18n-attr="aria-label:fav.aria">
+      <a href="/favorite-info?tab=works" data-favq="works"><span class="ic" data-favic="works" aria-hidden="true">🎬</span><span data-i18n="fav.works">推し作品</span><span class="n"></span></a>
+      <a href="/favorite-info?tab=units" data-favq="units"><span class="ic" data-favic="units" aria-hidden="true">🤖</span><span data-i18n="fav.units">推しユニット</span><span class="n"></span></a>
+      <a href="/favorite-info?tab=chars" data-favq="chars"><span class="ic" data-favic="chars" aria-hidden="true">🧑&zwj;🚀</span><span data-i18n="fav.chars">推しキャラ</span><span class="n"></span></a>
+      <a href="/favorite-info?tab=formation" data-favq="formation"><span class="ic" data-favic="formation" aria-hidden="true">🛡️</span><span data-i18n="fav.formation">推し編成</span><span class="n"></span></a>
     </nav>
   </div>
 
   <div class="section" id="analyticsSection" hidden>
-    <p class="sectionLabel">レポート・カード</p>
-    <a class="navcard" href="/analytics.html">
+    <p class="sectionLabel" data-i18n="an.label">レポート・カード</p>
+    <a class="navcard" href="/analytics.html" data-i18n-page="analytics">
       <div class="icon analyticsIcon" aria-hidden="true">📊</div>
       <div class="body">
-        <div class="name">データ登録<wbr>結果<wbr>レポート</div>
-        <div class="desc">登録ユーザーの所持率ランキングとエタロ攻略のクリア状況を集計</div>
+        <div class="name" data-jaonly-slot><span data-i18n="an.report.name">データ登録<wbr>結果<wbr>レポート</span></div>
+        <div class="desc" data-i18n="an.report.desc">登録ユーザーの所持率ランキングとエタロ攻略のクリア状況を集計</div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
     <!-- 97 公開前は運営者だけ（data-admin-only hidden）。一般公開は2つの属性を消し、worker.js の MY_RANK_ADMIN_ONLY と my-rank.html の ADMIN_ONLY を false に -->
     <!-- 97 ユーザー別所持率分布（上位n%）。この節ごとログイン中のみ表示。バッジは /api/my-rank の結果（上位50%以内の一番良い指標） -->
-    <a class="navcard" href="/my-rank.html" id="myRankNav" data-admin-only hidden>
+    <a class="navcard" href="/my-rank.html" id="myRankNav" data-admin-only hidden data-i18n-page="my-rank">
       <div class="icon analyticsIcon" aria-hidden="true">🏅</div>
       <div class="body">
-        <div class="name">ユーザー別<wbr>所持率分布<span class="rankBadge" id="myRankBadge" hidden></span></div>
-        <div class="desc">登録ユーザーの中で上位何%かを確認できます。</div>
+        <div class="name" data-jaonly-slot><span data-i18n="an.rank.name">ユーザー別<wbr>所持率分布</span><span class="rankBadge" id="myRankBadge" hidden></span></div>
+        <div class="desc" data-i18n="an.rank.desc">登録ユーザーの中で上位何%かを確認できます。</div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
     <!-- ㉒ 自己紹介カード。公開済み（2026-09-28・㉟）。
          この節（#analyticsSection）ごとログイン中のみ表示されるため、判定はtoggleAnalyticsNav()と同じ -->
-    <a class="navcard" href="/profile-card.html" id="profileCardNav">
+    <a class="navcard" href="/profile-card.html" id="profileCardNav" data-i18n-page="profile-card">
       <div class="icon" data-pool="profile"><img class="icoImg" alt="" aria-hidden="true"></div>
       <div class="body">
-        <div class="name">自己紹介<wbr>カード</div>
-        <div class="desc">登録データと推し作品・推しユニットからXでシェアできるカードを作成</div>
+        <div class="name" data-jaonly-slot><span data-i18n="an.card.name">自己紹介<wbr>カード</span></div>
+        <div class="desc" data-i18n="an.card.desc">登録データと推し作品・推しユニットからXでシェアできるカードを作成</div>
       </div>
       <div class="arrow">&rsaquo;</div>
     </a>
@@ -613,13 +627,13 @@
   </div>
 
   <footer class="pageFooter">
-    <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
-    <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
-    <p>掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
-    <p>相互リンク：<a href="https://athena-gget.com/" target="_blank" rel="noopener">ジージェネエターナル 総合データベース</a></p>
-    <p>YouTube：<a href="https://www.youtube.com/channel/UCn12pdkzN-CKzFJZz7awtUQ" target="_blank" rel="noopener">ショート動画チャンネル「ESP studio」</a></p>
-    <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
-    <p>更新情報はXで発信しています。よろしければ<a href="https://x.com/intent/follow?screen_name=polarbear148691" target="_blank" rel="noopener">フォロー</a>していただけると励みになります。</p>
+    <p data-i18n="foot.1">本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
+    <p data-i18n="foot.2">掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
+    <p data-i18n="foot.3">掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
+    <p data-i18n-html="foot.link">相互リンク：<a href="https://athena-gget.com/" target="_blank" rel="noopener">ジージェネエターナル 総合データベース</a></p>
+    <p data-i18n-html="foot.youtube">YouTube：<a href="https://www.youtube.com/channel/UCn12pdkzN-CKzFJZz7awtUQ" target="_blank" rel="noopener">ショート動画チャンネル「ESP studio」</a></p>
+    <p data-i18n-html="foot.contact">お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+    <p data-i18n-html="foot.follow">更新情報はXで発信しています。よろしければ<a href="https://x.com/intent/follow?screen_name=polarbear148691" target="_blank" rel="noopener">フォロー</a>していただけると励みになります。</p>
   </footer>
 </main>
 
@@ -918,11 +932,13 @@
        external : true なら別タブで開く（rel="noopener"）
        img   : 左の枠に出す画像（横長2:1・表示72×36px。読み込めなければ mark の文字／絵文字を出す）
        mark  : 画像がないときの代わり（短い英字 or 絵文字1つ）
-       start / end : 表示期間（日本時間の 'YYYY-MM-DD'。省略で無期限。end の日まで表示） */
+       start / end : 表示期間（日本時間の 'YYYY-MM-DD'。省略で無期限。end の日まで表示）
+       titleEn / descEn : 102 英語のときの見出し・説明。titleEn の無い項目は英語のときは出さない */
   var INFO_FEED = [
     { kind: 'video', tag: 'YouTube',   /* 2026-11-02 ESP studio のリンクバナー（先頭に出す） */
       title: 'ESP studio（ショート動画）',
       desc: 'ファンツールの集計データから、UR所持率などのランキングを毎週月・木にショート動画でお届けしています',
+      titleEn: 'ESP studio (short videos)', descEn: 'Weekly short videos every Mon & Thu on UR ownership rankings and more, based on Fan Tool data (Japanese)',
       href: 'https://www.youtube.com/channel/UCn12pdkzN-CKzFJZz7awtUQ', external: true,
       img: 'images/partners/esp-studio.jpg', mark: '▶' },
     { kind: 'info',
@@ -932,6 +948,7 @@
     { kind: 'link', tag: '相互リンク',
       title: 'ジージェネエターナル 総合データベース',
       desc: '機体・パイロットのダメージ期待値やスキル発動条件、最強編成を算出・比較できるDBツール',
+      titleEn: 'G Generation Eternal Database', descEn: 'Calculate and compare expected damage, skill conditions and the best squads (Japanese)',
       href: 'https://athena-gget.com/', external: true,
       img: 'images/partners/athena-gget.jpg', mark: 'DB' },
     { kind: 'info',
@@ -949,13 +966,13 @@
   ];
   var INFO_FEED_MS = 10000; /* 1件あたりの表示時間（説明文が流れ切るのに10秒を超える件は、流れ切って1秒後まで） */
   var INFO_FEED_DESC_SPEED = 50; /* 説明文の流れる速さ（px/秒） */
-  var INFO_TAG_TEXT = { link: '相互リンク', info: 'お知らせ', video: '動画', ml: 'マスリ' };
+  var INFO_TAG_TEXT = { link: I18N.t('feed.tag.link'), info: I18N.t('feed.tag.info'), video: I18N.t('feed.tag.video'), ml: I18N.t('feed.tag.ml') };
   /* 79 マスターリーグのお知らせ（INFO_FEED の先頭に自動で入る。書き換え不要）
      /api/ml-seasons から、開催中のシーズン → 無ければ ML_FEED_AHEAD 日以内に始まる次回 を1件。
      どちらも無い・APIが失敗・ML_FEED_WAIT ミリ秒で返らないときは出さない（ほかのお知らせはそのまま） */
   var ML_FEED_AHEAD = 14, ML_FEED_WAIT = 2500;
   function mlFeedItem(today){
-    var md = function(d){ return d ? Number(d.slice(5, 7)) + '/' + Number(d.slice(8, 10)) : ''; };
+    var md = function(d){ return d ? I18N.md(d) : ''; };
     var addDays = function(d, k){ var t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + k); return t.toISOString().slice(0, 10); };
     var load = fetch('/api/ml-seasons', { credentials: 'same-origin' }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
     var wait = new Promise(function(res){ setTimeout(function(){ res(null); }, ML_FEED_WAIT); });
@@ -969,10 +986,10 @@
       if (!x) return null;
       var ML_SHORT = { 'オルタナティブシリーズ': 'オルタナ', 'アルティメット': 'ULT' };   /* 79 追加改修2（10-21）：unit-list.html と同じ略称 */
       var targets = x.targets.map(function(t){ return ML_SHORT[t.name] || t.name; }).join('・');
-      var when = live ? ('開催中 〜' + (x.endsOn ? md(x.endsOn) : '')) : ('次回 ' + md(x.startsOn) + '〜' + md(x.endsOn));
-      return { kind: 'ml', tag: 'マスリ',
-        title: 'S' + x.code + ' ブースト：' + targets,   /* タグが「マスリ」なので見出しは短く（スマホで対象まで見えるように） */
-        desc: when + (x.stage ? '・ステージ：' + x.stage : '') + '。マスターリーグ SEASON ' + x.code + ' の対象URをユニット一覧で確認できます',
+      var when = live ? I18N.t('feed.ml.live', { end: x.endsOn ? md(x.endsOn) : '' }) : I18N.t('feed.ml.next', { start: md(x.startsOn), end: md(x.endsOn) });
+      return { kind: 'ml', tag: I18N.t('feed.tag.ml'),
+        title: I18N.t('feed.ml.title', { code: x.code, targets: targets }),   /* タグが「マスリ」なので見出しは短く（スマホで対象まで見えるように） */
+        desc: I18N.t('feed.ml.desc', { when: when, stage: x.stage ? I18N.t('feed.ml.stage', { stage: x.stage }) : '', code: x.code }),
         href: '/unit-list?v=M', mark: 'ML', live: !!live };
     });
   }
@@ -986,7 +1003,13 @@
       if (!it.href) return false;
       if (it.start && today < it.start) return false;
       if (it.end && today > it.end) return false;
+      if (I18N.isEn && !it.titleEn) return false;   /* 102 英語のときは titleEn のある項目だけ */
       return true;
+    }).map(function(it){
+      if (!I18N.isEn) return it;
+      var x = {}; for (var k in it) x[k] = it[k];
+      x.title = it.titleEn; x.desc = it.descEn || ''; delete x.tag;   /* タグは kind から英語で出す */
+      return x;
     }));
     if (mlItem && !mlItem.live) items.push(mlItem);   /* 開催前の次回は最後。開催が始まったら先頭 */
     if (!items.length) return; /* 0件なら欄ごと出さない */
@@ -1036,7 +1059,7 @@
 
     var dots = items.map(function(it, i){
       var b = el('button'); b.type = 'button';
-      b.setAttribute('aria-label', (i + 1) + '件目：' + it.title);
+      b.setAttribute('aria-label', I18N.t('feed.nth', { n: i + 1, title: it.title }));
       b.appendChild(el('span'));
       b.addEventListener('click', function(){ go(i, true); });
       dotsBox.appendChild(b);
@@ -1097,7 +1120,7 @@
     }
     function syncPauseBtn(){
       pauseBtn.textContent = userPaused ? '▶' : '❚❚';
-      pauseBtn.setAttribute('aria-label', userPaused ? '自動切り替えを再開' : '自動切り替えを停止');
+      pauseBtn.setAttribute('aria-label', I18N.t(userPaused ? 'feed.resume' : 'feed.pause'));
       root.classList.toggle('paused', userPaused);
     }
 
@@ -1162,7 +1185,7 @@
 
   /* ---------------- 97 ユーザー別所持率分布：上位50%以内で一番良い指標をバッジに。トップの表示を遅らせないよう、他の読み込みの後に呼ぶ ---------------- */
   function loadMyRankBadge(){
-    var NAMES = { unit_owned: 'URユニット', unit_max: 'URユニット完凸', sup_owned: 'URサポート' };   /* エタロは 11-15 に対象外 */
+    var NAMES = {}; ['unit_owned','unit_max','sup_owned'].forEach(function(k){ NAMES[k] = I18N.t('rank.' + k); });   /* エタロは 11-15 に対象外 */
     setTimeout(function(){
       fetch('/api/my-rank', { credentials: 'same-origin' })
         .then(function(res){ return res.json(); })
@@ -1172,28 +1195,29 @@
             if (it.registered && !it.collecting && it.topPercent <= 50 && (!best || it.topPercent < best.topPercent)) best = it;
           });
           var b = document.getElementById('myRankBadge');
-          if (best && b) { b.textContent = NAMES[best.metric] + ' 上位' + best.topPercent + '%'; b.hidden = false; }
+          if (best && b) { b.textContent = I18N.t('rank.badge', { name: NAMES[best.metric], n: best.topPercent }); b.hidden = false; }
         })
         .catch(function(){ /* バッジなし */ });
     }, 800);
   }
 
   /* ---------------- 98 イベント情報（ログイン中だけ）。名前はtextContentで入れる ---------------- */
-  var EV_KIND = { gacha:'ガシャ', story:'イベント', raid:'強敵襲来', tower:'タワー', ml:'マスリ', campaign:'ミッション', update:'更新' };
+  var EV_KIND = {}; ['gacha','story','raid','tower','ml','campaign','update'].forEach(function(k){ EV_KIND[k] = I18N.t('ev.kind.' + k); });
+  function evDaysText(key, n){ return I18N.t(n === 1 ? key + '1' : key, { n: n }); }   /* 英語の単数（1 day） */
   function evDate(s){ return new Date(s.replace(' ', 'T') + ':00+09:00'); }
   function evJst(d){ return new Date(d.getTime() + 9*3600000); }
-  function evMd(d){ var j = evJst(d); return (j.getUTCMonth()+1) + '/' + j.getUTCDate(); }
+  function evMd(d){ return I18N.md(evJst(d).toISOString()); }
   function evHm(d){ var j = evJst(d); return j.getUTCHours() + ':' + ('0' + j.getUTCMinutes()).slice(-2); }
   function evLeft(ev, now){
     var s = evDate(ev.startsAt), e = ev.endsAt ? evDate(ev.endsAt) : null;
     if (s > now) {
-      if (!ev.dateFixed) return { cls:'up', main: ev.whenLabel || '日付未定', small:'日付未定' };
-      return { cls:'up', main: evMd(s) + ' ' + evHm(s) + ' 開始', small:'あと' + Math.ceil((s - now)/86400000) + '日' };
+      if (!ev.dateFixed) return { cls:'up', main: ev.whenLabel || I18N.t('ev.tbd'), small: I18N.t('ev.tbd') };
+      return { cls:'up', main: I18N.t('ev.starts', { md: evMd(s), hm: evHm(s) }), small: evDaysText('ev.inDays', Math.ceil((s - now)/86400000)) };
     }
-    if (!e) return { cls:'', main:'開催中', small:'終了未定' };
-    if (evJst(now).toISOString().slice(0,10) === evJst(e).toISOString().slice(0,10)) return { cls:'today', main:'今日 ' + evHm(e) + ' まで', small:'あと' + Math.max(0, Math.floor((e - now)/3600000)) + '時間' };
+    if (!e) return { cls:'', main: I18N.t('ev.live'), small: I18N.t('ev.endTbd') };
+    if (evJst(now).toISOString().slice(0,10) === evJst(e).toISOString().slice(0,10)) return { cls:'today', main: I18N.t('ev.todayUntil', { hm: evHm(e) }), small: I18N.t('ev.hoursLeft', { n: Math.max(0, Math.floor((e - now)/3600000)) }) };
     var days = Math.floor((e - now)/86400000);
-    return { cls: days <= 3 ? 'soon' : '', main:'あと' + days + '日', small: evMd(e) + ' ' + evHm(e) + ' まで' };
+    return { cls: days <= 3 ? 'soon' : '', main: evDaysText('ev.daysLeft', days), small: I18N.t('ev.until', { md: evMd(e), hm: evHm(e) }) };
   }
   function evResetText(now){
     var j = evJst(now), left = 60 - (j.getUTCHours()*60 + j.getUTCMinutes()); if (left <= 0) left += 24*60;
@@ -1216,12 +1240,12 @@
           var li = evLeft(ev, now), row = document.createElement('div'); row.className = 'evRow';
           var chip = document.createElement('span'); chip.className = 'evChip evK-' + ev.kind; chip.textContent = EV_KIND[ev.kind] || ev.kind;
           var ttl = document.createElement('div'); ttl.className = 'evTtl'; ttl.textContent = ev.title;
-          if (!ev.dateFixed) { var tb = document.createElement('span'); tb.className = 'evTbd'; tb.textContent = '日付未定'; ttl.appendChild(tb); }
+          if (!ev.dateFixed) { var tb = document.createElement('span'); tb.className = 'evTbd'; tb.textContent = I18N.t('ev.tbd'); ttl.appendChild(tb); }
           var left = document.createElement('div'); left.className = 'evLeft ' + li.cls; left.textContent = li.main;
           var sm = document.createElement('small'); sm.textContent = li.small; left.appendChild(sm);
           row.appendChild(chip); row.appendChild(ttl); row.appendChild(left); box.appendChild(row);
         });
-        document.getElementById('evMore').textContent = 'カレンダーを見る（開催中' + live.length + '件・予定' + soon.length + '件） ›';
+        document.getElementById('evMoreText').textContent = I18N.t('ev.moreCount', { live: live.length, soon: soon.length });
         var rs = document.getElementById('evReset'); rs.textContent = evResetText(now);
         setInterval(function(){ rs.textContent = evResetText(new Date()); }, 60000);
         document.getElementById('eventSection').hidden = false;
@@ -1255,15 +1279,15 @@
     n.textContent = text;
     n.className = 'n' + (cls ? ' ' + cls : '');
     a.title = detail || text;
-    a.setAttribute('aria-label', a.getAttribute('data-label') + '（' + (detail || text) + '）');
+    a.setAttribute('aria-label', I18N.t('chk.ariaWith', { label: a.getAttribute('data-label'), detail: detail || text }));
   }
   function showRegStatus(){
     showEternalRoadRegStatus();
     showChallengeRegStatus();
     showFavoriteRegStatus();
     var targets = [
-      { key: 'unit', api: '/api/my-ownership', total: function(){ return UNIT_IMAGES.length; }, word: '機' },
-      { key: 'supporter', api: '/api/my-ownership-supporter', total: function(){ return SUPPORTER_IMAGES.length; }, word: '体' }
+      { key: 'unit', api: '/api/my-ownership', total: function(){ return UNIT_IMAGES.length; }, detail: 'chk.detailUnit' },
+      { key: 'supporter', api: '/api/my-ownership-supporter', total: function(){ return SUPPORTER_IMAGES.length; }, detail: 'chk.detailSup' }
     ];
     targets.forEach(function(t){
       if (!chkEl(t.key)) return;
@@ -1276,9 +1300,9 @@
           if (data.registered) {
             var count = Object.keys(data.ownership || {}).filter(function(id){ var n = Number(id); return ids ? ids.has(n) : (n >= 1 && n <= total); }).length;
             var pct = total ? Math.round(count / total * 100) : 0;
-            setChk(t.key, '✓ 登録済み 所持率 ' + pct + '%', 'ok', '所持率 ' + pct + '%（' + count + ' / ' + total + t.word + '）');
+            setChk(t.key, I18N.t('chk.okPct', { pct: pct }), 'ok', I18N.t(t.detail, { pct: pct, count: count, total: total }));
           } else {
-            setChk(t.key, '未登録', 'todo', 'データ未登録。所持データを登録ください');
+            setChk(t.key, I18N.t('chk.none'), 'todo', I18N.t('chk.noneOwn'));
           }
         })
         .catch(function(){ /* 失敗時は表示しない */ });
@@ -1297,18 +1321,18 @@
       .then(function(d){
         if (!d || !d.loggedIn) return;
         // 88 4項目の件数（0件は「未設定」）
-        [['works', d.works, '/5'], ['units', d.units, '/5'], ['chars', d.characters, '/5'], ['formation', d.formations, '編成']].forEach(function(x){
+        [['works', d.works, '/5'], ['units', d.units, '/5'], ['chars', d.characters, '/5'], ['formation', d.formations, 'squads']].forEach(function(x){
           var n = document.querySelector('.favQuick [data-favq="' + x[0] + '"] .n');
           if (!n) return;
-          n.textContent = x[1] > 0 ? x[1] + x[2] : '未設定';
+          n.textContent = x[1] > 0 ? (x[2] === 'squads' ? I18N.t('fav.squads', { n: x[1] }) : x[1] + x[2]) : I18N.t('fav.notSet');
           n.className = 'n' + (x[1] > 0 ? '' : ' zero');
         });
         if (d.works + d.units + d.characters + d.formations > 0) {
           el.className = 'regBadge ok';
-          el.innerHTML = '<span class="st">✓ 登録済み</span>';
+          el.innerHTML = '<span class="st"></span>'; el.firstChild.textContent = I18N.t('fav.registered');
         } else {
           el.className = 'regBadge todo';
-          el.innerHTML = '<span class="st">未登録</span>';
+          el.innerHTML = '<span class="st"></span>'; el.firstChild.textContent = I18N.t('chk.none');
         }
         el.hidden = false;
       })
@@ -1331,9 +1355,9 @@
           var stages = (data.clearedStageIds || []).filter(function(id){ return stageIds[id]; }).length;
           var missions = (data.clearedIds || []).filter(function(id){ return missionIds[id]; }).length;
           setChk('eternal-road', stages + '/' + totalStages, totalMissions && missions >= totalMissions ? 'full' : '',
-            'ステージクリア ' + stages + ' / ' + totalStages + '（ミッション ' + missions + ' / ' + totalMissions + '）');
+            I18N.t('chk.erDetail', { s: stages, ts: totalStages, m: missions, tm: totalMissions }));
         } else {
-          setChk('eternal-road', '未登録', 'zero', 'データ未登録。攻略データを登録ください');
+          setChk('eternal-road', I18N.t('chk.none'), 'zero', I18N.t('chk.noneClear'));
         }
       })
       .catch(function(){ /* 失敗時は表示しない */ });
@@ -1355,9 +1379,9 @@
           var stages = (data.clearedStageIds || []).filter(function(id){ return stageIds[id]; }).length;
           var missions = (data.clearedMissionIds || []).filter(function(id){ return missionIds[id]; }).length;
           setChk('challenge', stages + '/' + totalStages, totalMissions && missions >= totalMissions ? 'full' : '',
-            'HARDクリア ' + stages + ' / ' + totalStages + '（ミッション ' + missions + ' / ' + totalMissions + '）');
+            I18N.t('chk.chDetail', { s: stages, ts: totalStages, m: missions, tm: totalMissions }));
         } else {
-          setChk('challenge', '未登録', 'zero', 'データ未登録。攻略データを登録ください');
+          setChk('challenge', I18N.t('chk.none'), 'zero', I18N.t('chk.noneClear'));
         }
       })
       .catch(function(){ /* 失敗時は表示しない */ });

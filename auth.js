@@ -2,6 +2,8 @@
 // ログインは任意機能として始まったが、2026-09-26（㉘）以降、チェッカーはすべてログイン必須。
 // /api/me が失敗・エラーになってもゲスト状態として扱う方針は変わらない（チェッカー本体の処理には影響させない）。
 (function () {
+  // 102 英語対応：英語対応ページ（i18n.js を読むページ）だけ英語。読まないページは常に日本語
+  const T = (k, v, ja) => (window.I18N ? I18N.t(k, v) : ja);
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
@@ -22,21 +24,21 @@
   modal.innerHTML = `
     <div class="box">
       <div class="tabs">
-        <button type="button" data-tab="login" class="active">ログイン</button>
-        <button type="button" data-tab="register">新規登録</button>
+        <button type="button" data-tab="login" class="active">${T("auth.login", null, "ログイン")}</button>
+        <button type="button" data-tab="register">${T("auth.register", null, "新規登録")}</button>
       </div>
-      <h2 id="authTitle">ログイン</h2>
-      <p class="hint">各チェッカーは新規登録・ログインしてご利用いただけます（無料・メールアドレス不要。ユーザー名とパスワードだけで登録できます）。登録したデータはサーバーに保存され、機種変更や別の端末でも引き継げます。</p>
+      <h2 id="authTitle">${T("auth.login", null, "ログイン")}</h2>
+      <p class="hint">${T("auth.hint", null, "各チェッカーは新規登録・ログインしてご利用いただけます（無料・メールアドレス不要。ユーザー名とパスワードだけで登録できます）。登録したデータはサーバーに保存され、機種変更や別の端末でも引き継げます。")}</p>
       <form id="authForm">
-        <input type="text" id="authUsername" placeholder="ユーザー名（英数字・_、3〜20文字）" autocomplete="username" required>
-        <input type="password" id="authPassword" placeholder="パスワード（6文字以上）" autocomplete="current-password" required style="margin-top:8px;">
+        <input type="text" id="authUsername" placeholder="${T("auth.username", null, "ユーザー名（英数字・_、3〜20文字）")}" autocomplete="username" required>
+        <input type="password" id="authPassword" placeholder="${T("auth.password", null, "パスワード（6文字以上）")}" autocomplete="current-password" required style="margin-top:8px;">
         <div class="err" id="authErr"></div>
         <div class="row">
-          <button type="button" class="btn-cancel" id="authCancel">閉じる</button>
-          <button type="submit" class="btn-submit" id="authSubmit">ログイン</button>
+          <button type="button" class="btn-cancel" id="authCancel">${T("auth.close", null, "閉じる")}</button>
+          <button type="submit" class="btn-submit" id="authSubmit">${T("auth.login", null, "ログイン")}</button>
         </div>
-        <button type="button" class="forgotLink" id="authForgotLink">パスワードを忘れた方</button>
-        <p class="hint forgotInfo" id="authForgotInfo" hidden>パスワードを忘れた場合は、運営者のXアカウント（@polarbear148691）へDMでユーザー名をお知らせください。</p>
+        <button type="button" class="forgotLink" id="authForgotLink">${T("auth.forgot", null, "パスワードを忘れた方")}</button>
+        <p class="hint forgotInfo" id="authForgotInfo" hidden>${T("auth.forgotInfo", null, "パスワードを忘れた場合は、運営者のXアカウント（@polarbear148691）へDMでユーザー名をお知らせください。")}</p>
       </form>
     </div>
   `;
@@ -57,8 +59,8 @@
   function setMode(m) {
     mode = m;
     tabs.forEach(b => b.classList.toggle("active", b.dataset.tab === m));
-    titleEl.textContent = m === "login" ? "ログイン" : "新規登録";
-    submitBtn.textContent = m === "login" ? "ログイン" : "登録する";
+    titleEl.textContent = m === "login" ? T("auth.login", null, "ログイン") : T("auth.register", null, "新規登録");
+    submitBtn.textContent = m === "login" ? T("auth.login", null, "ログイン") : T("auth.registerBtn", null, "登録する");
     passwordInput.autocomplete = m === "login" ? "current-password" : "new-password";
     errEl.textContent = "";
     // 54 「パスワードを忘れた方」はログインタブのときだけ表示する
@@ -82,7 +84,7 @@
   modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
 
   function renderLoggedOut() {
-    authbar.innerHTML = `<a href="#" class="authlink" id="authOpenLink">ログイン</a>`;
+    authbar.innerHTML = `<a href="#" class="authlink" id="authOpenLink">${T("auth.login", null, "ログイン")}</a>`;
     document.getElementById("authOpenLink").addEventListener("click", (e) => {
       e.preventDefault();
       openModal("login");
@@ -93,14 +95,14 @@
     // トップページ（top.html＝ルート"/"）自体には不要なので、各チェッカー画面でのみ表示する
     // Cloudflareの静的アセット配信は/top.htmlを拡張子なしの/topへ自動リダイレクトするため、その形も許容する
     const isTopPage = location.pathname === "/" || location.pathname === "/top" || location.pathname === "/top.html";
-    const topLink = isTopPage ? "" : `<a href="/top" class="authlink">トップに戻る</a>`;
+    const topLink = isTopPage ? "" : `<a href="/top" class="authlink">${T("auth.backTop", null, "トップに戻る")}</a>`;
     // 54 アカウント設定（パスワード変更）への入口。account.html上ではリンクにしない
     const isAccountPage = location.pathname === "/account" || location.pathname === "/account.html";
-    const userLabel = `${escapeHtml(username)} さん`;
+    const userLabel = T("auth.userLabel", { name: escapeHtml(username) }, `${escapeHtml(username)} さん`);
     const userEl = isAccountPage
       ? `<span class="authuser">${userLabel}</span>`
       : `<a href="/account.html" class="authuser authuserLink">${userLabel}</a>`;
-    authbar.innerHTML = `${topLink}${userEl}<button type="button" id="authLogoutBtn">ログアウト</button>`;
+    authbar.innerHTML = `${topLink}${userEl}<button type="button" id="authLogoutBtn">${T("auth.logout", null, "ログアウト")}</button>`;
     document.getElementById("authLogoutBtn").addEventListener("click", doLogout);
   }
 
@@ -145,7 +147,7 @@
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        errEl.textContent = data.message || "エラーが発生しました";
+        errEl.textContent = window.I18N ? I18N.err(data.error, data.message) : (data.message || "エラーが発生しました");
         return;
       }
       try { sessionStorage.removeItem("authSrc"); } catch (e2) {}   // 82
@@ -166,7 +168,7 @@
         window.location.href = "/top";
       }
     } catch (e) {
-      errEl.textContent = "通信エラーが発生しました。時間をおいて再度お試しください";
+      errEl.textContent = T("err.network", null, "通信エラーが発生しました。時間をおいて再度お試しください");
     } finally {
       submitBtn.disabled = false;
     }

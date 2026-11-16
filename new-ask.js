@@ -28,7 +28,9 @@
     ".newAsk .askDone{background:rgba(107,224,224,.08);border:1px solid var(--cyan-dim);border-radius:4px;padding:10px 12px;font-size:13px;color:var(--cyan);}",
     ".newAsk [hidden]{display:none !important;}"
   ].join("\n");
-  var OPTS = [ { label: "引いていない", level: null }, { label: "無凸", level: 0 }, { label: "1凸", level: 1 }, { label: "2凸", level: 2 }, { label: "完凸", level: 3 } ];
+  // 102 英語対応：window.I18N（i18n.js）があれば辞書、無ければ日本語
+  var T = function(k, v, ja){ return window.I18N ? I18N.t(k, v) : ja; };
+  var OPTS = [ { label: T("ask.opt.none", null, "引いていない"), level: null }, { label: T("ask.opt.lb0", null, "無凸"), level: 0 }, { label: T("ask.opt.lb1", null, "1凸"), level: 1 }, { label: T("ask.opt.lb2", null, "2凸"), level: 2 }, { label: T("ask.opt.lb3", null, "完凸"), level: 3 } ];
   function injectCss(){
     if (document.getElementById("newAskCss")) return;
     var s = document.createElement("style"); s.id = "newAskCss"; s.textContent = CSS; document.head.appendChild(s);
@@ -38,10 +40,10 @@
 
   function render(list, units, opt){
     var sel = {}, cur = {};   // unitId → 選んだ凸（null＝引いていない）／今の凸（null＝未所持）
-    var foot = el("div", "askFoot"), cnt = el("span", "cnt"), send = el("button", "send", "登録"), err = el("div", "askErr");
+    var foot = el("div", "askFoot"), cnt = el("span", "cnt"), send = el("button", "send", T("ask.send", null, "登録")), err = el("div", "askErr");
     send.type = "button"; err.hidden = true;
     function changedCount(){ return units.filter(function(u){ return sel[u.unitId] !== cur[u.unitId]; }).length; }
-    function refresh(){ var n = changedCount(); cnt.textContent = n ? "変更 " + n + "機" : "変更なし（そのまま登録できます）"; }
+    function refresh(){ var n = changedCount(); cnt.textContent = n ? T("ask.changed", { n: n }, "変更 " + n + "機") : T("ask.noChange", null, "変更なし（そのまま登録できます）"); }
     units.forEach(function(u){
       cur[u.unitId] = u.level === null || u.level === undefined ? null : u.level;
       sel[u.unitId] = cur[u.unitId];
@@ -50,8 +52,8 @@
       var img = el("img"); img.src = "images/units/" + u.unitId + ".jpg"; img.alt = ""; head.appendChild(img);
       var t = el("div"); head.appendChild(t);
       t.appendChild(el("div", "askName", u.name));
-      t.appendChild(el("div", "askMeta", "実装 " + md(u.released) + (u.limited ? "・期間限定" : "") + (u.type ? "・" + u.type : "")));
-      var row = el("div", "askOpts"); row.setAttribute("role", "radiogroup"); row.setAttribute("aria-label", u.name + "の所持状況"); box.appendChild(row);
+      t.appendChild(el("div", "askMeta", T("ask.meta", { md: window.I18N ? I18N.md(u.released) : md(u.released) }, "実装 " + md(u.released)) + (u.limited ? T("ask.limited", null, "・期間限定") : "") + (u.type && !(window.I18N && I18N.isEn) ? "・" + u.type : "")));
+      var row = el("div", "askOpts"); row.setAttribute("role", "radiogroup"); row.setAttribute("aria-label", T("ask.rowAria", { name: u.name }, u.name + "の所持状況")); box.appendChild(row);
       var btns = OPTS.map(function(o){
         var b = el("button", "", o.label); b.type = "button"; b.setAttribute("role", "radio");
         var c = cur[u.unitId];
@@ -72,8 +74,9 @@
     foot.appendChild(cnt); foot.appendChild(send); list.appendChild(foot); list.appendChild(err);
     refresh();
     function finish(changed){
-      var msg = "✓ 登録しました（" + (changed ? "変更 " + changed + "機" : "変更なし") + "）。ご協力ありがとうございます";
-      if (opt.preview) msg += "（試用のため登録していません）";
+      var what = changed ? T("ask.changed", { n: changed }, "変更 " + changed + "機") : T("ask.doneNone", null, "変更なし");
+      var msg = T("ask.done", { what: what }, "✓ 登録しました（" + what + "）。ご協力ありがとうございます");
+      if (opt.preview) msg += T("ask.preview", null, "（試用のため登録していません）");
       list.textContent = ""; var d = el("div", "askDone", msg); d.setAttribute("role", "status"); list.appendChild(d);
       if (changed && opt.onChanged) opt.onChanged();
     }
@@ -84,8 +87,8 @@
       var items = units.map(function(u){ var v = sel[u.unitId]; return v === null ? { unitId: u.unitId, answer: "not_pulled" } : { unitId: u.unitId, answer: "got", level: v }; });
       fetch("/api/new-units/survey", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: items }) })
         .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
-        .then(function(x){ if (!x.ok || !x.j || !x.j.ok) throw new Error((x.j && x.j.message) || "登録できませんでした"); finish(x.j.changed); })
-        .catch(function(e){ err.textContent = (e && e.message) || "通信エラーが発生しました。時間をおいて再度お試しください"; err.hidden = false; send.disabled = false; });
+        .then(function(x){ if (!x.ok || !x.j || !x.j.ok) throw new Error(window.I18N && I18N.isEn ? (x.j && x.j.error ? I18N.err(x.j.error) : I18N.t("ask.fail")) : ((x.j && x.j.message) || "登録できませんでした")); finish(x.j.changed); })
+        .catch(function(e){ err.textContent = (e && e.message) || T("err.network", null, "通信エラーが発生しました。時間をおいて再度お試しください"); err.hidden = false; send.disabled = false; });
     });
   }
 
