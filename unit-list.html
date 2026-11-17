@@ -112,6 +112,9 @@
   .mlStat .ul .v{font-family:"Share Tech Mono",monospace;text-align:right;}
   .mlStat .ul .ow{font-size:11px;color:var(--cyan);min-width:2.5em;}
   .tile .ml{position:absolute;left:1px;top:27%;z-index:4;font-family:"Rajdhani","Share Tech Mono",monospace;font-weight:700;font-size:11px;line-height:13px;padding:0 4px;border-radius:3px;background:#ff8ad8;color:#1b0614;border:1px solid #000;white-space:nowrap;}
+  /* 11/17 ML札はマスリのロゴ画像（images/ml/icon.jpg）。読み込めなければ従来の「ML」の文字 */
+  .tile .ml.logo{padding:0;width:calc(var(--tile) * .46);height:calc(var(--tile) * .46 * .485);overflow:hidden;background:#000;border:1px solid #ff8ad8;box-shadow:0 0 0 1px #000;}
+  .tile .ml.logo img{width:100%;height:100%;object-fit:cover;display:block;}
   .tile.mlout{opacity:.28;}
   .chips button:disabled{opacity:.35;cursor:default;}
   select{font:inherit;font-size:12.5px;color:var(--text);background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;padding:5px 6px;}
@@ -331,6 +334,7 @@ const PRESETS = {
   C: { name:"自由に選ぶ", none:false },
   M: { name:"マスリ対象", cols:["一撃必殺","電光石火","突破力","堅牢"], rows:"ml", none:true }   // 79 4大熟語タグ × そのシーズンのブースト対象
 };
+const ML_ICON = "images/ml/icon.jpg";   // 11/17 ML札のロゴ（マスターリーグのタイトル画像を縮小）
 const ML_ALL = "@ml";   // 79 自由に選ぶの列「マスリ対象すべて」（ブースト対象のどれかに当たるユニット）
 const LV_LABEL = ["無凸","1凸","2凸","完凸"];
 const $ = id => document.getElementById(id);
@@ -497,7 +501,7 @@ function tile(u){
     subs.forEach(c=>ef.appendChild(el("span",{class:"eic"},[el("img",{src:ICON+c+".png",alt:"サブ武装："+effName(c)})]))); t.appendChild(ef); }
   if(u.limited) t.appendChild(el("span",{class:"star",text:"★"}));
   if(state.lv&&OWN&&own!==undefined) t.appendChild(el("span",{class:"lv"+(isMax?" max":""),text:LV_LABEL[own]||""}));
-  if(mlOn()){ const h=mlHits(u).length; if(h) t.appendChild(el("span",{class:"ml",text:"ML"})); else t.classList.add("mlout"); }   // 79
+  if(mlOn()){ const h=mlHits(u).length; if(h){ const b=el("span",{class:"ml logo"}), im=el("img",{src:ML_ICON,alt:"ML"}); im.onerror=()=>{ b.className="ml"; b.textContent="ML"; }; b.appendChild(im); t.appendChild(b); } else t.classList.add("mlout"); }   // 79
   t.addEventListener("click",()=>openSheet(u));
   return t;
 }
@@ -732,7 +736,7 @@ async function generateImage(){
   const legendH=24+lrows*LROW;
   const H=Math.ceil(TOP+tableH*k+legendH+PAD);
   // 先に画像を読む
-  const urls=new Set(["images/logo.png"]);
+  const urls=new Set(["images/logo.png", ML_ICON]);
   const eachUnit=cb=>model.rows.forEach(r=>r.cells.forEach(l=>l.forEach(cb)));
   eachUnit(u=>{ urls.add(`${IMG}units/${u.unitId}.jpg`); urls.add(ICON+TYPE_ICON[u.type]+".png"); (u.effects||[]).forEach(c=>urls.add(ICON+c+".png")); (u.subEffects||[]).forEach(c=>urls.add(ICON+c+".png")); });
   model.cols.concat(model.rows).forEach(x=>x.leaders.forEach(L=>urls.add(`${IMG}supporters/${L.s.id}.jpg`)));
@@ -884,7 +888,9 @@ async function generateImage(){
         }
         if(u.limited) star(tx+3,ty+TH-5,23);
         if(mlOn()){ const h=mlHits(u).length;   // 79 対象を強調：対象はML札、対象外は暗く
-          if(h){ const s="ML"; ctx.font=`700 12px "Rajdhani","Share Tech Mono",monospace`; const bw=ctx.measureText(s).width+8, bx=tx+1, by=ty+Math.round(TH*.3); rr(bx,by,bw,14,3); ctx.fillStyle="#ff8ad8"; ctx.fill(); ctx.strokeStyle="#000"; ctx.lineWidth=1; ctx.stroke(); txt(s,bx+bw/2,by+11,`700 12px "Rajdhani","Share Tech Mono",monospace`,"#1b0614","center"); }
+          const mi=h&&imgs.get(ML_ICON);
+          if(mi){ const bw=Math.round(T*.46), bh=Math.round(bw*.485), bx=tx+1, by=ty+Math.round(TH*.27); ctx.drawImage(mi,bx,by,bw,bh); ctx.strokeStyle="#000"; ctx.lineWidth=2; ctx.strokeRect(bx-.5,by-.5,bw+1,bh+1); ctx.strokeStyle="#ff8ad8"; ctx.lineWidth=1; ctx.strokeRect(bx+.5,by+.5,bw-1,bh-1); }
+          else if(h){ const s="ML"; ctx.font=`700 12px "Rajdhani","Share Tech Mono",monospace`; const bw=ctx.measureText(s).width+8, bx=tx+1, by=ty+Math.round(TH*.3); rr(bx,by,bw,14,3); ctx.fillStyle="#ff8ad8"; ctx.fill(); ctx.strokeStyle="#000"; ctx.lineWidth=1; ctx.stroke(); txt(s,bx+bw/2,by+11,`700 12px "Rajdhani","Share Tech Mono",monospace`,"#1b0614","center"); }
           else { ctx.fillStyle="rgba(5,7,13,.72)"; ctx.fillRect(tx,ty,T,TH); } }
         // 実装30日以内の赤枠（完凸の時は虹枠の黒線の内側に沿わせる）
         if(isMax) maxFrame(tx,ty,T,TH,isNew(u));

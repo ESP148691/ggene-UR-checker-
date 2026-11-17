@@ -990,7 +990,7 @@
       return { kind: 'ml', tag: I18N.t('feed.tag.ml'),
         title: I18N.t('feed.ml.title', { code: x.code, targets: targets }),   /* タグが「マスリ」なので見出しは短く（スマホで対象まで見えるように） */
         desc: I18N.t('feed.ml.desc', { when: when, stage: x.stage ? I18N.t('feed.ml.stage', { stage: x.stage }) : '', code: x.code }),
-        href: '/unit-list?v=M', mark: 'ML', live: !!live };
+        href: '/unit-list?v=M', img: 'images/ml/banner.jpg', mark: 'ML', live: !!live };   /* 11/17 左の枠はマスリのタイトル画像 */
     });
   }
 
