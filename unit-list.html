@@ -29,6 +29,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="auth.css">
+<!-- 104 英語対応 段階2：i18n.js（共通）→ i18n-unit-list.js（このページの辞書）。auth.js より先 -->
+<script src="i18n.js"></script>
+<script src="i18n-unit-list.js"></script>
 <link rel="prefetch" href="/top">
 <style>
   :root{
@@ -42,6 +45,14 @@
   main{max-width:1400px;margin:0 auto;padding:16px 16px 60px;}
   .eyebrow{font-family:"Rajdhani",sans-serif;font-weight:600;letter-spacing:.18em;font-size:12px;color:var(--cyan);margin:0;}
   h1{font-size:20px;margin:4px 0 4px;letter-spacing:.04em;}
+  /* 104 言語の切り替え（日本語 / English）。公開前は英語で開いた人にだけ出る（i18n.js） */
+  .langBar{display:flex;justify-content:flex-end;margin:0 0 8px;}
+  .langBar[hidden]{display:none;}
+  #rowAxis{max-width:calc(100% - 5.5em);min-width:0;text-overflow:ellipsis;}   /* 104 縦軸の選択肢が長い（英語）と狭い画面で横にはみ出すため */
+  .langSwitch{display:inline-flex;align-items:center;gap:2px;font-family:'Rajdhani','Noto Sans JP',sans-serif;font-size:12.5px;}
+  .langSwitch button{background:none;border:0;color:#9fb0c0;cursor:pointer;padding:4px 8px;font:inherit;font-weight:600;}
+  .langSwitch button.on{color:var(--gold);text-decoration:underline;text-underline-offset:3px;}
+  .langSwitch .sep{color:#4d5b6b;}
   .lead{font-size:12.5px;color:var(--muted);margin:0 0 12px;line-height:1.6;}
   .lead a{color:var(--cyan);}
   .stateMsg{padding:40px 0;text-align:center;color:var(--muted);font-size:14px;line-height:1.8;}
@@ -238,74 +249,75 @@
 <body data-auth-stay>
 <main>
   <p class="eyebrow">UNIT LIST</p>
-  <h1>ユニット一覧</h1>
+  <h1 data-i18n="ul.h1">ユニット一覧</h1>
+  <div class="langBar" hidden><div data-lang-switch role="group" aria-label="言語" data-i18n-attr="aria-label:ul.langAria"></div></div>
 
   <div id="guardView" class="guardCard" hidden>
-    <p>このページは現在、運営者専用です。<br>運営者の方はログインしてください。</p>
-    <button type="button" id="guardLoginBtn">ログイン / 新規登録</button>
+    <p data-i18n-html="ul.guard">このページは現在、運営者専用です。<br>運営者の方はログインしてください。</p>
+    <button type="button" id="guardLoginBtn" data-i18n="auth.loginOrRegister">ログイン / 新規登録</button>
   </div>
-  <div id="adminOnlyView" class="stateMsg" hidden>このページは現在、運営者専用です。</div>
-  <div id="loadingView" class="stateMsg">読み込み中...</div>
-  <div id="errorView" class="stateMsg" hidden>データの読み込みに失敗しました。時間をおいて再度お試しください。</div>
+  <div id="adminOnlyView" class="stateMsg" hidden data-i18n="ul.adminOnly">このページは現在、運営者専用です。</div>
+  <div id="loadingView" class="stateMsg" data-i18n="ul.loading">読み込み中...</div>
+  <div id="errorView" class="stateMsg" hidden data-i18n="ul.loadError">データの読み込みに失敗しました。時間をおいて再度お試しください。</div>
 
   <div id="contentView" hidden>
     <div class="controls">
-      <div class="row"><span class="fl">表の種類</span>
+      <div class="row"><span class="fl" data-i18n="ul.preset">表の種類</span>
         <div class="seg" id="presetSeg">
-          <button type="button" data-p="A">4大熟語タグ × 機体タグ</button>
-          <button type="button" data-p="B">他主要タグ</button>
-          <button type="button" data-p="D">全UR × タイプ</button>
-          <button type="button" data-p="C">自由に選ぶ</button>
+          <button type="button" data-p="A" data-i18n="ul.preset.A">4大熟語タグ × 機体タグ</button>
+          <button type="button" data-p="B" data-i18n="ul.preset.B">他主要タグ</button>
+          <button type="button" data-p="D" data-i18n="ul.preset.D">全UR × タイプ</button>
+          <button type="button" data-p="C" data-i18n="ul.preset.C">自由に選ぶ</button>
         </div>
       </div>
       <div class="mlBar" id="mlBar" hidden>
         <div class="mlTop">
-          <button type="button" class="mlTog" id="mlTog" aria-expanded="false" aria-controls="mlBody" title="詳細を開閉"><span class="ar">▶</span><span class="mlh"><span class="lg">マスターリーグ</span><span class="sh">マスリ</span></span></button>
-          <select id="mlSeason" aria-label="シーズン"></select><span class="st" id="mlState"></span>
-          <button type="button" class="mlTab" id="presetMl" data-p="M" hidden>マスリ対象</button>
+          <button type="button" class="mlTog" id="mlTog" aria-expanded="false" aria-controls="mlBody" title="詳細を開閉" data-i18n-attr="title:ul.ml.toggle"><span class="ar">▶</span><span class="mlh"><span class="lg" data-i18n="ul.ml.long">マスターリーグ</span><span class="sh" data-i18n="ul.ml.short">マスリ</span></span></button>
+          <select id="mlSeason" aria-label="シーズン" data-i18n-attr="aria-label:ul.ml.season"></select><span class="st" id="mlState"></span>
+          <button type="button" class="mlTab" id="presetMl" data-p="M" hidden data-i18n="ul.ml.targets">マスリ対象</button>
         </div>
         <div class="mlBody" id="mlBody">
-          <div class="mlRow2"><span class="tgw">対象：<span class="tg" id="mlTargets"></span></span><label id="optMlLabel"><input type="checkbox" id="optMl"> 対象を強調</label></div>
+          <div class="mlRow2"><span class="tgw"><span data-i18n="ul.ml.targetLabel">対象：</span><span class="tg" id="mlTargets"></span></span><label id="optMlLabel"><input type="checkbox" id="optMl"> <span data-i18n="ul.ml.highlight">対象を強調</span></label></div>
           <span class="meta" id="mlMeta"></span>
           <div class="mlStat" id="mlStat"></div>   <!-- 81 みんなの所持（ログイン時だけ数字） -->
         </div>
       </div>
       <div id="customBox" hidden>
-        <div class="row" style="align-items:flex-start"><span class="fl">列（最大5）</span><div class="chips" id="colChips"></div></div>
-        <div class="row" style="margin-top:8px"><span class="fl">縦軸表示</span>
-          <select id="rowAxis"><option value="type">タイプ（攻撃・支援・耐久）</option><option value="kind">機体タグ（エース機・専用機…）</option><option value="jukugo">4大熟語タグ（一撃必殺・電光石火・突破力・堅牢）</option><option value="ml" id="rowAxisMl" hidden>マスリ対象</option><option value="none">分けない</option></select>
+        <div class="row" style="align-items:flex-start"><span class="fl" data-i18n="ul.cols">列（最大5）</span><div class="chips" id="colChips"></div></div>
+        <div class="row" style="margin-top:8px"><span class="fl" data-i18n="ul.rows">縦軸表示</span>
+          <select id="rowAxis"><option value="type" data-i18n="ul.rows.type">タイプ（攻撃・支援・耐久）</option><option value="kind" data-i18n="ul.rows.kind">機体タグ（エース機・専用機…）</option><option value="jukugo" data-i18n="ul.rows.jukugo">4大熟語タグ（一撃必殺・電光石火・突破力・堅牢）</option><option value="ml" id="rowAxisMl" hidden>マスリ対象</option><option value="none" data-i18n="ul.rows.none">分けない</option></select>
         </div>
       </div>
       <div class="row">
-        <label id="optSubLabel"><input type="checkbox" id="optSub"> サブ武装のデバフ</label>
-        <label id="optDimLabel" hidden><input type="checkbox" id="optDim"> 未所持を暗くする</label>
-        <label id="optLvLabel" hidden><input type="checkbox" id="optLv"> 凸表示</label>
+        <label id="optSubLabel"><input type="checkbox" id="optSub"> <span data-i18n="ul.opt.sub">サブ武装のデバフ</span></label>
+        <label id="optDimLabel" hidden><input type="checkbox" id="optDim"> <span data-i18n="ul.opt.dim">未所持を暗くする</span></label>
+        <label id="optLvLabel" hidden><input type="checkbox" id="optLv"> <span data-i18n="ul.opt.lv">凸表示</span></label>
         <span class="ownStats" id="ownStats" hidden></span>
-        <span class="loginNote" id="loginNote" hidden>ログインすると自分の所持を重ねて見られます（<a id="loginNoteLink">ログイン</a>）</span>
+        <span class="loginNote" id="loginNote" hidden><span data-i18n="ul.loginNote">ログインすると自分の所持を重ねて見られます</span>（<a id="loginNoteLink" data-i18n="auth.login">ログイン</a>）</span>
       </div>
     </div>
 
-    <div class="zoomBar"><button type="button" id="zoomOut" aria-label="縮小">－</button><button type="button" id="zoomIn" aria-label="拡大">＋</button><button type="button" id="zoomFit">全体表示</button><button type="button" id="zoom100">100%</button><span id="zoomVal">100%</span></div>
+    <div class="zoomBar"><button type="button" id="zoomOut" aria-label="縮小" data-i18n-attr="aria-label:ul.zoomOut">－</button><button type="button" id="zoomIn" aria-label="拡大" data-i18n-attr="aria-label:ul.zoomIn">＋</button><button type="button" id="zoomFit" data-i18n="ul.zoomFit">全体表示</button><button type="button" id="zoom100">100%</button><span id="zoomVal">100%</span></div>
     <div class="scroller" id="scroller"><div class="zoomBox" id="zoomBox"><div class="matrix" id="matrix"></div></div></div>
     <div class="legend" id="legend"></div>
-    <div class="actions"><button type="button" class="btn-save" id="btnSave">画像で保存</button><button type="button" class="btn-save-hq" id="btnSaveHq">高画質で保存（PNG）</button></div>
+    <div class="actions"><button type="button" class="btn-save" id="btnSave" data-i18n="ul.save">画像で保存</button><button type="button" class="btn-save-hq" id="btnSaveHq" data-i18n="ul.saveHq">高画質で保存（PNG）</button></div>
   </div>
 
   <footer class="pageFooter">
-    <p>本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
-    <p>掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
-    <p>掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
-    <p>お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
+    <p data-i18n="foot.1">本サイトは<wbr>ファンが個人で制作した<wbr>「Gジェネレーション エターナル」の<wbr>非公式ツールです。<wbr>株式会社バンダイナムコエンターテインメント、<wbr>株式会社サンライズなど<wbr>同作品に関連する<wbr>権利元・企業様とは<wbr>一切関係ありません。</p>
+    <p data-i18n="foot.2">掲載しているゲーム内画像・キャラクター名・データ等の<wbr>著作権および<wbr>知的財産権は、<wbr>それぞれの権利元に帰属します。<wbr>掲載画像はすべて<wbr>運営者自身が撮影した<wbr>ゲーム内スクリーンショットです。</p>
+    <p data-i18n="foot.3">掲載データの正確性を<wbr>保証するものではなく、<wbr>本サイトのご利用により<wbr>生じたいかなる損害についても<wbr>運営者は<wbr>責任を負いかねます。</p>
+    <p data-i18n-html="foot.contact">お問い合わせ：<a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X（旧Twitter） @polarbear148691</a></p>
   </footer>
 </main>
 
 <div class="sheet" id="sheet"><div class="box" id="sheetBox"></div></div>
 <div class="previewModal" id="previewModal">
-  <img id="previewImg" alt="ユニット一覧の画像">
+  <img id="previewImg" alt="ユニット一覧の画像" data-i18n-attr="alt:ul.previewAlt">
   <div class="fmt" id="previewFmt"></div>
-  <div class="hint" id="previewHint">画像を長押し（PCは右クリック）で保存もできます</div>
-  <a id="downloadLink" download="unit_list.jpg">ダウンロード</a>
-  <button type="button" id="btnClosePreview">閉じる</button>
+  <div class="hint" id="previewHint" data-i18n="ul.previewHintJpg">画像を長押し（PCは右クリック）で保存もできます</div>
+  <a id="downloadLink" download="unit_list.jpg" data-i18n="ul.download">ダウンロード</a>
+  <button type="button" id="btnClosePreview" data-i18n="auth.close">閉じる</button>
 </div>
 
 <script>
@@ -336,7 +348,16 @@ const PRESETS = {
 };
 const ML_ICON = "images/ml/icon.jpg";   // 11/17 ML札のロゴ（マスターリーグのタイトル画像を縮小）
 const ML_ALL = "@ml";   // 79 自由に選ぶの列「マスリ対象すべて」（ブースト対象のどれかに当たるユニット）
-const LV_LABEL = ["無凸","1凸","2凸","完凸"];
+const LV_LABEL = ["無凸","1凸","2凸","完凸"].map((j,i)=>I18N.t("ul.lv"+i));
+// 104 英語対応：表示だけ英語にする（列・行・URL・判定に使う名前は日本語名のまま）
+const EN = I18N.isEn, T = I18N.t;
+const TN = n => { if(!EN) return n; const t=tagByName.get(n); return (t&&t.nameEn)||n; };                 // タグ名（日本語名から）
+const UN = u => (EN&&u.nameEn)||u.name;                                                                 // ユニット名
+const SN = s => (EN&&s.nameEn)||s.name;                                                                 // サポート名
+const MN = t => EN ? (t.nameEn||t.name) : mlShort(t.name);                                              // マスリの対象名（英語は略さない）
+const TYPE_TXT = ty => T("ul.type."+ty);                                                                // 攻撃→Attack
+const SKILL_TXT = s => EN ? (s.detail ? s.detail.split("/").map(x=>T("ul.skill."+x)).join("/") : T("ul.skill."+s.skill)) : s.skill;
+const STAGE_TXT = v => EN ? String(v).split("・").map(x=>T("ul.stage."+x)).join(" / ") : v;
 const $ = id => document.getElementById(id);
 function el(tag, attrs, kids){ const e=document.createElement(tag); if(attrs) for(const k in attrs){ if(k==="text") e.textContent=attrs[k]; else if(k==="class") e.className=attrs[k]; else e.setAttribute(k,attrs[k]); } (kids||[]).forEach(c=>c&&e.appendChild(c)); return e; }
 const jget = url => fetch(url, { credentials:"same-origin" }).then(r => r.ok ? r.json() : null).catch(() => null);
@@ -361,12 +382,13 @@ function pickSeason(list, today){
   const up=list.filter(x=>x.startsOn>today); if(up.length) return up[up.length-1].code;
   return list[0].code;
 }
-function seasonState(x){ if(!x) return ""; if(x.startsOn>TODAY) return "次回";
-  if(ML.some(y=>y.startsOn>x.startsOn&&y.startsOn<=TODAY)) return "終了";   // 後のシーズンが始まった
-  if(!mlOver(x,TODAY)) return "開催中"; return "終了"; }
+function seasonKey(x){ if(!x) return ""; if(x.startsOn>TODAY) return "next";
+  if(ML.some(y=>y.startsOn>x.startsOn&&y.startsOn<=TODAY)) return "end";   // 後のシーズンが始まった
+  if(!mlOver(x,TODAY)) return "live"; return "end"; }
+const seasonState = x => x ? T("ul.ml.state."+seasonKey(x)) : "";   // 104 表示用（判定は seasonKey）
 const curSeason=()=>ML.find(x=>x.code===state.season)||null;
 const seasonLabel=x=>x?("SEASON "+x.code):"";   // 79追加改修 10-20：テーマ名（ガンダムファイト等）は出さない
-const md=d=>d?Number(d.slice(5,7))+"/"+Number(d.slice(8,10)):"";
+const md=d=>d?I18N.md(d):"";
 // 79 ブースト対象の判定。tag＝URのタグ（units_tags）・work＝作品（unit_work_map。作品名のタグは無効化済みのため）
 const ML_SHORT={"オルタナティブシリーズ":"オルタナ","アルティメット":"ULT"};   // 79 追加改修2（10-21）：アルティメット→ULT
 const mlShort=n=>ML_SHORT[n]||n;   // 79 帯・詳細・画像の注記だけ略称（タグ名・判定・表の行列は正式名のまま）
@@ -375,15 +397,16 @@ try { ML_NARROW.addEventListener("change",()=>{ if(ML.length&&model) renderMlBar
 function mlTargets(x){
   if(!x) return [];
   return x.targets.map(t=>t.kind==="tag"
-    ? { name:t.name, tag:tagById.get(t.id)||null, has:u=>{ const s=tagsOf.get(u.unitId); return !!(s&&s.has(t.id)); } }
-    : { name:t.name, tag:null, has:u=>u.workId===t.id });
+    ? { name:t.name, nameEn:t.nameEn, tag:tagById.get(t.id)||null, has:u=>{ const s=tagsOf.get(u.unitId); return !!(s&&s.has(t.id)); } }
+    : { name:t.name, nameEn:t.nameEn, tag:null, has:u=>u.workId===t.id });
 }
 function mlHits(u){ return mlTargets(curSeason()).filter(t=>t.has(u)); }
 let model=null;   // 今の表（画面とCanvasで共用）
 
 function isNew(u){ if(!u.released) return false; const d=(Date.parse(TODAY)-Date.parse(u.released))/86400000; return d>=0 && d<=30; }
 const legName = n => String(n).replace(/ダメージ/g,"ダメ").replace(/武装(?=パワー)/g,"");   // 凡例だけ短く
-const effName = c => (effByCode.get(c)||{}).name || c;
+const effName = c => { const e=effByCode.get(c)||{}; return (EN&&e.nameEn)||e.name||c; };
+const legLabel = e => EN ? (e.nameEn||e.name) : legName(e.name);   // 104 凡例の名前（英語は短縮しない）
 const subCodes = u => state.sub ? (u.subEffects||[]) : [];   // 87 サブ武装のデバフ（units_effects の src='sub'。コード配列）
 
 // ---- URL（共有したリンクで同じ表が開く）----
@@ -426,21 +449,21 @@ function buildModel(){
   const colTags=state.cols.map(n=>tagByName.get(n)).filter(Boolean);
   const pool=units;
   const mlT=mlTargets(curSeason()), mlAny=u=>mlT.some(t=>t.has(u));
-  const cols=state.cols.map(n=>n===ML_ALL?(mlT.length?{ name:"マスリ対象", ml:true, has:mlAny }:null):(tagByName.has(n)?{ name:n, tag:tagByName.get(n), has:u=>has(u,tagByName.get(n)) }:null))
+  const cols=state.cols.map(n=>n===ML_ALL?(mlT.length?{ name:"マスリ対象", label:T("ul.ml.targets"), ml:true, has:mlAny }:null):(tagByName.has(n)?{ name:n, label:TN(n), tag:tagByName.get(n), has:u=>has(u,tagByName.get(n)) }:null))
     .filter(Boolean).map((c,i)=>Object.assign(c,{ color:c.ml?"#ff8ad8":COL_COLORS[i%5] }));
-  if(state.preset==="D") TYPE_ORDER.forEach(ty=>cols.push({ name:ty+"ユニット", color:TYPE_COL[ty], has:u=>u.type===ty }));
-  else if(!cols.length) cols.push({ name:"全URユニット", color:GRAY, has:()=>true });
-  else if(state.none) cols.push({ name:"無所属", color:GRAY, has:u=>!colTags.some(t=>has(u,t)) });
+  if(state.preset==="D") TYPE_ORDER.forEach(ty=>cols.push({ name:ty+"ユニット", label:T("ul.typeUnits."+ty), color:TYPE_COL[ty], has:u=>u.type===ty }));
+  else if(!cols.length) cols.push({ name:"全URユニット", label:T("ul.allUr"), color:GRAY, has:()=>true });
+  else if(state.none) cols.push({ name:"無所属", label:T("ul.noTag"), color:GRAY, has:u=>!colTags.some(t=>has(u,t)) });
   let rows;
-  if(state.rows==="type") rows=TYPE_ORDER.map(ty=>({ name:ty+"ユニット", color:TYPE_COL[ty], has:u=>u.type===ty }));
+  if(state.rows==="type") rows=TYPE_ORDER.map(ty=>({ name:ty+"ユニット", label:T("ul.typeUnits."+ty), color:TYPE_COL[ty], has:u=>u.type===ty }));
   else if(state.rows==="kind"||state.rows==="jukugo"){
-    rows=(state.rows==="kind"?KIND_ROWS:JUKUGO_ROWS).map(n=>tagByName.get(n)).filter(Boolean).map((t,i)=>({ name:t.name, tag:t, color:ROW_COLORS[i%6], has:u=>has(u,t) }));
+    rows=(state.rows==="kind"?KIND_ROWS:JUKUGO_ROWS).map(n=>tagByName.get(n)).filter(Boolean).map((t,i)=>({ name:t.name, label:TN(t.name), tag:t, color:ROW_COLORS[i%6], has:u=>has(u,t) }));
     const ids=rows.map(r=>r.tag);
-    rows.push({ name:"該当なし", color:GRAY, has:u=>!ids.some(t=>has(u,t)), hideIfEmpty:true });
+    rows.push({ name:"該当なし", label:T("ul.none"), color:GRAY, has:u=>!ids.some(t=>has(u,t)), hideIfEmpty:true });
   } else if(state.rows==="ml"){
     // 79 ブースト対象ごとに1行（両方に当たるユニットは両方の行に出る）
-    rows=mlT.map((t,i)=>({ name:t.name, tag:t.tag, color:["#ffb0e6","#ffd0f0","#ff8ad8","#f0b0ff"][i%4], has:t.has, ml:true }));
-  } else rows=[{ name:state.preset==="D"?"全UR":"すべて", color:GRAY, has:()=>true }];
+    rows=mlT.map((t,i)=>({ name:t.name, label:EN?(t.nameEn||t.name):t.name, tag:t.tag, color:["#ffb0e6","#ffd0f0","#ff8ad8","#f0b0ff"][i%4], has:t.has, ml:true }));
+  } else rows=[{ name:state.preset==="D"?"全UR":"すべて", label:T(state.preset==="D"?"ul.allUrShort":"ul.all"), color:GRAY, has:()=>true }];
   rows=rows.filter(r=>!r.hideIfEmpty||pool.some(u=>r.has(u)&&cols.some(c=>c.has(u))));
   if(state.rows==="ml"){ for(let i=cols.length-1;i>=0;i--) if(cols[i].name==="無所属"&&!pool.some(u=>cols[i].has(u)&&rows.some(r=>r.has(u)))) cols.splice(i,1); }   // 79 対象の中で空の「無所属」は出さない
   const per=n=>n>24?4:n>12?3:n>=2?2:1;   // 1マスに並べる枚数（多い列ほど広く）
@@ -478,9 +501,9 @@ function skillLabel(s){
 }
 function supChip(L){
   const s=L.s, sdim=state.dim&&SOWN&&!SOWN.has(s.id), sk=skillLabel(s);
-  const d=el("div",{class:"sup"+(sdim?" dim":""),title:`${s.name}（${s.skill}${L.conds>1?"・条件"+L.conds+"つ":""}）`},[el("img",{src:`${IMG}supporters/${s.id}.jpg`,alt:"",loading:"lazy"}),sdim?null:el("span",{class:"sk",text:sk})]);
+  const d=el("div",{class:"sup"+(sdim?" dim":""),title:EN?`${SN(s)} (${SKILL_TXT(s)}${L.conds>1?", "+L.conds+" conditions":""})`:`${s.name}（${s.skill}${L.conds>1?"・条件"+L.conds+"つ":""}）`},[el("img",{src:`${IMG}supporters/${s.id}.jpg`,alt:"",loading:"lazy"}),sdim?null:el("span",{class:"sk",text:sk})]);
   if(s.limited) d.appendChild(el("span",{class:"star",text:"★"}));
-  if(L.conds>1) d.appendChild(el("span",{class:"cond",text:"＋条件"}));
+  if(L.conds>1) d.appendChild(el("span",{class:"cond",text:T("ul.cond")}));
   const slv=SOWN?SOWN.get(s.id):undefined;
   if(state.lv&&SOWN&&slv!==undefined){ d.appendChild(el("span",{class:"lv"+(slv===3?" max":""),text:LV_LABEL[slv]||""})); if(slv===3) d.classList.add("max"); }
   return d;
@@ -489,16 +512,16 @@ const mlOn=()=>!!(state.mlhl&&state.preset!=="M"&&curSeason());   // 79 対象�
 function tile(u){
   const own=OWN?OWN.get(u.unitId):undefined;
   const isMax=state.lv&&OWN&&own===3;   // 凸表示ONの完凸は虹色の枠
-  const t=el("button",{type:"button",class:"tile"+(isNew(u)?" new":"")+(state.dim&&OWN&&own===undefined?" dim":"")+(isMax?" max":""),"aria-label":u.name});
+  const t=el("button",{type:"button",class:"tile"+(isNew(u)?" new":"")+(state.dim&&OWN&&own===undefined?" dim":"")+(isMax?" max":""),"aria-label":UN(u)});
   t.appendChild(el("img",{class:"u",src:`${IMG}units/${u.unitId}.jpg`,alt:"",loading:"lazy"}));
-  t.appendChild(el("img",{class:"ty",src:ICON+TYPE_ICON[u.type]+".png",alt:u.type}));
+  t.appendChild(el("img",{class:"ty",src:ICON+TYPE_ICON[u.type]+".png",alt:TYPE_TXT(u.type)}));
   const hideInfo=state.dim&&OWN&&own===undefined;   // 未所持を暗くする時は射程・武装・効果アイコンも消す
   if(!hideInfo&&u.rangeMax!=null) t.appendChild(el("span",{class:"rg",text:`${u.rangeMin}-${u.rangeMax}`}));
   if(!hideInfo&&u.rangeNote) t.appendChild(el("span",{class:"note",text:u.rangeNote}));
   const subs=subCodes(u);   // 87 サブ武装のデバフ（EXの下に同じ大きさ・水色の枠）
   if(!hideInfo&&((u.effects&&u.effects.length)||subs.length)){ const n=(u.effects||[]).length+subs.length, ef=el("span",{class:"ef"+(n>=3?" n3":"")});
     (u.effects||[]).forEach(c=>ef.appendChild(el("span",{class:"eic ex"},[el("img",{src:ICON+c+".png",alt:effName(c)})])));
-    subs.forEach(c=>ef.appendChild(el("span",{class:"eic"},[el("img",{src:ICON+c+".png",alt:"サブ武装："+effName(c)})]))); t.appendChild(ef); }
+    subs.forEach(c=>ef.appendChild(el("span",{class:"eic"},[el("img",{src:ICON+c+".png",alt:T("ul.subPrefix")+effName(c)})]))); t.appendChild(ef); }
   if(u.limited) t.appendChild(el("span",{class:"star",text:"★"}));
   if(state.lv&&OWN&&own!==undefined) t.appendChild(el("span",{class:"lv"+(isMax?" max":""),text:LV_LABEL[own]||""}));
   if(mlOn()){ const h=mlHits(u).length; if(h){ const b=el("span",{class:"ml logo"}), im=el("img",{src:ML_ICON,alt:"ML"}); im.onerror=()=>{ b.className="ml"; b.textContent="ML"; }; b.appendChild(im); t.appendChild(b); } else t.classList.add("mlout"); }   // 79
@@ -517,12 +540,12 @@ function render(){
   m.appendChild(el("div",{class:"corner"},[el("b",{text:"ALL"}),el("span",{class:"all",text:String(model.shown)})]));
   const hcells=[], rcells=[];
   model.cols.forEach(c=>{
-    const h=el("div",{class:"hcell",style:`--c:${c.color}`},[el("div",{class:"hname"},[el("span",{text:c.name}),el("span",{class:"n",text:String(c.count)})])]);
+    const h=el("div",{class:"hcell",style:`--c:${c.color}`},[el("div",{class:"hname"},[el("span",{text:c.label||c.name}),el("span",{class:"n",text:String(c.count)})])]);
     if(c.leaders.length){ const s=el("div",{class:"sups"}); c.leaders.forEach(x=>s.appendChild(supChip(x))); h.appendChild(s); }
     m.appendChild(h); hcells.push(h);
   });
   model.rows.forEach(r=>{
-    const h=el("div",{class:"rcell",style:`--c:${r.color}`},[el("div",{class:"hname"},[el("span",{text:r.name}),el("span",{class:"n",text:String(r.count)})])]);
+    const h=el("div",{class:"rcell",style:`--c:${r.color}`},[el("div",{class:"hname"},[el("span",{text:r.label||r.name}),el("span",{class:"n",text:String(r.count)})])]);
     if(r.leaders.length){ const s=el("div",{class:"sups"}); r.leaders.forEach(x=>s.appendChild(supChip(x))); h.appendChild(s); }
     m.appendChild(h); rcells.push(h);
     model.cols.forEach((c,ci)=>{
@@ -536,16 +559,16 @@ function render(){
   model.rows.forEach((r,ri)=>{ if(r.supMax) rcells[ri].dataset.area="1"; });
   const st=model.stats, os=$("ownStats"); os.textContent=""; os.hidden=!st;
   if(st){
-    const one=(cls,label,n,p)=>el("span",{class:cls},[document.createTextNode(label),el("b",{text:p+"%"}),document.createTextNode(`（${n}/${st.total}機）`)]);
-    os.appendChild(one("","所持率",st.own,st.ownPct)); os.appendChild(one("rb","完凸率",st.max,st.maxPct));
-    os.appendChild(el("span",{class:"av"},[document.createTextNode("平均凸Lv"),el("b",{text:st.avg.toFixed(1)})]));
+    const one=(cls,label,n,p)=>el("span",{class:cls},[document.createTextNode(label),el("b",{text:p+"%"}),document.createTextNode(T("ul.ofUnits",{n:n,total:st.total}))]);
+    os.appendChild(one("",T("ul.own"),st.own,st.ownPct)); os.appendChild(one("rb",T("ul.max"),st.max,st.maxPct));
+    os.appendChild(el("span",{class:"av"},[document.createTextNode(T("ul.avg")),el("b",{text:st.avg.toFixed(1)})]));
   }
   const lg=$("legend"); lg.textContent="";
-  model.legend.forEach(e=>lg.appendChild(el("span",{},[el("img",{src:ICON+e.code+".png",alt:""}),document.createTextNode(legName(e.name))])));
-  if(model.anyEx) lg.appendChild(el("span",{class:"wide"},[el("span",{class:"exk"}),document.createTextNode("虹の枠＝EX武装の効果")]));
-  if(model.anySub) lg.appendChild(el("span",{class:"wide"},[el("span",{class:"subk"}),document.createTextNode("水色の枠＝サブ武装のデバフ")]));   // 87
-  lg.appendChild(el("span",{},[el("span",{class:"newk"}),document.createTextNode("実装30日以内")]));
-  if(state.lv&&OWN) lg.appendChild(el("span",{},[el("span",{class:"maxk"}),document.createTextNode("完凸")]));
+  model.legend.forEach(e=>lg.appendChild(el("span",{},[el("img",{src:ICON+e.code+".png",alt:""}),document.createTextNode(legLabel(e))])));
+  if(model.anyEx) lg.appendChild(el("span",{class:"wide"},[el("span",{class:"exk"}),document.createTextNode(T("ul.leg.ex"))]));
+  if(model.anySub) lg.appendChild(el("span",{class:"wide"},[el("span",{class:"subk"}),document.createTextNode(T("ul.leg.sub"))]));   // 87
+  lg.appendChild(el("span",{},[el("span",{class:"newk"}),document.createTextNode(T("ul.leg.new"))]));
+  if(state.lv&&OWN) lg.appendChild(el("span",{},[el("span",{class:"maxk"}),document.createTextNode(T("ul.leg.max"))]));
   applyZoom();
   writeUrl();
 }
@@ -585,13 +608,13 @@ function renderMlBar(){
   if(!x) return;
   const sel=$("mlSeason"), mode=ML_NARROW.matches?"s":"l";   // 79 追加改修2：380px以下は「S17」
   if(sel.options.length!==ML.length||sel.dataset.mode!==mode){ sel.textContent=""; sel.dataset.mode=mode; ML.forEach(s=>sel.appendChild(el("option",{value:s.code,text:mode==="s"?"S"+s.code:seasonLabel(s)}))); }
-  sel.value=x.code; const st=seasonState(x); $("mlState").textContent=st; $("mlState").classList.toggle("end",st==="終了");
+  sel.value=x.code; const st=seasonState(x); $("mlState").textContent=st; $("mlState").classList.toggle("end",seasonKey(x)==="end");
   const tgEl=$("mlTargets"); tgEl.textContent="";   // 79追加改修：対象名ごとに span（名前の途中で割らない）
-  if(!x.targets.length) tgEl.textContent="未登録"; else x.targets.forEach((t,i)=>{ if(i) tgEl.appendChild(document.createTextNode("・")); tgEl.appendChild(el("span",{text:mlShort(t.name)})); });
+  if(!x.targets.length) tgEl.textContent=T("ul.unset"); else x.targets.forEach((t,i)=>{ if(i) tgEl.appendChild(document.createTextNode(EN?", ":"・")); tgEl.appendChild(el("span",{text:MN(t)})); });
   const nUr=units.filter(u=>mlHits(u).length).length;   // 79 対象のURの数（今のURで数える。過去シーズンも今のタグで判定）
   const mm=$("mlMeta"); mm.textContent="";   // 79追加改修：項目ごとに折り返さない札にする（スマホで「28／機」と割れないように）
-  [md(x.startsOn)+"〜"+md(x.endsOn), x.stage?"ステージ："+x.stage:"", x.note||"", nUr?"対象のUR "+nUr+"機":"URは対象外（SSR・ULT向けのシーズン）"].filter(Boolean).forEach(t=>mm.appendChild(el("span",{text:t})));
-  $("rowAxisMl").textContent="マスリ対象（"+(x.targets.map(t=>mlShort(t.name)).join("・")||"未登録")+"）";
+  [md(x.startsOn)+(EN?" – ":"〜")+md(x.endsOn), x.stage?T("ul.ml.stage",{s:STAGE_TXT(x.stage)}):"", EN?"":(x.note||""), nUr?T("ul.ml.nUr",{n:nUr}):T("ul.ml.noUr")].filter(Boolean).forEach(t=>mm.appendChild(el("span",{text:t})));
+  $("rowAxisMl").textContent=T("ul.rows.ml",{t:x.targets.map(MN).join(EN?", ":"・")||T("ul.unset")});
   $("optMlLabel").hidden=state.preset==="M"; $("optMl").checked=state.mlhl;
   renderMlStat(x);   // 81
 }
@@ -624,37 +647,37 @@ function renderMlStat(x){
   const box=$("mlStat"); box.textContent="";
   const nUr=units.filter(u=>mlHits(u).length).length;
   box.hidden=!nUr; if(!nUr) return;   // URが対象外のシーズン（SSR・ULT向け）は出さない
-  box.appendChild(el("div",{class:"h",text:"登録者の所持率"}));   // 対象の機数は上の行に出ている（81追加改修：「みんな」→「登録ユーザー」）
+  box.appendChild(el("div",{class:"h",text:T("ul.st.h")}));   // 対象の機数は上の行に出ている（81追加改修：「みんな」→「登録ユーザー」）
   if(!LOGGED){
-    const p=el("div",{class:"note"}); p.append("ログインすると、登録ユーザーが対象のURを何機持っているかと、あなたの位置が見られます（");
-    const a=el("a",{text:"ログイン / 新規登録"}); a.addEventListener("click",loginFrom("ul_ml")); p.append(a,"）"); box.appendChild(p); noteMlSeen(); return;
+    const p=el("div",{class:"note"}); p.append(T("ul.st.guest")+(EN?" (":"（"));
+    const a=el("a",{text:T("auth.loginOrRegister")}); a.addEventListener("click",loginFrom("ul_ml")); p.append(a,EN?")":"）"); box.appendChild(p); noteMlSeen(); return;
   }
   const d=ML_STAT.get(x.code);
   if(d===undefined){
     ML_STAT.set(x.code,"loading");
     jget("/api/analytics/ml?season="+encodeURIComponent(x.code)).then(r=>{ ML_STAT.set(x.code,r&&r.hist?r:"error"); const c=curSeason(); if(c&&c.code===x.code) renderMlStat(c); });
   }
-  if(!d||d==="loading"){ box.appendChild(el("div",{class:"note",text:"集計を読み込み中..."})); return; }
-  if(d==="error"){ box.appendChild(el("div",{class:"note",text:"集計を読み込めませんでした。時間をおいて再度お試しください。"})); return; }
+  if(!d||d==="loading"){ box.appendChild(el("div",{class:"note",text:T("ul.st.loading")})); return; }
+  if(d==="error"){ box.appendChild(el("div",{class:"note",text:T("ul.st.error")})); return; }
   const N=d.targetCount, tot=d.totalUsers||0, me=d.mine&&d.mine.registered?d.mine:null;
-  if(me) box.appendChild(el("div",{class:"me"},[document.createTextNode("あなた："),el("b",{text:me.owned+"機"}),document.createTextNode(" / "+N+"機（上位"+me.topPercent+"%）")]));
-  else { const p=el("div",{class:"note"}); p.append("ユニットの所持を登録すると、あなたの位置も出ます（"); p.appendChild(el("a",{href:"/unit",text:"ユニットチェッカーへ"})); p.append("）"); box.appendChild(p); }
+  if(me) box.appendChild(el("div",{class:"me"},[document.createTextNode(T("ul.st.you")),el("b",{text:T("ul.nUnits",{n:me.owned})}),document.createTextNode(T("ul.st.youRest",{n:N,p:me.topPercent}))]));
+  else { const p=el("div",{class:"note"}); p.append(T("ul.st.reg")+(EN?" (":"（")); p.appendChild(el("a",{href:"/unit",text:T("ul.st.toChecker")})); p.append(EN?")":"）"); box.appendChild(p); }
   const B=mlBuckets(N), cnt=B.map(([lo,hi])=>d.hist.slice(lo,hi+1).reduce((a,b)=>a+b,0)), mx=Math.max(1,...cnt), pc=pctDist(cnt,tot);
   const h=el("div",{class:"hist"});
   B.map((b,i)=>[b[0],b[1],i]).reverse().forEach(([lo,hi,i])=>{   // 所持機数の多い段を最上段に（降順）
     const m=!!(me&&me.owned>=lo&&me.owned<=hi), c=m?" mine":"";
-    h.appendChild(el("span",{class:"lb"+c,text:(lo===hi?(lo===N&&N>0?"全"+N+"機":lo+"機"):lo+"〜"+hi+"機")}));
+    h.appendChild(el("span",{class:"lb"+c,text:(lo===hi?(lo===N&&N>0?T("ul.st.all",{n:N}):T("ul.nUnits",{n:lo})):T("ul.st.range",{lo:lo,hi:hi}))}));
     const w=el("span",{class:"bw"}); w.appendChild(el("span",{class:"bar"+c,style:"width:"+(cnt[i]*100/mx)+"%"})); h.appendChild(w);
-    h.appendChild(el("span",{class:"v"+c,text:pc[i]+"%"+(m?" ◀あなた":"")}));
+    h.appendChild(el("span",{class:"v"+c,text:pc[i]+"%"+(m?T("ul.st.mark"):"")}));
   });
   box.appendChild(h);
-  box.appendChild(el("div",{class:"note",text:"平均 "+d.avg+"機・中央値 "+d.median+"機。集計対象 "+tot.toLocaleString()+"人（ユニットのデータ登録済み・"+d.asOf.slice(5,10).replace("-","/")+" "+d.asOf.slice(11)+" 時点）"}));
+  box.appendChild(el("div",{class:"note",text:T("ul.st.note",{avg:d.avg,med:d.median,tot:tot.toLocaleString(),at:(EN?I18N.md(d.asOf):d.asOf.slice(5,10).replace("-","/"))+" "+d.asOf.slice(11)})}));
   const det=el("details"); det.open=mlDetOpen; det.addEventListener("toggle",()=>{ mlDetOpen=det.open; });
-  det.appendChild(el("summary",{text:"対象URごとの登録ユーザーの所持率"}));
+  det.appendChild(el("summary",{text:T("ul.st.det")}));
   const ul=el("div",{class:"ul"});
   d.units.slice().sort((a,b)=>b.owners-a.owners||a.unitId-b.unitId).forEach(r=>{ const u=unitById.get(r.unitId); if(!u) return; const own=!!(OWN&&OWN.has(r.unitId));
-    ul.appendChild(el("img",{src:`${IMG}units/${r.unitId}.jpg`,alt:""})); ul.appendChild(el("span",{class:"nm",text:u.name}));
-    ul.appendChild(el("span",{class:"v",text:pct1(r.owners,tot)+"%"})); ul.appendChild(el("span",{class:"ow",text:own?"所持":""})); });
+    ul.appendChild(el("img",{src:`${IMG}units/${r.unitId}.jpg`,alt:""})); ul.appendChild(el("span",{class:"nm",text:UN(u)}));
+    ul.appendChild(el("span",{class:"v",text:pct1(r.owners,tot)+"%"})); ul.appendChild(el("span",{class:"ow",text:own?T("ul.owned"):""})); });
   det.appendChild(ul); box.appendChild(det);
 }
 function renderChips(){
@@ -666,14 +689,14 @@ function renderChips(){
   const x=curSeason(), mlT=mlTargets(x).filter(t=>t.tag).map(t=>t.tag);
   const mlChip=(label,key)=>{ const on=state.cols.includes(key); const b=el("button",{type:"button",class:"mlc"+(on?" on":""),text:label}); if(!on&&state.cols.length>=5) b.disabled=true;
     b.addEventListener("click",()=>{ const i=state.cols.indexOf(key); if(i>=0) state.cols.splice(i,1); else if(state.cols.length<5) state.cols.push(key); render(); }); return b; };
-  if(x){ box.appendChild(el("span",{class:"cg ml",text:"マスリ対象（"+seasonLabel(x)+"・"+seasonState(x)+"）"})); box.appendChild(mlChip("対象すべて",ML_ALL)); mlT.forEach(t=>box.appendChild(mlChip(t.name,t.name))); }
-  const groups=[["4大熟語タグ",pick(JUKUGO_ROWS)],["機体タグ",pick(KIND_ROWS)],["主要タグ",pick(PRESETS.B.cols)],["そのほか",avail.filter(t=>!used.has(t.tagId))]];
+  if(x){ box.appendChild(el("span",{class:"cg ml",text:T("ul.chip.ml",{s:seasonLabel(x),st:seasonState(x)})})); box.appendChild(mlChip(T("ul.chip.mlAll"),ML_ALL)); mlT.forEach(t=>box.appendChild(mlChip(TN(t.name),t.name))); }
+  const groups=[[T("ul.g.jukugo"),pick(JUKUGO_ROWS)],[T("ul.g.kind"),pick(KIND_ROWS)],[T("ul.g.main"),pick(PRESETS.B.cols)],[T("ul.g.other"),avail.filter(t=>!used.has(t.tagId))]];
   for(const [gname,list] of groups) if(list.length){
     box.appendChild(el("span",{class:"cg",text:gname}));
     for(const t of list){
     const cat=t.category;
     const on=state.cols.includes(t.name);
-    const b=el("button",{type:"button",class:on?"on":"",title:cat,text:t.name});
+    const b=el("button",{type:"button",class:on?"on":"",title:EN?"":cat,text:TN(t.name)});
     if(!on&&state.cols.length>=5) b.disabled=true;
     b.addEventListener("click",()=>{ const i=state.cols.indexOf(t.name); if(i>=0) state.cols.splice(i,1); else if(state.cols.length<5) state.cols.push(t.name); render(); });
     box.appendChild(b);
@@ -686,18 +709,22 @@ function openSheet(u){
   const hit=new Set(model.cols.map(c=>c.name).concat(model.rows.map(r=>r.name)));
   const own=OWN?OWN.get(u.unitId):undefined;
   b.appendChild(el("div",{class:"top"},[el("img",{src:`${IMG}units/${u.unitId}.jpg`,alt:""}),el("div",{},[
-    el("h3",{text:u.name}),
-    el("div",{class:"meta",text:`${u.type}${u.limited?"・期間限定":""}・射程 ${u.rangeMax!=null?u.rangeMin+"-"+u.rangeMax:"未登録"}${u.rangeNote?"（"+u.rangeNote+"）":""}`}),
-    el("div",{class:"meta",text:`実装日 ${u.released||"-"}${OWN?(own!==undefined?"・所持（"+(LV_LABEL[own]||"")+"）":"・未所持"):""}`})])]));
-  if(u.effects&&u.effects.length){ const s=el("div",{class:"sec"},[el("b",{text:"EX武装"})]); u.effects.forEach(c=>s.appendChild(el("div",{},[el("span",{class:"eicd ex"},[el("img",{src:ICON+c+".png",alt:""})]),document.createTextNode(effName(c))]))); b.appendChild(s); }
-  if(u.subEffects&&u.subEffects.length){ const s=el("div",{class:"sec"},[el("b",{text:"サブ武装のデバフ"})]);   // 87 水色の枠＝札と同じ
+    el("h3",{text:UN(u)}),
+    el("div",{class:"meta",text:EN
+      ? `${TYPE_TXT(u.type)}${u.limited?" · Limited":""} · Range ${u.rangeMax!=null?u.rangeMin+"-"+u.rangeMax:"N/A"}${u.rangeNote?" ("+u.rangeNote+")":""}`
+      : `${u.type}${u.limited?"・期間限定":""}・射程 ${u.rangeMax!=null?u.rangeMin+"-"+u.rangeMax:"未登録"}${u.rangeNote?"（"+u.rangeNote+"）":""}`}),
+    el("div",{class:"meta",text:EN
+      ? `Released ${u.released||"-"}${OWN?(own!==undefined?" · Owned ("+(LV_LABEL[own]||"")+")":" · Not owned"):""}`
+      : `実装日 ${u.released||"-"}${OWN?(own!==undefined?"・所持（"+(LV_LABEL[own]||"")+"）":"・未所持"):""}`})])]));
+  if(u.effects&&u.effects.length){ const s=el("div",{class:"sec"},[el("b",{text:T("ul.sh.ex")})]); u.effects.forEach(c=>s.appendChild(el("div",{},[el("span",{class:"eicd ex"},[el("img",{src:ICON+c+".png",alt:""})]),document.createTextNode(effName(c))]))); b.appendChild(s); }
+  if(u.subEffects&&u.subEffects.length){ const s=el("div",{class:"sec"},[el("b",{text:T("ul.opt.sub")})]);   // 87 水色の枠＝札と同じ
     u.subEffects.forEach(c=>s.appendChild(el("div",{},[el("span",{class:"eicd"},[el("img",{src:ICON+c+".png",alt:""})]),document.createTextNode(effName(c))]))); b.appendChild(s); }
-  { const x=curSeason(); if(x){ const h=mlHits(u).map(t=>mlShort(t.name)); b.appendChild(el("div",{class:"sec"},[el("b",{text:"マスターリーグ "+seasonLabel(x)+"（"+seasonState(x)+"）"}),el("div",{text:h.length?"ブースト対象（"+h.join("・")+"）":"対象外"})].concat((()=>{ const d=ML_STAT.get(x.code), r=h.length&&d&&d.units?d.units.find(z=>z.unitId===u.unitId):null;   // 81 ログイン中は対象のみんなの所持率も
-      return r?[el("div",{text:"登録ユーザーの所持率 "+pct1(r.owners,d.totalUsers)+"%（完凸 "+pct1(r.maxed,d.totalUsers)+"%）"})]:[]; })()))); } }   // 79
-  const s2=el("div",{class:"sec"},[el("b",{text:"タグ"})]); tg.forEach(t=>s2.appendChild(el("span",{class:"tagchip"+(hit.has(t.name)?" hit":""),text:t.name}))); b.appendChild(s2);
-  const L=[]; for(const t of tg) for(const x of leadersByTag.get(t.tagId)||[]) if(!L.some(y=>y.s.id===x.s.id)) L.push(Object.assign({tag:t.name},x));
-  if(L.length){ const s3=el("div",{class:"sec"},[el("b",{text:"このユニットが対象になるサポーター（タグ）"})]); L.forEach(x=>s3.appendChild(el("div",{text:`${x.s.limited?"★":""}${x.s.name}（${x.tag}）`}))); b.appendChild(s3); }
-  const c=el("button",{type:"button",class:"close",text:"閉じる"}); c.addEventListener("click",()=>$("sheet").classList.remove("show")); b.appendChild(c);
+  { const x=curSeason(); if(x){ const h=mlHits(u).map(MN); b.appendChild(el("div",{class:"sec"},[el("b",{text:T("ul.sh.ml",{s:seasonLabel(x),st:seasonState(x)})}),el("div",{text:h.length?T("ul.sh.boost",{t:h.join(EN?", ":"・")}):T("ul.sh.notTarget")})].concat((()=>{ const d=ML_STAT.get(x.code), r=h.length&&d&&d.units?d.units.find(z=>z.unitId===u.unitId):null;   // 81 ログイン中は対象のみんなの所持率も
+      return r?[el("div",{text:T("ul.sh.rate",{o:pct1(r.owners,d.totalUsers),m:pct1(r.maxed,d.totalUsers)})})]:[]; })()))); } }   // 79
+  const s2=el("div",{class:"sec"},[el("b",{text:T("ul.sh.tags")})]); tg.forEach(t=>s2.appendChild(el("span",{class:"tagchip"+(hit.has(t.name)?" hit":""),text:TN(t.name)}))); b.appendChild(s2);
+  const L=[]; for(const t of tg) for(const x of leadersByTag.get(t.tagId)||[]) if(!L.some(y=>y.s.id===x.s.id)) L.push(Object.assign({tag:TN(t.name)},x));
+  if(L.length){ const s3=el("div",{class:"sec"},[el("b",{text:T("ul.sh.sups")})]); L.forEach(x=>s3.appendChild(el("div",{text:EN?`${x.s.limited?"★":""}${SN(x.s)} (${x.tag})`:`${x.s.limited?"★":""}${x.s.name}（${x.tag}）`}))); b.appendChild(s3); }
+  const c=el("button",{type:"button",class:"close",text:T("auth.close")}); c.addEventListener("click",()=>$("sheet").classList.remove("show")); b.appendChild(c);
   $("sheet").classList.add("show");
 }
 
@@ -705,12 +732,12 @@ function openSheet(u){
 function loadImg(src){ return new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src; }); }
 function ymd(){ return TODAY.replace(/-/g,"."); }
 // 79 画像のタイトル：マスリ対象の表は「マスターリーグ SEASON n ブースト対象」
-function imgTitle(){ const x=curSeason(); return state.preset==="M"&&x?`${ymd()} マスターリーグ ${seasonLabel(x)} ブースト対象`:`${ymd()} タグ別UR機体一覧`; }
+function imgTitle(){ const x=curSeason(); return state.preset==="M"&&x?T("ul.img.titleMl",{d:ymd(),s:seasonLabel(x)}):T("ul.img.title",{d:ymd()}); }
 // 79 画像の副題：マスリを使っている表なら対象も書く
 function imgSub(opts){
-  return "※★は限定　※射程はキャラ能力含む最大値　※表の種類："+(state.preset==="M"?"4大熟語タグ × マスリ対象":PRESETS[state.preset].name)+(opts?"（"+opts+"）":""); }
+  return T("ul.img.sub",{p:state.preset==="M"?T("ul.preset.M"):T("ul.preset."+state.preset)})+(opts?(EN?" ("+opts+")":"（"+opts+"）"):""); }
 function imgMlNote(){ const x=curSeason(); if(!x||!(state.preset==="M"||mlOn()||state.cols.includes(ML_ALL)||state.rows==="ml")) return "";
-  return "※マスターリーグ "+seasonLabel(x)+"（"+seasonState(x)+"・"+md(x.startsOn)+"〜"+md(x.endsOn)+"）のブースト対象："+x.targets.map(t=>mlShort(t.name)).join("・")+(mlOn()?"　ML札＝対象":""); }
+  return T("ul.img.ml",{s:seasonLabel(x),st:seasonState(x),a:md(x.startsOn),b:md(x.endsOn),t:x.targets.map(MN).join(EN?", ":"・")})+(mlOn()?T("ul.img.mlTag"):""); }
 async function generateImage(){
   const T=92, TH=Math.round(T*.86), G=3, PAD=20, RH=132, SW=T-4, SH=Math.round((T-4)*.62);
   const colW=c=>T*c.per+14+3*c.per;
@@ -731,7 +758,7 @@ async function generateImage(){
   const LFONT='500 16px '+FONT, LIC=28, LROW=38;
   const mctx=document.createElement("canvas").getContext("2d"); mctx.font=LFONT;
   const lw=s=>LIC+6+mctx.measureText(s).width+22;
-  const litems=model.legend.map(e=>({e,w:lw(legName(e.name))})).concat(model.anyEx?[{k:"ex",wide:1}]:[]).concat(model.anySub?[{k:"sub",wide:1}]:[]).concat([{k:"new",w:0}]).concat(MAXON?[{k:"max",w:0}]:[]);
+  const litems=model.legend.map(e=>({e,w:lw(legLabel(e))})).concat(model.anyEx?[{k:"ex",wide:1}]:[]).concat(model.anySub?[{k:"sub",wide:1}]:[]).concat([{k:"new",w:0}]).concat(MAXON?[{k:"max",w:0}]:[]);
   const LCW=(W-PAD*2)/3; let lrow=0, lcol=0; litems.forEach(it=>{ if(it.wide&&lcol>0){ lrow++; lcol=0; } it.row=lrow; it.x=it.wide?0:lcol*LCW; if(it.wide){ lrow++; lcol=0; } else if(++lcol===3){ lcol=0; lrow++; } }); const lrows=Math.max(1,lrow+(lcol>0?1:0));
   const legendH=24+lrows*LROW;
   const H=Math.ceil(TOP+tableH*k+legendH+PAD);
@@ -753,10 +780,12 @@ async function generateImage(){
   ctx.textBaseline="alphabetic"; ctx.fillStyle="#eef3f6"; ctx.font=`700 22px ${FONT}`;
   ctx.fillText(imgTitle(),PAD+84,40);
   ctx.fillStyle="#b4c2d0"; ctx.font=`500 17px ${FONT}`;
-  const opts=[state.dim&&OWN?"未所持を暗く":"",MAXON?"凸表示":""].filter(Boolean).join("・");
+  const opts=[state.dim&&OWN?I18N.t("ul.img.dim"):"",MAXON?I18N.t("ul.opt.lv"):""].filter(Boolean).join(EN?", ":"・");
   ctx.fillText(imgSub(opts),PAD+84,68);
   if(imgMlNote()){ ctx.fillStyle="#ff8ad8"; ctx.font=`700 16px ${FONT}`; ctx.fillText(imgMlNote(),PAD+84,94); }   // 79 3行目
   const txt=(s,x,y,font,color,align)=>{ ctx.font=font; ctx.fillStyle=color; ctx.textAlign=align||"left"; ctx.fillText(s,x,y); ctx.textAlign="left"; };
+  // 104 見出しの名前：幅に収まらなければ文字を小さくする（英語名は長い）。最小10px
+  const txtFit=(s,x,y,maxW,size,color)=>{ let z=size; ctx.font=`700 ${z}px ${FONT}`; while(z>10&&ctx.measureText(s).width>maxW){ z--; ctx.font=`700 ${z}px ${FONT}`; } txt(s,x,y,ctx.font,color); };
   const rr=(x,y,w,h,r)=>{ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); };
   // 虹色（UR所持率チェッカーの完凸と同じ配色）。枠は円すい状（各辺で色が回る）、帯・文字は横向き
   const RAINBOW=["#ff5f6d","#ffc371","#fff27a","#9dff8a","#5bd8ef","#5b8def","#c471f5","#ff5f6d"];
@@ -775,9 +804,9 @@ async function generateImage(){
     ctx.font=`700 22px ${FONT}`; const titleEnd=PAD+84+ctx.measureText(imgTitle()).width;
     const LF=`700 13px ${FONT}`, VF='700 20px "Share Tech Mono",monospace', CF=`500 12px ${FONT}`, CH=30, CY=20, GAP=8, IP=10;
     const items=[
-      {l:"所持率",v:ST.ownPct+"%",c:`${ST.own}/${ST.total}機`,col:"#dab949"},
-      {l:"完凸率",v:ST.maxPct+"%",c:`${ST.max}/${ST.total}機`,rb:true},
-      {l:"平均凸Lv",v:ST.avg.toFixed(1),c:"",col:"#6be0e0"}];
+      {l:I18N.t("ul.own"),v:ST.ownPct+"%",c:`${ST.own}/${ST.total}`+I18N.t("ul.unitWord"),col:"#dab949"},
+      {l:I18N.t("ul.max"),v:ST.maxPct+"%",c:`${ST.max}/${ST.total}`+I18N.t("ul.unitWord"),rb:true},
+      {l:I18N.t("ul.avg"),v:ST.avg.toFixed(1),c:"",col:"#6be0e0"}];
     const mw=(f,t)=>{ ctx.font=f; return t?ctx.measureText(t).width:0; };
     items.forEach(it=>{ it.lw=mw(LF,it.l); it.vw=mw(VF,it.v); it.cw=mw(CF,it.c); it.w=IP+it.lw+6+it.vw+(it.c?5+it.cw:0)+IP; });
     const tw=items.reduce((a,it)=>a+it.w,0)+GAP*(items.length-1), avail=W-PAD-(titleEnd+20), f=Math.min(1,avail/tw);
@@ -832,11 +861,11 @@ async function generateImage(){
       ctx.strokeStyle="rgba(255,255,255,.3)"; ctx.lineWidth=1; rr(x+.5,y+.5,SW-1,SH-1,4); ctx.stroke();
       const sk=skillLabel(s);
       if(!(state.dim&&SOWN&&!SOWN.has(s.id))){ ctx.save(); ctx.font=`900 11px ${FONT}`; ctx.textAlign="right"; ctx.lineWidth=3; ctx.strokeStyle="#000"; ctx.strokeText(sk,x+SW-2,y+SH-3); ctx.fillStyle="#ff5a5a"; ctx.fillText(sk,x+SW-2,y+SH-3); ctx.restore(); }
-      if(L.conds>1){ ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(x+2,y+2,38,14); txt("＋条件",x+4,y+13,`10px ${FONT}`,"#fff"); }
+      if(L.conds>1){ ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(x+2,y+2,38,14); txt(I18N.t("ul.cond"),x+4,y+13,`10px ${FONT}`,"#fff"); }
       if(s.limited) star(x+2,y+SH-3,18);
       const slv=SOWN?SOWN.get(s.id):undefined;
       if(MAXON&&SOWN&&slv!==undefined){
-        if(slv===3){ maxFrame(x,y,SW,SH); const bw=26,bh=13,bx=x+(SW-bw)/2,by=y+SH-bh-2; rr(bx,by,bw,bh,4); ctx.fillStyle=rainbowBar(bx,bw); ctx.fill(); ctx.strokeStyle="#000"; ctx.lineWidth=1; rr(bx,by,bw,bh,4); ctx.stroke(); txt("完凸",bx+bw/2,by+10.5,`900 10px ${FONT}`,"#1b1503","center"); }
+        if(slv===3){ maxFrame(x,y,SW,SH); const bw=26,bh=13,bx=x+(SW-bw)/2,by=y+SH-bh-2; rr(bx,by,bw,bh,4); ctx.fillStyle=rainbowBar(bx,bw); ctx.fill(); ctx.strokeStyle="#000"; ctx.lineWidth=1; rr(bx,by,bw,bh,4); ctx.stroke(); txt(I18N.t("ul.lv3"),bx+bw/2,by+10.5,`900 10px ${FONT}`,"#1b1503","center"); }
         else { ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(x+SW/2-13,y+SH-15,26,13); txt(LV_LABEL[slv]||"",x+SW/2,y+SH-5,`10px ${FONT}`,"#fff","center"); }
       }
     });
@@ -848,14 +877,14 @@ async function generateImage(){
   x=RH;
   model.cols.forEach(c=>{
     const w=colW(c); cell(x,0,w,headH,mix(c.color,.22,BASE));
-    txt(c.name,x+6,24,`700 14px ${FONT}`,"#eef3f6"); txt(String(c.count),x+w-6,24,'700 14px "Share Tech Mono",monospace',"#dab949","right");
+    ctx.font='700 14px "Share Tech Mono",monospace'; txtFit(c.label||c.name,x+6,24,w-18-ctx.measureText(String(c.count)).width,14,"#eef3f6"); txt(String(c.count),x+w-6,24,'700 14px "Share Tech Mono",monospace',"#dab949","right");
     if(c.leaders.length) supChips(c.leaders,x+6,34,w);
     x+=w;
   });
   y=headH;
   model.rows.forEach((r,ri)=>{
     const h=rowH[ri]; cell(0,y,RH,h,mix(r.color,.26,BASE));
-    txt(r.name,8,y+24,`700 14px ${FONT}`,"#eef3f6"); txt(String(r.count),8,y+42,'700 14px "Share Tech Mono",monospace',"#dab949");
+    txtFit(r.label||r.name,8,y+24,RH-14,14,"#eef3f6"); txt(String(r.count),8,y+42,'700 14px "Share Tech Mono",monospace',"#dab949");
     if(r.leaders.length) supChips(r.leaders,6,y+50,RH);
     x=RH;
     model.cols.forEach((c,ci)=>{
@@ -883,7 +912,7 @@ async function generateImage(){
           const bx=tx+T/2;
           // 完凸の札は大きめ（13px・黒い縁取り）で、縮小して見ても読めるように
           if(isMax){ const bw2=32,bh2=14,by2=ty+TH-bh2-2; ctx.save(); ctx.shadowColor="rgba(0,0,0,.9)"; ctx.shadowBlur=3; rr(bx-bw2/2,by2,bw2,bh2,4); ctx.fillStyle=rainbowBar(bx-bw2/2,bw2); ctx.fill(); ctx.restore();
-            ctx.strokeStyle="#000"; ctx.lineWidth=1.2; rr(bx-bw2/2,by2,bw2,bh2,4); ctx.stroke(); txt("完凸",bx,by2+11.5,`900 11px ${FONT}`,"#1b1503","center"); }
+            ctx.strokeStyle="#000"; ctx.lineWidth=1.2; rr(bx-bw2/2,by2,bw2,bh2,4); ctx.stroke(); txt(I18N.t("ul.lv3"),bx,by2+11.5,`900 11px ${FONT}`,"#1b1503","center"); }
           else { ctx.fillStyle="rgba(10,14,20,.75)"; ctx.fillRect(bx-17,ty+TH-19,34,17); txt(LV_LABEL[own]||"",bx,ty+TH-6,`12px ${FONT}`,"#fff","center"); }
         }
         if(u.limited) star(tx+3,ty+TH-5,23);
@@ -911,11 +940,11 @@ async function generateImage(){
   ctx.textBaseline="middle"; ctx.textAlign="left";
   litems.forEach(it=>{
     const lx=PAD+it.x, ly=ly0+it.row*LROW+LROW/2-6;
-    if(it.e){ const im=imgs.get(ICON+it.e.code+".png"); if(im) sqImg(im,lx,ly-LIC/2,LIC); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText(legName(it.e.name),lx+LIC+6,ly); }
-    else if(it.k==="max"){ ctx.save(); ctx.fillStyle="#1a2433"; rr(lx+3,ly-7,LIC-10,14,3); ctx.fill(); ctx.restore(); maxFrame(lx+3,ly-7,LIC-10,14); ctx.textBaseline="middle"; ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("完凸",lx+LIC+6,ly); }
-    else if(it.k==="ex"){ ctx.strokeStyle=rainbowRing(lx+4,ly-10,LIC-8,20); ctx.lineWidth=1.25; rr(lx+4,ly-10,LIC-8,20,3); ctx.stroke(); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("虹の枠＝EX武装の効果",lx+LIC+6,ly); }
-    else if(it.k==="sub"){ ctx.strokeStyle="#6be0e0"; ctx.lineWidth=1.25; ctx.strokeRect(lx+4,ly-10,LIC-8,20); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("水色の枠＝サブ武装のデバフ",lx+LIC+6,ly); }   // 87
-    else { ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; ctx.strokeRect(lx+1.5,ly-9.5,LIC-6,19); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText("実装30日以内",lx+LIC+6,ly); }
+    if(it.e){ const im=imgs.get(ICON+it.e.code+".png"); if(im) sqImg(im,lx,ly-LIC/2,LIC); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText(legLabel(it.e),lx+LIC+6,ly); }
+    else if(it.k==="max"){ ctx.save(); ctx.fillStyle="#1a2433"; rr(lx+3,ly-7,LIC-10,14,3); ctx.fill(); ctx.restore(); maxFrame(lx+3,ly-7,LIC-10,14); ctx.textBaseline="middle"; ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText(I18N.t("ul.leg.max"),lx+LIC+6,ly); }
+    else if(it.k==="ex"){ ctx.strokeStyle=rainbowRing(lx+4,ly-10,LIC-8,20); ctx.lineWidth=1.25; rr(lx+4,ly-10,LIC-8,20,3); ctx.stroke(); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText(I18N.t("ul.leg.ex"),lx+LIC+6,ly); }
+    else if(it.k==="sub"){ ctx.strokeStyle="#6be0e0"; ctx.lineWidth=1.25; ctx.strokeRect(lx+4,ly-10,LIC-8,20); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText(I18N.t("ul.leg.sub"),lx+LIC+6,ly); }   // 87
+    else { ctx.strokeStyle="#ff3b3b"; ctx.lineWidth=3; ctx.strokeRect(lx+1.5,ly-9.5,LIC-6,19); ctx.font=LFONT; ctx.fillStyle="#b4c2d0"; ctx.fillText(I18N.t("ul.leg.new"),lx+LIC+6,ly); }
   });
   ctx.textBaseline="alphabetic";
   return cv;
@@ -933,7 +962,7 @@ function encodeJpeg(cv){
   return {url,q};
 }
 async function saveImage(fmt,btn){
-  const label=btn.textContent; btn.textContent="生成中..."; $("btnSave").disabled=true; $("btnSaveHq").disabled=true;
+  const label=btn.textContent; btn.textContent=T("ul.generating"); $("btnSave").disabled=true; $("btnSaveHq").disabled=true;
   try {
     const cv=await generateImage(), hq=fmt==="png";
     const enc=hq?{url:cv.toDataURL("image/png"),q:null}:encodeJpeg(cv);
@@ -942,10 +971,10 @@ async function saveImage(fmt,btn){
     const mb=((blob?blob.size:enc.url.length*0.75)/1048576).toFixed(1);
     $("previewImg").src=enc.url;
     const a=$("downloadLink"); a.href=previewBlobUrl||enc.url; a.download=hq?"unit_list.png":"unit_list.jpg";
-    $("previewFmt").textContent=(hq?"高画質（PNG）":"通常画質（JPEG）")+"・約"+mb+"MB";
-    $("previewHint").textContent=hq?"高画質はファイルが大きいため、長押しで保存できない端末があります。下の「ダウンロード」を使ってください":"画像を長押し（PCは右クリック）で保存もできます";
+    $("previewFmt").textContent=T(hq?"ul.fmtHq":"ul.fmt",{mb:mb});
+    $("previewHint").textContent=T(hq?"ul.previewHintPng":"ul.previewHintJpg");
     $("previewModal").classList.add("show");
-  } catch(err){ console.error(err); alert("画像の生成に失敗しました。\n(エラー内容: "+err.message+")"); }
+  } catch(err){ console.error(err); alert(T("ul.imgFail")+"\n("+err.message+")"); }
   finally { btn.textContent=label; $("btnSave").disabled=false; $("btnSaveHq").disabled=false; }
 }
 $("btnSave").addEventListener("click",()=>saveImage("jpeg",$("btnSave")));
@@ -984,7 +1013,7 @@ async function init(me){
   unitById=new Map(units.map(u=>[u.unitId,u]));
   tagById=new Map(tj.tags.map(t=>[t.tagId,t])); tagByName=new Map(tj.tags.map(t=>[t.name,t]));
   tagsOf=new Map(); for(const x of (tj.unitTags||[])) if(x.rarityCode===UR){ if(!tagsOf.has(x.unitId)) tagsOf.set(x.unitId,new Set()); tagsOf.get(x.unitId).add(x.tagId); }
-  supById=new Map(sj.supporters.map(s=>[s.supporterId,{id:s.supporterId,name:s.name,limited:!!s.limited,skill:s.skill,detail:s.skillDetail||null}]));
+  supById=new Map(sj.supporters.map(s=>[s.supporterId,{id:s.supporterId,name:s.name,nameEn:s.nameEn||null,limited:!!s.limited,skill:s.skill,detail:s.skillDetail||null}]));   // 104 nameEn
   effByCode=new Map(((ej&&ej.effects)||[]).map(e=>[e.code,e]));
   leadersByTag=new Map();
   const targets=(lj&&lj.targets)||[], condN=new Map();

@@ -985,7 +985,8 @@
       var x = live || up;
       if (!x) return null;
       var ML_SHORT = { 'オルタナティブシリーズ': 'オルタナ', 'アルティメット': 'ULT' };   /* 79 追加改修2（10-21）：unit-list.html と同じ略称 */
-      var targets = x.targets.map(function(t){ return ML_SHORT[t.name] || t.name; }).join('・');
+      var targets = I18N.isEn ? x.targets.map(function(t){ return t.nameEn || t.name; }).join(', ')   /* 104 英語はD1の英語名 */
+                              : x.targets.map(function(t){ return ML_SHORT[t.name] || t.name; }).join('・');
       var when = live ? I18N.t('feed.ml.live', { end: x.endsOn ? md(x.endsOn) : '' }) : I18N.t('feed.ml.next', { start: md(x.startsOn), end: md(x.endsOn) });
       return { kind: 'ml', tag: I18N.t('feed.tag.ml'),
         title: I18N.t('feed.ml.title', { code: x.code, targets: targets }),   /* タグが「マスリ」なので見出しは短く（スマホで対象まで見えるように） */

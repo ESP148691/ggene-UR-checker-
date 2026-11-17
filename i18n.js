@@ -15,7 +15,7 @@
   "use strict";
   // ---- 設定 ----
   var PUBLIC = false;                 // 公開前は false：ブラウザの言語で自動では英語にしない（?lang=en か切り替えボタンを押した人だけ英語）
-  var READY_PAGES = ["top"];          // 英語対応済みのページ。段階2で "unit-list"、段階3で "unit"、段階4で "supporter" を足す
+  var READY_PAGES = ["top", "unit-list"];   // 英語対応済みのページ。104（段階2）で "unit-list" を追加。段階3で "unit"、段階4で "supporter" を足す
   var KEY = "site_lang";
 
   function q(name) { try { return new URLSearchParams(location.search).get(name); } catch (e) { return null; } }
@@ -116,7 +116,8 @@
     try { apply(document); } finally { de.classList.remove("i18n-pending"); }
     document.querySelectorAll("[data-lang-switch]").forEach(mountSwitch);
     // 公開前（切り替えが運営者だけ）でも、英語で開いた人には日本語へ戻れるよう切り替えを出す
-    if (lang === "en") document.querySelectorAll("[data-lang-switch]").forEach(function (el) { var bar = el.closest("[hidden]"); if (bar) bar.hidden = false; });
+    // 104 公開後（PUBLIC）は全員に、公開前でも英語で開いた人には切り替えを出す（TOPの運営者向け表示は top.html の data-admin-only で別に出る）
+    if (lang === "en" || PUBLIC) document.querySelectorAll("[data-lang-switch]").forEach(function (el) { var bar = el.closest("[hidden]"); if (bar) bar.hidden = false; });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ready);
   else ready();
@@ -154,6 +155,11 @@
     "err.no_data":             { en: "No aggregated data yet." },
     "err.not_registered":      { en: "Please register your unit ownership data first." },
     "err.invalid_params":      { en: "Please choose a status for every unit before registering." },
-    "err.cannot_lower":        { en: "You can't lower the Limit Break of a unit you already own." }
+    "err.cannot_lower":        { en: "You can't lower the Limit Break of a unit you already own." },
+    // 104 フッター（全ページ共通。i18n-top.js にも同じキーがあり、TOPではそちらが後から上書きする）
+    "foot.1": { en: "This site is an unofficial tool made personally by a fan of “SD Gundam G Generation ETERNAL.” It has no affiliation with BANDAI NAMCO Entertainment Inc., SUNRISE Inc., or any other rights holders or companies related to the game." },
+    "foot.2": { en: "Copyrights and other intellectual property rights to in-game images, character names, data, etc. belong to their respective owners. All images on this site are in-game screenshots taken by the operator." },
+    "foot.3": { en: "The accuracy of the data is not guaranteed, and the operator accepts no liability for any damage arising from the use of this site." },
+    "foot.contact": { en: 'Contact: <a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X (formerly Twitter) @polarbear148691</a> (English or Japanese)' }
   });
 })(window);

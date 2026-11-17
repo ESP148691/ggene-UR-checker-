@@ -1322,6 +1322,14 @@ const parseJsonArray = (s) => { try { const v = JSON.parse(s); return Array.isAr
 // GET /api/units（認証不要）。URユニットのマスター（unit.html・top.htmlが読む）。unit_id順
 // 75 0043適用後：射程（rangeMin・rangeMax・rangeNote）と効果アイコンのコード配列（effects。sort_order順）も返す。未適用なら付けない
 // 87 0057適用後：units_effects.src＝'ex'（EX武装）／'sub'（サブ武装のデバフ）。effects は ex だけ、subEffects に sub のコード配列。未適用なら全部 effects
+// 104 英語対応 段階2：マスターの英語名（0070・0071）。英語名は別のSELECTで取り、列が無い（0070未適用）・失敗のときは空のMap（日本語名だけで動く）
+async function loadNameEn(env, table, idCol) {
+  try {
+    const { results } = await env.DB.prepare(`SELECT ${idCol} AS id, name_en FROM ${table} WHERE name_en IS NOT NULL`).all();
+    return new Map(results.map(r => [r.id, r.name_en]));
+  } catch (e) { return new Map(); }
+}
+
 async function handleUnits(request, env) {
   const sql = (cols) =>
     `SELECT u.unit_id, u.name, u.limited, u.type, ${cols}, m.work_id
@@ -1355,9 +1363,11 @@ async function handleUnits(request, env) {
       m.get(r.unit_id).push(r.effect_code);
     }
   } catch (e) { /* 0043未適用 */ }
+  const nameEn = await loadNameEn(env, "units_master", "unit_id");   // 104
   return jsonResponse({
     units: rows.map(r => {
       const u = { unitId: r.unit_id, name: r.name, limited: !!r.limited, type: r.type, workId: r.work_id };
+      if (nameEn.has(r.unit_id)) u.nameEn = nameEn.get(r.unit_id);   // 104 英語名（無ければ項目なし＝画面は日本語名）
       if (r.released_on) u.released = r.released_on;
       if (r.wrap) u.wrap = r.wrap;
       const fit = r.scan_fit ? parseJsonArray(r.scan_fit) : null;
@@ -1383,8 +1393,13 @@ async function handleEffects(request, env) {
   } catch (e) {
     return jsonResponse({ effects: [] }, 200);
   }
+  const nameEn = await loadNameEn(env, "effects_master", "effect_code");   // 104
   return jsonResponse({
-    effects: rows.map(r => ({ code: r.effect_code, name: r.name, kind: r.kind, sortOrder: r.sort_order }))
+    effects: rows.map(r => {
+      const e = { code: r.effect_code, name: r.name, kind: r.kind, sortOrder: r.sort_order };
+      if (nameEn.has(r.effect_code)) e.nameEn = nameEn.get(r.effect_code);
+      return e;
+    })
   }, 200, MASTER_CACHE);
 }
 
@@ -1407,6 +1422,7 @@ async function handleMlSeasons(request, env) {
   } catch (e) {
     return jsonResponse({ seasons: [] }, 200);   // 0048未適用
   }
+  const [tagEn, workEn] = await Promise.all([loadNameEn(env, "tags_master", "tag_id"), loadNameEn(env, "works_master", "work_id")]);   // 104
   const seasons = [], byCode = new Map();
   for (const r of rows) {
     let s = byCode.get(r.season_code);
@@ -1419,7 +1435,12 @@ async function handleMlSeasons(request, env) {
       byCode.set(r.season_code, s);
       seasons.push(s);
     }
-    if (r.target_kind && r.target_name) s.targets.push({ kind: r.target_kind, id: r.target_id, name: r.target_name });
+    if (r.target_kind && r.target_name) {
+      const t = { kind: r.target_kind, id: r.target_id, name: r.target_name };
+      const en = (r.target_kind === "tag" ? tagEn : workEn).get(r.target_id);   // 104
+      if (en) t.nameEn = en;
+      s.targets.push(t);
+    }
   }
   return jsonResponse({ seasons }, 200, MASTER_CACHE);
 }
@@ -1763,9 +1784,11 @@ async function handleSupporters(request, env) {
   } catch (e) {
     return jsonResponse({ supporters: [] }, 200);
   }
+  const nameEn = await loadNameEn(env, "supporters_master", "supporter_id");   // 104
   return jsonResponse({
     supporters: rows.map(r => {
       const s = { supporterId: r.supporter_id, name: r.name, limited: !!r.limited, skill: r.skill };
+      if (nameEn.has(r.supporter_id)) s.nameEn = nameEn.get(r.supporter_id);   // 104
       if (r.skill_detail) s.skillDetail = r.skill_detail;
       const fit = r.scan_fit ? parseJsonArray(r.scan_fit) : null;
       if (fit) s.scanFit = fit;
@@ -1804,6 +1827,7 @@ async function handleWorks(request, env) {
   } catch (e) {
     return jsonResponse({ works: [] }, 200);
   }
+  const workEn = await loadNameEn(env, "works_master", "work_id");   // 104
   const works = [];
   const byId = new Map();
   for (const r of rows) {
@@ -1815,6 +1839,7 @@ async function handleWorks(request, env) {
       };
       if (r.nick_name) w.nickName = r.nick_name;
       if (r.group_label) w.groupLabel = r.group_label;
+      if (workEn.has(r.work_id)) w.nameEn = workEn.get(r.work_id);   // 104
       byId.set(r.work_id, w);
       works.push(w);
     }
@@ -1845,9 +1870,11 @@ async function handleTags(request, env) {
   } catch (e) {
     return jsonResponse({ tags: [], unitTags: [] }, 200);
   }
+  const tagEn = await loadNameEn(env, "tags_master", "tag_id");   // 104
   return jsonResponse({
     tags: tags.map(r => {
       const t = { tagId: r.tag_id, name: r.name, category: r.category, appliesTo: r.applies_to, sortOrder: r.sort_order };
+      if (tagEn.has(r.tag_id)) t.nameEn = tagEn.get(r.tag_id);   // 104
       if (r.short_name) t.shortName = r.short_name;
       return t;
     }),
@@ -3242,9 +3269,14 @@ async function handleNewUnitAsk(request, env) {
   const today = jstDateString(new Date());
   const { units: all, answered } = await loadNewUnitSurvey(env, user.userUid, today, preview);
   const units = preview ? all : all.filter(u => !answered.has(u.unit_id));   // 回答済みのURは二度と聞かない
+  const nameEn = units.length ? await loadNameEn(env, "units_master", "unit_id") : new Map();   // 104 英語名（TOPの英語表示用）
   return jsonResponse({
     loggedIn: true, registered: true, preview, due: units.length > 0,
-    units: units.map(u => ({ unitId: u.unit_id, name: u.name, limited: !!u.limited, type: u.type, released: u.released_on, level: u.level === null || u.level === undefined ? null : u.level }))
+    units: units.map(u => {
+      const x = { unitId: u.unit_id, name: u.name, limited: !!u.limited, type: u.type, released: u.released_on, level: u.level === null || u.level === undefined ? null : u.level };
+      if (nameEn.has(u.unit_id)) x.nameEn = nameEn.get(u.unit_id);
+      return x;
+    })
   }, 200, noStore);
 }
 

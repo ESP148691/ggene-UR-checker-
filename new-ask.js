@@ -51,9 +51,10 @@
       var head = el("div", "askHead"); box.appendChild(head);
       var img = el("img"); img.src = "images/units/" + u.unitId + ".jpg"; img.alt = ""; head.appendChild(img);
       var t = el("div"); head.appendChild(t);
-      t.appendChild(el("div", "askName", u.name));
+      var nm = (window.I18N && I18N.isEn && u.nameEn) || u.name;   // 104 英語のときは英語名（無ければ日本語名）
+      t.appendChild(el("div", "askName", nm));
       t.appendChild(el("div", "askMeta", T("ask.meta", { md: window.I18N ? I18N.md(u.released) : md(u.released) }, "実装 " + md(u.released)) + (u.limited ? T("ask.limited", null, "・期間限定") : "") + (u.type && !(window.I18N && I18N.isEn) ? "・" + u.type : "")));
-      var row = el("div", "askOpts"); row.setAttribute("role", "radiogroup"); row.setAttribute("aria-label", T("ask.rowAria", { name: u.name }, u.name + "の所持状況")); box.appendChild(row);
+      var row = el("div", "askOpts"); row.setAttribute("role", "radiogroup"); row.setAttribute("aria-label", T("ask.rowAria", { name: nm }, u.name + "の所持状況")); box.appendChild(row);
       var btns = OPTS.map(function(o){
         var b = el("button", "", o.label); b.type = "button"; b.setAttribute("role", "radio");
         var c = cur[u.unitId];

@@ -22,7 +22,7 @@ I18N.add({
   "feed.tag.info": { ja: "お知らせ", en: "News" },
   "feed.tag.video":{ ja: "動画", en: "Video" },
   "feed.tag.ml":   { ja: "マスリ", en: "Master League" },
-  "feed.ml.title": { ja: "S{code} ブースト：{targets}", en: "Master League S{code}" },
+  "feed.ml.title": { ja: "S{code} ブースト：{targets}", en: "ML S{code} Boost: {targets}" },   // 104 英語にも対象（英語名）を出す
   "feed.ml.live":  { ja: "開催中 〜{end}", en: "Now on until {end}" },
   "feed.ml.next":  { ja: "次回 {start}〜{end}", en: "Next: {start}–{end}" },
   "feed.ml.stage": { ja: "・ステージ：{stage}", en: "" },
