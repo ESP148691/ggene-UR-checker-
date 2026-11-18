@@ -160,6 +160,7 @@
     "foot.1": { en: "This site is an unofficial tool made personally by a fan of “SD Gundam G Generation ETERNAL.” It has no affiliation with BANDAI NAMCO Entertainment Inc., SUNRISE Inc., or any other rights holders or companies related to the game." },
     "foot.2": { en: "Copyrights and other intellectual property rights to in-game images, character names, data, etc. belong to their respective owners. All images on this site are in-game screenshots taken by the operator." },
     "foot.3": { en: "The accuracy of the data is not guaranteed, and the operator accepts no liability for any damage arising from the use of this site." },
-    "foot.contact": { en: 'Contact: <a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X (formerly Twitter) @polarbear148691</a> (English or Japanese)' }
+    "foot.contact": { en: 'Contact: <a href="https://x.com/polarbear148691" target="_blank" rel="noopener">X (formerly Twitter) @polarbear148691</a> (English or Japanese)' },
+    "foot.support": { en: 'This tool is free. If you would like to support it, you can do so via <a href="https://ofuse.me/0fe1a4fe" target="_blank" rel="noopener">OFUSE</a> (optional; Japanese-language site).' }
   });
 })(window);
