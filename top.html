@@ -459,7 +459,7 @@
   <p class="sub" data-i18n="top.sub">Gジェネエターナルの<wbr>ファン向け<wbr>非公式ツールです。<wbr>新規登録・<wbr>ログインすることで<wbr>各種機能を<wbr>利用できます。</p>
   <!-- 95 ホーム画面から全画面で開いたときだけ表示（ブラウザで開いたときは出ない） -->
   <!-- 102 言語の切り替え。公開前は運営者だけ（data-admin-only は toggleAdminNav() が外す）。公開時は hidden と data-admin-only を消す -->
-  <div class="langBar" data-admin-only hidden><div data-lang-switch role="group" aria-label="言語" data-i18n-attr="aria-label:top.langAria"></div></div>
+  <div class="langBar"><div data-lang-switch role="group" aria-label="言語" data-i18n-attr="aria-label:top.langAria"></div></div>
   <div class="standaloneBar"><button type="button" id="reloadBtn" aria-label="ページを再読み込み" data-i18n="top.reload" data-i18n-attr="aria-label:top.reloadAria">&#x21bb; 再読み込み</button></div>
   <p class="standaloneNote" id="standaloneNote" hidden data-i18n="top.standaloneNote">ホーム画面から開いた場合は、ブラウザとは別にログインが必要です（最初の1回だけ）。</p>
 
@@ -560,7 +560,7 @@
     </a>
     <!-- 97 公開前は運営者だけ（data-admin-only hidden）。一般公開は2つの属性を消し、worker.js の MY_RANK_ADMIN_ONLY と my-rank.html の ADMIN_ONLY を false に -->
     <!-- 97 ユーザー別所持率分布（上位n%）。この節ごとログイン中のみ表示。バッジは /api/my-rank の結果（上位50%以内の一番良い指標） -->
-    <a class="navcard" href="/my-rank.html" id="myRankNav" data-admin-only hidden data-i18n-page="my-rank">
+    <a class="navcard" href="/my-rank.html" id="myRankNav" data-i18n-page="my-rank">
       <div class="icon analyticsIcon" aria-hidden="true">🏅</div>
       <div class="body">
         <div class="name" data-jaonly-slot><span data-i18n="an.rank.name">ユーザー別<wbr>所持率分布</span><span class="rankBadge" id="myRankBadge" hidden></span></div>

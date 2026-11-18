@@ -1452,7 +1452,7 @@ async function handleMlSeasons(request, env) {
 // 指標。unit_owned＝URユニット所持数／unit_max＝URユニット完凸数（level = 3）／sup_owned＝URサポート所持数
 // （エタロのクリアステージ数 er_stage は 11-15 ESP指示で外した。rank_hist に残っている古い行は7日で消える）
 // 公開前の確認用：true の間は /api/my-rank を運営者だけに返す（一般公開は false にして my-rank.html・top.html の切り替えと一緒にpush）
-const MY_RANK_ADMIN_ONLY = true;
+const MY_RANK_ADMIN_ONLY = false;
 const RANK_METRICS = ["unit_owned", "unit_max", "sup_owned"];
 const RANK_MIN_USERS = 20;                  // 母数がこれ未満の指標は「集計中」
 const RANK_HIST_KEEP_DAYS = 7;              // rank_hist に残す日数
@@ -1563,7 +1563,7 @@ async function handleMyRank(request, env) {
 // 時刻の持ち方：game_events の starts_at・ends_at は JST の 'YYYY-MM-DD HH:MM'（タイムゾーンなし）。文字列のまま大小比較できる。
 
 // 公開前の確認用：true の間は /api/events を運営者だけに返す（一般公開は false にして calendar.html・top.html の切り替えと一緒にpush）
-const EVENTS_ADMIN_ONLY = true;
+const EVENTS_ADMIN_ONLY = false;
 const EVENT_KINDS = ["gacha", "story", "raid", "tower", "ml", "campaign", "update"];
 const EVENT_PAST_DAYS = 30;               // 終了から何日まで返すか（終了の一覧用）
 const EVENT_MEMO_TTL_MS = 5 * 60 * 1000;  // 全員共通の予定をWorkerのメモリに持つ時間（運営者が保存したら消す）

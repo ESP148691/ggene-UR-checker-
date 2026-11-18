@@ -14,7 +14,7 @@
 (function (root) {
   "use strict";
   // ---- 設定 ----
-  var PUBLIC = false;                 // 公開前は false：ブラウザの言語で自動では英語にしない（?lang=en か切り替えボタンを押した人だけ英語）
+  var PUBLIC = true;               // 公開前は false：ブラウザの言語で自動では英語にしない（?lang=en か切り替えボタンを押した人だけ英語）
   var READY_PAGES = ["top", "unit-list"];   // 英語対応済みのページ。104（段階2）で "unit-list" を追加。段階3で "unit"、段階4で "supporter" を足す
   var KEY = "site_lang";
 

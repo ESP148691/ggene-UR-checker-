@@ -376,7 +376,7 @@
 <script>
 (function(){
   "use strict";
-  var ADMIN_ONLY = true;   /* true＝運営者専用（公開前の確認・切り戻し用）。一般公開は false＋worker.js・top.html の切り替え */
+  var ADMIN_ONLY = false;   /* true＝運営者専用（公開前の確認・切り戻し用）。一般公開は false＋worker.js・top.html の切り替え */
   var KIND = { gacha:'ガシャ', story:'イベント', raid:'強敵襲来', tower:'タワー', ml:'マスリ', campaign:'ミッション', update:'更新' };
   var KIND_GROUP = { gacha:'gacha', story:'event', raid:'event', tower:'event', campaign:'campaign', ml:'ml', update:'update' };
   var guardView = document.getElementById('guardView'), loadingView = document.getElementById('loadingView'),
