@@ -7,10 +7,10 @@ Claude Codeがセッション開始時に読む引き継ぎ情報。**2026-09-29
 - Cowork側の設計資料の索引と実装待ちの一覧は`../docs/COWORK.md`
 
 ## プロジェクトの目的
-Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェネレーション エターナル」のファン向けWebツールを展開する。サイトに広告・アフィリエイトは置かない。収益はX・YouTubeの公式機能と、OFUSEによる任意の支援（特典なし・フッターの1行のみ）。
+Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェネレーション エターナル」のファン向けWebツールを展開する。サイトに広告・アフィリエイトは置かない。収益はX・YouTubeの公式機能と、OFUSEによる任意の支援（特典なし・案内はフッターの小さなボタン1つのみ）。
 
 ## 権利面の方針（重要・変更不可）
-- サイトに広告・アフィリエイトは置かない。収益はX・YouTubeの公式機能と、OFUSEによる任意の支援（特典なし・フッターの1行のみ）（ESP承認：99＝11-11、106＝11-18）
+- サイトに広告・アフィリエイトは置かない。収益はX・YouTubeの公式機能と、OFUSEによる任意の支援（特典なし・案内はフッターの小さなボタン1つのみ）（ESP承認：99＝11-11、106＝11-18）
 - 掲載画像は**運営者自身のゲーム内スクリーンショットのみ**（攻略サイトや公式プロモ素材は使わない）
 - バンダイナムコのゲーム配信ガイドラインの「副次的収益」の解釈に基づく整理済みの方針。崩さないこと
 - 全ページのフッターに非公式・権利帰属・免責・問い合わせ先（X）を表示している
@@ -20,7 +20,7 @@ Xアカウント（@polarbear148691）を軸に、スマホゲーム「Gジェ�
 - 認証はユーザー名＋パスワードのみ（メール不要・個人情報を持たない）。**パスワードはPBKDF2（10万回）でハッシュ化**（`password_hash`。再設定は本人の変更画面`account.html`と運営者リセット`admin-account.html`のみ。メール・復旧コードは持たない。54）。**A-2が済むまでは`password`列に平文も残している**（A-1の切り戻し用。`worker.js`の`KEEP_PLAINTEXT_PASSWORD`）。セッションはHttpOnly Cookie（`Secure; SameSite=Lax`・30日・`sessions`TBL）
 - ゲストの所持データは保存しない（`usage_counters`に匿名の利用回数だけ）。ゲスト時代のデータをアカウントへ引き継ぐ機能は作らない（ユーザー確認済み）
 - コスト：Workers Paid（月5ドル）の枠内。上限超過は停止ではなく従量課金。**D1の読み込みは月250億行まで無料。超えると10億行あたり1ドル（2026-10に索引なしで$67.57の請求が出た＝84）。新しいSQLは`EXPLAIN QUERY PLAN`で全件読み（SCAN）になっていないかを確かめる。所持TBL・エタロのクリア記録TBLの索引は消さない**
-- **支援者への特典・機能差は付けない。支援の案内はフッターの1行だけ**（106）。**ページを増やすときはフッターの「お問い合わせ」の直下に`foot.support`の行も入れる**（`<p data-i18n-html="foot.support">…<a href="https://ofuse.me/0fe1a4fe" target="_blank" rel="noopener">OFUSE</a>から（任意）。</p>`。英語は`i18n.js`の共通の辞書にある。運営者専用ページ・試用版・`report.html`には入れない）
+- **支援者への特典・機能差は付けない。支援の案内はフッターの小さなボタン1つだけ（OFUSE公式の`widget.js`は使わない）**（106）。**ページを増やすときはフッターの「お問い合わせ」の直下に`foot.support`の行と、`</head>`の直前に`<style id="supportBtnCss">`も入れる**（`<p class="supportLine" data-i18n-html="foot.support">このツールは無料です。運営を支援してくださる方は下記ボタンから（任意）。<br><a class="supportBtn" href="https://ofuse.me/esp_fan_tool" target="_blank" rel="noopener">OFUSEで支援する</a></p>`。CSSは既存ページからそのまま写す。英語は`i18n.js`の共通の辞書にある。運営者専用ページ・試用版・`report.html`には入れない。付属スクリプトの再実行でも入る）
 - 所持率などの母数は「その機能でデータ登録済みのユーザー」（`users.*_first_registered_at IS NOT NULL`）。分子も同条件で`COUNT(DISTINCT user_uid)`
 
 ## インフラと運用
@@ -292,7 +292,7 @@ TBLの一覧・列は仕様書4章とER図を正とする。ここには運用�
 | 102 英語対応 段階1（共通の仕組み＋TOP） | 11-17 | D1・`worker.js`の変更なし。新規`i18n.js`（言語の決定＝`?lang=`→`localStorage.site_lang`→公開後はブラウザの言語→日本語、`I18N.t/add/apply/md/err/mountSwitch`、「Japanese only」の札、共通の辞書＝ログイン画面・エラー）・`i18n-top.js`（TOPの辞書）。`top.html`（見出しの下に「日本語｜English」、各欄に`data-i18n`）・`auth.js`・`new-ask.js`（`T()`で辞書、`I18N`が無ければ日本語）。Coworkの付属（11-14時点の`top.html`に当てたもの）を、11-15・16の改名（イベント情報・ユーザー別所持率分布、エタロのバッジ除外）と合わせて適用し、英語も「Events」「Ownership Distribution」に。追加の修正：`.langBar[hidden]{display:none}`（無いと運営者以外にも切り替えが見えた）・英語の「in 1 day」「1 day left」の単数形。**公開前の状態でpush（`PUBLIC = false`・`.langBar`に`data-admin-only hidden`）**。ハーネス（`scripts/card_check/server.mjs`＋本物の`worker.js`）で依頼書8章を確認（1024/390/320px）。**残り**：ESPが本番で`/top?lang=en`を確認→公開は`.langBar`の`data-admin-only`・`hidden`を消し`PUBLIC = true`にしてpush。段階2〜4は101の6章 |
 | 105（11-17） 新UR2機・新URサポーター1体 | 11-18 | 画像5枚（`images/units/92・93`・`characters/92・93`・`supporters/53`）はCoworkがcommit・push済み（9821c39）→0072をD1適用・確認SQLは期待値どおり。コード変更なし。URは93機・URサポーターは53体。英語名は104の0071末尾に追記済み（104適用時に入る）。残り：`scan_fit`、タグのゲーム内確認（`source`を`game`に） |
 | 104 英語対応 段階2（URユニット一覧） | 11-18 | 0070→0071をD1適用（確認SQLは期待値どおり）。`worker.js`：`loadNameEn()`（列が無い・失敗は空の`Map`）で`/api/units`・`supporters`・`tags`・`effects`・`works`・`ml-seasons`の対象・`/api/new-units/ask`に`nameEn`。新規`i18n-unit-list.js`、`unit-list.html`（`TN`・`UN`・`SN`・`MN`など表示用の関数。判定・URL・列や行のキーは日本語名のまま。`generateImage()`内は`T`がタイルの大きさなので辞書は`I18N.t()`）、`i18n.js`（`READY_PAGES`に`unit-list`・共通フッター・公開後は全ページで切り替え表示）、`top.html`・`i18n-top.js`・`new-ask.js`（マスリのお知らせ・新ユニット調査を英語名で）。付属の差分はマスリのロゴ画像（a68c0b5）以外そのまま当たり、2か所を手で合わせた。ローカル（本番マスターをexportしたD1）で確認：日本語の4種類の表と詳細シートが変更前の本番と文字まで一致、列が無いDBでマスターAPIが旧コードと同じJSON、英語名NULLは日本語で出る、320・390pxではみ出しなし、TOPの「Japanese only」が消える、コンソールエラーなし。ログイン時の所持率・新ユニット調査の英語は未確認。公開前のまま（`PUBLIC = false`） |
-| 106 OFUSEのフッター1行（英語対応込み） | 11-18 | D1・`worker.js`の変更なし。付属スクリプト`docs/05_機能拡張_有料プラン/データ/106_OFUSEフッター/106_apply_ofuse_footer.py`を`https://ofuse.me/0fe1a4fe`で実行：フッターのある13ページ（`top`・`unit-list`・`unit`・`supporter`・`eternal-road`・`challenge`・`analytics`・`calendar`・`my-rank`・`drop-list`・`favorite-info`・`profile-card`・`account`）の「お問い合わせ」の直下に`data-i18n-html="foot.support"`の1行、`i18n.js`の共通の辞書に`foot.support`（英語）。**スクリプトの除外条件（`admin-`始まり・`-trial`）から`analytics-admin.html`が漏れて入ったため手で戻した**（再実行時は注意）。検証：8章すべてOK（ハーネスで`/top`・`/unit-list`の英語／日本語、320・390pxで2行以内・文字の大きさと色がほかの行と同じ、コンソールエラーなし、2回目の実行は「変更なし」、カード20枚が変更前後で一致）。`card_check.py`の「NG 9：未登録ユーザーに案内とチェッカーへのリンクが出ない」は変更前から出ている既存の失敗 |
+| 106 OFUSEのフッター1行（英語対応込み） | 11-18 | D1・`worker.js`の変更なし。付属スクリプト`docs/05_機能拡張_有料プラン/データ/106_OFUSEフッター/106_apply_ofuse_footer.py`を実行（11-18にまず`https://ofuse.me/0fe1a4fe`・文字リンクで入れ、同日10:10の版＝ボタン風・URL`https://ofuse.me/esp_fan_tool`で入れ直し）：フッターのある13ページ（`top`・`unit-list`・`unit`・`supporter`・`eternal-road`・`challenge`・`analytics`・`calendar`・`my-rank`・`drop-list`・`favorite-info`・`profile-card`・`account`）の「お問い合わせ」の直下に`data-i18n-html="foot.support"`の1行（説明の文＋`<br>`＋枠線だけの小さなボタン`a.supportBtn`［OFUSEで支援する］）と`</head>`前の`<style id="supportBtnCss">`、`i18n.js`の共通の辞書に`foot.support`（英語。ボタンは「Support on OFUSE (Japanese site)」）。**スクリプトの除外条件（`admin-`始まり・`-trial`）から`analytics-admin.html`が漏れて入ったため手で戻した**（再実行時は注意）。検証：8章すべてOK（ハーネスで`/top`・`/unit-list`の英語／日本語、320・390pxでボタンが折れず1つの塊・水色の枠線・塗りなし・角丸・高さ28px・ほかの行と重ならない、コンソールエラーなし、2回目の実行は「変更なし」、カード20枚が変更前後で一致）。`card_check.py`の「NG 9：未登録ユーザーに案内とチェッカーへのリンクが出ない」は変更前から出ている既存の失敗 |
 
 ## 未完了・次にやること（2026-09-30 08:30時点・Coworkが進捗を反映）
 - **㊵チャレンジ**：実装・push・D1（0020・0021）適用済み（2026-09-30ユーザー確認）。運営者専用で稼働中。**一般公開は後日**（ユーザー決定。公開時は上の「一般公開の手順」）。設計書9章の後回し（分析ページのタブ・カードへの掲載・タグ縛り）は未着手
